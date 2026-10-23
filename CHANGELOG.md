@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.3.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.2.0...v0.3.0) (2026-10-23)
+
+
+### Features
+
+* **web:** add public landing and plugin marketplace ([#22](https://github.com/RINOHeinrich1/onir-cms/issues/22)) ([f724013](https://github.com/RINOHeinrich1/onir-cms/commit/f724013fcaff67a33a3fff33f0fdcddb0286259e))
+
 ## [0.2.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.1.1...v0.2.0) (2026-10-23)
 
 
