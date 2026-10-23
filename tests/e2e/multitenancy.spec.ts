@@ -46,7 +46,7 @@ test("super-admin : login, page Organisations et bascule vers l'organisation per
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
-  await page.waitForURL(/\/(organisations)?$/);
+  await page.waitForURL(/\/dashboard$/);
   await page.goto("/organisations");
   await expect(page.getByRole("heading", { name: "Organisations" })).toBeVisible();
   await expect(page.getByRole("cell", { name: /Onirtech/ }).first()).toBeVisible();

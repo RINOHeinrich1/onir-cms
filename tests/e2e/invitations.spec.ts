@@ -26,7 +26,7 @@ async function loginPage(page: Page): Promise<void> {
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL(
-    (current) => current.pathname === "/" || current.pathname === "/organisations",
+    (current) => current.pathname === "/dashboard" || current.pathname === "/organisations",
   );
 }
 
@@ -61,7 +61,7 @@ test("admin crée un lien, l'invité accepte et arrive sur le dashboard", async 
   await page.locator('input[name="password"]').fill("Invite-Password-123");
   await page.locator('input[name="confirmation"]').fill("Invite-Password-123");
   await page.getByRole("button", { name: "Rejoindre l'organisation" }).click();
-  await page.waitForURL((current) => current.pathname === "/");
+  await page.waitForURL((current) => current.pathname === "/dashboard");
   await expect(page.getByRole("link", { name: "ONIR CMS — tableau de bord" })).toBeVisible();
 
   // Le lien est à usage unique : sa réouverture ne propose plus le formulaire.
@@ -89,8 +89,8 @@ test("page sans organisation : un compte rattaché est redirigé vers le dashboa
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
-  await page.waitForURL((current) => current.pathname === "/");
+  await page.waitForURL((current) => current.pathname === "/dashboard");
   await page.goto("/no-organization");
-  await page.waitForURL((current) => current.pathname === "/");
+  await page.waitForURL((current) => current.pathname === "/dashboard");
   await expect(page.getByRole("link", { name: "ONIR CMS — tableau de bord" })).toBeVisible();
 });

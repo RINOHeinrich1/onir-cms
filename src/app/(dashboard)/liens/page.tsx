@@ -33,7 +33,7 @@ export default async function LiensPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "links:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

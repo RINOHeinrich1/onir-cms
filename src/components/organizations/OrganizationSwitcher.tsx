@@ -34,7 +34,7 @@ export function OrganizationSwitcher({
         setError(json.error ?? "Bascule impossible");
         return;
       }
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

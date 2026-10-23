@@ -30,7 +30,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
     redirect("/login");
   }
   if (!actorCan(context.actor, "conversations:read")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { id } = await params;

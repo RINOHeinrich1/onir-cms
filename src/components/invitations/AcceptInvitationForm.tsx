@@ -45,7 +45,7 @@ export function AcceptInvitationForm({ token }: { token: string }) {
         setError(json.error ?? "Acceptation impossible");
         return;
       }
-      router.replace(json.mustChangePassword === true ? "/change-password" : "/");
+      router.replace(json.mustChangePassword === true ? "/change-password" : "/dashboard");
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

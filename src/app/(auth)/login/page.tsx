@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user !== null) {
-    redirect(user.mustChangePassword ? "/change-password" : "/");
+    redirect(user.mustChangePassword ? "/change-password" : "/dashboard");
   }
 
   return (

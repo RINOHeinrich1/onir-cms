@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function ConfigurationPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!context.actor.isSuperAdmin) redirect("/");
+  if (!context.actor.isSuperAdmin) redirect("/dashboard");
 
   return (
     <section>

@@ -53,7 +53,7 @@ export function LoginForm() {
         // État « aucune organisation » (ADR-0025 §4).
         router.replace(NO_ORGANIZATION_PATH);
       } else {
-        router.replace("/");
+        router.replace("/dashboard");
       }
       router.refresh();
     } catch {

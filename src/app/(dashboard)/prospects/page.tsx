@@ -30,7 +30,7 @@ export default async function ProspectsPage({ searchParams }: PageProps) {
     redirect("/login");
   }
   if (!actorCan(context.actor, "prospects:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { prospect: filterId, origine: origineParam } = await searchParams;

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default async function InvitationsPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "invitations:list")) redirect("/");
+  if (!actorCan(context.actor, "invitations:list")) redirect("/dashboard");
 
   const pool = getPool();
   const records = await listInvitations(

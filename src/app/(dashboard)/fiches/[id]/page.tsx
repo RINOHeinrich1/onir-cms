@@ -28,7 +28,7 @@ export default async function FicheLecturePage({ params }: PageProps) {
     redirect("/login");
   }
   if (!actorCan(context.actor, "project:read")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { id } = await params;

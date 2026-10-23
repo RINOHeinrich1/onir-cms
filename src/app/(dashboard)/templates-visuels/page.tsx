@@ -23,7 +23,7 @@ export default async function VisualTemplatesPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "visualtemplates:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const repo = pgVisualTemplateRepository(getPool());

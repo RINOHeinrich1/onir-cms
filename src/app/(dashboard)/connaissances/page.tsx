@@ -22,7 +22,7 @@ export default async function ConnaissancesPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "connaissances:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

@@ -26,9 +26,9 @@ type PageProps = {
 export default async function TemplateDataPage({ params, searchParams }: PageProps) {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "visualtemplates:read")) redirect("/");
+  if (!actorCan(context.actor, "visualtemplates:read")) redirect("/dashboard");
   const organizationId = context.actor.organizationId;
-  if (organizationId === null) redirect("/");
+  if (organizationId === null) redirect("/dashboard");
 
   const { id } = await params;
   const query = await searchParams;

@@ -16,7 +16,7 @@ type NavItem = {
 };
 
 const ITEMS: readonly NavItem[] = [
-  { href: "/", label: "Vue globale", action: "dashboard:view" },
+  { href: "/dashboard", label: "Vue globale", action: "dashboard:view" },
   { href: "/prospects", label: "Prospects", action: "prospects:list" },
   { href: "/liens", label: "Liens de chat", action: "links:list" },
   { href: "/conversations", label: "Conversations", action: "conversations:list" },
@@ -101,7 +101,11 @@ export function DashboardHeader({
   return (
     <header className="bar">
       <div className="wrap bar-inner">
-        <Link href="/" className="brand brand-logo" aria-label="ONIR CMS — tableau de bord">
+        <Link
+          href="/dashboard"
+          className="brand brand-logo"
+          aria-label="ONIR CMS — tableau de bord"
+        >
           <BrandLogo priority />
         </Link>
 
