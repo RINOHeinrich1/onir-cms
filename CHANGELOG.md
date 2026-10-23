@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.1.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.1.0...v0.1.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **security:** ship Next.js 16.4.2 security updates ([#16](https://github.com/RINOHeinrich1/onir-cms/issues/16)) ([a3a408f](https://github.com/RINOHeinrich1/onir-cms/commit/a3a408f6169b9ce4f4ebfae21316034d025b7572))
+
 ## [Unreleased]
 
 ## [0.1.0] - 2026-10-23
