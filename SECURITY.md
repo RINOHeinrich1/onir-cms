@@ -10,6 +10,12 @@
 The project is in alpha. Security fixes are applied to the latest `0.1.x` release and to
 `main` when applicable. Older releases may not receive backports.
 
+## Recent security updates
+
+- **0.1.1** upgrades Next.js to **16.4.2**, which includes upstream fixes for
+  critical RCE advisories in `use cache` and the Image Optimization API, plus a
+  Server Actions denial-of-service advisory. Upgrade as soon as possible.
+
 ## Reporting a vulnerability
 
 **Do not open a public issue for a security vulnerability.**
