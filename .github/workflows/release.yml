@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish (for example v0.1.1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -20,12 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Validate tag
         id: version
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ inputs.tag || github.ref_name }}"
           VERSION="${TAG#v}"
           if [ "${VERSION}" = "${TAG}" ] || ! printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
             echo "::error::Tag ${TAG} invalide : attendu vX.Y.Z ou vX.Y.Z-suffixe."
@@ -38,7 +46,7 @@ jobs:
           fi
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
           IMAGE="ghcr.io/${OWNER}/onir-cms"
-          SHORT_SHA="${GITHUB_SHA::7}"
+          SHORT_SHA="$(git rev-parse --short=7 HEAD)"
           MAJOR_MINOR="$(printf '%s' "${VERSION}" | cut -d. -f1-2)"
           APP_TAGS="${IMAGE}:${VERSION},${IMAGE}:sha-${SHORT_SHA}"
           MIGRATE_TAGS="${IMAGE}:${VERSION}-migrate,${IMAGE}:sha-${SHORT_SHA}-migrate"
@@ -46,6 +54,7 @@ jobs:
             APP_TAGS="${APP_TAGS},${IMAGE}:${MAJOR_MINOR},${IMAGE}:latest"
           fi
           {
+            echo "tag=${TAG}"
             echo "version=${VERSION}"
             echo "image=${IMAGE}"
             echo "app_tags=${APP_TAGS}"
@@ -100,13 +109,14 @@ jobs:
       - name: Create GitHub release if missing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "Release ${GITHUB_REF_NAME} already exists (created by release-please)."
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists (created by release-please)."
             exit 0
           fi
           if printf '%s' "${{ steps.version.outputs.version }}" | grep -q '-'; then
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes --prerelease
+            gh release create "${TAG}" --verify-tag --generate-notes --prerelease
           else
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes
+            gh release create "${TAG}" --verify-tag --generate-notes
           fi
