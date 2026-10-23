@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.2.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.1.1...v0.2.0) (2026-10-23)
+
+
+### Features
+
+* **brand:** replace header logo with ONIR CMS ([#20](https://github.com/RINOHeinrich1/onir-cms/issues/20)) ([631ee55](https://github.com/RINOHeinrich1/onir-cms/commit/631ee55e5a2ca1f2f4c412ab073c9133fbe30666))
+
 ## [0.1.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.1.0...v0.1.1) (2026-10-23)
 
 
