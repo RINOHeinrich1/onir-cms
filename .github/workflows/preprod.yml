@@ -1,0 +1,128 @@
+name: Preprod
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: preprod
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build preprod images
+    if: vars.PREPROD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
+          TAG="preprod-${SHORT_SHA}"
+          {
+            echo "image=ghcr.io/${OWNER}/onir-cms"
+            echo "tag=${TAG}"
+            echo "sha=${GITHUB_SHA}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push application
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:preprod
+          build-args: |
+            VERSION=0.0.0-preprod
+            REVISION=${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=preprod-runner
+          cache-to: type=gha,mode=max,scope=preprod-runner
+
+      - name: Build and push migrations
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrate
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}-migrate
+            ${{ steps.meta.outputs.image }}:preprod-migrate
+          build-args: |
+            VERSION=0.0.0-preprod
+            REVISION=${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=preprod-migrate
+          cache-to: type=gha,mode=max,scope=preprod-migrate
+
+  deploy:
+    name: Deploy and smoke test preprod
+    needs: build
+    if: vars.PREPROD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: preprod
+      url: https://preprod-cms.onirtech.com
+    steps:
+      - name: Configure SSH
+        env:
+          PREPROD_SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
+          PREPROD_KNOWN_HOSTS: ${{ secrets.PREPROD_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "${HOME}/.ssh"
+          printf '%s\n' "${PREPROD_SSH_KEY}" > "${HOME}/.ssh/preprod"
+          chmod 600 "${HOME}/.ssh/preprod"
+          printf '%s\n' "${PREPROD_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
+          chmod 600 "${HOME}/.ssh/known_hosts"
+
+      - name: Deploy
+        env:
+          PREPROD_HOST: ${{ secrets.PREPROD_HOST }}
+          PREPROD_USER: ${{ secrets.PREPROD_USER }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ssh -i "${HOME}/.ssh/preprod" \
+            -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
+            -o StrictHostKeyChecking=yes \
+            "${PREPROD_USER}@${PREPROD_HOST}" \
+            "/opt/onir-cms-preprod/deploy.sh '${IMAGE_TAG}'"
+
+      - name: Smoke test
+        env:
+          PREPROD_BASIC_USER: ${{ secrets.PREPROD_BASIC_USER }}
+          PREPROD_BASIC_PASSWORD: ${{ secrets.PREPROD_BASIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          BASE="https://preprod-cms.onirtech.com"
+          AUTH="${PREPROD_BASIC_USER}:${PREPROD_BASIC_PASSWORD}"
+          curl -fsS "${BASE}/api/health" | grep -q '"ok":true'
+          curl -fsS -u "${AUTH}" "${BASE}/" | grep -q "Des conversations qui deviennent des prospects"
+          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/plugins"
+          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/plugins/immersive-4.44.0.onirtech-template"
+          echo "Preprod smoke test OK."

@@ -1,0 +1,57 @@
+# Preprod ONIR CMS
+
+Environnement isolé pour valider `main` avant une release de production.
+
+## Modèle
+
+- URL : `https://preprod-cms.onirtech.com`
+- Répertoire hôte : `/opt/onir-cms-preprod`
+- Projet Compose : `onir-cms-preprod`
+- App : `127.0.0.1:3200`
+- PostgreSQL : `127.0.0.1:5436`
+- Volumes : `onir-cms-preprod_db_data`, `onir-cms-preprod_media_data`
+- Accès protégé par basic auth Nginx, `noindex`.
+- Base et secrets séparés de la production.
+
+## Flux
+
+1. Merge sur `main`.
+2. GitHub Actions construit `preprod-<sha>` et `preprod-<sha>-migrate`.
+3. Déploiement SSH dans `/opt/onir-cms-preprod`.
+4. Smoke tests sur `preprod-cms.onirtech.com`.
+5. Après validation, la release `vX.Y.Z` est publiée.
+6. Le déploiement production reste manuel avec approbation.
+
+## Activation
+
+Le workflow est désactivé tant que la variable GitHub `PREPROD_ENABLED` n'est pas à `true`.
+
+Après le bootstrap de l'hôte :
+
+```bash
+gh variable set PREPROD_ENABLED --body true
+```
+
+## Déploiement manuel / rollback
+
+```bash
+ssh deploy-preprod@preprod-cms.onirtech.com \
+  "/opt/onir-cms-preprod/deploy.sh preprod-<sha>"
+```
+
+Le tag `preprod-<sha>` est immuable : un rollback consiste à redéployer un tag précédent.
+
+## Secrets
+
+Les secrets de l'environnement GitHub `preprod` sont :
+
+- `PREPROD_HOST`
+- `PREPROD_USER`
+- `PREPROD_SSH_KEY`
+- `PREPROD_KNOWN_HOSTS`
+- `PREPROD_BASIC_USER`
+- `PREPROD_BASIC_PASSWORD`
+
+## Données
+
+Ne jamais copier la base de production. Utiliser une base vide et un compte admin de preprod.
