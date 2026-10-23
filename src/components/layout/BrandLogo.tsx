@@ -1,27 +1,27 @@
 import Image from "next/image";
 
 /**
- * Logo de marque Onirtech : variante claire en thème clair, variante sombre
- * (`onirtech-dark.png`) en thème sombre. Bascule en CSS pur via `[data-theme]`,
- * sans JavaScript — même principe que le site vitrine.
+ * Logo de marque ONIR CMS : variante claire en thème clair, variante sombre
+ * (`onir-cms-dark.webp`) en thème sombre. Bascule en CSS pur via `[data-theme]`,
+ * sans JavaScript.
  */
 export function BrandLogo({ priority = false }: { priority?: boolean }) {
   return (
     <>
       <Image
-        src="/logo/onirtech.png"
-        alt="Onirtech"
-        width={121}
-        height={51}
+        src="/logo/onir-cms-light.webp"
+        alt="ONIR CMS"
+        width={600}
+        height={177}
         priority={priority}
         className="logo-light"
       />
       <Image
-        src="/logo/onirtech-dark.png"
+        src="/logo/onir-cms-dark.webp"
         alt=""
         aria-hidden
-        width={121}
-        height={51}
+        width={600}
+        height={177}
         className="logo-dark"
       />
     </>
