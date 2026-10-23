@@ -125,7 +125,6 @@ jobs:
       E2E_ADMIN_EMAIL: admin@example.com
       E2E_ADMIN_PASSWORD: E2e-Password-123
       APP_URL: http://127.0.0.1:3008
-      E2E_BASE_URL: http://127.0.0.1:3008
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
