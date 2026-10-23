@@ -45,7 +45,7 @@ openssl rand -hex 16   # POSTGRES_PASSWORD
 
 Renseigner `.env.release` :
 
-- `ONIR_CMS_VERSION` : version sans le préfixe `v` (ex. `0.1.0`)
+- `ONIR_CMS_VERSION` : version sans le préfixe `v` (ex. `0.1.1`)
 - `POSTGRES_PASSWORD` : mot de passe fort
 - `SESSION_SECRET`, `LINK_TOKEN_KEY`, `AI_PROVIDER_KEY`
 - `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`
