@@ -43,7 +43,7 @@ function trustBadgeClass(trustLevel: string): string {
 export default async function VisualTemplatePage({ params, searchParams }: PageProps) {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "visualtemplates:read")) redirect("/");
+  if (!actorCan(context.actor, "visualtemplates:read")) redirect("/dashboard");
 
   const { id } = await params;
   const { version: requestedVersion } = await searchParams;

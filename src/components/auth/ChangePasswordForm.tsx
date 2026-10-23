@@ -37,7 +37,7 @@ export function ChangePasswordForm() {
         setError(json.error ?? "Changement impossible");
         return;
       }
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

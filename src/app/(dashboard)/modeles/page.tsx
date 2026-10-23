@@ -22,7 +22,7 @@ export default async function ModelesPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "templates:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

@@ -32,7 +32,7 @@ export default async function OrganisationsPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "organizations:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

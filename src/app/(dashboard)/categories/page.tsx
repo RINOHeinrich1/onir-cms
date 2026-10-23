@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default async function CategoriesPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "categories:list")) redirect("/");
+  if (!actorCan(context.actor, "categories:list")) redirect("/dashboard");
 
   const pool = getPool();
   const categories = await listCategories(

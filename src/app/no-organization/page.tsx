@@ -27,7 +27,7 @@ export default async function NoOrganizationPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
   if (context.user.mustChangePassword) redirect("/change-password");
-  if (context.actor.organizationId !== null) redirect("/");
+  if (context.actor.organizationId !== null) redirect("/dashboard");
 
   const pool = getPool();
   const organizations = pgOrganizationRepository(pool);
@@ -50,7 +50,7 @@ export default async function NoOrganizationPage() {
       context.session.id,
       { organizationId: first.id },
     );
-    redirect("/");
+    redirect("/dashboard");
   }
 
   return (

@@ -29,7 +29,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
     redirect("/login");
   }
   if (!actorCan(context.actor, "conversations:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { filtre: filtreParam, lien: lienParam } = await searchParams;

@@ -48,7 +48,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     redirect("/login");
   }
   if (!actorCan(sessionContext.actor, "links:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { id } = await params;

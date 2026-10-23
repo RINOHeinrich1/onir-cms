@@ -25,7 +25,7 @@ export default async function ConfidentialitesPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "confidentialites:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

@@ -25,7 +25,7 @@ export default async function MediasPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "medias:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();

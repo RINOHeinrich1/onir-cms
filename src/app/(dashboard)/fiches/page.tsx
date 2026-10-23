@@ -32,7 +32,7 @@ export default async function FichesPage({ searchParams }: PageProps) {
     redirect("/login");
   }
   if (!actorCan(context.actor, "project:read")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const { filtre: filtreParam, lien: lienParam } = await searchParams;

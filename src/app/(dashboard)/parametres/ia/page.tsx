@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function AiSettingsPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "ai:list")) redirect("/");
+  if (!actorCan(context.actor, "ai:list")) redirect("/dashboard");
 
   const pool = getPool();
   const repository = pgAiProviderRepository(pool);

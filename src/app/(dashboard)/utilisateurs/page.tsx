@@ -24,7 +24,7 @@ export default async function UtilisateursPage() {
     redirect("/login");
   }
   if (!actorCan(context.actor, "users:list")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const pool = getPool();
