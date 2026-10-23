@@ -56,7 +56,7 @@ AI_PROVIDER_KEY="$(openssl rand -hex 32)"
 ADMIN_PASSWORD="Admin-$(openssl rand -hex 8)"
 
 cat > "$HOME/.onir-cms.env" <<EOF
-ONIR_CMS_VERSION=0.1.0
+ONIR_CMS_VERSION=0.1.1
 DATABASE_URL=postgres://onir_cms:$DB_PASSWORD@onir-cms-db:5432/onir_cms
 SESSION_SECRET=$SESSION_SECRET
 LINK_TOKEN_KEY=$LINK_TOKEN_KEY
@@ -390,7 +390,7 @@ export default function InstallationPage() {
         </li>
         <li>
           <strong>Image introuvable</strong> : vérifier que la version existe avec{" "}
-          <code>sudo docker pull ghcr.io/rinoheinrich1/onir-cms:0.1.0</code>.
+          <code>sudo docker pull ghcr.io/rinoheinrich1/onir-cms:0.1.1</code>.
         </li>
         <li>
           <strong>Application non healthy</strong> : consulter{" "}
