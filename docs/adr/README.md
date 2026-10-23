@@ -1,0 +1,35 @@
+# ADR — ONIR CMS
+
+Index des décisions d'architecture d'ONIR CMS.
+Les ADR sont immuables une fois acceptées ; toute évolution passe par une nouvelle
+ADR qui remplace la précédente.
+
+| ID | Titre | Statut |
+|---|---|---|
+| [0001](0001-socle-nextjs-16-app-router.md) | Socle Next.js 16 App Router + TypeScript strict | Accepté |
+| [0002](0002-architecture-couches.md) | Architecture en couches (domain / application / infrastructure) | Accepté |
+| [0003](0003-postgres-pg-sql.md) | PostgreSQL dédié via `pg` et SQL brut | Accepté |
+| [0004](0004-auth-sessions-cookie.md) | Authentification par session cookie + hachage scrypt | Accepté |
+| [0005](0005-rbac-matrice-roles.md) | Matrice de rôles centralisée `can(role, action)` | Accepté |
+| [0006](0006-ia-infomaniak-openai-compat.md) | IA Infomaniak OpenAI-compatible (chat) | Accepté |
+| [0007](0007-liens-chat-specifique-standard.md) | Liens de chat spécifique / standard | Accepté |
+| [0008](0008-fiche-projet-markdown.md) | Fiche projet Markdown téléchargeable | Accepté |
+| [0011](0011-modeles-raisonnement-db.md) | Modèles de raisonnement pilotés par la base | Accepté |
+| [0012](0012-base-connaissances-mini-rag.md) | Base de connaissances — mini-RAG par sélection de titres | Accepté |
+| [0013](0013-medias-phototheque-liens.md) | Médias — photothèque et liens proposés par l'IA | Accepté |
+| [0016](0016-suivi-conversations.md) | Suivi des conversations (statut, reprise, fiche a posteriori) | Accepté |
+| [0017](0017-fiches-multiples-archivage-conversations.md) | Fiches multiples par conversation & archivage des conversations | Accepté |
+| [0018](0018-confidentialite-consentement.md) | Politiques de confidentialité & consentement du visiteur | Accepté |
+| [0019](0019-templates-visuels-package-ui.md) | Templates visuels — packages UI-only (norme et contrat hôte v1) | Proposé |
+| [0020](0020-capacites-coeur-etat-visiteur-connaissances.md) | Capacités du cœur exposées aux templates — état du visiteur & connaissances | Accepté |
+| [0021](0021-retex-template-immersif-3d.md) | RETEX template immersif — règles de développement d'un site 3D (performance, tactile, assets async) | Accepté |
+| [0022](./0022-contrat-asset-avatar-3d.md) | Contrat d'asset 3D (avatar) et validation automatique en CI | Accepté |
+| [0023](./0023-variables-parametrables-templates.md) | Variables paramétrables des templates visuels | Accepté |
+| [0024](./0024-sdk-javascript-templates.md) | SDK JavaScript des templates visuels (`@onirtech/template-sdk`) | Proposé |
+| [0025](./0025-multitenancy-organisations.md) | Multitenancy par organisation | Accepté |
+| [0026](./0026-ressources-de-donnees-templates.md) | Ressources de données des templates visuels — contrats déclarés et fournisseurs SQL | Accepté |
+| [0027](./0027-categories-et-cles-de-rattachement.md) | Catégories partagées et clés de rattachement scalaires | Accepté |
+| [0028](./0028-contrat-album-template-immersif.md) | Contrat `album` distinct du contrat `library` (template immersif) | Accepté |
+| [0029](./0029-fournisseurs-ia-openai-compatible.md) | Fournisseurs IA OpenAI-compatible et modèle par lien | Accepté |
+| [0030](./0030-catalogue-modeles-fournisseur.md) | Catalogue de modèles par fournisseur | Accepté |
+| [0032](./0032-chat-test-modeles-ia.md) | Chat de test des modèles IA | Accepté |

@@ -1,0 +1,329 @@
+/* ============================================================
+   Motion — CSS pure, zéro librairie (ADR-0005)
+   Règles : animer uniquement opacity/transform,
+   tokens --dur-* / --ease-* uniquement,
+   tout est progressif (visible par défaut sans support).
+   ============================================================ */
+
+/* ---------- Reveal au scroll (Scroll-Driven Animations) ---------- */
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: reveal-in var(--dur-base) var(--ease-out-expo) both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 30%;
+  }
+
+  .stagger > * {
+    animation: reveal-in var(--dur-base) var(--ease-out-expo) both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 30%;
+  }
+
+  .stagger > *:nth-child(1) {
+    animation-delay: calc(var(--stagger) * 0);
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: calc(var(--stagger) * 1);
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: calc(var(--stagger) * 2);
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: calc(var(--stagger) * 3);
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: calc(var(--stagger) * 4);
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: calc(var(--stagger) * 5);
+  }
+
+  /* Barre orange des titres : elle se déploie à l'entrée */
+  section h2::after {
+    animation: bar-grow var(--dur-slow) var(--ease-out-expo) both;
+    animation-timeline: view();
+    animation-range: entry 15% cover 35%;
+  }
+
+  /* Progression de la timeline : la ligne orange se dessine */
+  .tl::after {
+    animation: tl-grow linear both;
+    animation-timeline: view();
+    animation-range: cover 0% cover 60%;
+  }
+
+  /* Circuits parallèles : l'orange suit le parcours de chaque branche */
+  .w-split {
+    animation: bar-grow linear both;
+    animation-timeline: view();
+    animation-range: cover 10% cover 55%;
+  }
+
+  .w-down {
+    animation: tl-grow linear both;
+    animation-timeline: view();
+    animation-range: cover 25% cover 70%;
+  }
+
+  .w-back {
+    animation: bar-grow linear both;
+    animation-timeline: view();
+    animation-range: cover 50% cover 95%;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes tl-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------- Entrée (menu, contenu same-route) ---------- */
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-in-fast {
+  animation: fade-slide-in var(--dur-fast) var(--ease-out-expo) both;
+}
+
+/* ---------- Transitions de page (View Transitions API) ---------- */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-out-expo);
+}
+
+/* Le header ancre la navigation : il ne bouge pas entre les pages */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 50;
+}
+
+::view-transition-old(site-header) {
+  display: none;
+}
+
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* Laisse passer les clics pendant la transition */
+::view-transition {
+  pointer-events: none;
+}
+
+/* ---------- Entrées hero + décors (dès le chargement) ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes from-top {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes from-right {
+    from {
+      opacity: 0;
+      transform: translateX(40px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes stage-reveal {
+    from {
+      opacity: 0;
+      transform: translateX(-8%);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.08);
+    }
+  }
+
+  @keyframes floaty {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .hero h1 {
+    animation: rise 0.8s var(--ease-out-expo) both;
+  }
+
+  .hero .sub {
+    animation: rise 0.8s 0.15s var(--ease-out-expo) both;
+  }
+
+  .hero .hero-actions {
+    animation: rise 0.8s 0.3s var(--ease-out-expo) both;
+  }
+
+  .stage .stage-photo {
+    animation: stage-reveal 1.1s 0.1s var(--ease-out-expo) both;
+  }
+
+  .stage .t1 {
+    animation: from-top 0.9s var(--ease-out-expo) both;
+  }
+
+  .stage .t2 {
+    animation: from-right 0.9s 0.1s var(--ease-out-expo) both;
+  }
+
+  .win {
+    animation: rise 0.8s 0.2s var(--ease-out-expo) both;
+  }
+
+  .prog i {
+    animation: grow-x 2.4s 0.9s var(--ease-in-out-quint) both;
+  }
+
+  .pill.run {
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  .sq {
+    animation: floaty 6s ease-in-out infinite;
+  }
+
+  .q2 {
+    animation-delay: -2s;
+  }
+
+  .q3 {
+    animation-delay: -4s;
+  }
+
+  /* Affiches IA : respiration unique et décalée des trois maquettes */
+  .role-float {
+    animation: floaty 9s ease-in-out infinite;
+  }
+
+  .loop > :nth-child(2) .role-float {
+    animation-delay: -3s;
+  }
+
+  .loop > :nth-child(3) .role-float {
+    animation-delay: -6s;
+  }
+
+  .ill .cur {
+    animation: blink 1s steps(2) infinite;
+  }
+
+  .mock .cur {
+    animation: blink 1s steps(2) infinite;
+  }
+}
+
+/* ---------- Accessibilité : mouvement réduit ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Animations infinies décoratives : on les arrête complètement
+     (0.01ms en boucle provoquerait un scintillement) */
+  .pill.run,
+  .sq,
+  .role-float,
+  .ill .cur,
+  .mock .cur {
+    animation: none !important;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
+}

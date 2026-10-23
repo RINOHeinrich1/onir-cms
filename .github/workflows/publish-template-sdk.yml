@@ -1,0 +1,73 @@
+name: Publish template-sdk
+
+# Publication du SDK par tag (ADR-0024 §11) : le tag porte la version publiée.
+# Exemple : `git tag template-sdk-v0.1.0 && git push origin template-sdk-v0.1.0`.
+# `workflow_dispatch` ne publie rien : il rejoue build + tests + budget hors tag.
+on:
+  push:
+    tags:
+      - template-sdk-v*
+  workflow_dispatch: {}
+
+concurrency:
+  group: publish-template-sdk
+  cancel-in-progress: false
+
+# `id-token: write` est requis par le trusted publishing (OIDC) : npm échange
+# l'identité du workflow contre un jeton de publication à courte durée de vie.
+# Aucun `NPM_TOKEN` n'est utilisé. La provenance est générée par le trusted
+# publishing à partir du dépôt public.
+#
+# Le trusted publisher est configuré en **stage-only** : ce workflow prépare la
+# version (`npm stage publish`) et un mainteneur l'approuve avec sa 2FA
+# (`npm stage approve` ou npmjs.com). Rien n'est publié automatiquement.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing exige npm >= 11.5.1. On reste sur la branche 11 :
+      # npm 12 désactive les scripts d'installation par défaut (esbuild ne
+      # télécharge plus son binaire) et casserait le build.
+      - name: npm 11 (OIDC)
+        run: npm install -g npm@11
+
+      - name: Contrôle tag ↔ version du paquet
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./packages/template-sdk/package.json').version")
+          echo "version=${VERSION} ref=${GITHUB_REF_NAME} type=${GITHUB_REF_TYPE}"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "template-sdk-v${VERSION}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} ≠ version ${VERSION} (attendu template-sdk-v${VERSION})."
+            exit 1
+          fi
+
+      - name: Dépendances
+        run: npm ci --prefix packages/template-sdk
+
+      - name: Build (bundles ESM + déclarations)
+        run: npm run build --prefix packages/template-sdk
+
+      - name: Tests
+        run: npm test --prefix packages/template-sdk
+
+      - name: Budget de taille
+        run: npm run size --prefix packages/template-sdk
+
+      # Jamais de staging depuis une branche : uniquement sur un tag.
+      # `working-directory` est requis (le cwd détermine le paquet publié).
+      # Stage-only : un mainteneur approuve ensuite avec sa 2FA.
+      - name: Staging npm (approbation humaine)
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: packages/template-sdk
+        run: npm stage publish --access public --provenance

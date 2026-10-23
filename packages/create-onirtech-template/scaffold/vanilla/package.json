@@ -1,0 +1,21 @@
+{
+  "name": "__ID__",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "__NAME__ — template visuel Onirtech (stack vanilla, sans build).",
+  "scripts": {
+    "dev": "node harness/host.mjs --dir .",
+    "test": "vitest run",
+    "validate": "node tools/onirtech-template.mjs validate .",
+    "pack": "node tools/onirtech-template.mjs pack ."
+  },
+  "dependencies": {
+    "@onirtech/template-sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.3",
+    "happy-dom": "^21.0.3",
+    "vitest": "^5.0.4"
+  }
+}

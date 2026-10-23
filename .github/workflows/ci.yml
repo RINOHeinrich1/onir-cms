@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  validate-core:
+    name: Core — lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: onir_cms
+          POSTGRES_PASSWORD: onir_cms
+          POSTGRES_DB: onir_cms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U onir_cms"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://onir_cms:onir_cms@127.0.0.1:5432/onir_cms_test
+      DATABASE_URL: postgres://onir_cms:onir_cms@127.0.0.1:5432/onir_cms_test
+      LINK_TOKEN_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Migrations — base de test jetable
+        run: npm run db:migrate
+      - name: Vérification d'intégrité tenant
+        run: npm run db:verify-tenant
+      - name: Tests d'intégration — isolation croisée
+        run: npm run test:integration
+      - run: npm run build
+        env:
+          APP_URL: http://localhost:3000
+
+  validate-templates:
+    name: Templates — SDK, assets, smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            template-kit/package-lock.json
+            packages/template-sdk/package-lock.json
+      - name: Dépendances racine (Playwright pour les smoke tests)
+        run: npm ci
+      - name: Contrat d'avatar 3D
+        run: node template-kit/bin/validate-avatar.mjs template-kit/template-immersive/assets/models/avatar.glb
+      - name: Tailles réelles des props de scène
+        run: node template-kit/bin/validate-scene-assets.mjs
+      - name: Générateur de templates — dépendances
+        run: npm ci --prefix template-kit
+      - name: SDK templates — dépendances
+        run: npm ci --prefix packages/template-sdk
+      - name: SDK templates — build
+        run: npm run build --prefix packages/template-sdk
+      - name: SDK templates — tests
+        run: npm test --prefix packages/template-sdk
+      - name: SDK templates — budget de taille
+        run: npm run size --prefix packages/template-sdk
+      - name: Générateur de templates — smoke 3 stacks
+        run: npm run smoke --prefix template-kit
+      - name: Immersive — tests unitaires
+        run: npm run test:immersive --prefix template-kit
+
+  e2e:
+    name: E2E — parcours publics
+    needs: validate-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: onir_cms
+          POSTGRES_PASSWORD: onir_cms
+          POSTGRES_DB: onir_cms_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U onir_cms"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://onir_cms:onir_cms@127.0.0.1:5432/onir_cms_e2e
+      SESSION_SECRET: e2e-session-secret
+      LINK_TOKEN_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      DEFAULT_ADMIN_EMAIL: admin@example.com
+      DEFAULT_ADMIN_PASSWORD: E2e-Password-123
+      E2E_ADMIN_EMAIL: admin@example.com
+      E2E_ADMIN_PASSWORD: E2e-Password-123
+      APP_URL: http://127.0.0.1:3008
+      E2E_BASE_URL: http://127.0.0.1:3008
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - name: E2E — désactiver la rotation forcée du compte de test
+        run: |
+          node -e 'const {Client}=require("pg"); (async()=>{const c=new Client({connectionString:process.env.DATABASE_URL}); await c.connect(); await c.query("UPDATE users SET must_change_password=false WHERE email=$1",[process.env.DEFAULT_ADMIN_EMAIL]); await c.end();})().catch((e)=>{console.error(e);process.exit(1)})'
+      - name: Navigateur Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Scénarios E2E d'isolation
+        run: npm run test:e2e

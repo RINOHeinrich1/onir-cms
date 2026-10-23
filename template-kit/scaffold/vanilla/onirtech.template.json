@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "kind": "template",
+  "id": "__ID__",
+  "name": "__NAME__",
+  "description": "Template visuel Onirtech (stack vanilla, sans build).",
+  "version": "1.0.0",
+  "publisher": {
+    "id": "onirtech",
+    "name": "ONIRTECH",
+    "trustLevel": "official"
+  },
+  "compatibility": {
+    "hostProtocol": "onirtech.template-host.v1"
+  },
+  "ui": {
+    "mode": "web-component",
+    "entry": "./src/index.js",
+    "element": "__ELEMENT__",
+    "integrity": "__INTEGRITY__",
+    "shadowDom": "open"
+  },
+  "capabilities": [
+    "messages",
+    "media",
+    "theme"
+  ],
+  "network": [],
+  "params": [
+    {
+      "key": "titre",
+      "label": "Titre",
+      "description": "Titre affiché en haut du formulaire et du chat",
+      "type": "string",
+      "default": "Discutons de votre projet",
+      "maxLength": 80
+    }
+  ]
+}

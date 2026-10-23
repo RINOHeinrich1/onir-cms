@@ -1,0 +1,104 @@
+# Environnement Docker local : PostgreSQL + application (build prod-like).
+# Usage : docker compose --env-file .env.docker -f docker-compose.dev.yml up --build
+name: onir-cms-dev
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgres://onir_cms:${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.docker}@db:5432/onir_cms
+  TEST_DATABASE_URL: postgres://onir_cms:${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.docker}@db:5432/onir_cms_test
+  SESSION_SECRET: ${SESSION_SECRET:?Définir SESSION_SECRET dans .env.docker}
+  LINK_TOKEN_KEY: ${LINK_TOKEN_KEY:?Définir LINK_TOKEN_KEY dans .env.docker}
+  AI_PROVIDER_KEY: ${AI_PROVIDER_KEY:-}
+  AI_ALLOW_PRIVATE_NETWORKS: ${AI_ALLOW_PRIVATE_NETWORKS:-false}
+  DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.com}
+  DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Définir DEFAULT_ADMIN_PASSWORD dans .env.docker}
+  APP_URL: ${APP_URL:-http://localhost:3000}
+  AI_API_TOKEN: ${AI_API_TOKEN:-}
+  AI_PRODUCT_ID: ${AI_PRODUCT_ID:-}
+  AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+  MEDIA_DIR: /app/var/media
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: onir_cms
+      POSTGRES_USER: onir_cms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.docker}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/init/000-extensions.sql:/docker-entrypoint-initdb.d/000-extensions.sql:ro
+      - ./docker/dev/init/001-create-test-db.sql:/docker-entrypoint-initdb.d/001-create-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onir_cms -d onir_cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  tools:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: tools
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["npm", "test"]
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - media_data:/app/var/media
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:4
+    profiles: ["tools"]
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  media_data:

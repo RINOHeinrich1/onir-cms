@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import { generateFicheFromConversation } from "@/application/use-cases/conversations/generate-fiche";
+import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
+import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
+import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
+import { getPool } from "@/infrastructure/db/pool";
+import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
+import { errorResponse } from "../../../_lib/errors";
+import { requireRole } from "../../../_lib/require-user";
+
+export const dynamic = "force-dynamic";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+/**
+ * POST /api/conversations/[id]/fiche — génère la fiche d'une conversation
+ * existante (US-CONVERS-002, admin/marketeur). Idempotent.
+ */
+export async function POST(request: Request, context: RouteContext): Promise<NextResponse> {
+  try {
+    const actor = await requireRole(request, "project:write");
+    const { id } = await context.params;
+    const pool = getPool();
+    const result = await generateFicheFromConversation(
+      {
+        organizations: pgOrganizationRepository(pool),
+        links: pgChatLinkRepository(pool),
+        conversations: pgConversationRepository(pool),
+        prospects: pgProspectRepository(pool),
+        fiches: pgFicheRepository(pool),
+        templates: pgChatTemplateRepository(pool),
+        ai: pgAiClientFactory(pool),
+      },
+      actor,
+      id,
+    );
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

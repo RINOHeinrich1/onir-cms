@@ -1,0 +1,42 @@
+{
+  "name": "@onirtech/create-onirtech-template",
+  "version": "0.1.0",
+  "description": "Générateur de projets de templates visuels Onirtech (vanilla, React, Vue).",
+  "type": "module",
+  "bin": {
+    "create-onirtech-template": "./bin/create-onirtech-template.mjs"
+  },
+  "files": [
+    "bin",
+    "scaffold",
+    "harness",
+    "tools",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "smoke": "node bin/smoke-create-template.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "onirtech",
+    "template",
+    "scaffold",
+    "react",
+    "vue"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RINOHeinrich1/onir-cms.git",
+    "directory": "packages/create-onirtech-template"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.3"
+  }
+}

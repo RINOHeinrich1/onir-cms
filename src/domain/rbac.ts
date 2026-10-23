@@ -1,0 +1,168 @@
+/**
+ * Matrice de rôles RBAC (A018) — point unique d'autorisation.
+ * RM-ROLE-ADMIN : contrôle total.
+ * RM-ROLE-MARKET  : tout sauf l'administration des utilisateurs.
+ * RM-ROLE-LECTEUR : lecture seule.
+ */
+
+import type { Role } from "@/domain/entities/user";
+
+export const ACTIONS = [
+  "dashboard:view",
+  "users:list",
+  "users:create",
+  "users:update",
+  "users:delete",
+  "prospects:list",
+  "prospects:read",
+  "prospects:create",
+  "prospects:update",
+  "prospects:delete",
+  "chat:use",
+  "links:list",
+  "links:create",
+  "links:update",
+  "links:revoke",
+  "conversations:list",
+  "conversations:read",
+  "conversations:update",
+  "confidentialites:list",
+  "confidentialites:read",
+  "confidentialites:create",
+  "confidentialites:update",
+  "confidentialites:delete",
+  "visualtemplates:list",
+  "visualtemplates:read",
+  "visualtemplates:create",
+  "visualtemplates:delete",
+  "templates:list",
+  "templates:read",
+  "templates:create",
+  "templates:update",
+  "templates:delete",
+  "connaissances:list",
+  "connaissances:read",
+  "connaissances:create",
+  "connaissances:update",
+  "connaissances:delete",
+  "medias:list",
+  "medias:read",
+  "medias:create",
+  "medias:update",
+  "medias:delete",
+  "categories:list",
+  "categories:read",
+  "categories:create",
+  "categories:update",
+  "categories:delete",
+  "categories:assign",
+  "project:read",
+  "project:write",
+  "ai:list",
+  "ai:read",
+  "ai:manage",
+  "ai:assign",
+  "organizations:list",
+  "organizations:read",
+  "organizations:create",
+  "organizations:update",
+  "members:list",
+  "members:create",
+  "members:update",
+  "members:delete",
+  "invitations:list",
+  "invitations:create",
+  "invitations:revoke",
+] as const;
+
+export type Action = (typeof ACTIONS)[number];
+
+const READ_ONLY: readonly Action[] = [
+  "dashboard:view",
+  "prospects:list",
+  "prospects:read",
+  "links:list",
+  "conversations:list",
+  "conversations:read",
+  "confidentialites:list",
+  "confidentialites:read",
+  "visualtemplates:list",
+  "visualtemplates:read",
+  "templates:list",
+  "templates:read",
+  "connaissances:list",
+  "connaissances:read",
+  "medias:list",
+  "medias:read",
+  "categories:list",
+  "categories:read",
+  "project:read",
+];
+
+const MARKETEUR: readonly Action[] = [
+  "dashboard:view",
+  "prospects:list",
+  "prospects:read",
+  "prospects:create",
+  "prospects:update",
+  "prospects:delete",
+  "chat:use",
+  "links:list",
+  "links:create",
+  "links:update",
+  "links:revoke",
+  "conversations:list",
+  "conversations:read",
+  "conversations:update",
+  "confidentialites:list",
+  "confidentialites:read",
+  "confidentialites:create",
+  "confidentialites:update",
+  "confidentialites:delete",
+  "visualtemplates:list",
+  "visualtemplates:read",
+  "visualtemplates:create",
+  "visualtemplates:delete",
+  "templates:list",
+  "templates:read",
+  "templates:create",
+  "templates:update",
+  "templates:delete",
+  "connaissances:list",
+  "connaissances:read",
+  "connaissances:create",
+  "connaissances:update",
+  "connaissances:delete",
+  "medias:list",
+  "medias:read",
+  "medias:create",
+  "medias:update",
+  "medias:delete",
+  "categories:list",
+  "categories:read",
+  "categories:create",
+  "categories:update",
+  "categories:delete",
+  "categories:assign",
+  "project:read",
+  "project:write",
+  "ai:list",
+  "ai:read",
+  "ai:assign",
+];
+
+const MATRIX: Record<Role, readonly Action[]> = {
+  admin: ACTIONS,
+  marketeur: MARKETEUR,
+  lecteur: READ_ONLY,
+};
+
+/** Le rôle `role` peut-il effectuer l'action `action` ? */
+export function can(role: Role, action: Action): boolean {
+  return MATRIX[role].includes(action);
+}
+
+/** Actions autorisées pour un rôle (utilisé par la navigation filtrée). */
+export function actionsFor(role: Role): readonly Action[] {
+  return MATRIX[role];
+}

@@ -1,0 +1,9 @@
+# Default owner
+* @RINOHeinrich1
+
+# Security, CI, migrations and release plumbing need a maintainer review.
+/.github/ @RINOHeinrich1
+/SECURITY.md @RINOHeinrich1
+/src/infrastructure/db/migrations/ @RINOHeinrich1
+/release-please-config.json @RINOHeinrich1
+/.release-please-manifest.json @RINOHeinrich1

@@ -1,0 +1,62 @@
+# Distribution GHCR : application + migrations + PostgreSQL.
+# Usage : docker compose --env-file .env.release -f docker-compose.release.yml up -d
+name: onir-cms
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgres://onir_cms:${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.release}@db:5432/onir_cms
+  SESSION_SECRET: ${SESSION_SECRET:?Définir SESSION_SECRET dans .env.release}
+  LINK_TOKEN_KEY: ${LINK_TOKEN_KEY:?Définir LINK_TOKEN_KEY dans .env.release}
+  AI_PROVIDER_KEY: ${AI_PROVIDER_KEY:-}
+  AI_ALLOW_PRIVATE_NETWORKS: ${AI_ALLOW_PRIVATE_NETWORKS:-false}
+  DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.com}
+  DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Définir DEFAULT_ADMIN_PASSWORD dans .env.release}
+  APP_URL: ${APP_URL:-http://localhost:3000}
+  AI_API_TOKEN: ${AI_API_TOKEN:-}
+  AI_PRODUCT_ID: ${AI_PRODUCT_ID:-}
+  AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+  MEDIA_DIR: /app/var/media
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: onir_cms
+      POSTGRES_USER: onir_cms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.release}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5435}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/init/000-extensions.sql:/docker-entrypoint-initdb.d/000-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onir_cms -d onir_cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: ghcr.io/rinoheinrich1/onir-cms:${ONIR_CMS_VERSION:?Définir ONIR_CMS_VERSION dans .env.release}-migrate
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: ghcr.io/rinoheinrich1/onir-cms:${ONIR_CMS_VERSION:?Définir ONIR_CMS_VERSION dans .env.release}
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - media_data:/app/var/media
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  media_data:

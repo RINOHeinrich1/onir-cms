@@ -1,0 +1,101 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/components.css";
+@import "../styles/chat.css";
+@import "../styles/motion.css";
+
+/* Mapping des tokens vers les utilitaires Tailwind (identité ONIRTECH, ADR-0002) */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-ink: var(--accent-2-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-ink: var(--accent-soft-ink);
+  --color-band: var(--band);
+  --color-band-fg: var(--band-fg);
+  --color-navy: var(--navy);
+  --color-orange: var(--orange);
+  --color-head: var(--head);
+  --color-border: var(--border);
+
+  --font-heading: var(--font-montserrat), "Montserrat", "Segoe UI", Arial, sans-serif;
+  --font-sans: var(--font-montserrat), "Montserrat", "Segoe UI", Arial, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-pill: var(--r-pill);
+
+  --duration-fast: var(--dur-fast);
+  --duration-base: var(--dur-base);
+  --duration-slow: var(--dur-slow);
+  --ease-snappy: var(--ease-out-expo);
+  --ease-inout: var(--ease-in-out-quint);
+
+  --shadow-card: var(--sh-card);
+  --shadow-lifted: var(--sh-lifted);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-style: italic;
+    line-height: 1.05;
+    color: var(--head);
+    text-wrap: balance;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--fs-body);
+    line-height: 1.7;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--orange);
+    outline-offset: 3px;
+  }
+}
+
+/* Titre de section (h2) — majuscules + barre orange */
+.text-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-title);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.text-title::after {
+  content: "";
+  display: block;
+  width: 4rem;
+  height: 5px;
+  background: var(--orange);
+  margin-top: 1.1rem;
+}

@@ -1,0 +1,61 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dev.log
+
+# env files (aucun secret versionné ; `.env.example` reste commité)
+.env*
+!.env.example
+!.env.docker.example
+!.env.release.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Artefacts de pilotage (plans et rapports de session, hors code)
+plans/
+reports/
+
+# Fichiers médias (photothèque) — hors versionnement
+var/
+
+# Starter-kit templates visuels (artefacts)
+template-kit/node_modules/
+template-kit/template/release/
+template-kit/template-immersive/release/
+
+# SDK des templates (paquet autonome : build et dépendances locaux)
+packages/template-sdk/dist/
+packages/template-sdk/node_modules/
+packages/create-onirtech-template/node_modules/
+packages/template-sdk/coverage/
+
+# Bundle CLI base de données (généré)
+/dist/

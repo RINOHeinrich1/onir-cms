@@ -1,0 +1,21 @@
+{
+  "comment": "Tailles réelles attendues des props de scène. sceneScale = facteur appliqué par le template (DESK.scale).",
+  "root": "template-immersive",
+  "assets": [
+    {
+      "file": "assets/models/desk.glb",
+      "type": "desk",
+      "sceneScale": 2.6,
+      "expect": { "minH": 0.95, "maxH": 1.05 },
+      "maxTris": 2000
+    },
+    {
+      "file": "assets/models/chair.glb",
+      "type": "chair",
+      "sceneScale": 2.6,
+      "expect": { "minH": 1.15, "maxH": 1.30 },
+      "maxTris": 2000,
+      "note": "Tabouret haut, cohérent avec le bureau debout (1,00 m)."
+    }
+  ]
+}

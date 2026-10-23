@@ -1,0 +1,28 @@
+{
+  "library": {
+    "books": [
+      {
+        "id": "book-1",
+        "title": "Album de démonstration",
+        "pages": [
+          {
+            "index": 0,
+            "text": "Bienvenue dans la bibliothèque du template immersif. Cette page provient d'une ressource de données (ADR-0026), pas de la médiathèque."
+          },
+          {
+            "index": 1,
+            "text": "Chaque page peut contenir du texte et une image. L'exploitant relie le contrat « library » à une requête SQL sur son organisation."
+          },
+          {
+            "index": 2,
+            "text": "Sans binding actif, le template retombe automatiquement sur ses photos de médiathèque."
+          },
+          {
+            "index": 3,
+            "text": "Quatrième page de démonstration : la pagination et la navigation du livre restent identiques quel que soit l'origine des données."
+          }
+        ]
+      }
+    ]
+  }
+}

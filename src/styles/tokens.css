@@ -1,0 +1,85 @@
+/* ============================================================
+   Design tokens — source unique de vérité (ADR-0002)
+   Palette alignée sur le design de référence ONIRTECH v3 :
+   bleu marine #023777 · orange #FCAD28 · gris papier #EEEEEE
+   encre #0B2247 · Montserrat
+   Thème appliqué : `data-theme` sur <html> (script anti-flash + bascule).
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Brand — constantes (bandes marine/orange fixes) */
+  --navy: #023777;
+  --orange: #fcad28;
+  --on-orange: #04142e;
+
+  /* Palette — clair */
+  --surface: #eeeeee;
+  --surface-raised: #ffffff;
+  --fg: #0b2247;
+  --fg-muted: #4a5a78;
+  --border: #cfd4de;
+  --accent: var(--navy);
+  --accent-fg: #ffffff;
+  --accent-2: var(--orange);
+  --accent-2-ink: var(--on-orange);
+  --accent-soft: #c9d6ee;
+  --accent-soft-ink: var(--navy);
+  --head: var(--navy);
+  --code-bg: #0b2247;
+  --code-fg: #eef3ff;
+  --band: var(--navy);
+  --band-fg: #ffffff;
+  --band-muted: #c9d6ee;
+  --sh-card: 0 1px 2px rgb(2 55 119 / 0.06), 0 12px 32px -20px rgb(2 55 119 / 0.3);
+  --sh-lifted: 0 2px 4px rgb(2 55 119 / 0.08), 0 24px 48px -24px rgb(2 55 119 / 0.35);
+
+  /* Rayons (cartes 14px, panneaux 20px, pilules) */
+  --r-sm: 0.5rem;
+  --r-md: 0.875rem;
+  --r-lg: 1.25rem;
+  --r-pill: 9999px;
+
+  /* Échelle typographique — source unique pour titres et textes (ADR-0002)
+     h1 display · h2 section · manifeste · h3 · h4/carte · chapô · corps */
+  --fs-display: clamp(2.1rem, 0.7rem + 4vw, 4rem);
+  --fs-title: clamp(1.9rem, 1rem + 2.2vw, 2.6rem);
+  --fs-statement: clamp(1.2rem, 1.05rem + 0.65vw, 1.55rem);
+  --fs-h3: 1.3rem;
+  --fs-h4: 1.15rem;
+  --fs-sub: 1.15rem;
+  --fs-lead: 1.1rem;
+  --fs-body: 1.05rem;
+
+  /* Motion (ADR-0005) */
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 400ms;
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-quint: cubic-bezier(0.65, 0, 0.35, 1);
+  --stagger: 60ms;
+}
+
+/* Palette sombre — appliquée quand <html data-theme="dark">. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Palette — nuit marine */
+  --surface: #04142e;
+  --surface-raised: #0a2a5a;
+  --fg: #f2f5fb;
+  --fg-muted: #b3c0da;
+  --border: #1d3f78;
+  --accent: var(--orange);
+  --accent-fg: var(--on-orange);
+  --accent-2: var(--orange);
+  --accent-2-ink: var(--on-orange);
+  --accent-soft: #1d3f78;
+  --accent-soft-ink: #dce6f7;
+  --head: #ffffff;
+  --code-bg: #020c1f;
+  --code-fg: #eef3ff;
+  --sh-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -20px rgb(0 0 0 / 0.6);
+  --sh-lifted: 0 2px 4px rgb(0 0 0 / 0.5), 0 24px 48px -24px rgb(0 0 0 / 0.7);
+}

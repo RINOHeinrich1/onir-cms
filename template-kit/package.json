@@ -1,0 +1,28 @@
+{
+  "name": "@onirtech/template-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Starter-kit de développement de templates visuels (norme onirtech.template-host.v1).",
+  "bin": {
+    "create-onirtech-template": "bin/create-onirtech-template.mjs",
+    "onirtech-template": "bin/onirtech-template.mjs"
+  },
+  "scripts": {
+    "dev": "node harness/host.mjs",
+    "validate": "node bin/onirtech-template.mjs validate template",
+    "pack": "node bin/onirtech-template.mjs pack template",
+    "smoke": "node bin/smoke-create-template.mjs",
+    "test:immersive": "node --test template-immersive/tests/*.test.mjs",
+    "smoke:immersive": "node bin/test-immersive-flow.mjs --baseline=template-immersive/docs/baseline-4.24.1.json",
+    "build:vendor": "node bin/build-three-loaders.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
+    "esbuild": "^0.24.2",
+    "three": "^0.180.0"
+  }
+}

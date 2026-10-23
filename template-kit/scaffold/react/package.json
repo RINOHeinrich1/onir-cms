@@ -1,0 +1,26 @@
+{
+  "name": "__ID__",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "__NAME__ — template visuel Onirtech (stack React).",
+  "scripts": {
+    "dev": "node tools/dev.mjs",
+    "test": "vitest run",
+    "build": "vite build",
+    "validate": "node tools/onirtech-template.mjs validate .",
+    "pack": "node tools/onirtech-template.mjs pack ."
+  },
+  "dependencies": {
+    "@onirtech/template-sdk": "^0.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "fflate": "^0.8.3",
+    "happy-dom": "^21.0.3",
+    "vite": "^8.0.0",
+    "vitest": "^5.0.4"
+  }
+}
