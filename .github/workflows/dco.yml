@@ -23,6 +23,12 @@ jobs:
           set -euo pipefail
           missing=0
           for commit in $(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}"); do
+            author="$(git log -1 --format='%an <%ae>' "${commit}")"
+            subject="$(git log -1 --format='%s' "${commit}")"
+            if printf '%s\n%s\n' "${author}" "${subject}" | grep -Eiq 'dependabot|release-please|github-actions\[bot\]|^chore\(main\): release '; then
+              echo "Skipping automated commit ${commit} (${author})."
+              continue
+            fi
             if ! git log -1 --format=%B "${commit}" | grep -Eiq '^Signed-off-by: .+ <.+@.+>$'; then
               echo "::error::Commit ${commit} is missing a Signed-off-by line. Use: git commit -s"
               missing=1
