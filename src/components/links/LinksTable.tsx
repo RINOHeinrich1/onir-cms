@@ -206,6 +206,7 @@ export function LinksTable({
             <tr>
               <th>Type</th>
               <th>Statut</th>
+              <th>Visites</th>
               <th>Label</th>
               <th>Modèle</th>
               <th>Moteur IA</th>
@@ -238,6 +239,22 @@ export function LinksTable({
                         {link.actif ? "actif" : "révoqué"}
                       </span>
                     )}
+                  </td>
+                  <td
+                    title={
+                      link.lastVisitAt === null
+                        ? "Aucune visite comptée"
+                        : `Dernière visite : ${new Date(link.lastVisitAt).toLocaleString("fr-FR")}`
+                    }
+                  >
+                    <span className="lien-visits">
+                      {link.visitCount}
+                      <span>
+                        {link.lastVisitAt === null
+                          ? "—"
+                          : new Date(link.lastVisitAt).toLocaleDateString("fr-FR")}
+                      </span>
+                    </span>
                   </td>
                   <td>{link.label === "" ? <span className="muted-text">—</span> : link.label}</td>
                   <td>
@@ -315,7 +332,7 @@ export function LinksTable({
             })}
             {visibleLinks.length === 0 ? (
               <tr>
-                <td colSpan={10}>
+                <td colSpan={11}>
                   {links.length === 0 ? "Aucun lien." : "Aucun lien pour ce créateur."}
                 </td>
               </tr>

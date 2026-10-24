@@ -44,6 +44,8 @@ function link(organizationId: string): ChatLink {
     visualTemplateParams: {},
     aiProviderId: null,
     aiModel: null,
+    visitCount: 0,
+    lastVisitAt: null,
     createdAt: new Date(0).toISOString(),
   };
 }

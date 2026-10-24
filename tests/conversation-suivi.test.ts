@@ -32,6 +32,8 @@ function link(overrides: Partial<ChatLink> = {}): ChatLink {
     visualTemplateParams: {},
     aiProviderId: null,
     aiModel: null,
+    visitCount: 0,
+    lastVisitAt: null,
     createdAt: new Date(0).toISOString(),
     ...overrides,
   };

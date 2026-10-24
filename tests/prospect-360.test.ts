@@ -107,6 +107,7 @@ function deps() {
         { id: "l2", type: "specifique", prospectId: "autre" },
       ] as ChatLink[],
     create: async () => ({}) as ChatLink,
+    recordVisit: async () => undefined,
     getTokenEnc: async () => null,
     setLinkToken: async () => null,
     updateDetails: async () => null,
