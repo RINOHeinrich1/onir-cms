@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DemoLauncher } from "@/components/marketing/DemoLauncher";
 
 export const metadata: Metadata = {
   title: { absolute: "ONIR CMS — Des conversations qui deviennent des prospects" },
@@ -22,14 +23,12 @@ export default function HomePage() {
             cockpit unique. Chez vous, sans dépendre d’une plateforme tierce.
           </p>
           <div className="site-cta-row">
-            <Link href="/plugins" className="site-button">
-              Voir les plugins
-            </Link>
+            <DemoLauncher />
             <Link href="/documentation" className="site-button site-button-ghost">
               Documentation
             </Link>
           </div>
-          <p className="site-note">Plugins gratuits · Auto-hébergé · Sans lock-in</p>
+          <p className="site-note">Démo · Plugins gratuits · Auto-hébergé · Sans lock-in</p>
         </div>
 
         <div className="site-hero-visual" aria-hidden>

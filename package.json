@@ -12,6 +12,7 @@
     "test": "vitest run",
     "db:migrate": "tsx --env-file-if-exists=.env src/infrastructure/db/migrate.cli.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/infrastructure/db/seed-admin.cli.ts",
+    "demo:seed": "node --env-file-if-exists=.env scripts/seed-demo-links.mjs",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "db:verify-tenant": "tsx --env-file-if-exists=.env src/infrastructure/db/verify-tenant.ts",
     "test:e2e": "playwright test",
