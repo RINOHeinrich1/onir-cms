@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.6.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.5.0...v0.6.0) (2026-10-24)
+
+
+### Features
+
+* **links:** count public link visits ([#31](https://github.com/RINOHeinrich1/onir-cms/issues/31)) ([162b5aa](https://github.com/RINOHeinrich1/onir-cms/commit/162b5aa7486734e6a203d32dc8c533b2c9f89ff7))
+
 ## [0.5.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.4.0...v0.5.0) (2026-10-24)
 
 
