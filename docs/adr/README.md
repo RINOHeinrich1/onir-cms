@@ -33,3 +33,4 @@ ADR qui remplace la précédente.
 | [0029](./0029-fournisseurs-ia-openai-compatible.md) | Fournisseurs IA OpenAI-compatible et modèle par lien | Accepté |
 | [0030](./0030-catalogue-modeles-fournisseur.md) | Catalogue de modèles par fournisseur | Accepté |
 | [0032](./0032-chat-test-modeles-ia.md) | Chat de test des modèles IA | Accepté |
+| [0033](./0033-modes-identification-visiteurs.md) | Modes d’identification des visiteurs — contact, anonyme, OTP, interne | Proposé |
