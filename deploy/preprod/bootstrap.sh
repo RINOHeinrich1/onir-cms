@@ -54,7 +54,7 @@ install -m 644 -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" "${SCRIPT_DIR}/init/000-e
 
 cat > "${ROOT}/.env.preprod" <<EOF
 PREPROD_IMAGE=ghcr.io/rinoheinrich1/onir-cms
-PREPROD_IMAGE_TAG=${PREPROD_INITIAL_IMAGE_TAG:-v0.3.0}
+PREPROD_IMAGE_TAG=${PREPROD_INITIAL_IMAGE_TAG:-0.3.0}
 PREPROD_APP_PORT=${PREPROD_APP_PORT:-3200}
 PREPROD_DB_PORT=${PREPROD_DB_PORT:-5436}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -115,7 +115,7 @@ sed \
 nginx -t
 systemctl reload nginx
 
-sudo -u "${DEPLOY_USER}" bash -lc "cd '${ROOT}' && ./deploy.sh '${PREPROD_INITIAL_IMAGE_TAG:-v0.3.0}'"
+sudo -u "${DEPLOY_USER}" bash -lc "cd '${ROOT}' && ./deploy.sh '${PREPROD_INITIAL_IMAGE_TAG:-0.3.0}'"
 
 printf '\nPreprod initialisée.\n'
 printf 'URL              : https://%s\n' "${DOMAIN}"
