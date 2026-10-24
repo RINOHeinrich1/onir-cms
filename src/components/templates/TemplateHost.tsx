@@ -52,6 +52,7 @@ export function TemplateHost({
   baseContext,
   conversationId: initialConversationId,
   initialMessages,
+  anonymous = false,
   platform = "/api/chat",
   preview = false,
 }: {
@@ -60,6 +61,8 @@ export function TemplateHost({
   baseContext: TemplateContextPayload;
   conversationId: string | null;
   initialMessages: TemplateMessage[];
+  /** Mode anonyme : démarrage direct en chat, session créée au premier message. */
+  anonymous?: boolean;
   /** Base des endpoints hôte (surchargée par le harness de dev). */
   platform?: string;
   /** Mode aperçu : les actions sont simulées localement (aucun appel API). */
@@ -86,6 +89,7 @@ export function TemplateHost({
   const actions = useMemo<TemplateActions>(
     () => ({
       submitIdentity: (data) => {
+        if (anonymous) return;
         if (preview) {
           setPhase("chat");
           setMessages([
@@ -149,11 +153,37 @@ export function TemplateHost({
           return;
         }
         void (async () => {
-          if (conversationId === null) return;
           const text = content.trim();
           if (text === "") return;
           setTyping(true);
           setError(null);
+          let activeConversationId = conversationId;
+          if (activeConversationId === null) {
+            if (!anonymous) {
+              setTyping(false);
+              return;
+            }
+            const sessionResponse = await fetch(`${platform}/session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
+            }).catch(() => null);
+            const sessionJson = (await sessionResponse?.json().catch(() => null)) as {
+              conversationId?: string;
+              messages?: TemplateMessage[];
+              error?: string;
+            } | null;
+            if (sessionResponse?.ok !== true || typeof sessionJson?.conversationId !== "string") {
+              setError(sessionJson?.error ?? "Démarrage de la discussion impossible");
+              setTyping(false);
+              return;
+            }
+            activeConversationId = sessionJson.conversationId;
+            setConversationId(activeConversationId);
+            if (sessionJson.messages !== undefined && sessionJson.messages.length > 0) {
+              setMessages(sessionJson.messages);
+            }
+          }
           const userId = `local-${Date.now()}`;
           setMessages((prev) => [
             ...prev,
@@ -173,7 +203,7 @@ export function TemplateHost({
                 const stateResponse = await fetch(`${platform}/state`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ conversationId, content: text }),
+                  body: JSON.stringify({ conversationId: activeConversationId, content: text }),
                 });
                 if (!stateResponse.ok) return;
                 const stateJson = (await stateResponse.json()) as {
@@ -200,7 +230,7 @@ export function TemplateHost({
             const response = await fetch(platform, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId, content: text }),
+              body: JSON.stringify({ conversationId: activeConversationId, content: text }),
             });
             const json = (await response.json()) as {
               message?: TemplateMessage;
@@ -244,6 +274,10 @@ export function TemplateHost({
         })();
       },
       finish: () => {
+        if (anonymous) {
+          setStatus("finalisee");
+          return;
+        }
         if (preview) {
           setStatus("finalisee");
           return;
@@ -275,7 +309,7 @@ export function TemplateHost({
         setHeight(Math.max(200, Math.min(value, 20000)));
       },
     }),
-    [conversationId, platform, token, baseContext, preview, template],
+    [anonymous, conversationId, platform, token, baseContext, preview, template],
   );
 
   const loadData = useCallback(

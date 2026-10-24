@@ -54,6 +54,7 @@ function linkRow(expiresAt: string | null): ChatLink {
     organizationId: "org-1",
     label: "",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: "admin-1",
     actif: true,

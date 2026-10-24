@@ -11,6 +11,7 @@ import {
 import { ChatPortal } from "@/components/chat/ChatPortal";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { BrandLogo } from "@/components/layout/BrandLogo";
+import { AnonymousTemplatePortal } from "@/components/templates/AnonymousTemplatePortal";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { TemplateLoader } from "@/components/templates/TemplateLoader";
 import { hashLinkToken } from "@/domain/link-token";
@@ -112,6 +113,33 @@ export default async function ChatPortalPage({ params }: PageProps) {
       link.confidentialiteId,
     );
     if (policy?.actif === true) consent = { texte: policy.texte, lien: policy.lien };
+  }
+
+  if (link.type === "standard" && link.identificationMode === "anonymous") {
+    if (spec !== null) {
+      const context = await buildLinkContext(deps, link, spec, {
+        phase: "chat",
+        messages: [],
+        consent,
+      });
+      return (
+        <main className="chat-page template-page">
+          <TemplateLoader />
+          <AnonymousTemplatePortal
+            token={token}
+            template={spec}
+            baseContext={context}
+            confidentialite={consent}
+          />
+        </main>
+      );
+    }
+    return (
+      <main className="chat-page">
+        <ChatHeader title="Discussion anonyme" />
+        <ChatPortal token={token} confidentialite={consent} anonymous />
+      </main>
+    );
   }
 
   if (link.type === "standard") {

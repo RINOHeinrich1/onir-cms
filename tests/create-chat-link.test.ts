@@ -33,6 +33,7 @@ function deps(ai?: { aiProviders?: AiProviderRepository; aiModels?: AiProviderMo
       organizationId,
       label: input.label,
       type: input.type,
+      identificationMode: input.identificationMode,
       prospectId: input.prospectId,
       createdBy: input.createdBy,
       actif: true,
@@ -164,9 +165,55 @@ describe("createChatLink — expiration", () => {
   it("interprète une date seule comme fin du jour choisi (UTC)", async () => {
     const { link } = await createChatLink(deps(), ACTOR, {
       type: "standard",
+      identificationMode: "contact",
       expiresAt: "2030-05-10",
     });
     expect(link.expiresAt).toBe("2030-05-11T00:00:00.000Z");
+  });
+
+  it("accepte un lien standard anonyme", async () => {
+    const { link } = await createChatLink(deps(), ACTOR, {
+      type: "standard",
+      identificationMode: "anonymous",
+    });
+    expect(link.identificationMode).toBe("anonymous");
+    expect(link.prospectId).toBeNull();
+  });
+
+  it("refuse le mode anonyme sur un lien spécifique", async () => {
+    await expect(
+      createChatLink(
+        {
+          ...deps(),
+          prospects: {
+            ...deps().prospects,
+            findById: async () => ({
+              id: "p1",
+              organizationId: "org-1",
+              nom: "Jean",
+              prenom: "",
+              nature: "physique",
+              email: "jean@exemple.mg",
+              activite: "",
+              fonction: "",
+              detail: "",
+              origine: "libre",
+              lienId: null,
+              lienLabel: null,
+              createdBy: null,
+              createdAt: new Date(0).toISOString(),
+              updatedAt: new Date(0).toISOString(),
+            }),
+          },
+        },
+        ACTOR,
+        {
+          type: "specifique",
+          prospectId: "p1",
+          identificationMode: "anonymous",
+        },
+      ),
+    ).rejects.toThrow(/spécifique/i);
   });
 
   it("refuse une date passée", async () => {
@@ -227,6 +274,7 @@ describe("createChatLink — affectation IA (ADR-0029)", () => {
     const { provider, deps: d } = await assignmentDeps();
     const { link } = await createChatLink(d, ACTOR, {
       type: "standard",
+      identificationMode: "contact",
       aiProviderId: provider.id,
       aiModel: "gpt-4o-mini",
     });
@@ -252,6 +300,7 @@ describe("createChatLink — affectation IA (ADR-0029)", () => {
     await expect(
       createChatLink(d, ACTOR, {
         type: "standard",
+        identificationMode: "contact",
         aiProviderId: provider.id,
         aiModel: "gpt-4o-mini",
       }),

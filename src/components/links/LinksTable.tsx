@@ -227,6 +227,9 @@ export function LinksTable({
                 <tr key={link.id}>
                   <td>
                     <span className="badge">{link.type}</span>
+                    {link.identificationMode === "anonymous" ? (
+                      <div className="muted-text">anonyme</div>
+                    ) : null}
                   </td>
                   <td>
                     {expired ? (

@@ -28,6 +28,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     tokenEnc: "enc",
     label: "Lien visites",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: null,
     expiresAt: null,

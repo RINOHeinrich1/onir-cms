@@ -14,6 +14,21 @@ export function isChatLinkType(value: string): value is ChatLinkType {
   return (CHAT_LINK_TYPES as readonly string[]).includes(value);
 }
 
+/** Modes d'identification stockés (ADR-0033). OTP/interne réservés. */
+export const CHAT_LINK_IDENTIFICATION_MODES = ["contact", "anonymous", "otp", "internal"] as const;
+
+/** Modes réellement ouverts à la configuration. */
+export const ACTIVE_LINK_IDENTIFICATION_MODES = ["contact", "anonymous"] as const;
+
+export type ChatLinkIdentificationMode = (typeof CHAT_LINK_IDENTIFICATION_MODES)[number];
+export type ActiveLinkIdentificationMode = (typeof ACTIVE_LINK_IDENTIFICATION_MODES)[number];
+
+export function isActiveLinkIdentificationMode(
+  value: string,
+): value is ActiveLinkIdentificationMode {
+  return (ACTIVE_LINK_IDENTIFICATION_MODES as readonly string[]).includes(value);
+}
+
 /**
  * Sources de données recherchées lors de la génération de réponse (cases à
  * cocher du lien). Seules les sources cochées sont interrogées (US-MEDIA-001).
@@ -51,6 +66,8 @@ export type ChatLink = {
   organizationId: string;
   label: string;
   type: ChatLinkType;
+  /** Mode d'identification du visiteur (ADR-0033). */
+  identificationMode: ActiveLinkIdentificationMode;
   prospectId: string | null;
   createdBy: string | null;
   actif: boolean;

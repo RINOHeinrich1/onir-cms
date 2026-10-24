@@ -17,7 +17,11 @@ import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
+import {
+  parseExpiresAt,
+  parseIdentificationMode,
+  parseLabel,
+} from "@/application/use-cases/links/link-fields";
 import { prepareLinkParams } from "@/application/use-cases/links/link-params";
 import {
   type ChatLink,
@@ -74,6 +78,7 @@ export async function createChatLink(
   const type: ChatLinkType = rawType;
 
   const rawProspectId = typeof source.prospectId === "string" ? source.prospectId.trim() : "";
+  const identificationMode = parseIdentificationMode(source.identificationMode);
   const label = parseLabel(source.label);
   const expiresAt = parseExpiresAt(source.expiresAt);
 
@@ -122,6 +127,11 @@ export async function createChatLink(
   }
 
   if (type === "specifique") {
+    if (identificationMode !== "contact") {
+      throw new ValidationError(
+        "Un lien spécifique utilise le prospect rattaché : le mode anonyme est indisponible",
+      );
+    }
     if (rawProspectId === "") {
       throw new ValidationError("Un lien spécifique exige un prospect rattaché");
     }
@@ -146,6 +156,7 @@ export async function createChatLink(
     tokenEnc: encryptLinkToken(token),
     label,
     type,
+    identificationMode,
     prospectId: type === "specifique" ? rawProspectId : null,
     createdBy: actor.id,
     expiresAt,

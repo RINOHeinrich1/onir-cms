@@ -1,4 +1,16 @@
 import { ValidationError } from "@/application/errors";
+import {
+  type ActiveLinkIdentificationMode,
+  isActiveLinkIdentificationMode,
+} from "@/domain/entities/chat";
+
+/** Mode d'identification actif (contact par défaut ; OTP/interne pas encore ouverts). */
+export function parseIdentificationMode(value: unknown): ActiveLinkIdentificationMode {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (raw === "") return "contact";
+  if (isActiveLinkIdentificationMode(raw)) return raw;
+  throw new ValidationError("Mode d'identification invalide");
+}
 
 /** Libellé lisible d'un lien (vide = sans nom), 120 caractères maximum. */
 export function parseLabel(value: unknown): string {

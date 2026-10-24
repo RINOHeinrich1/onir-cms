@@ -63,7 +63,9 @@ export default async function ConversationDetailPage({ params }: PageProps) {
       <div className="page-head">
         <div>
           <span className="eyebrow">Conversation</span>
-          <h1 className="text-title">{conversation.visitorNom || "Visiteur"}</h1>
+          <h1 className="text-title">
+            {conversation.visitorNom || (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur")}
+          </h1>
           <p className="muted-text">
             {conversation.visitorEmail || "—"} · lien{" "}
             <strong>{link?.label === "" || link === null ? "sans nom" : link.label}</strong> ·{" "}

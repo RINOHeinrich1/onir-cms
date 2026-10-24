@@ -86,6 +86,7 @@ const link: ChatLink = {
   organizationId: "org-1",
   label: "Lien",
   type: "standard",
+  identificationMode: "contact",
   prospectId: null,
   createdBy: null,
   actif: true,

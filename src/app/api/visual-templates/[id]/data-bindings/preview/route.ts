@@ -26,6 +26,7 @@ function previewLink(organizationId: string): ChatLink {
     organizationId,
     label: "Aperçu",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: null,
     actif: true,
