@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.4.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.3.0...v0.4.0) (2026-10-24)
+
+
+### Features
+
+* **site:** launch the two ONIR CMS demo experiences ([#26](https://github.com/RINOHeinrich1/onir-cms/issues/26)) ([2dd8824](https://github.com/RINOHeinrich1/onir-cms/commit/2dd882431e354c2884cc23040808061acc38c4f2))
+
 ## [0.3.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
