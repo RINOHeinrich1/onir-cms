@@ -3,6 +3,8 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import {
+  ACTIVE_LINK_IDENTIFICATION_MODES,
+  type ActiveLinkIdentificationMode,
   CHAT_LINK_TYPES,
   type ChatLinkSources,
   type ChatLinkType,
@@ -53,6 +55,8 @@ export function LinkForm({
   const [pending, setPending] = useState(false);
   const [templateKey, setTemplateKey] = useState("fiche-projet");
   const [type, setType] = useState<ChatLinkType>("specifique");
+  const [identificationMode, setIdentificationMode] =
+    useState<ActiveLinkIdentificationMode>("contact");
   const [prospectId, setProspectId] = useState("");
   const [label, setLabel] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
@@ -76,6 +80,7 @@ export function LinkForm({
         body: JSON.stringify({
           templateKey,
           type,
+          identificationMode,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
           ...(expiresAt === "" ? {} : { expiresAt }),
@@ -125,7 +130,14 @@ export function LinkForm({
 
       <label className="field">
         Type de lien
-        <select value={type} onChange={(event) => setType(event.target.value as ChatLinkType)}>
+        <select
+          value={type}
+          onChange={(event) => {
+            const next = event.target.value as ChatLinkType;
+            setType(next);
+            if (next === "specifique") setIdentificationMode("contact");
+          }}
+        >
           {CHAT_LINK_TYPES.map((value) => (
             <option key={value} value={value}>
               {value === "specifique" ? "Spécifique à un prospect" : "Standard"}
@@ -135,21 +147,48 @@ export function LinkForm({
       </label>
 
       {type === "specifique" ? (
-        <label className="field">
-          Prospect rattaché *
-          <select value={prospectId} onChange={(event) => setProspectId(event.target.value)}>
-            <option value="">— Choisir —</option>
-            {prospects.map((prospect) => (
-              <option key={prospect.id} value={prospect.id}>
-                {prospect.nom} {prospect.prenom} ({prospect.email})
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <label className="field">
+            Prospect rattaché *
+            <select value={prospectId} onChange={(event) => setProspectId(event.target.value)}>
+              <option value="">— Choisir —</option>
+              {prospects.map((prospect) => (
+                <option key={prospect.id} value={prospect.id}>
+                  {prospect.nom} {prospect.prenom} ({prospect.email})
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="hint">
+            Identification : prospect lié au lien. Le visiteur n&apos;a pas de formulaire.
+          </p>
+        </>
       ) : (
-        <p className="hint">
-          Lien standard : le visiteur devra fournir son nom et son email avant de discuter.
-        </p>
+        <>
+          <label className="field">
+            Identification
+            <select
+              value={identificationMode}
+              onChange={(event) =>
+                setIdentificationMode(event.target.value as ActiveLinkIdentificationMode)
+              }
+            >
+              {ACTIVE_LINK_IDENTIFICATION_MODES.map((value) => (
+                <option key={value} value={value}>
+                  {value === "contact" ? "Nom et contact" : "Anonyme"}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              {identificationMode === "contact"
+                ? "Le visiteur doit fournir son nom et son email avant de discuter."
+                : "Aucun nom, email ou contact demandé. La conversation est liée à aucun prospect."}
+            </span>
+          </label>
+          <p className="hint">
+            Les modes OTP par email et utilisateur interne seront disponibles ultérieurement.
+          </p>
+        </>
       )}
 
       <label className="field">

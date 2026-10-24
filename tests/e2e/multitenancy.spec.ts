@@ -115,6 +115,7 @@ test("lien public : l'organisation du lien est résolue, org suspendue = 404", a
   const created = await request.post("/api/links", {
     data: {
       type: "standard",
+      identificationMode: "contact",
       label: "E2E public",
       sources: { connaissances: true, phototheque: false, lien: false },
     },

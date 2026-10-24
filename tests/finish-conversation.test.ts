@@ -27,6 +27,7 @@ const LINK = {
   organizationId: "org-1",
   label: "",
   type: "standard",
+  identificationMode: "contact",
   prospectId: null,
   createdBy: null,
   actif: true,
@@ -267,5 +268,14 @@ describe("finishConversation — bouton Terminer (moteur)", () => {
     await expect(finishConversation({ ...base, templates: noTemplate }, "conv-1")).rejects.toThrow(
       /Modèle/,
     );
+  });
+
+  it("refuse une fiche pour une conversation anonyme", async () => {
+    const base = deps("{}");
+    const links = {
+      ...base.links,
+      findById: async () => ({ ...LINK, identificationMode: "anonymous" as const }),
+    };
+    await expect(finishConversation({ ...base, links }, "conv-1")).rejects.toThrow(/anonyme/i);
   });
 });

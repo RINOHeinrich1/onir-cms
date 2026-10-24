@@ -1,6 +1,6 @@
 # 0033. Modes d'identification des visiteurs
 
-- **Statut** : Proposé (à valider)
+- **Statut** : Accepté
 - **Date** : 2026-10-24
 - **Décideurs** : équipe projet
 - **Référence** : complète ADR-0007 (liens spécifique/standard), ADR-0018
@@ -98,8 +98,8 @@ Le libellé UI reste **« Nom et contact »**.
   conversation.
 - L'interface et le dashboard affichent **« Anonyme »** sans stocker cette
   valeur comme une fausse identité.
-- En conservation persistée, la conversation est créée **au premier message**
-  (pas au chargement) avec une identité vide.
+- En conservation persistée, la conversation est créée **au premier message** avec
+  une identité vide (ou au moment du consentement si une politique est rattachée).
 - Aucune fiche nominative n'est générée. Une synthèse anonyme éventuelle fera
   l'objet d'une décision ultérieure.
 - En mode éphémère, aucune conversation n'est créée en base (ADR dédiée).

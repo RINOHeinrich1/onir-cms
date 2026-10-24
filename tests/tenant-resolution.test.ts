@@ -29,6 +29,7 @@ function link(organizationId: string): ChatLink {
     organizationId,
     label: "",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: "admin-a",
     actif: true,
@@ -94,6 +95,7 @@ describe("résolution tenant — aucun organizationId client (ADR-0025 §4)", ()
     const deps = createDeps(created);
     await createChatLink(deps, ACTOR, {
       type: "standard",
+      identificationMode: "contact",
       organizationId: "org-b",
     });
     expect(created.organizationId).toBe("org-a");

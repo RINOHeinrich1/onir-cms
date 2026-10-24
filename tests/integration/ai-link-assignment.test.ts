@@ -37,6 +37,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     tokenEnc: "enc",
     label: "Lien IA",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: null,
     expiresAt: null,
@@ -91,6 +92,7 @@ describe("chat_links — affectation IA", () => {
     );
     const updated = await repo.updateDetails(orgA, created.id, {
       label: created.label,
+      identificationMode: "contact",
       expiresAt: null,
       sources: created.sources,
       confidentialiteId: null,

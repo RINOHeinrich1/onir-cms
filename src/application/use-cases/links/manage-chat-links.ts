@@ -1,5 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError } from "@/application/errors";
+import { NotFoundError, ValidationError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -14,7 +14,11 @@ import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
+import {
+  parseExpiresAt,
+  parseIdentificationMode,
+  parseLabel,
+} from "@/application/use-cases/links/link-fields";
 import { prepareLinkParams } from "@/application/use-cases/links/link-params";
 import {
   type ChatLink,
@@ -117,6 +121,7 @@ export async function updateChatLink(
       : {};
   if (
     !("label" in source) &&
+    !("identificationMode" in source) &&
     !("expiresAt" in source) &&
     !("sources" in source) &&
     !("confidentialiteId" in source) &&
@@ -135,6 +140,15 @@ export async function updateChatLink(
   const existing = await deps.links.findById(organizationId, id);
   if (existing === null) {
     throw new NotFoundError("Lien introuvable");
+  }
+  const identificationMode =
+    "identificationMode" in source
+      ? parseIdentificationMode(source.identificationMode)
+      : existing.identificationMode;
+  if (existing.type === "specifique" && identificationMode !== "contact") {
+    throw new ValidationError(
+      "Un lien spécifique utilise le prospect rattaché : le mode anonyme est indisponible",
+    );
   }
   const dataBindings = parseDataBindingSelections(source.dataBindings);
   const aiAssignment = parseAiAssignmentInput(source, {
@@ -183,6 +197,7 @@ export async function updateChatLink(
 
   const updated = await deps.links.updateDetails(organizationId, id, {
     label: "label" in source ? parseLabel(source.label) : existing.label,
+    identificationMode,
     expiresAt: "expiresAt" in source ? parseExpiresAt(source.expiresAt) : existing.expiresAt,
     sources: "sources" in source ? parseLinkSources(source.sources) : existing.sources,
     confidentialiteId:

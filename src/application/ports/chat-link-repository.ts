@@ -1,4 +1,9 @@
-import type { ChatLink, ChatLinkSources, ChatLinkType } from "@/domain/entities/chat";
+import type {
+  ActiveLinkIdentificationMode,
+  ChatLink,
+  ChatLinkSources,
+  ChatLinkType,
+} from "@/domain/entities/chat";
 
 export type CreateChatLinkInput = {
   /** Empreinte SHA-256 du jeton (clé de recherche, le clair n'est jamais persisté tel quel). */
@@ -8,6 +13,7 @@ export type CreateChatLinkInput = {
   /** Libellé lisible donné par l'équipe (vide = sans nom). */
   label: string;
   type: ChatLinkType;
+  identificationMode: ActiveLinkIdentificationMode;
   prospectId: string | null;
   createdBy: string | null;
   expiresAt: string | null;
@@ -47,6 +53,7 @@ export interface ChatLinkRepository {
     id: string,
     patch: {
       label: string;
+      identificationMode: ActiveLinkIdentificationMode;
       expiresAt: string | null;
       sources: ChatLinkSources;
       confidentialiteId: string | null;

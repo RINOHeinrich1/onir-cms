@@ -157,7 +157,10 @@ export function ConversationsTable({
                   className={conversation.archivee ? "row-archivee" : undefined}
                 >
                   <td>
-                    <strong>{conversation.visitorNom || "—"}</strong>
+                    <strong>
+                      {conversation.visitorNom ||
+                        (conversation.visitorEmail === "" ? "Anonyme" : "—")}
+                    </strong>
                     <div className="muted-text">{conversation.visitorEmail || "—"}</div>
                   </td>
                   <td>

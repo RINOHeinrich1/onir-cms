@@ -11,7 +11,12 @@ import type { ChatMessageDto } from "./types";
 type Message = ChatMessageDto;
 
 type ChatWindowProps = {
-  conversationId: string;
+  /** Null en mode anonyme : la session est créée au premier message. */
+  conversationId: string | null;
+  /** Jeton du lien, requis pour créer une session anonyme à la volée. */
+  token?: string;
+  /** Mode anonyme : aucun formulaire, pas de fiche nominative. */
+  anonymous?: boolean;
   /** Historique éventuel (reprise de conversation). */
   initialMessages?: ChatMessageDto[];
 };
@@ -29,7 +34,13 @@ function formatTime(iso: string): string {
  * composeur qui s'agrandit (Entrée envoie, Maj+Entrée saute une ligne),
  * indicateur de frappe, et génération de la fiche via « Terminer ».
  */
-export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps) {
+export function ChatWindow({
+  conversationId,
+  token,
+  anonymous = false,
+  initialMessages,
+}: ChatWindowProps) {
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +111,31 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
    * seulement si la réponse a signalé `mediaPending`. L'image s'affiche après
    * le texte, une fois la sélection revenue (idempotente côté serveur).
    */
-  const loadMedia = async (message: Message): Promise<void> => {
+  const ensureConversation = async (): Promise<string | null> => {
+    if (activeConversationId !== null) return activeConversationId;
+    if (token === undefined) return null;
+    const response = await fetch("/api/chat/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
+    });
+    const json = (await response.json()) as {
+      conversationId?: string;
+      messages?: Message[];
+      error?: string;
+    };
+    if (!response.ok || typeof json.conversationId !== "string") {
+      setError(json.error ?? "Démarrage de la discussion impossible");
+      return null;
+    }
+    setActiveConversationId(json.conversationId);
+    if (json.messages !== undefined && json.messages.length > 0) {
+      setMessages((previous) => (previous.length === 0 ? (json.messages as Message[]) : previous));
+    }
+    return json.conversationId;
+  };
+
+  const loadMedia = async (message: Message, conversationId: string): Promise<void> => {
     try {
       const response = await fetch("/api/chat/media", {
         method: "POST",
@@ -139,10 +174,12 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
     setError(null);
 
     try {
+      const activeId = await ensureConversation();
+      if (activeId === null) return;
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, content }),
+        body: JSON.stringify({ conversationId: activeId, content }),
       });
       const json = (await response.json()) as {
         message?: Message;
@@ -156,7 +193,7 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
       const answer = json.message;
       setMessages((previous) => [...previous, answer]);
       if (json.mediaPending === true) {
-        void loadMedia(answer);
+        void loadMedia(answer, activeId);
       }
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -175,7 +212,9 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
   };
 
   const finish = async (): Promise<void> => {
-    if (finishing || docs !== null) return;
+    if (anonymous || finishing || docs !== null) return;
+    const activeId = activeConversationId;
+    if (activeId === null) return;
     if (!window.confirm("Terminer la discussion et générer la fiche de prospection ?")) return;
     setFinishing(true);
     setError(null);
@@ -183,7 +222,7 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
       const response = await fetch("/api/chat/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId }),
+        body: JSON.stringify({ conversationId: activeId }),
       });
       const json = (await response.json()) as {
         markdown?: string;
@@ -223,8 +262,9 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
         aria-label="Conversation"
       >
         <p className="chat-intro">
-          Décrivez votre projet (type de plateforme, objectif, budget, délai). Je vous pose quelques
-          questions puis je prépare une fiche récapitulative.
+          {anonymous
+            ? "Décrivez votre demande. Je vous réponds sans demander vos coordonnées."
+            : "Décrivez votre projet (type de plateforme, objectif, budget, délai). Je vous pose quelques questions puis je prépare une fiche récapitulative."}
         </p>
 
         <ul className="chat-log-list">
@@ -338,14 +378,16 @@ export function ChatWindow({ conversationId, initialMessages }: ChatWindowProps)
             maxLength={4000}
           />
           <div className="chat-actions">
-            <button
-              type="button"
-              className="chat-finish"
-              disabled={finishing || docs !== null || messages.length === 0}
-              onClick={() => void finish()}
-            >
-              {finishing ? "…" : "Terminer"}
-            </button>
+            {anonymous ? null : (
+              <button
+                type="button"
+                className="chat-finish"
+                disabled={finishing || docs !== null || messages.length === 0}
+                onClick={() => void finish()}
+              >
+                {finishing ? "…" : "Terminer"}
+              </button>
+            )}
             <button type="submit" className="chat-send" disabled={!canSend} aria-label="Envoyer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path

@@ -32,6 +32,7 @@ function linkInput(tokenHash: string) {
     tokenEnc: "enc",
     label: tokenHash,
     type: "standard" as const,
+    identificationMode: "contact" as const,
     prospectId: null,
     createdBy: null,
     expiresAt: null,
@@ -150,6 +151,7 @@ describe("isolation croisée SQL — liens et conversations", () => {
     expect(
       await repo.updateDetails(orgA, b.id, {
         label: "piraté",
+        identificationMode: "contact",
         expiresAt: null,
         sources: { connaissances: true, phototheque: true, lien: true },
         confidentialiteId: null,

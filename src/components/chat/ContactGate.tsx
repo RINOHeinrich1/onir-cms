@@ -10,6 +10,8 @@ type ContactGateProps = {
   onStarted: (conversationId: string, messages: ChatMessageDto[]) => void;
   /** Politique de confidentialité à accepter (null = aucune). */
   confidentialite: { texte: string; lien: string } | null;
+  /** Mode anonyme : seule la politique (si présente) est demandée. */
+  anonymous?: boolean;
 };
 
 type ExtraContact = {
@@ -23,7 +25,12 @@ type ExtraContact = {
  * Nom + email requis, contacts complémentaires optionnels (téléphone,
  * WhatsApp, site web, autre). Time-trap anti-spam (aucun champ à remplir).
  */
-export function ContactGate({ token, onStarted, confidentialite }: ContactGateProps) {
+export function ContactGate({
+  token,
+  onStarted,
+  confidentialite,
+  anonymous = false,
+}: ContactGateProps) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [extras, setExtras] = useState<ExtraContact[]>([]);
@@ -63,9 +70,13 @@ export function ContactGate({ token, onStarted, confidentialite }: ContactGatePr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          nom: String(data.get("nom") ?? ""),
-          email: String(data.get("email") ?? ""),
-          contacts,
+          ...(anonymous
+            ? {}
+            : {
+                nom: String(data.get("nom") ?? ""),
+                email: String(data.get("email") ?? ""),
+                contacts,
+              }),
           consentement: data.get("consentement") !== null,
           loadedAt: loadedAt.current,
         }),
@@ -92,62 +103,72 @@ export function ContactGate({ token, onStarted, confidentialite }: ContactGatePr
 
   return (
     <section className="card">
-      <h1 className="text-title">Avant de discuter…</h1>
-      <p className="hint">Indiquez votre nom et votre email pour démarrer la conversation.</p>
+      <h1 className="text-title">{anonymous ? "Avant de démarrer…" : "Avant de discuter…"}</h1>
+      <p className="hint">
+        {anonymous
+          ? "Aucun nom ni contact ne vous sera demandé. La conversation reste anonyme."
+          : "Indiquez votre nom et votre email pour démarrer la conversation."}
+      </p>
       {error !== null ? <p className="alert error">{error}</p> : null}
       <form className="form" onSubmit={onSubmit} noValidate>
-        <label className="field">
-          Nom *
-          <input type="text" name="nom" autoComplete="name" required />
-        </label>
-        <label className="field">
-          Email *
-          <input type="email" name="email" autoComplete="email" required />
-        </label>
-
-        {extras.map((extra) => (
-          <div className="grid-2" key={extra.id}>
+        {anonymous ? null : (
+          <>
             <label className="field">
-              Type
-              <select
-                value={extra.type}
-                onChange={(event) => setExtra(extra.id, { type: event.target.value })}
-              >
-                {CONTACT_TYPES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+              Nom *
+              <input type="text" name="nom" autoComplete="name" required />
             </label>
             <label className="field">
-              Valeur
-              <div className="tools">
-                <input
-                  type="text"
-                  value={extra.valeur}
-                  onChange={(event) => setExtra(extra.id, { valeur: event.target.value })}
-                  placeholder="Numéro, lien…"
-                />
-                <button
-                  type="button"
-                  className="btn danger ghost small"
-                  onClick={() => removeExtra(extra.id)}
-                >
-                  Retirer
-                </button>
+              Email *
+              <input type="email" name="email" autoComplete="email" required />
+            </label>
+          </>
+        )}
+
+        {anonymous
+          ? null
+          : extras.map((extra) => (
+              <div className="grid-2" key={extra.id}>
+                <label className="field">
+                  Type
+                  <select
+                    value={extra.type}
+                    onChange={(event) => setExtra(extra.id, { type: event.target.value })}
+                  >
+                    {CONTACT_TYPES.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Valeur
+                  <div className="tools">
+                    <input
+                      type="text"
+                      value={extra.valeur}
+                      onChange={(event) => setExtra(extra.id, { valeur: event.target.value })}
+                      placeholder="Numéro, lien…"
+                    />
+                    <button
+                      type="button"
+                      className="btn danger ghost small"
+                      onClick={() => removeExtra(extra.id)}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </label>
               </div>
-            </label>
-          </div>
-        ))}
+            ))}
 
-        {extras.length < 5 ? (
+        {anonymous || extras.length >= 5 ? null : (
           <div className="tools">
             <button type="button" className="btn ghost small" onClick={() => addExtra()}>
               + Ajouter un contact
             </button>
           </div>
-        ) : null}
+        )}
 
         {confidentialite !== null ? (
           <label className="check consent">

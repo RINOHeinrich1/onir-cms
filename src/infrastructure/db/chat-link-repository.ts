@@ -4,6 +4,7 @@ import type {
   CreateChatLinkInput,
 } from "@/application/ports/chat-link-repository";
 import {
+  type ActiveLinkIdentificationMode,
   type ChatLink,
   type ChatLinkSources,
   type ChatLinkType,
@@ -18,6 +19,7 @@ type ChatLinkRow = {
   organization_id: string;
   label: string;
   type: string;
+  identification_mode: ActiveLinkIdentificationMode;
   prospect_id: string | null;
   created_by: string | null;
   actif: boolean;
@@ -39,7 +41,7 @@ type ChatLinkRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
+  "id, organization_id, label, type, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
 
 function toEntity(row: ChatLinkRow): ChatLink {
   if (!isChatLinkType(row.type)) {
@@ -51,6 +53,7 @@ function toEntity(row: ChatLinkRow): ChatLink {
     organizationId: row.organization_id,
     label: row.label,
     type,
+    identificationMode: row.identification_mode,
     prospectId: row.prospect_id,
     createdBy: row.created_by,
     actif: row.actif,
@@ -114,8 +117,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
 
     async create(organizationId, input: CreateChatLinkInput): Promise<ChatLink> {
       const { rows } = await pool.query<ChatLinkRow>(
-        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -123,6 +126,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
           input.tokenEnc,
           input.label,
           input.type,
+          input.identificationMode,
           input.prospectId,
           input.createdBy,
           input.expiresAt,
@@ -173,6 +177,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       id,
       patch: {
         label: string;
+        identificationMode: ActiveLinkIdentificationMode;
         expiresAt: string | null;
         sources: ChatLinkSources;
         confidentialiteId: string | null;
@@ -186,11 +191,12 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       },
     ): Promise<ChatLink | null> {
       const { rows } = await pool.query<ChatLinkRow>(
-        `UPDATE chat_links SET label = $1, expires_at = $2, sources = $3, confidentialite_id = $4, user_state_enabled = $5, visual_template_id = $6, visual_template_version = $7, visual_template_config = $8, visual_template_params = $9, ai_provider_id = $10, ai_model = $11
-          WHERE organization_id = $12 AND id = $13
+        `UPDATE chat_links SET label = $1, identification_mode = $2, expires_at = $3, sources = $4, confidentialite_id = $5, user_state_enabled = $6, visual_template_id = $7, visual_template_version = $8, visual_template_config = $9, visual_template_params = $10, ai_provider_id = $11, ai_model = $12
+          WHERE organization_id = $13 AND id = $14
           RETURNING ${COLUMNS}`,
         [
           patch.label,
+          patch.identificationMode,
           patch.expiresAt,
           JSON.stringify(patch.sources),
           patch.confidentialiteId,

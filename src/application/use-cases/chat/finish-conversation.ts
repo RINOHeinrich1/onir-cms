@@ -92,6 +92,13 @@ export async function buildFicheFromConversation(
   if (link === null) {
     throw new NotFoundError("Lien introuvable");
   }
+  const anonymousConversation =
+    conversation.visitorNom.trim() === "" &&
+    conversation.visitorEmail.trim() === "" &&
+    conversation.prospectId === null;
+  if (link.identificationMode === "anonymous" || anonymousConversation) {
+    throw new UnprocessableError("Une conversation anonyme ne génère pas de fiche nominative");
+  }
   const template = await deps.templates.findVersion(
     organizationId,
     link.templateKey,

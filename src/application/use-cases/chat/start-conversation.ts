@@ -109,7 +109,30 @@ export async function startConversation(
     throw new NotFoundError("Lien invalide ou révoqué");
   }
 
+  if (link.type === "standard" && link.identificationMode === "anonymous") {
+    const consentementRequis = link.confidentialiteId !== null;
+    const consentement = input.consentement === true;
+    if (consentementRequis && !consentement) {
+      throw new ValidationError(
+        "Vous devez accepter la politique de confidentialité avant de discuter",
+      );
+    }
+    const conversation = await deps.conversations.create(organizationId, {
+      linkId: link.id,
+      visitorNom: "",
+      visitorEmail: "",
+      visitorContacts: [],
+      prospectId: null,
+      consentementAt: consentementRequis ? new Date().toISOString() : null,
+      confidentialiteId: consentementRequis ? link.confidentialiteId : null,
+    });
+    return { conversation, prospect: null, resumed: false };
+  }
+
   if (link.type === "standard") {
+    if (link.identificationMode !== "contact") {
+      throw new ValidationError("Mode d'identification indisponible");
+    }
     const source =
       input.visitor !== null && typeof input.visitor === "object" && !Array.isArray(input.visitor)
         ? (input.visitor as Record<string, unknown>)

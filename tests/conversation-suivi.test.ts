@@ -17,6 +17,7 @@ function link(overrides: Partial<ChatLink> = {}): ChatLink {
     organizationId: "org-1",
     label: "Campagne",
     type: "standard",
+    identificationMode: "contact",
     prospectId: null,
     createdBy: null,
     actif: true,
@@ -216,5 +217,56 @@ describe("countConversations — vue globale", () => {
     await expect(
       countConversations({ conversations }, { ...DASH_ACTOR, organizationId: null }),
     ).rejects.toThrow(/autorisée/i);
+  });
+});
+
+describe("startConversation — mode anonyme", () => {
+  it("crée une conversation sans prospect et sans identité", async () => {
+    const base = deps({});
+    base.deps.links = {
+      findByTokenHash: async () => link({ identificationMode: "anonymous" }),
+    } as unknown as ChatLinkRepository;
+    const result = await startConversation(base.deps, { token: "jeton" });
+    expect(base.createProspect).not.toHaveBeenCalled();
+    expect(base.create).toHaveBeenCalledWith(
+      "org-1",
+      expect.objectContaining({
+        visitorNom: "",
+        visitorEmail: "",
+        prospectId: null,
+        confidentialiteId: null,
+      }),
+    );
+    expect(result.prospect).toBeNull();
+    expect(result.resumed).toBe(false);
+  });
+
+  it("exige le consentement quand une politique est rattachée", async () => {
+    const base = deps({});
+    base.deps.links = {
+      findByTokenHash: async () =>
+        link({ identificationMode: "anonymous", confidentialiteId: "conf-1" }),
+    } as unknown as ChatLinkRepository;
+    await expect(startConversation(base.deps, { token: "jeton" })).rejects.toThrow(
+      /confidentialit/i,
+    );
+    expect(base.create).not.toHaveBeenCalled();
+  });
+
+  it("enregistre le consentement sans demander d'identité", async () => {
+    const base = deps({});
+    base.deps.links = {
+      findByTokenHash: async () =>
+        link({ identificationMode: "anonymous", confidentialiteId: "conf-1" }),
+    } as unknown as ChatLinkRepository;
+    await startConversation(base.deps, { token: "jeton", consentement: true });
+    expect(base.create).toHaveBeenCalledWith(
+      "org-1",
+      expect.objectContaining({
+        visitorEmail: "",
+        confidentialiteId: "conf-1",
+        consentementAt: expect.any(String),
+      }),
+    );
   });
 });

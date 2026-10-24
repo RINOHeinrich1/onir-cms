@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
-import type { ChatLinkSources } from "@/domain/entities/chat";
+import {
+  ACTIVE_LINK_IDENTIFICATION_MODES,
+  type ActiveLinkIdentificationMode,
+  type ChatLinkSources,
+} from "@/domain/entities/chat";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { orphanParamKeys } from "@/domain/template-params";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
@@ -44,6 +48,9 @@ export function LinkEditModal({
   onClose: () => void;
 }) {
   const [label, setLabel] = useState(link.label);
+  const [identificationMode, setIdentificationMode] = useState<ActiveLinkIdentificationMode>(
+    link.identificationMode,
+  );
   const [expiresAt, setExpiresAt] = useState(
     link.expiresAt === null ? "" : link.expiresAt.slice(0, 10),
   );
@@ -105,6 +112,7 @@ export function LinkEditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label,
+          identificationMode,
           expiresAt,
           sources,
           confidentialiteId,
@@ -160,6 +168,33 @@ export function LinkEditModal({
             <p className="hint">
               Type : <span className="badge">{link.type}</span> — non modifiable.
             </p>
+
+            {link.type === "standard" ? (
+              <label className="field">
+                Identification
+                <select
+                  value={identificationMode}
+                  onChange={(event) =>
+                    setIdentificationMode(event.target.value as ActiveLinkIdentificationMode)
+                  }
+                >
+                  {ACTIVE_LINK_IDENTIFICATION_MODES.map((value) => (
+                    <option key={value} value={value}>
+                      {value === "contact" ? "Nom et contact" : "Anonyme"}
+                    </option>
+                  ))}
+                </select>
+                <span className="hint">
+                  {identificationMode === "contact"
+                    ? "Nom et email requis avant la discussion."
+                    : "Aucun nom, email ou contact demandé."}
+                </span>
+              </label>
+            ) : (
+              <p className="hint">
+                Identification : prospect lié au lien. Le mode anonyme est indisponible.
+              </p>
+            )}
 
             <label className="field">
               Libellé (optionnel)
