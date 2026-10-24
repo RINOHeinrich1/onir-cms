@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
 import {
@@ -23,6 +24,7 @@ import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { tryTemplateDataDependencies } from "@/infrastructure/db/template-data-runtime";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
+import { isBotUserAgent } from "@/lib/visit-tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +86,12 @@ export default async function ChatPortalPage({ params }: PageProps) {
         </div>
       </main>
     );
+  }
+
+  const requestHeaders = await headers();
+  if (!isBotUserAgent(requestHeaders.get("user-agent"))) {
+    // Le compteur est accessoire : une panne d'écriture ne doit jamais bloquer le chat.
+    await links.recordVisit(link.organizationId, link.id).catch(() => undefined);
   }
 
   const deps: LinkTemplateDependencies = {

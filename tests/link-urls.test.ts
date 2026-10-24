@@ -34,6 +34,8 @@ function linkRow(id: string): ChatLink {
     visualTemplateParams: {},
     aiProviderId: null,
     aiModel: null,
+    visitCount: 0,
+    lastVisitAt: null,
     createdAt: new Date(0).toISOString(),
   };
 }
@@ -62,6 +64,7 @@ describe("linkListItems", () => {
       findByTokenHash: async () => null,
       list: async () => [],
       create: async () => linkRow("x"),
+      recordVisit: async () => undefined,
       getTokenEnc: async (_organizationId, id) => (id === "l1" ? enc(token) : null),
       setLinkToken: async () => null,
       updateDetails: async () => null,

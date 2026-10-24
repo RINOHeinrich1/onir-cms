@@ -36,6 +36,8 @@ export interface ChatLinkRepository {
   /** Résolution publique : le token porte l'organisation (jamais le client). */
   findByTokenHash(tokenHash: string): Promise<ChatLink | null>;
   list(organizationId: string): Promise<ChatLink[]>;
+  /** Incrémente le compteur d'ouvertures publiques du lien. */
+  recordVisit(organizationId: string, id: string): Promise<void>;
   create(organizationId: string, input: CreateChatLinkInput): Promise<ChatLink>;
   /** Chiffré du jeton (copie stable) ; null si jamais renseigné (ligne legacy). */
   getTokenEnc(organizationId: string, id: string): Promise<string | null>;

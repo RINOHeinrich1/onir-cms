@@ -33,11 +33,13 @@ type ChatLinkRow = {
   visual_template_params: unknown;
   ai_provider_id: string | null;
   ai_model: string | null;
+  visit_count: number;
+  last_visit_at: Date | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model, created_at";
+  "id, organization_id, label, type, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
 
 function toEntity(row: ChatLinkRow): ChatLink {
   if (!isChatLinkType(row.type)) {
@@ -64,6 +66,8 @@ function toEntity(row: ChatLinkRow): ChatLink {
     visualTemplateParams: parseVisualTemplateParams(row.visual_template_params),
     aiProviderId: row.ai_provider_id,
     aiModel: row.ai_model,
+    visitCount: row.visit_count,
+    lastVisitAt: row.last_visit_at ? row.last_visit_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -97,6 +101,15 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         [organizationId],
       );
       return rows.map((row) => toEntity(row));
+    },
+
+    async recordVisit(organizationId, id): Promise<void> {
+      await pool.query(
+        `UPDATE chat_links
+            SET visit_count = visit_count + 1, last_visit_at = now()
+          WHERE organization_id = $1 AND id = $2`,
+        [organizationId, id],
+      );
     },
 
     async create(organizationId, input: CreateChatLinkInput): Promise<ChatLink> {

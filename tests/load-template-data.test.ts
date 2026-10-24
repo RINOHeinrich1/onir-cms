@@ -101,6 +101,8 @@ const link: ChatLink = {
   visualTemplateParams: {},
   aiProviderId: null,
   aiModel: null,
+  visitCount: 0,
+  lastVisitAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 

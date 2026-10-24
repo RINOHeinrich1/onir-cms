@@ -42,6 +42,8 @@ const LINK = {
   visualTemplateParams: {},
   aiProviderId: null,
   aiModel: null,
+  visitCount: 0,
+  lastVisitAt: null,
   createdAt: new Date(0).toISOString(),
 } as const;
 
@@ -100,6 +102,7 @@ function deps(aiAnswer: string) {
     findByTokenHash: async () => null,
     list: async () => [],
     create: async () => ({ ...LINK, type: "standard" as const }),
+    recordVisit: async () => undefined,
     getTokenEnc: async () => null,
     setLinkToken: async () => null,
     updateDetails: async () => null,

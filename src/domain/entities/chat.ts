@@ -74,6 +74,10 @@ export type ChatLink = {
   aiProviderId: string | null;
   /** Modèle IA explicite du lien ; null = hériter. */
   aiModel: string | null;
+  /** Nombre d'ouvertures publiques comptées (hors robots connus). */
+  visitCount: number;
+  /** Dernière ouverture publique comptée ; null si aucune visite. */
+  lastVisitAt: string | null;
   createdAt: string;
 };
 

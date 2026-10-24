@@ -69,6 +69,8 @@ function linkRow(expiresAt: string | null): ChatLink {
     visualTemplateParams: {},
     aiProviderId: null,
     aiModel: null,
+    visitCount: 0,
+    lastVisitAt: null,
     createdAt: new Date(0).toISOString(),
   };
 }
@@ -100,6 +102,7 @@ describe("updateChatLink", () => {
       findByTokenHash: async () => null,
       list: async () => [],
       create: async () => linkRow(null),
+      recordVisit: async () => undefined,
       getTokenEnc: async () => null,
       setLinkToken: async () => null,
       updateDetails: vi.fn(

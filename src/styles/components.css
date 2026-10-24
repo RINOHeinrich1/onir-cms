@@ -2893,3 +2893,18 @@ a.subtab {
     position: static;
   }
 }
+
+/* Colonne Visites : total + date de dernière ouverture. */
+.lien-visits {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lien-visits > span {
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
