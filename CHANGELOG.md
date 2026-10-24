@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.5.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.4.0...v0.5.0) (2026-10-24)
+
+
+### Features
+
+* **site:** add legal notices and privacy policy ([#28](https://github.com/RINOHeinrich1/onir-cms/issues/28)) ([ac335fe](https://github.com/RINOHeinrich1/onir-cms/commit/ac335fec32fee5c0c37cd369ac3919e6cee8a3ad))
+
 ## [0.4.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.3.0...v0.4.0) (2026-10-24)
 
 
