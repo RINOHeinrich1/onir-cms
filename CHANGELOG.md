@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.7.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.6.0...v0.7.0) (2026-10-24)
+
+
+### Features
+
+* **chat:** add anonymous visitor identification mode ([#34](https://github.com/RINOHeinrich1/onir-cms/issues/34)) ([44a718b](https://github.com/RINOHeinrich1/onir-cms/commit/44a718b6009c7405a5b7ab0997f60e9f8899a080))
+
 ## [0.6.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.5.0...v0.6.0) (2026-10-24)
 
 
