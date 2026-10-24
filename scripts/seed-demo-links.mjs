@@ -10,6 +10,9 @@ const APP_URL = (process.env.APP_URL || "http://localhost:3008").replace(/\/$/, 
 const TEMPLATE_KEY = "onir-cms-demo";
 const SIMPLE_LABEL = "Démo ONIR CMS — simplifiée";
 const IMMERSIVE_LABEL = "Démo ONIR CMS — immersive";
+const CONSENT_TITLE = "Consentement démonstration ONIR CMS";
+const CONSENT_TEXT =
+  "J’accepte que mes informations et les échanges de cette démonstration soient enregistrés et traités par ONIRTECH afin de réaliser la démonstration, qualifier ma demande et me recontacter, conformément à la politique de confidentialité.";
 
 const definition = {
   key: TEMPLATE_KEY,
@@ -202,6 +205,17 @@ async function main() {
     }
     console.log(`connaissances : ${knowledge.length} entrées prêtes`);
 
+    const privacy = await client.query(
+      `INSERT INTO confidentialites (organization_id, titre, texte, lien, actif, created_by)
+       VALUES ($1,$2,$3,$4,true,$5)
+       ON CONFLICT (organization_id, lower(titre))
+       DO UPDATE SET texte=EXCLUDED.texte, lien=EXCLUDED.lien, actif=true, updated_at=now()
+       RETURNING id`,
+      [organizationId, CONSENT_TITLE, CONSENT_TEXT, "/confidentialite-site", adminId],
+    );
+    const confidentialiteId = privacy.rows[0].id;
+    console.log(`consentement : ${CONSENT_TITLE}`);
+
     const immersive = await client.query(
       `SELECT t.id, v.version
        FROM visual_templates t
@@ -241,17 +255,18 @@ async function main() {
           `UPDATE chat_links
            SET token_hash=$1, token_enc=$2, type='standard', actif=true, expires_at=NULL,
                template_key=$3, template_version=$4,
-               sources=$5, confidentialite_id=NULL, user_state_enabled=false,
-               visual_template_id=$6, visual_template_version=$7,
-               visual_template_config='{}'::jsonb, visual_template_params=$8,
+               sources=$5, confidentialite_id=$6, user_state_enabled=false,
+               visual_template_id=$7, visual_template_version=$8,
+               visual_template_config='{}'::jsonb, visual_template_params=$9,
                ai_provider_id=NULL, ai_model=NULL
-           WHERE id=$9`,
+           WHERE id=$10`,
           [
             tokenHash,
             tokenEnc,
             TEMPLATE_KEY,
             templateVersion,
             JSON.stringify({ lien: false, phototheque: false, connaissances: true }),
+            confidentialiteId,
             entry.visualTemplateId,
             entry.visualTemplateVersion,
             JSON.stringify(entry.visualTemplateParams),
@@ -268,7 +283,7 @@ async function main() {
               template_key, template_version, sources, confidentialite_id, user_state_enabled,
               visual_template_id, visual_template_version, visual_template_config,
               visual_template_params, ai_provider_id, ai_model)
-           VALUES ($1,$2,$3,$4,'standard',$5,NULL,$6,$7,$8,NULL,false,$9,$10,'{}'::jsonb,$11,NULL,NULL)`,
+           VALUES ($1,$2,$3,$4,'standard',$5,NULL,$6,$7,$8,$9,false,$10,$11,'{}'::jsonb,$12,NULL,NULL)`,
           [
             organizationId,
             tokenHash,
@@ -278,6 +293,7 @@ async function main() {
             TEMPLATE_KEY,
             templateVersion,
             JSON.stringify({ lien: false, phototheque: false, connaissances: true }),
+            confidentialiteId,
             entry.visualTemplateId,
             entry.visualTemplateVersion,
             JSON.stringify(entry.visualTemplateParams),

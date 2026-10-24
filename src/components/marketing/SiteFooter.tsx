@@ -20,9 +20,11 @@ export function SiteFooter() {
             GitHub
           </a>
           <Link href="/login">Se connecter</Link>
+          <Link href="/mentions-legales">Mentions légales</Link>
+          <Link href="/confidentialite-site">Confidentialité</Link>
         </nav>
 
-        <p className="site-foot-meta">Open source · MIT · Auto-hébergé</p>
+        <p className="site-foot-meta">Open source · MIT · Auto-hébergé · Édité par ONIRTECH</p>
       </div>
     </footer>
   );
