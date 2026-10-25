@@ -1,4 +1,4 @@
-// Template « Immersive » v4.45.0 — SAS D'ENTRÉE 3D RÉALISTE (maison PBR + HDRI, porte qui
+// Template « Immersive » v4.45.1 — SAS D'ENTRÉE 3D RÉALISTE (maison PBR + HDRI, porte qui
 // s'ouvre) + SALLE 3D PBR + PERSONNAGE 3D RIGGÉ/ANIMÉ (FBX) + LIVRE 2D + DISCUSSION.
 //
 // • Assets 3D **embarqués CC0** (aucun réseau au runtime) :
@@ -790,7 +790,7 @@ class ImmersiveTemplate extends HTMLElement {
       onSend: (value) => this.#host?.actions?.sendMessage(value),
       onAttach: (fieldName, file) => {
         if (!this.#host?.has?.("attachments")) return;
-        void this.#host.actions.attachFile(fieldName, file);
+        return this.#host.actions.attachFile(fieldName, file);
       },
       onRemoveAttachment: (id) => {
         if (!this.#host?.has?.("attachments")) return;

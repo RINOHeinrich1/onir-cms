@@ -4,7 +4,7 @@
   "id": "immersive",
   "name": "Immersive",
   "description": "Scène 3D RÉALISTE : SAS d'entrée = MAISON 3D (murs brique, toit tuiles, porte bois — PBR + HDRI, assets CC0) avec FORMULAIRE CENTRÉ nom/email/consentement ; à la soumission la maison passe devant, la PORTE S'OUVRE, puis TRAVELLING CONTINU à travers la porte vers la SALLE (cabinet cohérent : lambris, bibliothèque, tapis, lustre ; PBR + HDRI) — livre FERMÉ (ouvre au clic pupitre). Scène « discussion » (rotation de la salle) : PERSONNAGE 3D réaliste via TalkingHead (avatar GLB, MIT ; personnage Microsoft RocketBox (MIT)), MUET — humeurs (neutre/content/triste) + gestes + mouvements de tête selon l'état du visiteur ; tableau image/connaissance/lien + dialogue texte à HAUTEUR FIXE (sans défilement : texte révélé progressivement, messages longs PAGINÉS en feuilletant avec ‹ ›). Bouton « Terminer » qui ouvre une MODALE de confirmation avant de générer la fiche, avec toast de confirmation ; composer compact en icônes sous mobile, avec import de pièces jointes (CV, documents) quand le modèle le demande. Extérieur CLOS : cour carrée clôturée (panneaux + piliers), portail bois entre deux piliers maçonnés, haie et rideau d'arbres, brume légère sur l'horizon. Ressources de données : contrat `library` (livres + pages) chargé via `ctx.data.load`, avec repli sur la médiathèque.",
-  "version": "4.45.0",
+  "version": "4.45.1",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -17,7 +17,7 @@
     "mode": "web-component",
     "entry": "./src/index.js",
     "element": "onirtech-template-immersive",
-    "integrity": "sha256-oMt4Skkroh7u8RfiktQp105oIc45fr4MoUMW92KRWAw=",
+    "integrity": "sha256-smuGMMeR00tngDeUvUB2kqL6vYXHJHlk/vXFj4ynNHg=",
     "shadowDom": "open"
   },
   "capabilities": [
