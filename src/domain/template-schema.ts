@@ -125,7 +125,9 @@ export function validateTemplateDefinition(
   const conditional = fields.filter((field) => field.requiredIf !== undefined);
   for (const field of conditional) {
     if (!names.has(field.requiredIf?.field ?? "")) {
-      errors.push(`Règle conditionnelle vers un champ inexistant (${field.name})`);
+      errors.push(
+        `Règle conditionnelle du champ « ${field.label} » vers un champ inexistant (${field.requiredIf?.field ?? ""})`,
+      );
     }
   }
   if (conditional.length > 1) {

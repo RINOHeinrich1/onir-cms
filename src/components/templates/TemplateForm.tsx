@@ -28,6 +28,7 @@ import {
   PROMPT_GUARDRAILS,
   PROMPT_TONES,
   type PromptGuardrailId,
+  resolveFieldName,
   toFieldName,
   toTemplateKey,
   uniqueFieldName,
@@ -211,7 +212,7 @@ function materializeSimpleFieldNames(fields: readonly FieldRow[]): FieldRow[] {
   const used: string[] = [];
   return fields.map((field) => {
     if (field.label.trim() === "" && field.name.trim() === "") return field;
-    const name = uniqueFieldName(toFieldName(field.label.trim() || field.name.trim()), used);
+    const name = uniqueFieldName(resolveFieldName(field.label, field.name), used);
     used.push(name);
     return { ...field, name };
   });
@@ -219,7 +220,8 @@ function materializeSimpleFieldNames(fields: readonly FieldRow[]): FieldRow[] {
 
 /**
  * Convertit les lignes d'édition en définition validable.
- * Le nom technique est toujours dérivé du libellé et rendu unique.
+ * Les champs existants conservent leur clé technique (compatibilité) ; les
+ * nouveaux champs reçoivent une clé dérivée du libellé.
  */
 function fieldsToTemplateFields(
   fields: readonly FieldRow[],
@@ -233,7 +235,7 @@ function fieldsToTemplateFields(
     const rawName = field.name.trim();
     if (label === "" && rawName === "") continue;
 
-    const name = uniqueFieldName(toFieldName(label === "" ? rawName : label), used);
+    const name = uniqueFieldName(rawName !== "" ? rawName : toFieldName(label), used);
     used.push(name);
 
     const type = isTemplateFieldType(field.type) ? field.type : "text";

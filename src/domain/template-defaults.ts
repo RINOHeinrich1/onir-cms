@@ -138,6 +138,15 @@ export function toTemplateKey(label: string): string {
 }
 
 /** Transforme un libellé en nom technique de champ valide. */
+/**
+ * Clé technique d'un champ : la clé existante est conservée pour ne pas casser
+ * les modèles legacy ; seuls les nouveaux champs sont dérivés du libellé.
+ */
+export function resolveFieldName(label: string, existingName: string): string {
+  const existing = existingName.trim();
+  return existing !== "" ? existing : toFieldName(label);
+}
+
 export function toFieldName(label: string): string {
   const base = normalize(label)
     .replace(/[^a-z0-9]+/g, "_")
