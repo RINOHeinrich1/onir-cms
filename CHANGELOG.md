@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.11.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.10.2...v0.11.0) (2026-10-25)
+
+
+### Features
+
+* **templates:** pièces jointes dans Immersive 4.45.0 ([#47](https://github.com/RINOHeinrich1/onir-cms/issues/47)) ([e2d1e24](https://github.com/RINOHeinrich1/onir-cms/commit/e2d1e2485084f8183b0a302add7b8946569164e1))
+
 ## [0.10.2](https://github.com/RINOHeinrich1/onir-cms/compare/v0.10.1...v0.10.2) (2026-10-25)
 
 
