@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AiClient } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
+import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
@@ -141,6 +142,7 @@ function deps() {
             content: "Je veux un site.",
             medias: [],
             mediasComputed: false,
+            attachments: [],
             createdAt: new Date(0).toISOString(),
           },
         ],
@@ -158,6 +160,10 @@ function deps() {
           createdAt: new Date(0).toISOString(),
         }),
       } as unknown as ChatTemplateRepository,
+      attachments: {
+        listByConversation: async () => [],
+        attachToFiche: async () => undefined,
+      } as unknown as AttachmentRepository,
       ai: fixedAiClientFactory(ai),
     },
     create,

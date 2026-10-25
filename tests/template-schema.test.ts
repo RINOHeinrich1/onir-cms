@@ -125,3 +125,47 @@ describe("validateTemplateDefinition", () => {
     expect(badName.ok).toBe(false);
   });
 });
+
+describe("validateTemplateDefinition — champ fichier (ADR-0034)", () => {
+  it("accepte un champ fichier avec ses contraintes", () => {
+    const result = validateTemplateDefinition(
+      base({
+        fields: [
+          {
+            name: "cin",
+            label: "CIN",
+            type: "file",
+            required: true,
+            file: { accept: ["image/png", "application/pdf"], maxFiles: 1, maxBytes: 1024 },
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok)
+      expect(result.value.fields[0]?.file?.accept).toEqual(["image/png", "application/pdf"]);
+  });
+
+  it("refuse un champ fichier sans contraintes ou avec un MIME inconnu", () => {
+    expect(
+      validateTemplateDefinition(
+        base({ fields: [{ name: "cin", label: "CIN", type: "file", required: true }] }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      validateTemplateDefinition(
+        base({
+          fields: [
+            {
+              name: "cin",
+              label: "CIN",
+              type: "file",
+              required: true,
+              file: { accept: ["application/zip"], maxFiles: 1, maxBytes: 1024 },
+            },
+          ],
+        }),
+      ).ok,
+    ).toBe(false);
+  });
+});

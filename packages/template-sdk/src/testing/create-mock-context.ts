@@ -45,6 +45,7 @@ const MOCK_CAPABILITIES: TemplateCapability[] = [
   "theme",
   "userState",
   "knowledge",
+  "attachments",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -123,6 +124,8 @@ function defaultActions(): TemplateActions {
   return {
     submitIdentity: () => undefined,
     sendMessage: () => undefined,
+    attachFile: () => Promise.resolve(),
+    removeAttachment: () => Promise.resolve(),
     finish: () => undefined,
     request: () => Promise.resolve(undefined),
     openMedia: () => undefined,

@@ -10,6 +10,7 @@ import {
   type TemplateSpec,
 } from "@/domain/template-contract";
 import { resolveTemplateParams } from "@/domain/template-params";
+import { signedAttachmentUrl } from "@/lib/attachment-token";
 import { signedMediaUrl } from "@/lib/media-token";
 import { loadTemplateData, type TemplateDataDependencies } from "./load-template-data";
 
@@ -48,7 +49,10 @@ export async function loadTemplateSpec(
 }
 
 /** Convertit les messages du domaine en messages du contrat. */
-export function toContractMessages(messages: ChatMessage[]): TemplateMessage[] {
+export function toContractMessages(
+  messages: ChatMessage[],
+  organizationId?: string,
+): TemplateMessage[] {
   return messages.map((message) => ({
     id: message.id,
     role: message.role,
@@ -58,6 +62,22 @@ export function toContractMessages(messages: ChatMessage[]): TemplateMessage[] {
       libelle: media.libelle,
       url: media.url,
     })),
+    ...(message.attachments.length === 0
+      ? {}
+      : {
+          attachments: message.attachments.map((attachment) => ({
+            id: attachment.id,
+            fieldName: attachment.fieldName,
+            fieldLabel: attachment.fieldLabel,
+            originalName: attachment.originalName,
+            mime: attachment.mime,
+            sizeBytes: attachment.sizeBytes,
+            createdAt: attachment.createdAt,
+            url: organizationId
+              ? signedAttachmentUrl(attachment.id, organizationId)
+              : `/api/chat/attachments/${attachment.id}/file`,
+          })),
+        }),
     at: message.createdAt,
   }));
 }
@@ -129,6 +149,7 @@ export async function buildLinkContext(
     typing: false,
     media,
     modelForm,
+    pendingAttachments: [],
     // Double garde (ADR-0020) : flag lien exposé au contexte + sources.
     userStateEnabled: link.userStateEnabled,
     knowledgeEnabled: link.sources.connaissances,

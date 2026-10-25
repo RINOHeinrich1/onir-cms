@@ -15,6 +15,7 @@ x-app-environment: &app-environment
   AI_PRODUCT_ID: ${AI_PRODUCT_ID:-}
   AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
   MEDIA_DIR: /app/var/media
+  ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/app/var/media/attachments}
 
 services:
   db:

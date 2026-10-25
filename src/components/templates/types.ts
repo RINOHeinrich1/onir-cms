@@ -20,6 +20,11 @@ export type TemplateFieldDraft = {
   requiredIfField: string;
   requiredIfEquals: string;
   example: string;
+  /** Champ `file` (ADR-0034). */
+  filePreset: string;
+  fileAccept: string;
+  fileMaxFiles: string;
+  fileMaxBytesMo: string;
 };
 
 export type TemplateFormMode = "simple" | "expert";
@@ -51,4 +56,8 @@ export const EMPTY_FIELD: TemplateFieldDraft = {
   requiredIfField: "",
   requiredIfEquals: "",
   example: "",
+  filePreset: "all",
+  fileAccept: "",
+  fileMaxFiles: "1",
+  fileMaxBytesMo: "10",
 };

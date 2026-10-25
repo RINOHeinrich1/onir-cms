@@ -22,6 +22,10 @@ const CAPABILITY_DESCRIPTIONS: Record<TemplateCapability, { text: string; field:
     text: "Connaissances utilisées par l'assistant (capacité ET source active)",
     field: "message.knowledge",
   },
+  attachments: {
+    text: "Pièces jointes des champs fichier (ADR-0034)",
+    field: "ctx.state.pendingAttachments / message.attachments",
+  },
   data: {
     text: "Ressources de données déclarées par contrat (ADR-0026)",
     field: "ctx.data.load(contract)",

@@ -39,6 +39,8 @@ actions.resize(720);`;
 
 const CATALOG = `actions.submitIdentity({ nom, email, contacts?, consentement? })
 actions.sendMessage("Bonjour")
+actions.attachFile("cin", file)        // champ fichier (ADR-0034)
+actions.removeAttachment(attachmentId) // retire une pièce en attente
 actions.finish()
 actions.request("media" | "modelForm" | "theme" | "messages")
 actions.openMedia(url)
@@ -297,7 +299,17 @@ export default function ActionsDocsPage() {
         </li>
       </ul>
 
-      <h2 id="autres">6. request, openMedia, resize, ready</h2>
+      <h2 id="fichiers">6. attachFile — pièces jointes</h2>
+      <p>
+        Les champs de type <code>file</code> arrivent dans <code>ctx.resources.modelForm</code> avec{" "}
+        <code>accept</code>, <code>maxFiles</code> et <code>maxBytes</code>. Le fichier est lu par
+        le template puis envoyé à l&apos;hôte via <code>attachFile(fieldName, file)</code> ;
+        l&apos;hôte valide et stocke. Les pièces en attente sont exposées dans{" "}
+        <code>ctx.state.pendingAttachments</code>. Un message peut être envoyé sans texte si des
+        pièces sont en attente. Aucun OCR ni analyse IA n&apos;est effectué.
+      </p>
+
+      <h2 id="autres">7. request, openMedia, resize, ready</h2>
       <Code>{REQUEST}</Code>
       <ul>
         <li>
@@ -319,7 +331,7 @@ export default function ActionsDocsPage() {
         </li>
       </ul>
 
-      <h2 id="evenements">7. Événements de l&apos;hôte</h2>
+      <h2 id="evenements">8. Événements de l&apos;hôte</h2>
       <Code>{`const offState = on("state", (state) => { … });      // à chaque contexte
 const offRes = on("resources", (value) => { … });     // après request()
 offState(); offRes(); // désabonnement`}</Code>
@@ -329,7 +341,7 @@ offState(); offRes(); // désabonnement`}</Code>
         l&apos;hôte dans son bandeau : prévoyez un état de reprise côté UI (bouton Réessayer).
       </p>
 
-      <h2 id="machine">8. Machine à états</h2>
+      <h2 id="machine">9. Machine à états</h2>
       <div className="table-scroll">
         <table className="table">
           <thead>
@@ -377,7 +389,7 @@ offState(); offRes(); // désabonnement`}</Code>
         </table>
       </div>
 
-      <h2 id="mock-reel">9. Mock, aperçu, production</h2>
+      <h2 id="mock-reel">10. Mock, aperçu, production</h2>
       <div className="table-scroll">
         <table className="table">
           <thead>
@@ -412,7 +424,7 @@ offState(); offRes(); // désabonnement`}</Code>
         <code>media</code>, <code>finish</code> et leurs réponses.
       </p>
 
-      <h2 id="faq">10. Questions fréquentes</h2>
+      <h2 id="faq">11. Questions fréquentes</h2>
       <dl className="doc-faq">
         <dt>Le message n&apos;est pas envoyé.</dt>
         <dd>
@@ -441,7 +453,7 @@ offState(); offRes(); // désabonnement`}</Code>
         </dd>
       </dl>
 
-      <h2 id="references">11. Références</h2>
+      <h2 id="references">12. Références</h2>
       <ul>
         <li>
           <a href="/documentation/host">Template ↔ hôte</a> — contexte, ressources, création des

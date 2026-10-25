@@ -5,6 +5,7 @@
  * et **au plus une** règle `requiredIf` (champ requis si un autre vaut X).
  */
 
+import { normalizeFileConstraints } from "@/domain/entities/attachment";
 import {
   isTemplateFieldType,
   type TemplateDefinition,
@@ -82,6 +83,14 @@ export function validateTemplateDefinition(
         required: raw.required === true,
         ...(example === "" ? {} : { example }),
       };
+      if (typeRaw === "file") {
+        const constraints = normalizeFileConstraints(raw.file);
+        if (!constraints.ok) {
+          errors.push(`${constraints.error} (champ ${name})`);
+          continue;
+        }
+        field.file = constraints.value;
+      }
       if (typeRaw === "select" || typeRaw === "multi") {
         const options = Array.isArray(raw.options)
           ? raw.options.filter(

@@ -53,6 +53,14 @@ export function mediaDir(): string {
   return env("MEDIA_DIR") ?? `${process.cwd()}/var/media`;
 }
 
+/**
+ * Répertoire des pièces jointes de prospection (ADR-0034).
+ * Défaut : sous-répertoire du stockage média (volume persistant existant).
+ */
+export function attachmentsDir(): string {
+  return env("ATTACHMENTS_DIR") ?? `${mediaDir()}/attachments`;
+}
+
 export type AiConfig = {
   token: string;
   productId: string;

@@ -1,10 +1,8 @@
-import type { ChatMessageMedia } from "@/domain/entities/chat";
+import type {
+  ChatAttachmentDto as AttachmentChatDto,
+  ChatMessageDto as AttachmentChatMessageDto,
+} from "@/application/use-cases/attachments/attachment-dto";
 
-/** Message de chat exposé au client (public). */
-export type ChatMessageDto = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  medias: ChatMessageMedia[];
-  createdAt: string;
-};
+/** Message de chat exposé au client (public ou dashboard). */
+export type ChatMessageDto = AttachmentChatMessageDto;
+export type ChatAttachmentDto = AttachmentChatDto;

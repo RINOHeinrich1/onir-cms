@@ -1,5 +1,6 @@
 import { NotFoundError, UnprocessableError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
+import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
@@ -21,6 +22,7 @@ export type FinishConversationDependencies = {
   prospects: ProspectRepository;
   fiches: FicheRepository;
   templates: ChatTemplateRepository;
+  attachments: AttachmentRepository;
   ai: AiClientFactory;
 };
 
@@ -153,7 +155,20 @@ export async function buildFicheFromConversation(
     merged.contact = contact;
   }
 
-  const validated = validateTemplateData(definition, merged);
+  const conversationAttachments = await deps.attachments.listByConversation(
+    organizationId,
+    conversation.id,
+  );
+  const attachmentCounts: Record<string, number> = {};
+  const fileValues: Record<string, string[]> = {};
+  for (const attachment of conversationAttachments) {
+    attachmentCounts[attachment.fieldName] = (attachmentCounts[attachment.fieldName] ?? 0) + 1;
+    const names = fileValues[attachment.fieldName] ?? [];
+    names.push(attachment.originalName);
+    fileValues[attachment.fieldName] = names;
+  }
+
+  const validated = validateTemplateData(definition, merged, attachmentCounts);
   if (!validated.ok) {
     throw new UnprocessableError(validated.errors.join(" ; "));
   }
@@ -166,6 +181,7 @@ export async function buildFicheFromConversation(
     templateVersion: link.templateVersion,
     data: validated.value,
   });
+  await deps.attachments.attachToFiche(organizationId, fiche.id, conversationAttachments);
 
   const serverVars = buildServerVariables({ mode: link.type, prospect, conversation });
   const markdown = renderTemplateMarkdown({
@@ -173,6 +189,7 @@ export async function buildFicheFromConversation(
     data: validated.value,
     serverVars,
     date: fiche.createdAt.slice(0, 10),
+    fileValues,
   });
   return { fiche, markdown };
 }

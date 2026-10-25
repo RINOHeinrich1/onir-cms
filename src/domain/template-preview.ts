@@ -69,7 +69,18 @@ export function buildTemplatePreview(input: {
 }): TemplatePreview {
   const serverVars = input.serverVars ?? PREVIEW_SERVER_VARS;
   const date = input.date ?? serverVars.date ?? "2026-01-01";
-  const renderVars = buildRenderVariables(input.definition, input.sampleData, serverVars, { date });
+  const fileValues = Object.fromEntries(
+    input.definition.fields
+      .filter((field) => field.type === "file")
+      .map((field) => [field.name, [`${field.name}-exemple.pdf`]]),
+  );
+  const renderVars = buildRenderVariables(
+    input.definition,
+    input.sampleData,
+    serverVars,
+    { date },
+    fileValues,
+  );
   const promptVars = buildRenderVariables(input.definition, {}, serverVars, { date });
 
   return {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { finishConversation } from "@/application/use-cases/chat/finish-conversation";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
+import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -36,6 +37,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         prospects: pgProspectRepository(pool),
         fiches: pgFicheRepository(pool),
         templates: pgChatTemplateRepository(pool),
+        attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
       },
       conversationId,

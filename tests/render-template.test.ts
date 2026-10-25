@@ -58,6 +58,33 @@ describe("renderTemplate", () => {
     expect(vars.champs_guide).toContain("- Statut");
   });
 
+  it("rend les noms de pièces jointes d'un champ fichier", async () => {
+    const { buildRenderVariables } = await import("@/domain/template-variables");
+    const withFile: TemplateDefinition = {
+      ...DEFINITION,
+      fields: [
+        ...DEFINITION.fields,
+        {
+          name: "cin",
+          label: "CIN",
+          type: "file",
+          required: true,
+          file: { accept: ["image/png"], maxFiles: 1, maxBytes: 1024 },
+        },
+      ],
+      renderTemplate: "# CIN\n\n{{cin}}\n",
+    };
+    const vars = buildRenderVariables(
+      withFile,
+      { statut: "initier", plateformes: ["site web"] },
+      {},
+      {},
+      { cin: ["cin.png", "cin-verso.png"] },
+    );
+    expect(vars.cin).toBe("- cin.png\n- cin-verso.png");
+    expect(vars.champs_guide).not.toContain("CIN");
+  });
+
   it("rend un markdown déterministe (trim + saut final)", () => {
     const out = renderTemplateMarkdown({
       definition: DEFINITION,

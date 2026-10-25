@@ -75,6 +75,8 @@ export interface ConversationRepository {
     conversationId: string,
     role: ChatMessageRole,
     content: string,
+    /** Pièces à rattacher atomiquement au message (ADR-0034). */
+    attachmentIds?: string[],
   ): Promise<ChatMessage>;
   findMessage(organizationId: string, id: string): Promise<ChatMessage | null>;
   listMessages(organizationId: string, conversationId: string): Promise<ChatMessage[]>;

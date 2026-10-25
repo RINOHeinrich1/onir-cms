@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -65,7 +66,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Reprise : on renvoie l'historique éventuel pour ré-afficher le fil.
     const history = await conversations.listMessages(conversation.organizationId, conversation.id);
     return NextResponse.json(
-      { conversationId: conversation.id, messages: history },
+      {
+        conversationId: conversation.id,
+        messages: history.map((message) =>
+          toPublicChatMessage(message, conversation.organizationId),
+        ),
+      },
       { status: 201 },
     );
   } catch (error) {

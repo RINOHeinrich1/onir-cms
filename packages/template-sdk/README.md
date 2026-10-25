@@ -98,6 +98,30 @@ const { phase, messages, params, actions } = useTemplate();
 </script>
 ```
 
+## Pièces jointes (ADR-0034)
+
+Déclarez les capacités `attachments` et `modelForm`, puis rendez un champ fichier par
+information à collecter :
+
+```jsx
+const fileFields = (ctx.resources.modelForm ?? []).filter((f) => f.type === "file");
+
+<input
+  type="file"
+  accept={champ.accept?.join(",")}
+  onChange={(event) => {
+    const file = event.target.files?.[0];
+    if (file) void actions.attachFile(champ.name, file);
+  }}
+/>;
+
+// Les pièces en attente sont dans ctx.state.pendingAttachments.
+// sendMessage("") accepte un envoi composé uniquement de fichiers.
+```
+
+L’hôte valide le format réel, la taille et le nombre, stocke le fichier et le
+rattache au message. Aucun OCR ni aucune analyse IA n’est effectué en v1.
+
 ## Configuration Vite
 
 ```ts

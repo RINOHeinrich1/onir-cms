@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
 import {
   buildLinkContext,
@@ -15,6 +16,7 @@ import { AnonymousTemplatePortal } from "@/components/templates/AnonymousTemplat
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { TemplateLoader } from "@/components/templates/TemplateLoader";
 import { hashLinkToken } from "@/domain/link-token";
+import type { TemplateFormField } from "@/domain/template-contract";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
@@ -89,6 +91,28 @@ export default async function ChatPortalPage({ params }: PageProps) {
     );
   }
 
+  const reasoning = await pgChatTemplateRepository(pool).findVersion(
+    link.organizationId,
+    link.templateKey,
+    link.templateVersion,
+  );
+  const attachmentFields: TemplateFormField[] =
+    reasoning?.definition.fields
+      .filter((field) => field.type === "file")
+      .map((field) => ({
+        name: field.name,
+        label: field.label,
+        type: "file",
+        required: field.required,
+        ...(field.file === undefined
+          ? {}
+          : {
+              accept: field.file.accept,
+              maxFiles: field.file.maxFiles,
+              maxBytes: field.file.maxBytes,
+            }),
+      })) ?? [];
+
   const requestHeaders = await headers();
   if (!isBotUserAgent(requestHeaders.get("user-agent"))) {
     // Le compteur est accessoire : une panne d'écriture ne doit jamais bloquer le chat.
@@ -137,7 +161,12 @@ export default async function ChatPortalPage({ params }: PageProps) {
     return (
       <main className="chat-page">
         <ChatHeader title="Discussion anonyme" />
-        <ChatPortal token={token} confidentialite={consent} anonymous />
+        <ChatPortal
+          token={token}
+          confidentialite={consent}
+          anonymous
+          attachmentFields={attachmentFields}
+        />
       </main>
     );
   }
@@ -165,7 +194,7 @@ export default async function ChatPortalPage({ params }: PageProps) {
     return (
       <main className="chat-page">
         <ChatHeader title="Discussion" />
-        <ChatPortal token={token} confidentialite={consent} />
+        <ChatPortal token={token} confidentialite={consent} attachmentFields={attachmentFields} />
       </main>
     );
   }
@@ -189,7 +218,7 @@ export default async function ChatPortalPage({ params }: PageProps) {
     : "Discussion";
 
   if (spec !== null) {
-    const contract = toContractMessages(messages);
+    const contract = toContractMessages(messages, started.conversation.organizationId);
     const context = await buildLinkContext(deps, link, spec, {
       phase: "chat",
       messages: contract,
@@ -212,7 +241,13 @@ export default async function ChatPortalPage({ params }: PageProps) {
   return (
     <main className="chat-page">
       <ChatHeader title={titre} />
-      <ChatWindow conversationId={started.conversation.id} initialMessages={messages} />
+      <ChatWindow
+        conversationId={started.conversation.id}
+        initialMessages={messages.map((message) =>
+          toPublicChatMessage(message, started.conversation.organizationId),
+        )}
+        attachmentFields={attachmentFields}
+      />
     </main>
   );
 }

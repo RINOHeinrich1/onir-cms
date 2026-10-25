@@ -59,10 +59,17 @@ export function buildRenderVariables(
   data: Record<string, unknown>,
   serverVars: Record<string, string>,
   extra: Record<string, string> = {},
+  /** Noms de pièces jointes par champ fichier (ADR-0034). */
+  fileValues: Record<string, string[]> = {},
 ): Record<string, string> {
   const vars: Record<string, string> = { ...serverVars, ...extra };
 
   for (const field of definition.fields) {
+    if (field.type === "file") {
+      const names = fileValues[field.name] ?? [];
+      vars[field.name] = names.map((name) => `- ${name}`).join("\n");
+      continue;
+    }
     const value = data[field.name];
     if (field.type === "multi") {
       const items = Array.isArray(value)
@@ -78,22 +85,24 @@ export function buildRenderVariables(
     }
   }
 
-  const labels = definition.fields.map((field) => {
-    const required = field.required
-      ? " (obligatoire)"
-      : field.requiredIf !== undefined
-        ? ` (obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »)`
-        : "";
-    const options =
-      field.options !== undefined && field.options.length > 0
-        ? ` — valeurs possibles : ${field.options.join(", ")}`
-        : "";
-    const example =
-      field.example !== undefined && field.example.trim() !== ""
-        ? ` — exemple : ${field.example.trim()}`
-        : "";
-    return `- ${field.label}${required}${options}${example}`;
-  });
+  const labels = definition.fields
+    .filter((field) => field.type !== "file")
+    .map((field) => {
+      const required = field.required
+        ? " (obligatoire)"
+        : field.requiredIf !== undefined
+          ? ` (obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »)`
+          : "";
+      const options =
+        field.options !== undefined && field.options.length > 0
+          ? ` — valeurs possibles : ${field.options.join(", ")}`
+          : "";
+      const example =
+        field.example !== undefined && field.example.trim() !== ""
+          ? ` — exemple : ${field.example.trim()}`
+          : "";
+      return `- ${field.label}${required}${options}${example}`;
+    });
   vars.champs_guide = labels.join("\n");
 
   return vars;

@@ -1,7 +1,9 @@
+import type { FileFieldConstraints } from "@/domain/entities/attachment";
+
 /**
  * Entités métier des modèles de raisonnement (A004) — pures, sans framework.
  * Un modèle décrit entièrement un comportement de prospection : prompt,
- * champs à extraire, rendu du livrable.
+ * champs à extraire (dont champs fichier), rendu du livrable.
  */
 
 export const TEMPLATE_FIELD_TYPES = [
@@ -11,6 +13,7 @@ export const TEMPLATE_FIELD_TYPES = [
   "multi",
   "url",
   "email",
+  "file",
 ] as const;
 
 export type TemplateFieldType = (typeof TEMPLATE_FIELD_TYPES)[number];
@@ -33,6 +36,8 @@ export type TemplateField = {
   requiredIf?: TemplateRequiredIf;
   /** Exemple de réponse attendue (aide à la saisie et aperçu). */
   example?: string;
+  /** Contraintes d'un champ `file` (ADR-0034). */
+  file?: FileFieldConstraints;
 };
 
 export type TemplateDefinition = {

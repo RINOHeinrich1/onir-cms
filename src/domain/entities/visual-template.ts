@@ -26,6 +26,8 @@ export const TEMPLATE_CAPABILITIES = [
   // ne fournit la donnée que si elles sont déclarées ET que le lien l'autorise.
   "userState",
   "knowledge",
+  // Pièces jointes de prospection (ADR-0034) : champs fichier du modèle.
+  "attachments",
   // Contrats de données déclarés (ADR-0026) : ressources structurées servies
   // par un fournisseur (SQL en v1), validées contre le schéma du template.
   "data",

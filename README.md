@@ -74,6 +74,14 @@ npm run dev
 
 Le compte admin par défaut est créé avec une rotation forcée à la première connexion.
 
+## Pièces jointes de prospection
+
+Les modèles de raisonnement peuvent déclarer des champs `file` (CIN, carte
+fiscale, justificatif…). Le prospect dépose le fichier depuis le chat ou le
+template visuel ; il est stocké dans `ATTACHMENTS_DIR`, rattaché au message puis
+référencé dans la fiche. Aucun OCR ni aucune analyse IA n'est effectué en v1.
+Voir ADR-0034.
+
 ## Configuration
 
 Les variables sont documentées dans [`.env.example`](.env.example). Les principales :
@@ -88,6 +96,7 @@ Les variables sont documentées dans [`.env.example`](.env.example). Les princip
 | `DEFAULT_ADMIN_PASSWORD` | Mot de passe initial, à changer immédiatement |
 | `APP_URL` | URL publique de l'instance |
 | `MEDIA_DIR` | Stockage persistant des médias |
+| `ATTACHMENTS_DIR` | Pièces jointes de prospection (défaut : `MEDIA_DIR/attachments`) |
 
 Ne jamais committer de secret. Utilisez `openssl rand -hex 32` pour générer les clés.
 

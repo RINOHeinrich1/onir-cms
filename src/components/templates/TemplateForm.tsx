@@ -3,6 +3,17 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_MAX_FILES,
+  ATTACHMENT_PRESET_LABELS,
+  ATTACHMENT_PRESETS,
+  type AttachmentMime,
+  type AttachmentPreset,
+  isAttachmentMime,
+  presetAccept,
+  presetOfAccept,
+} from "@/domain/entities/attachment";
+import {
   isTemplateFieldType,
   type TemplateDefinition,
   type TemplateField,
@@ -45,6 +56,7 @@ const FIELD_TYPE_OPTIONS = [
   { value: "multi", label: "Choix multiple" },
   { value: "url", label: "Lien" },
   { value: "email", label: "Email" },
+  { value: "file", label: "Fichier" },
 ] as const;
 
 type FieldRow = TemplateFieldDraft & { uid: number };
@@ -66,6 +78,7 @@ function draftFromApi(field: {
   options?: unknown;
   requiredIf?: unknown;
   example?: unknown;
+  file?: unknown;
 }): TemplateFieldDraft {
   const requiredIf =
     field.requiredIf !== null &&
@@ -82,7 +95,91 @@ function draftFromApi(field: {
     requiredIfField: requiredIf && typeof requiredIf.field === "string" ? requiredIf.field : "",
     requiredIfEquals: requiredIf && typeof requiredIf.equals === "string" ? requiredIf.equals : "",
     example: typeof field.example === "string" ? field.example : "",
+    ...fileDraft(field.file),
   };
+}
+
+function fileDraft(
+  file: unknown,
+): Pick<TemplateFieldDraft, "filePreset" | "fileAccept" | "fileMaxFiles" | "fileMaxBytesMo"> {
+  if (file === null || typeof file !== "object" || Array.isArray(file)) {
+    return { filePreset: "all", fileAccept: "", fileMaxFiles: "1", fileMaxBytesMo: "10" };
+  }
+  const source = file as Record<string, unknown>;
+  const accept = Array.isArray(source.accept)
+    ? source.accept.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const maxFiles = typeof source.maxFiles === "number" ? source.maxFiles : 1;
+  const maxBytes = typeof source.maxBytes === "number" ? source.maxBytes : ATTACHMENT_MAX_BYTES;
+  const preset = presetOfAccept(accept);
+  const exact =
+    accept.length > 0 &&
+    accept.length === presetAccept(preset).length &&
+    accept.every((entry) => (presetAccept(preset) as string[]).includes(entry));
+  return {
+    filePreset: exact ? preset : "custom",
+    fileAccept: accept.join(", "),
+    fileMaxFiles: String(maxFiles),
+    fileMaxBytesMo: String(Math.max(1, Math.round(maxBytes / 1024 / 1024))),
+  };
+}
+
+function FileConstraintsEditor({
+  field,
+  onChange,
+}: {
+  field: TemplateFieldDraft;
+  onChange: (patch: Partial<TemplateFieldDraft>) => void;
+}) {
+  return (
+    <div className="grid-2">
+      <label className="field">
+        Fichiers acceptés
+        <select
+          value={field.filePreset}
+          onChange={(event) => onChange({ filePreset: event.target.value })}
+        >
+          {ATTACHMENT_PRESETS.map((preset) => (
+            <option key={preset} value={preset}>
+              {ATTACHMENT_PRESET_LABELS[preset]}
+            </option>
+          ))}
+          <option value="custom">Personnalisé (types MIME)</option>
+        </select>
+      </label>
+      {field.filePreset === "custom" ? (
+        <label className="field">
+          Types MIME (séparés par des virgules)
+          <input
+            type="text"
+            placeholder="image/jpeg, application/pdf"
+            value={field.fileAccept}
+            onChange={(event) => onChange({ fileAccept: event.target.value })}
+          />
+        </label>
+      ) : null}
+      <label className="field">
+        Nombre maximum de fichiers
+        <input
+          type="number"
+          min={1}
+          max={ATTACHMENT_MAX_FILES}
+          value={field.fileMaxFiles}
+          onChange={(event) => onChange({ fileMaxFiles: event.target.value })}
+        />
+      </label>
+      <label className="field">
+        Taille maximum par fichier (Mo)
+        <input
+          type="number"
+          min={1}
+          max={Math.round(ATTACHMENT_MAX_BYTES / 1024 / 1024)}
+          value={field.fileMaxBytesMo}
+          onChange={(event) => onChange({ fileMaxBytesMo: event.target.value })}
+        />
+      </label>
+    </div>
+  );
 }
 
 function fieldsFromDefinition(definition: Record<string, unknown>): FieldRow[] {
@@ -142,12 +239,39 @@ function fieldsToTemplateFields(
           }
         : undefined;
 
+    const file =
+      type === "file"
+        ? (() => {
+            const preset = ATTACHMENT_PRESETS.includes(field.filePreset as AttachmentPreset)
+              ? (field.filePreset as AttachmentPreset)
+              : null;
+            const accept: AttachmentMime[] =
+              preset === null
+                ? splitOptions(field.fileAccept).filter(isAttachmentMime)
+                : presetAccept(preset);
+            const maxFiles = Number(field.fileMaxFiles);
+            const maxBytes = Math.round(Number(field.fileMaxBytesMo) * 1024 * 1024);
+            return {
+              accept,
+              maxFiles:
+                Number.isInteger(maxFiles) && maxFiles >= 1 && maxFiles <= ATTACHMENT_MAX_FILES
+                  ? maxFiles
+                  : 1,
+              maxBytes:
+                Number.isInteger(maxBytes) && maxBytes >= 1 && maxBytes <= ATTACHMENT_MAX_BYTES
+                  ? maxBytes
+                  : ATTACHMENT_MAX_BYTES,
+            };
+          })()
+        : undefined;
+
     result.push({
       name,
       label: label === "" ? name : label,
       type,
       required: field.required,
       ...(type === "select" || type === "multi" ? { options } : {}),
+      ...(file === undefined ? {} : { file }),
       ...(requiredIf === undefined ? {} : { requiredIf }),
       ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
     });
@@ -656,6 +780,12 @@ export function TemplateForm({
                       </label>
                     ) : null}
                   </div>
+                  {field.type === "file" ? (
+                    <FileConstraintsEditor
+                      field={field}
+                      onChange={(patch) => updateField(field.uid, patch)}
+                    />
+                  ) : null}
                   <label className="check">
                     <input
                       type="checkbox"
@@ -711,6 +841,12 @@ export function TemplateForm({
                       onChange={(event) => updateField(field.uid, { example: event.target.value })}
                     />
                   </label>
+                  {field.type === "file" ? (
+                    <FileConstraintsEditor
+                      field={field}
+                      onChange={(patch) => updateField(field.uid, patch)}
+                    />
+                  ) : null}
                   <label className="check">
                     <input
                       type="checkbox"

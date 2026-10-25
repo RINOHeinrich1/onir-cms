@@ -34,3 +34,4 @@ ADR qui remplace la précédente.
 | [0030](./0030-catalogue-modeles-fournisseur.md) | Catalogue de modèles par fournisseur | Accepté |
 | [0032](./0032-chat-test-modeles-ia.md) | Chat de test des modèles IA | Accepté |
 | [0033](./0033-modes-identification-visiteurs.md) | Modes d’identification des visiteurs — contact, anonyme, OTP, interne | Accepté |
+| [0034](./0034-champs-fichier-pieces-jointes-prospection.md) | Champs fichier et pièces jointes de prospection | Accepté |

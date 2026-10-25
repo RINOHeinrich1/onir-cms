@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
-import type { ChatMessageDto } from "./types";
+import type { ChatAttachmentDto, ChatMessageDto } from "./types";
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -16,6 +16,27 @@ function formatDateTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function AttachmentList({ attachments }: { attachments: ChatAttachmentDto[] }) {
+  if (attachments.length === 0) return null;
+  return (
+    <ul className="chat-attachments">
+      {attachments.map((attachment) => (
+        <li key={attachment.id} className="chat-attachment-item">
+          <a
+            className="chat-attachment-file"
+            href={attachment.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {attachment.originalName}
+          </a>
+          <span className="chat-attachment-label">{attachment.fieldLabel}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** Transcript en lecture seule d'une conversation (bulles + médias). */
@@ -40,6 +61,7 @@ export function ConversationTranscript({ messages }: { messages: ChatMessageDto[
                   <div className="md">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
+                  <AttachmentList attachments={message.attachments} />
                   {message.medias.length > 0 ? (
                     <ul className="chat-media">
                       {message.medias.map((media) =>
@@ -79,7 +101,10 @@ export function ConversationTranscript({ messages }: { messages: ChatMessageDto[
                   ) : null}
                 </div>
               ) : (
-                <p className="bubble">{message.content}</p>
+                <div className="bubble">
+                  {message.content !== "" ? <p>{message.content}</p> : null}
+                  <AttachmentList attachments={message.attachments} />
+                </div>
               )}
               <span className="msg-time">{formatDateTime(message.createdAt)}</span>
             </div>
