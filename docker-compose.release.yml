@@ -10,7 +10,7 @@ x-app-environment: &app-environment
   AI_ALLOW_PRIVATE_NETWORKS: ${AI_ALLOW_PRIVATE_NETWORKS:-false}
   DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.com}
   DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Définir DEFAULT_ADMIN_PASSWORD dans .env.release}
-  APP_URL: ${APP_URL:-http://localhost:3000}
+  APP_URL: ${APP_URL:-https://cms-backoffice.onirtech.com}
   AI_API_TOKEN: ${AI_API_TOKEN:-}
   AI_PRODUCT_ID: ${AI_PRODUCT_ID:-}
   AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}

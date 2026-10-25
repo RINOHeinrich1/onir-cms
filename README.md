@@ -8,6 +8,12 @@ même instance.
 Le projet est publié sous licence **MIT**. Le cœur est ouvert et autonome ; des modules
 premium pourront être développés séparément dans un dépôt privé.
 
+> **Dépôts séparés.** L’application (dashboard, liens publics, API, documentation) est
+> servie sur `cms-backoffice.onirtech.com`. Le site public — landing, plugins et pages
+> légales — vit dans le dépôt statique
+> [`onir-cms-landing`](https://github.com/anjary-05/onir-cms-landing) et est servi sur
+> `cms.onirtech.com`.
+
 > **Statut : alpha (`0.x`).** L'API, le schéma de base de données et le format des
 > templates peuvent encore évoluer. Les changements incompatibles sont documentés dans
 > les release notes.
