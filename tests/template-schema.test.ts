@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveFieldName } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 
 function base(overrides: Record<string, unknown> = {}) {
@@ -167,5 +168,15 @@ describe("validateTemplateDefinition — champ fichier (ADR-0034)", () => {
         }),
       ).ok,
     ).toBe(false);
+  });
+});
+
+describe("resolveFieldName — compatibilité des clés existantes", () => {
+  it("conserve la clé d'un champ legacy et ne renomme pas statut", () => {
+    expect(resolveFieldName("Statut de lancement", "statut")).toBe("statut");
+  });
+
+  it("dérive la clé d'un nouveau champ depuis son libellé", () => {
+    expect(resolveFieldName("Statut de lancement", "")).toBe("statut_de_lancement");
   });
 });
