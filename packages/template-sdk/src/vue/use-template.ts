@@ -66,7 +66,9 @@ export function useTemplate(): UseTemplateResult {
   const actions: TemplateActions = {
     submitIdentity: (data) => store.value.actions.submitIdentity(data),
     sendMessage: (content, attachmentIds) =>
-      store.value.actions.sendMessage(content, attachmentIds),
+      attachmentIds === undefined
+        ? store.value.actions.sendMessage(content)
+        : store.value.actions.sendMessage(content, attachmentIds),
     attachFile: (fieldName, file) => store.value.actions.attachFile(fieldName, file),
     removeAttachment: (attachmentId) => store.value.actions.removeAttachment(attachmentId),
     finish: () => store.value.actions.finish(),

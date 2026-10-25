@@ -125,7 +125,7 @@ describe("createMockContext", () => {
 
     const second = createMockContext();
     expect(second.params).toEqual({});
-    expect(second.capabilities).toHaveLength(6);
+    expect(second.capabilities).toHaveLength(7);
   });
 });
 
