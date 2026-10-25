@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.8.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.7.0...v0.8.0) (2026-10-25)
+
+
+### Features
+
+* **site:** rediriger la racine applicative vers la connexion ([#37](https://github.com/RINOHeinrich1/onir-cms/issues/37)) ([eb25ef8](https://github.com/RINOHeinrich1/onir-cms/commit/eb25ef87dfca1a6636354e630bc47d60f654f39c))
+
 ## [0.7.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.6.0...v0.7.0) (2026-10-24)
 
 
