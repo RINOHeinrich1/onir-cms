@@ -58,6 +58,8 @@ test("actions transmises avec leurs arguments", () => {
     actions: {
       submitIdentity: (payload) => calls.push(["submit", payload]),
       sendMessage: (text) => calls.push(["send", text]),
+      attachFile: (fieldName, file) => calls.push(["attach", fieldName, file]),
+      removeAttachment: (id) => calls.push(["remove", id]),
       finish: () => calls.push(["finish"]),
       openMedia: (url) => calls.push(["open", url]),
       request: (cap) => { calls.push(["request", cap]); return { cap }; },
@@ -67,6 +69,8 @@ test("actions transmises avec leurs arguments", () => {
   });
   host.actions.submitIdentity({ nom: "Ada" });
   host.actions.sendMessage("bonjour");
+  host.actions.attachFile("cv", "file");
+  host.actions.removeAttachment("a1");
   host.actions.finish();
   host.actions.openMedia("https://example.com");
   assert.deepEqual(host.actions.request("media"), { cap: "media" });
@@ -75,10 +79,21 @@ test("actions transmises avec leurs arguments", () => {
   assert.deepEqual(calls, [
     ["submit", { nom: "Ada" }],
     ["send", "bonjour"],
+    ["attach", "cv", "file"],
+    ["remove", "a1"],
     ["finish"],
     ["open", "https://example.com"],
     ["request", "media"],
     ["resize"],
     ["ready"],
   ]);
+});
+
+test("pièces jointes et champs du modèle sont exposés", () => {
+  const host = createHostAdapter({
+    state: { pendingAttachments: [{ id: "a1" }] },
+    resources: { modelForm: [{ name: "cv", type: "file" }] },
+  });
+  assert.deepEqual(host.pendingAttachments, [{ id: "a1" }]);
+  assert.deepEqual(host.modelForm, [{ name: "cv", type: "file" }]);
 });

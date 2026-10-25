@@ -244,6 +244,40 @@ export const STYLE = `
   /* « Terminer » : action secondaire, sobre (la confirmation se fait en MODALE). */
   .discussion .composer .cfinish { background:none; border:1px solid rgba(214,183,130,.55); color:#f1e2c6; }
   .discussion .composer .cfinish:hover { background:rgba(60,42,26,.8); }
+  .discussion .composer .cattach { background:none; border:1px solid rgba(214,183,130,.55); color:#f1e2c6; }
+  .discussion .composer .cattach:hover { background:rgba(60,42,26,.8); }
+  .discussion .composer button[hidden] { display:none; }
+  .discussion .composer button:disabled { opacity:.45; cursor:not-allowed; }
+  .discussion .composer { position:relative; }
+  .discussion .composer .cfiles { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+  .attachpending { display:none; flex:0 0 auto; flex-wrap:wrap; align-items:center; gap:.35rem;
+    padding:.2rem 1.1rem .1rem; font-family:Georgia,serif; }
+  .attachpending.show { display:flex; }
+  .attachchips { display:contents; }
+  .attachchip { display:inline-flex; align-items:center; gap:.35rem; max-width:100%; padding:.25rem .3rem .25rem .6rem;
+    border-radius:999px; background:rgba(255,253,247,.94); border:1px solid rgba(214,183,130,.55);
+    color:#3f2f20; font-size:.78rem; }
+  .attachlabel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:15rem; }
+  .attachremove { flex:0 0 auto; width:1.45rem; height:1.45rem; border:0; border-radius:50%; cursor:pointer;
+    background:rgba(60,42,26,.1); color:#3f2f20; font:inherit; font-size:1rem; line-height:1; }
+  .attachremove:hover { background:rgba(60,42,26,.2); }
+  .attachstatus { font-size:.78rem; color:#f1e2c6; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .attachstatus.error { color:#ffd2c2; }
+  .attachmenu { display:none; position:absolute; left:1.1rem; bottom:calc(100% + .35rem); z-index:8;
+    flex-direction:column; min-width:12rem; padding:.35rem; border-radius:.6rem;
+    background:rgba(45,31,19,.98); border:1px solid rgba(214,183,130,.55);
+    box-shadow:0 12px 30px rgba(0,0,0,.45); }
+  .attachmenu.open { display:flex; }
+  .discussion .composer .attachmenu button { justify-content:flex-start; width:100%; min-width:0; min-height:2.5rem;
+    padding:0 .8rem; border:0; border-radius:.4rem; background:none; color:#f1e2c6; font:inherit; font-size:.85rem;
+    text-align:left; cursor:pointer; }
+  .discussion .composer .attachmenu button:hover { background:rgba(214,183,130,.16); }
+  .bubble .attachlinks { display:flex; flex-direction:column; gap:.35rem; margin-top:.55rem; }
+  .bubble .attachlink { display:flex; flex-direction:column; gap:.05rem; padding:.4rem .6rem; border-radius:.45rem;
+    background:rgba(60,42,26,.08); border:1px solid rgba(214,183,130,.35); color:inherit; text-decoration:none; }
+  .bubble.user .attachlink { background:rgba(255,255,255,.08); border-color:rgba(240,217,168,.35); }
+  .bubble .attachname { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bubble .attachmeta { font-size:.78em; opacity:.75; }
   /* Modale de confirmation, séparée du bouton (au-dessus de tout le panneau). */
   .finishmodal { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center;
     padding:1.2rem; background:rgba(8,5,2,.58); }
@@ -328,6 +362,8 @@ export const STYLE = `
   @media (max-width: 700px) {
     .discussion .composer { gap:.4rem; padding-left:.7rem; padding-right:.7rem; }
     .discussion .composer button { width:2.75rem; padding:0; }
+    .attachpending { padding-left:.7rem; padding-right:.7rem; }
+    .attachmenu { left:.7rem; }
     .discussion .composer .lbl { display:none; }
     .discussion .composer .ico svg { width:1.2rem; height:1.2rem; }
   }

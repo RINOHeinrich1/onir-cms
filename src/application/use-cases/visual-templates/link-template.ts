@@ -129,6 +129,13 @@ export async function buildLinkContext(
         type: field.type,
         required: field.required,
         ...(field.options === undefined ? {} : { options: field.options }),
+        ...(field.file === undefined
+          ? {}
+          : {
+              accept: field.file.accept,
+              maxFiles: field.file.maxFiles,
+              maxBytes: field.file.maxBytes,
+            }),
       })) ?? null;
   }
   const context = buildTemplateContext({

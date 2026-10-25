@@ -16,6 +16,8 @@ export function createHostAdapter(ctx) {
   return {
     phase: ctx?.state?.phase ?? "identity",
     messages: ctx?.state?.messages ?? [],
+    pendingAttachments: ctx?.state?.pendingAttachments ?? [],
+    modelForm: ctx?.resources?.modelForm ?? [],
     photos: ctx?.resources?.media?.photos ?? [],
     liens: ctx?.resources?.media?.liens ?? [],
     consent: ctx?.consent ?? null,
@@ -28,6 +30,8 @@ export function createHostAdapter(ctx) {
     actions: {
       submitIdentity: call("submitIdentity"),
       sendMessage: call("sendMessage"),
+      attachFile: call("attachFile"),
+      removeAttachment: call("removeAttachment"),
       finish: call("finish"),
       openMedia: call("openMedia"),
       request: call("request"),
