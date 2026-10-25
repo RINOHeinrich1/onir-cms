@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { NATURES_PROSPECT } from "@/domain/entities/prospect";
 import type { ProspectDto } from "./types";
 
@@ -15,6 +15,7 @@ type ProspectFormProps = {
 /** Formulaire de création / modification d'un prospect (RM-PROSPECT-001). */
 export function ProspectForm({ editing, onSaved, onCancel }: ProspectFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [nature, setNature] = useState<string>("physique");
@@ -58,6 +59,7 @@ export function ProspectForm({ editing, onSaved, onCancel }: ProspectFormProps) 
         setError(json.error ?? "Échec de l'enregistrement");
         return;
       }
+      toast.success("Prospect enregistré.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

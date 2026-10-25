@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ACTIVE_LINK_IDENTIFICATION_MODES,
   type ActiveLinkIdentificationMode,
@@ -53,6 +53,7 @@ export function LinkForm({
   onCancel,
 }: LinkFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [templateKey, setTemplateKey] = useState("fiche-projet");
@@ -107,6 +108,7 @@ export function LinkForm({
         setError(json.error ?? "Création impossible");
         return;
       }
+      toast.success("Lien de chat créé.");
       onCreated();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

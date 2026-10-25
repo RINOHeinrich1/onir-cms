@@ -3,12 +3,13 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 
 /** Formulaire de création d'un lien média (libellé + URL + portée + actif). */
 export function LienForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
@@ -41,6 +42,7 @@ export function LienForm({ onSaved, onCancel }: { onSaved: () => void; onCancel:
         setError(json.error ?? "Création impossible");
         return;
       }
+      toast.success("Lien enregistré.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
 
@@ -16,6 +16,7 @@ type UserFormProps = {
 /** Formulaire de création / modification d'un utilisateur (US-USERS-001, admin). */
 export function UserForm({ editing, canSetActif, onSaved, onCancel }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState<Role>("lecteur");
@@ -59,6 +60,7 @@ export function UserForm({ editing, canSetActif, onSaved, onCancel }: UserFormPr
         setError(json.error ?? "Échec de l'enregistrement");
         return;
       }
+      toast.success("Utilisateur enregistré.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

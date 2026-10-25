@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 import type { MediaDto } from "./types";
 
@@ -21,6 +21,7 @@ export function MediaEditForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(media.actif);
@@ -52,6 +53,7 @@ export function MediaEditForm({
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
+      toast.success("Média mis à jour.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

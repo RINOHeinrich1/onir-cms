@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   AI_PROVIDER_PRESET_LABELS,
   AI_PROVIDER_PRESETS,
@@ -27,6 +27,7 @@ export function AiProviderForm({
   const [productId, setProductId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
@@ -66,6 +67,7 @@ export function AiProviderForm({
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
+      toast.success("Fournisseur enregistré.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

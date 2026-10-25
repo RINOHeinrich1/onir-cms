@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type AcceptResponse = {
   ok?: boolean;
@@ -15,6 +15,7 @@ type AcceptResponse = {
 export function AcceptInvitationForm({ token }: { token: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
@@ -48,6 +49,7 @@ export function AcceptInvitationForm({ token }: { token: string }) {
         return;
       }
       router.replace(json.mustChangePassword === true ? "/change-password" : "/dashboard");
+      toast.success("Invitation acceptée.");
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

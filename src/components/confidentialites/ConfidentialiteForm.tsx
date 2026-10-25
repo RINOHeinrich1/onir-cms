@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConfidentialiteDto } from "./types";
 
 /** Création / modification d'une politique de confidentialité (US-CONFID-001). */
@@ -16,6 +16,7 @@ export function ConfidentialiteForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(confidentialite?.actif ?? true);
@@ -47,6 +48,7 @@ export function ConfidentialiteForm({
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
+      toast.success("Politique enregistrée.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
