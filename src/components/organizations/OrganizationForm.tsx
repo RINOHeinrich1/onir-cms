@@ -2,11 +2,12 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Création d'organisation (super-admin) — nom prérempli côté serveur si vide. */
 export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
@@ -27,6 +28,7 @@ export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
         setError(json.error ?? "Création impossible");
         return;
       }
+      toast.success("Organisation créée.");
       onCreated();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

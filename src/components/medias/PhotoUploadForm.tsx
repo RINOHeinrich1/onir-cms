@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 
 /** Formulaire d'import d'une photo (fichier + libellé + portée + actif). */
@@ -15,6 +15,7 @@ export function PhotoUploadForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
@@ -46,6 +47,7 @@ export function PhotoUploadForm({
         setError(json.error ?? "Import impossible");
         return;
       }
+      toast.success("Média importé.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
