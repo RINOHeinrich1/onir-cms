@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AiClient } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
+import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
@@ -76,6 +77,7 @@ function deps(aiAnswer: string) {
       content,
       medias: [],
       mediasComputed: false,
+      attachments: [],
       createdAt: new Date(0).toISOString(),
     }),
     findMessage: async () => null,
@@ -93,6 +95,7 @@ function deps(aiAnswer: string) {
         content: "Bonjour",
         medias: [],
         mediasComputed: false,
+        attachments: [],
         createdAt: new Date(0).toISOString(),
       },
     ],
@@ -215,6 +218,10 @@ function deps(aiAnswer: string) {
     prospects,
     fiches,
     templates,
+    attachments: {
+      listByConversation: async () => [],
+      attachToFiche: async () => undefined,
+    } as unknown as AttachmentRepository,
     ai: fixedAiClientFactory(ai),
     createdProspects,
   };
@@ -277,5 +284,66 @@ describe("finishConversation — bouton Terminer (moteur)", () => {
       findById: async () => ({ ...LINK, identificationMode: "anonymous" as const }),
     };
     await expect(finishConversation({ ...base, links }, "conv-1")).rejects.toThrow(/anonyme/i);
+  });
+});
+
+describe("finishConversation — pièces jointes (ADR-0034)", () => {
+  it("référence les pièces dans la fiche sans les envoyer à l'IA", async () => {
+    const fileDefinition: TemplateDefinition = {
+      key: "demo",
+      label: "Démo",
+      description: "",
+      systemPrompt: "x",
+      fields: [
+        {
+          name: "cin",
+          label: "CIN",
+          type: "file",
+          required: true,
+          file: { accept: ["image/png"], maxFiles: 1, maxBytes: 1024 },
+        },
+      ],
+      renderTemplate: "# CIN\n\n{{cin}}\n",
+    };
+    const base = deps("{}");
+    const attachToFiche = vi.fn(async () => undefined);
+    const finished = await finishConversation(
+      {
+        ...base,
+        templates: {
+          ...base.templates,
+          findVersion: async () => ({
+            id: "v1",
+            templateId: "t1",
+            version: 1,
+            definition: fileDefinition,
+            createdBy: null,
+            createdAt: new Date(0).toISOString(),
+          }),
+        },
+        attachments: {
+          listByConversation: async () => [
+            {
+              id: "a1",
+              organizationId: "org-1",
+              conversationId: "conv-1",
+              messageId: "m1",
+              fieldName: "cin",
+              fieldLabel: "CIN",
+              originalName: "cin.png",
+              mime: "image/png" as const,
+              sizeBytes: 10,
+              storageKey: "key",
+              sha256: "hash",
+              createdAt: new Date(0).toISOString(),
+            },
+          ],
+          attachToFiche,
+        } as unknown as import("@/application/ports/attachment-repository").AttachmentRepository,
+      },
+      "conv-1",
+    );
+    expect(finished.markdown).toContain("- cin.png");
+    expect(attachToFiche).toHaveBeenCalledWith("org-1", "fiche-1", expect.any(Array));
   });
 });

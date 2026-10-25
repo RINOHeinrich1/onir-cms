@@ -6,6 +6,11 @@ import type {
   CreateConversationInput,
 } from "@/application/ports/conversation-repository";
 import {
+  type AttachmentView,
+  isAttachmentMime,
+  toAttachmentView,
+} from "@/domain/entities/attachment";
+import {
   type ChatMessage,
   type ChatMessageMedia,
   type ChatMessageRole,
@@ -39,11 +44,13 @@ type MessageRow = {
   role: string;
   content: string;
   medias: unknown;
+  attachments?: unknown;
   created_at: Date;
 };
 
 const MESSAGE_COLUMNS = "id, conversation_id, role, content, medias, created_at";
 const MESSAGE_COLUMNS_M = "m.id, m.conversation_id, m.role, m.content, m.medias, m.created_at";
+const MESSAGE_COLUMNS_WITH_ATTACHMENTS = `${MESSAGE_COLUMNS_M}, COALESCE(att.items, '[]'::json) AS attachments`;
 
 function parseContacts(value: unknown): VisitorContact[] {
   if (!Array.isArray(value)) return [];
@@ -105,6 +112,45 @@ function parseMedias(value: unknown): ChatMessageMedia[] {
   return medias;
 }
 
+function parseAttachments(value: unknown): AttachmentView[] {
+  if (!Array.isArray(value)) return [];
+  const attachments: AttachmentView[] = [];
+  for (const entry of value) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    if (
+      typeof record.id !== "string" ||
+      typeof record.conversationId !== "string" ||
+      typeof record.fieldName !== "string" ||
+      typeof record.fieldLabel !== "string" ||
+      typeof record.originalName !== "string" ||
+      typeof record.mime !== "string" ||
+      !isAttachmentMime(record.mime) ||
+      typeof record.sizeBytes !== "number" ||
+      typeof record.createdAt !== "string"
+    ) {
+      continue;
+    }
+    attachments.push(
+      toAttachmentView({
+        id: record.id,
+        organizationId: "",
+        conversationId: record.conversationId,
+        messageId: typeof record.messageId === "string" ? record.messageId : null,
+        fieldName: record.fieldName,
+        fieldLabel: record.fieldLabel,
+        originalName: record.originalName,
+        mime: record.mime,
+        sizeBytes: record.sizeBytes,
+        storageKey: "",
+        sha256: "",
+        createdAt: record.createdAt,
+      }),
+    );
+  }
+  return attachments;
+}
+
 function toMessage(row: MessageRow): ChatMessage {
   const role: ChatMessageRole = row.role === "assistant" ? "assistant" : "user";
   return {
@@ -114,6 +160,7 @@ function toMessage(row: MessageRow): ChatMessage {
     content: row.content,
     medias: parseMedias(row.medias),
     mediasComputed: row.medias !== null && row.medias !== undefined,
+    attachments: parseAttachments(row.attachments),
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -261,35 +308,78 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
       return (result.rowCount ?? 0) > 0;
     },
 
-    async appendMessage(organizationId, conversationId, role, content): Promise<ChatMessage> {
-      // Insère le message uniquement si la conversation appartient à l'organisation,
-      // puis met à jour l'activité (last_message_at / updated_at).
-      const { rows } = await pool.query<MessageRow>(
-        `WITH target AS (
-           SELECT id FROM conversations WHERE organization_id = $1 AND id = $2
-         ), inserted AS (
-           INSERT INTO chat_messages (conversation_id, role, content)
-           SELECT id, $3, $4 FROM target
-           RETURNING ${MESSAGE_COLUMNS}
-         ), touch AS (
-           UPDATE conversations
-           SET last_message_at = now(), updated_at = now()
-           WHERE organization_id = $1 AND id = $2
-           RETURNING id
-         )
-         SELECT * FROM inserted`,
-        [organizationId, conversationId, role, content],
-      );
-      const row = rows[0];
-      if (!row) throw new Error("Échec d'enregistrement du message");
-      return toMessage(row);
+    async appendMessage(
+      organizationId,
+      conversationId,
+      role,
+      content,
+      attachmentIds = [],
+    ): Promise<ChatMessage> {
+      // Message + rattachement des pièces dans une même transaction : un échec
+      // de rattachement ne laisse pas de message partiel.
+      const client = await pool.connect();
+      let row: MessageRow | undefined;
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query<MessageRow>(
+          `WITH target AS (
+             SELECT id FROM conversations WHERE organization_id = $1 AND id = $2
+           ), inserted AS (
+             INSERT INTO chat_messages (conversation_id, role, content)
+             SELECT id, $3, $4 FROM target
+             RETURNING ${MESSAGE_COLUMNS}
+           )
+           SELECT * FROM inserted`,
+          [organizationId, conversationId, role, content],
+        );
+        row = rows[0];
+        if (!row) throw new Error("Échec d'enregistrement du message");
+
+        if (attachmentIds.length > 0) {
+          const linked = await client.query(
+            `UPDATE conversation_attachments
+                SET message_id = $1
+              WHERE organization_id = $2 AND conversation_id = $3
+                AND id = ANY($4::uuid[]) AND message_id IS NULL
+              RETURNING id`,
+            [row.id, organizationId, conversationId, attachmentIds],
+          );
+          if ((linked.rowCount ?? 0) !== attachmentIds.length) {
+            throw new Error("Pièce jointe introuvable ou déjà rattachée");
+          }
+        }
+
+        await client.query(
+          "UPDATE conversations SET last_message_at = now(), updated_at = now() WHERE organization_id = $1 AND id = $2",
+          [organizationId, conversationId],
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+      if (row === undefined) throw new Error("Échec d'enregistrement du message");
+      const saved = await this.findMessage(organizationId, row.id);
+      if (saved === null) throw new Error("Échec d'enregistrement du message");
+      return saved;
     },
 
     async findMessage(organizationId, id): Promise<ChatMessage | null> {
       const { rows } = await pool.query<MessageRow>(
-        `SELECT ${MESSAGE_COLUMNS_M}
+        `SELECT ${MESSAGE_COLUMNS_WITH_ATTACHMENTS}
            FROM chat_messages m
            JOIN conversations c ON c.id = m.conversation_id AND c.organization_id = $1
+           LEFT JOIN LATERAL (
+             SELECT json_agg(json_build_object(
+               'id', a.id, 'conversationId', a.conversation_id, 'messageId', a.message_id,
+               'fieldName', a.field_name, 'fieldLabel', a.field_label,
+               'originalName', a.original_name, 'mime', a.mime,
+               'sizeBytes', a.size_bytes, 'createdAt', a.created_at
+             ) ORDER BY a.created_at) AS items
+             FROM conversation_attachments a WHERE a.message_id = m.id
+           ) att ON true
           WHERE m.id = $2`,
         [organizationId, id],
       );
@@ -299,9 +389,18 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
 
     async listMessages(organizationId, conversationId): Promise<ChatMessage[]> {
       const { rows } = await pool.query<MessageRow>(
-        `SELECT ${MESSAGE_COLUMNS_M}
+        `SELECT ${MESSAGE_COLUMNS_WITH_ATTACHMENTS}
          FROM chat_messages m
          JOIN conversations c ON c.id = m.conversation_id AND c.organization_id = $1
+         LEFT JOIN LATERAL (
+           SELECT json_agg(json_build_object(
+             'id', a.id, 'conversationId', a.conversation_id, 'messageId', a.message_id,
+             'fieldName', a.field_name, 'fieldLabel', a.field_label,
+             'originalName', a.original_name, 'mime', a.mime,
+             'sizeBytes', a.size_bytes, 'createdAt', a.created_at
+           ) ORDER BY a.created_at) AS items
+           FROM conversation_attachments a WHERE a.message_id = m.id
+         ) att ON true
          WHERE m.conversation_id = $2
          ORDER BY m.created_at ASC`,
         [organizationId, conversationId],

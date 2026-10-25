@@ -829,3 +829,118 @@ body:has(.ai-test-shell.is-fullscreen) {
     padding: 0.6rem;
   }
 }
+
+/* ---------- Pièces jointes de prospection (ADR-0034) ---------- */
+.chat-attachments-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  max-width: 60rem;
+  margin: 0 auto 0.55rem;
+}
+
+.chat-attach-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-attach-button:hover:not(.disabled) {
+  border-color: var(--accent);
+}
+
+.chat-attach-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-pending-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: 60rem;
+  margin: 0 auto 0.55rem;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-pending-attachments li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  font-size: 0.78rem;
+}
+
+.chat-pending-attachments button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-attachment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 100%;
+}
+
+.chat-attachment-image {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0.6rem;
+  line-height: 0;
+  cursor: zoom-in;
+}
+
+.chat-attachment-image img {
+  display: block;
+  max-width: min(260px, 100%);
+  max-height: 210px;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  object-fit: cover;
+}
+
+.chat-attachment-file {
+  display: inline-flex;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.chat-attachment-label {
+  color: var(--fg-muted);
+  font-size: 0.68rem;
+}

@@ -128,6 +128,26 @@ describe("parseTemplateAction — validation côté hôte", () => {
       true,
     );
     expect(parseTemplateAction({ action: "resize", payload: { height: 640 } }).ok).toBe(true);
+    expect(
+      parseTemplateAction({
+        action: "attachFile",
+        payload: {
+          fieldName: "cin",
+          name: "cin.png",
+          mime: "image/png",
+          data: new Uint8Array([1, 2, 3]).buffer,
+        },
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("accepte un message composé uniquement de pièces", () => {
+    expect(
+      parseTemplateAction({
+        action: "sendMessage",
+        payload: { content: "", attachmentIds: ["a1"] },
+      }).ok,
+    ).toBe(true);
   });
 
   it("normalise submitIdentity (email bas de casse, contacts optionnels)", () => {

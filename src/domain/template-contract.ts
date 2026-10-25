@@ -34,6 +34,18 @@ export type TemplateMessageMedia = {
   url: string;
 };
 
+/** Pièce jointe exposée au template (ADR-0034). */
+export type TemplateAttachment = {
+  id: string;
+  fieldName: string;
+  fieldLabel: string;
+  originalName: string;
+  mime: string;
+  sizeBytes: number;
+  url: string;
+  createdAt: string;
+};
+
 /** État du visiteur porté par un message utilisateur (capacité `userState`). */
 export type TemplateMessageUserState = {
   label: UserState;
@@ -45,6 +57,8 @@ export type TemplateMessage = {
   role: "user" | "assistant";
   content: string;
   medias: TemplateMessageMedia[];
+  /** Pièces jointes du message (capacité `attachments`, ADR-0034). */
+  attachments?: TemplateAttachment[];
   at: string;
   /**
    * État du visiteur déduit de ce message (ADR-0020, capacité `userState`,
@@ -65,9 +79,13 @@ export type TemplateMediaItem = { id: string; libelle: string; url: string };
 export type TemplateFormField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "multi" | "url" | "email";
+  type: "text" | "textarea" | "select" | "multi" | "url" | "email" | "file";
   required: boolean;
   options?: string[];
+  /** Champ `file` uniquement (ADR-0034). */
+  accept?: string[];
+  maxFiles?: number;
+  maxBytes?: number;
 };
 
 /** Contexte envoyé au template (SANS les actions, qui sont injectées côté client). */
@@ -87,6 +105,8 @@ export type TemplateContextPayload = {
     status: "en_cours" | "finalisee";
     messages: TemplateMessage[];
     typing: boolean;
+    /** Pièces téléversées mais pas encore envoyées (capacité `attachments`). */
+    pendingAttachments?: TemplateAttachment[];
   };
   resources: {
     media: { photos: TemplateMediaItem[]; liens: TemplateMediaItem[] };
@@ -106,7 +126,12 @@ export type TemplateIdentity = {
 /** Action émise par le template vers l'hôte. */
 export type TemplateAction =
   | { action: "ready" }
-  | { action: "sendMessage"; payload: { content: string } }
+  | { action: "sendMessage"; payload: { content: string; attachmentIds?: string[] } }
+  | {
+      action: "attachFile";
+      payload: { fieldName: string; name: string; mime: string; data: ArrayBuffer };
+    }
+  | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
   | { action: "request"; payload: { capability: TemplateCapability } }
@@ -139,9 +164,47 @@ export function parseTemplateAction(
       return { ok: true, value: { action } };
     case "sendMessage": {
       const content = typeof payload.content === "string" ? payload.content.trim() : "";
-      if (content === "") return { ok: false, error: "content vide" };
+      const attachmentIds = Array.isArray(payload.attachmentIds)
+        ? payload.attachmentIds.filter(
+            (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
+          )
+        : undefined;
+      if (content === "" && (attachmentIds === undefined || attachmentIds.length === 0)) {
+        return { ok: false, error: "content vide" };
+      }
       if (content.length > MAX_CONTENT) return { ok: false, error: "content trop long" };
-      return { ok: true, value: { action, payload: { content } } };
+      return {
+        ok: true,
+        value: {
+          action,
+          payload: {
+            content,
+            ...(attachmentIds === undefined ? {} : { attachmentIds }),
+          },
+        },
+      };
+    }
+    case "attachFile": {
+      const fieldName = typeof payload.fieldName === "string" ? payload.fieldName.trim() : "";
+      const name = typeof payload.name === "string" ? payload.name.trim() : "";
+      const mime = typeof payload.mime === "string" ? payload.mime.trim() : "";
+      const data = payload.data;
+      if (fieldName === "") return { ok: false, error: "fieldName requis" };
+      if (name === "") return { ok: false, error: "nom de fichier requis" };
+      if (mime === "") return { ok: false, error: "type MIME requis" };
+      if (!(data instanceof ArrayBuffer) || data.byteLength === 0) {
+        return { ok: false, error: "fichier invalide" };
+      }
+      if (data.byteLength > 10 * 1024 * 1024) {
+        return { ok: false, error: "fichier trop volumineux" };
+      }
+      return { ok: true, value: { action, payload: { fieldName, name, mime, data } } };
+    }
+    case "removeAttachment": {
+      const attachmentId =
+        typeof payload.attachmentId === "string" ? payload.attachmentId.trim() : "";
+      if (attachmentId === "") return { ok: false, error: "attachmentId requis" };
+      return { ok: true, value: { action, payload: { attachmentId } } };
     }
     case "submitIdentity": {
       const nom = typeof payload.nom === "string" ? payload.nom.trim() : "";
@@ -212,6 +275,8 @@ export type BuildTemplateContextInput = {
   typing: boolean;
   media: { photos: TemplateMediaItem[]; liens: TemplateMediaItem[] };
   modelForm: TemplateFormField[] | null;
+  /** Pièces en attente (capacité `attachments`, ADR-0034). */
+  pendingAttachments?: TemplateAttachment[];
   /** Flag lien : l'état du visiteur est activé (double garde, ADR-0020). */
   userStateEnabled?: boolean;
   /** Flag lien : la source connaissances est active (double garde, ADR-0020). */
@@ -228,6 +293,7 @@ function sanitizeMessage(
   message: TemplateMessage,
   allowUserState: boolean,
   allowKnowledge: boolean,
+  allowAttachments: boolean,
 ): TemplateMessage {
   return {
     id: message.id,
@@ -237,6 +303,9 @@ function sanitizeMessage(
     at: message.at,
     ...(allowUserState && message.userState !== undefined ? { userState: message.userState } : {}),
     ...(allowKnowledge && message.knowledge !== undefined ? { knowledge: message.knowledge } : {}),
+    ...(allowAttachments && message.attachments !== undefined
+      ? { attachments: message.attachments }
+      : {}),
   };
 }
 
@@ -250,6 +319,7 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
   const capabilities = new Set(input.capabilities);
   const allowUserState = capabilities.has("userState") && input.userStateEnabled === true;
   const allowKnowledge = capabilities.has("knowledge") && input.knowledgeEnabled === true;
+  const allowAttachments = capabilities.has("attachments");
   return {
     host: { protocol: TEMPLATE_HOST_PROTOCOL, version: TEMPLATE_CONTRACT_VERSION },
     link: { ...input.link, userStateEnabled: input.userStateEnabled === true },
@@ -263,9 +333,14 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
       phase: input.phase,
       status: input.status,
       messages: capabilities.has("messages")
-        ? input.messages.map((message) => sanitizeMessage(message, allowUserState, allowKnowledge))
+        ? input.messages.map((message) =>
+            sanitizeMessage(message, allowUserState, allowKnowledge, allowAttachments),
+          )
         : [],
       typing: input.typing,
+      ...(allowAttachments && input.pendingAttachments !== undefined
+        ? { pendingAttachments: input.pendingAttachments }
+        : {}),
     },
     resources: {
       media: capabilities.has("media") ? input.media : { photos: [], liens: [] },

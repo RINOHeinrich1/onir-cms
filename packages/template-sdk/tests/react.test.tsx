@@ -74,7 +74,9 @@ describe("defineReactTemplate", () => {
     expect(root.textContent).toContain("Aurora");
     expect(root.textContent).toContain("identity");
     expect(root.textContent).toContain("fr");
-    expect(root.textContent).toContain("messages,media,modelForm,theme,userState,knowledge");
+    expect(root.textContent).toContain(
+      "messages,media,modelForm,theme,userState,knowledge,attachments",
+    );
     expect(el.onirtechContext).toBe(ctx);
   });
 

@@ -6,6 +6,7 @@ import type { TemplateCapability } from "@/domain/entities/visual-template";
 import {
   parseTemplateAction,
   type TemplateAction,
+  type TemplateAttachment,
   type TemplateContextPayload,
   type TemplateMessage,
   type TemplateSpec,
@@ -21,7 +22,9 @@ type TemplateIdentity = {
 
 type TemplateActions = {
   submitIdentity(data: TemplateIdentity): void;
-  sendMessage(content: string): void;
+  sendMessage(content: string, attachmentIds?: string[]): void;
+  attachFile(fieldName: string, file: File): Promise<void>;
+  removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
@@ -34,6 +37,19 @@ type TemplateDataApi = {
     options?: { inputs?: Record<string, string | number | boolean> },
   ): Promise<TemplateDataResult<T>>;
 };
+
+type HostApiMessage = TemplateMessage & { createdAt?: string };
+
+/** Les endpoints chat renvoient `createdAt` ; le contrat template attend `at`. */
+function withAt(message: HostApiMessage, allowAttachments: boolean): TemplateMessage {
+  const normalized = {
+    ...message,
+    at: message.at ?? message.createdAt ?? new Date().toISOString(),
+  };
+  if (allowAttachments) return normalized;
+  const { attachments: _attachments, ...withoutAttachments } = normalized;
+  return withoutAttachments;
+}
 
 type LiveContext = TemplateContextPayload & {
   actions: TemplateActions;
@@ -75,7 +91,10 @@ export function TemplateHost({
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [height, setHeight] = useState(640);
+  const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
 
+  const conversationRef = useRef<string | null>(initialConversationId);
+  const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
   const listenersRef = useRef<Map<string, Set<(payload: unknown) => void>>>(new Map());
   const mountRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -85,6 +104,93 @@ export function TemplateHost({
     const set = listenersRef.current.get(event);
     if (set) for (const cb of set) cb(payload);
   }, []);
+
+  const ensureConversation = useCallback(async (): Promise<string | null> => {
+    if (conversationRef.current !== null) return conversationRef.current;
+    if (!anonymous) return null;
+    if (sessionPromiseRef.current !== null) return sessionPromiseRef.current;
+    const promise = (async () => {
+      const response = await fetch(`${platform}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
+      }).catch(() => null);
+      const json = (await response?.json().catch(() => null)) as {
+        conversationId?: string;
+        messages?: TemplateMessage[];
+        error?: string;
+      } | null;
+      if (response?.ok !== true || typeof json?.conversationId !== "string") {
+        setError(json?.error ?? "Démarrage de la discussion impossible");
+        return null;
+      }
+      conversationRef.current = json.conversationId;
+      setConversationId(json.conversationId);
+      if (json.messages !== undefined && json.messages.length > 0) {
+        setMessages(
+          json.messages.map((message) =>
+            withAt(message, template.capabilities.includes("attachments")),
+          ),
+        );
+      }
+      return json.conversationId;
+    })();
+    sessionPromiseRef.current = promise;
+    try {
+      return await promise;
+    } finally {
+      sessionPromiseRef.current = null;
+    }
+  }, [anonymous, platform, template, token]);
+
+  const uploadAttachment = useCallback(
+    async (fieldName: string, file: File): Promise<void> => {
+      if (preview || !template.capabilities.includes("attachments")) return;
+      const activeConversationId = await ensureConversation();
+      if (activeConversationId === null) return;
+      const form = new FormData();
+      form.append("conversationId", activeConversationId);
+      form.append("fieldName", fieldName);
+      form.append("fichier", file);
+      try {
+        const response = await fetch(`${platform}/attachments`, {
+          method: "POST",
+          body: form,
+        });
+        const json = (await response.json()) as {
+          attachment?: TemplateAttachment;
+          error?: string;
+        };
+        if (!response.ok || json.attachment === undefined) {
+          setError(json.error ?? "Envoi du fichier impossible");
+          return;
+        }
+        setPendingAttachments((previous) => [...previous, json.attachment as TemplateAttachment]);
+      } catch {
+        setError("Erreur réseau pendant l'envoi du fichier");
+      }
+    },
+    [ensureConversation, platform, preview, template],
+  );
+
+  const removeAttachment = useCallback(
+    async (attachmentId: string): Promise<void> => {
+      if (!template.capabilities.includes("attachments")) return;
+      setPendingAttachments((previous) =>
+        previous.filter((attachment) => attachment.id !== attachmentId),
+      );
+      if (preview) return;
+      const activeConversationId = await ensureConversation();
+      if (activeConversationId === null) return;
+      await fetch(
+        `${platform}/attachments/${attachmentId}?conversationId=${encodeURIComponent(
+          activeConversationId,
+        )}`,
+        { method: "DELETE" },
+      ).catch(() => undefined);
+    },
+    [ensureConversation, platform, preview, template],
+  );
 
   const actions = useMemo<TemplateActions>(
     () => ({
@@ -112,27 +218,38 @@ export function TemplateHost({
             });
             const json = (await response.json()) as {
               conversationId?: string;
-              messages?: TemplateMessage[];
+              messages?: HostApiMessage[];
               error?: string;
             };
             if (!response.ok || typeof json.conversationId !== "string") {
               setError(json.error ?? "Démarrage impossible");
               return;
             }
+            conversationRef.current = json.conversationId;
             setConversationId(json.conversationId);
-            setMessages(json.messages ?? []);
+            setMessages(
+              (json.messages ?? []).map((message) =>
+                withAt(message, template.capabilities.includes("attachments")),
+              ),
+            );
             setPhase("chat");
           } catch {
             setError("Erreur réseau, veuillez réessayer");
           }
         })();
       },
-      sendMessage: (content) => {
+      sendMessage: (content, requestedIds) => {
+        const text = content.trim();
+        const attachments =
+          requestedIds === undefined || requestedIds.length === 0
+            ? pendingAttachments
+            : pendingAttachments.filter((attachment) => requestedIds.includes(attachment.id));
+        if (text === "" && attachments.length === 0) return;
         if (preview) {
           const at = new Date().toISOString();
           setMessages((prev) => [
             ...prev,
-            { id: `u-${Date.now()}`, role: "user", content, medias: [], at },
+            { id: `u-${Date.now()}`, role: "user", content: text, medias: [], attachments, at },
           ]);
           setTyping(true);
           setTimeout(() => {
@@ -142,7 +259,7 @@ export function TemplateHost({
               {
                 id: `a-${Date.now()}`,
                 role: "assistant",
-                content: `(aperçu) Merci, noté : « ${content} ».`,
+                content: `(aperçu) Merci, noté : « ${text} ».`,
                 medias: baseContext.resources.media.photos
                   .slice(0, 1)
                   .map((photo) => ({ type: "photo", libelle: photo.libelle, url: photo.url })),
@@ -153,37 +270,9 @@ export function TemplateHost({
           return;
         }
         void (async () => {
-          const text = content.trim();
-          if (text === "") return;
-          setTyping(true);
           setError(null);
-          let activeConversationId = conversationId;
-          if (activeConversationId === null) {
-            if (!anonymous) {
-              setTyping(false);
-              return;
-            }
-            const sessionResponse = await fetch(`${platform}/session`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
-            }).catch(() => null);
-            const sessionJson = (await sessionResponse?.json().catch(() => null)) as {
-              conversationId?: string;
-              messages?: TemplateMessage[];
-              error?: string;
-            } | null;
-            if (sessionResponse?.ok !== true || typeof sessionJson?.conversationId !== "string") {
-              setError(sessionJson?.error ?? "Démarrage de la discussion impossible");
-              setTyping(false);
-              return;
-            }
-            activeConversationId = sessionJson.conversationId;
-            setConversationId(activeConversationId);
-            if (sessionJson.messages !== undefined && sessionJson.messages.length > 0) {
-              setMessages(sessionJson.messages);
-            }
-          }
+          const activeConversationId = await ensureConversation();
+          if (activeConversationId === null) return;
           const userId = `local-${Date.now()}`;
           setMessages((prev) => [
             ...prev,
@@ -192,12 +281,21 @@ export function TemplateHost({
               role: "user",
               content: text,
               medias: [],
+              attachments,
               at: new Date().toISOString(),
             },
           ]);
+          const removeLocal = (): void => {
+            setMessages((previous) => previous.filter((message) => message.id !== userId));
+          };
+          if (text !== "") setTyping(true);
           // Capacité `userState` (ADR-0020) : l'HÔTE appelle /api/chat/state — le
           // template ne touche JAMAIS l'API. Double garde : capacité + flag lien.
-          if (template.capabilities.includes("userState") && baseContext.link.userStateEnabled) {
+          if (
+            text !== "" &&
+            template.capabilities.includes("userState") &&
+            baseContext.link.userStateEnabled
+          ) {
             void (async () => {
               try {
                 const stateResponse = await fetch(`${platform}/state`, {
@@ -230,49 +328,68 @@ export function TemplateHost({
             const response = await fetch(platform, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId: activeConversationId, content: text }),
+              body: JSON.stringify({
+                conversationId: activeConversationId,
+                content: text,
+                attachmentIds: attachments.map((attachment) => attachment.id),
+              }),
             });
             const json = (await response.json()) as {
-              message?: TemplateMessage;
+              message?: HostApiMessage | null;
               mediaPending?: boolean;
               connaissances?: TemplateMessage["knowledge"];
               error?: string;
             };
-            if (!response.ok || json.message === undefined) {
+            if (!response.ok) {
+              removeLocal();
               setError(json.error ?? "Réponse impossible pour le moment");
               return;
             }
-            // Capacité `knowledge` (ADR-0020) : connaissances réellement utilisées
-            // (déjà gatées côté cœur par `sources.connaissances`).
-            const answer: TemplateMessage =
-              template.capabilities.includes("knowledge") && json.connaissances !== undefined
-                ? { ...json.message, knowledge: json.connaissances }
-                : json.message;
-            setMessages((prev) => [...prev, answer]);
-            if (json.mediaPending === true) {
-              const media = await fetch(`${platform}/media`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ conversationId, messageId: answer.id }),
-              }).catch(() => null);
-              if (media?.ok === true) {
-                const mediaJson = (await media.json()) as { medias?: TemplateMessage["medias"] };
-                if (mediaJson.medias !== undefined) {
-                  setMessages((prev) =>
-                    prev.map((entry) =>
-                      entry.id === answer.id ? { ...entry, medias: mediaJson.medias ?? [] } : entry,
-                    ),
-                  );
+            setPendingAttachments([]);
+            const answer =
+              json.message === undefined || json.message === null
+                ? null
+                : template.capabilities.includes("knowledge") && json.connaissances !== undefined
+                  ? {
+                      ...withAt(json.message, template.capabilities.includes("attachments")),
+                      knowledge: json.connaissances,
+                    }
+                  : withAt(json.message, template.capabilities.includes("attachments"));
+            if (answer !== null) {
+              setMessages((prev) => [...prev, answer]);
+              if (json.mediaPending === true) {
+                const media = await fetch(`${platform}/media`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    conversationId: activeConversationId,
+                    messageId: answer.id,
+                  }),
+                }).catch(() => null);
+                if (media?.ok === true) {
+                  const mediaJson = (await media.json()) as { medias?: TemplateMessage["medias"] };
+                  if (mediaJson.medias !== undefined) {
+                    setMessages((prev) =>
+                      prev.map((entry) =>
+                        entry.id === answer.id
+                          ? { ...entry, medias: mediaJson.medias ?? [] }
+                          : entry,
+                      ),
+                    );
+                  }
                 }
               }
             }
           } catch {
+            removeLocal();
             setError("Erreur réseau, veuillez réessayer");
           } finally {
             setTyping(false);
           }
         })();
       },
+      attachFile: uploadAttachment,
+      removeAttachment,
       finish: () => {
         if (anonymous) {
           setStatus("finalisee");
@@ -290,7 +407,14 @@ export function TemplateHost({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ conversationId }),
             });
-            if (response.ok) setStatus("finalisee");
+            const json = (await response.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            if (!response.ok) {
+              setError(json?.error ?? "Génération impossible : pièces ou champs manquants");
+              return;
+            }
+            setStatus("finalisee");
           } catch {
             setError("Génération impossible pour le moment");
           }
@@ -309,7 +433,19 @@ export function TemplateHost({
         setHeight(Math.max(200, Math.min(value, 20000)));
       },
     }),
-    [anonymous, conversationId, platform, token, baseContext, preview, template],
+    [
+      anonymous,
+      baseContext,
+      ensureConversation,
+      pendingAttachments,
+      platform,
+      preview,
+      template,
+      uploadAttachment,
+      removeAttachment,
+      conversationId,
+      token,
+    ],
   );
 
   const loadData = useCallback(
@@ -356,7 +492,13 @@ export function TemplateHost({
   const liveContext = useMemo<LiveContext>(
     () => ({
       ...baseContext,
-      state: { phase, status, messages, typing },
+      state: {
+        phase,
+        status,
+        messages,
+        typing,
+        ...(template.capabilities.includes("attachments") ? { pendingAttachments } : {}),
+      },
       actions,
       data: { load: loadData },
       on: (event, cb) => {
@@ -366,7 +508,17 @@ export function TemplateHost({
         return () => set.delete(cb);
       },
     }),
-    [baseContext, phase, status, messages, typing, actions, loadData],
+    [
+      baseContext,
+      phase,
+      status,
+      messages,
+      typing,
+      pendingAttachments,
+      actions,
+      loadData,
+      template.capabilities,
+    ],
   );
 
   const liveContextRef = useRef<LiveContext>(liveContext);
@@ -380,7 +532,18 @@ export function TemplateHost({
           actions.submitIdentity(action.payload);
           break;
         case "sendMessage":
-          actions.sendMessage(action.payload.content);
+          actions.sendMessage(action.payload.content, action.payload.attachmentIds);
+          break;
+        case "attachFile":
+          void actions.attachFile(
+            action.payload.fieldName,
+            new File([action.payload.data], action.payload.name, {
+              type: action.payload.mime,
+            }),
+          );
+          break;
+        case "removeAttachment":
+          void actions.removeAttachment(action.payload.attachmentId);
           break;
         case "finish":
           actions.finish();

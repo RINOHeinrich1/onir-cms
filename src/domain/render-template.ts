@@ -61,9 +61,15 @@ export function renderTemplateMarkdown(input: {
   data: Record<string, unknown>;
   serverVars: Record<string, string>;
   date: string;
+  /** Noms de pièces jointes par champ fichier (ADR-0034). */
+  fileValues?: Record<string, string[]>;
 }): string {
-  const vars = buildRenderVariables(input.definition, input.data, input.serverVars, {
-    date: input.date,
-  });
+  const vars = buildRenderVariables(
+    input.definition,
+    input.data,
+    input.serverVars,
+    { date: input.date },
+    input.fileValues,
+  );
   return `${renderTemplate(input.definition.renderTemplate, vars).trim()}\n`;
 }

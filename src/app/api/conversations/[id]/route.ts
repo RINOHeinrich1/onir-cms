@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import {
   archiveConversation,
   getConversation,
@@ -53,7 +54,10 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
       actor,
       id,
     );
-    return NextResponse.json(detail);
+    return NextResponse.json({
+      ...detail,
+      messages: detail.messages.map(toDashboardChatMessage),
+    });
   } catch (error) {
     return errorResponse(error);
   }

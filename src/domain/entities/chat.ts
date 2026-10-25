@@ -4,6 +4,7 @@
  * RM-LIEN-STD : lien `standard`, visiteur identifié avant discussion.
  */
 
+import type { AttachmentView } from "@/domain/entities/attachment";
 import { normalizeTemplateParamValues, type TemplateParamValues } from "@/domain/template-params";
 
 export const CHAT_LINK_TYPES = ["specifique", "standard"] as const;
@@ -208,5 +209,7 @@ export type ChatMessage = {
   medias: ChatMessageMedia[];
   /** Vrai si la recherche de médias a déjà été effectuée (idempotence). */
   mediasComputed: boolean;
+  /** Pièces jointes du message (champs fichier, ADR-0034). */
+  attachments: AttachmentView[];
   createdAt: string;
 };

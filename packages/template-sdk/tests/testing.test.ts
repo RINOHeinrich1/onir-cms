@@ -41,7 +41,7 @@ describe("createMockContext", () => {
     expect(ctx.brand.logoUrl).toBeNull();
     expect(Object.keys(ctx.theme).length).toBeGreaterThan(0);
     expect(new Set(ctx.capabilities)).toEqual(
-      new Set(["messages", "media", "modelForm", "theme", "userState", "knowledge"]),
+      new Set(["messages", "media", "modelForm", "theme", "userState", "knowledge", "attachments"]),
     );
     expect(ctx.params).toEqual({});
     expect(Object.isFrozen(ctx.params)).toBe(true);

@@ -1,5 +1,6 @@
 import { AppError, BadGatewayError, NotFoundError, ValidationError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
+import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
@@ -11,6 +12,7 @@ import {
   buildContexteInterne,
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
+import { type Attachment, DEFAULT_FILE_CONSTRAINTS } from "@/domain/entities/attachment";
 import type { ChatLink, ChatMessage } from "@/domain/entities/chat";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import { buildServerVariables } from "@/domain/template-variables";
@@ -24,16 +26,39 @@ export type SendMessageDependencies = {
   templates: ChatTemplateRepository;
   connaissances: ConnaissanceRepository;
   medias: MediaRepository;
+  attachments: AttachmentRepository;
   ai: AiClientFactory;
 };
 
 export type SendMessageResult = {
-  message: ChatMessage;
+  organizationId: string;
+  /** Message utilisateur effectivement enregistré (avec ses pièces). */
+  userMessage: ChatMessage;
+  /** Réponse IA ; null pour un message composé uniquement de fichiers. */
+  message: ChatMessage | null;
   connaissances: ConnaissanceRef[];
   mediaPending: boolean;
 };
 
 const MAX_CONTENT_LENGTH = 4000;
+const MAX_ATTACHMENT_IDS = 25;
+
+function parseAttachmentIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const id = entry.trim();
+    if (id === "" || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  if (ids.length > MAX_ATTACHMENT_IDS) {
+    throw new ValidationError(`Trop de pièces jointes (${MAX_ATTACHMENT_IDS} maximum)`);
+  }
+  return ids;
+}
 
 /** Sources média actives et non vides pour ce lien (organisation du lien). */
 async function hasEligibleMedia(
@@ -56,15 +81,65 @@ async function hasEligibleMedia(
 }
 
 /**
+ * Vérifie que les pièces appartiennent aux champs fichier du modèle et aux
+ * limites du champ. Aucun contenu n'est analysé (ADR-0034).
+ */
+async function validateAttachments(
+  deps: SendMessageDependencies,
+  organizationId: string,
+  conversationId: string,
+  templateFields: { name: string; type: string; file?: { maxFiles: number } }[],
+  ids: string[],
+): Promise<Attachment[]> {
+  if (ids.length === 0) return [];
+  const found = await deps.attachments.listByIds(organizationId, conversationId, ids);
+  if (found.length !== ids.length) {
+    throw new ValidationError("Pièce jointe introuvable ou déjà envoyée");
+  }
+  const byId = new Map(found.map((attachment) => [attachment.id, attachment]));
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    const attachment = byId.get(id);
+    if (attachment === undefined || attachment.messageId !== null) {
+      throw new ValidationError("Pièce jointe introuvable ou déjà envoyée");
+    }
+    const field = templateFields.find(
+      (candidate) => candidate.name === attachment.fieldName && candidate.type === "file",
+    );
+    if (field === undefined) {
+      throw new ValidationError("Ce champ n'accepte pas de fichier");
+    }
+    counts.set(attachment.fieldName, (counts.get(attachment.fieldName) ?? 0) + 1);
+  }
+  for (const fieldName of counts.keys()) {
+    const field = templateFields.find((candidate) => candidate.name === fieldName);
+    const maxFiles = field?.file?.maxFiles ?? DEFAULT_FILE_CONSTRAINTS.maxFiles;
+    const existing = await deps.attachments.countForField(
+      organizationId,
+      conversationId,
+      fieldName,
+    );
+    if (existing > maxFiles) {
+      throw new ValidationError(`« ${fieldName} » : ${maxFiles} fichier(s) maximum`);
+    }
+  }
+  return ids.map((id) => byId.get(id)).filter((entry): entry is Attachment => entry !== undefined);
+}
+
+/**
  * US-CHAT-001 — envoi d'un message visiteur. L'organisation est dérivée de la
  * conversation (capability) puis toutes les lectures sont scopées.
+ *
+ * ADR-0034 : les pièces jointes ne sont jamais transmises à l'IA. Un message
+ * uniquement composé de fichiers est enregistré sans réponse IA.
  */
 export async function sendMessage(
   deps: SendMessageDependencies,
-  input: { conversationId: string; content: unknown },
+  input: { conversationId: string; content: unknown; attachmentIds?: unknown },
 ): Promise<SendMessageResult> {
   const content = typeof input.content === "string" ? input.content.trim() : "";
-  if (content === "") {
+  const attachmentIds = parseAttachmentIds(input.attachmentIds);
+  if (content === "" && attachmentIds.length === 0) {
     throw new ValidationError("Message vide");
   }
   if (content.length > MAX_CONTENT_LENGTH) {
@@ -85,7 +160,40 @@ export async function sendMessage(
   if (link === null || !link.actif) {
     throw new NotFoundError("Lien invalide ou révoqué");
   }
-  await deps.conversations.appendMessage(organizationId, conversation.id, "user", content);
+  const template = await deps.templates.findVersion(
+    organizationId,
+    link.templateKey,
+    link.templateVersion,
+  );
+  if (template === null) {
+    throw new NotFoundError("Modèle de raisonnement introuvable");
+  }
+
+  await validateAttachments(
+    deps,
+    organizationId,
+    conversation.id,
+    template.definition.fields,
+    attachmentIds,
+  );
+
+  const userMessage = await deps.conversations.appendMessage(
+    organizationId,
+    conversation.id,
+    "user",
+    content,
+    attachmentIds,
+  );
+  if (content === "") {
+    return {
+      organizationId,
+      userMessage,
+      message: null,
+      connaissances: [],
+      mediaPending: false,
+    };
+  }
+
   // Historique borné : les tours anciens n'apportent rien au cadrage.
   const HISTORY_LIMIT = 20;
   const history = (await deps.conversations.listMessages(organizationId, conversation.id)).slice(
@@ -100,15 +208,6 @@ export async function sendMessage(
   let prospect = null;
   if (link.type === "specifique" && link.prospectId !== null) {
     prospect = await deps.prospects.findById(organizationId, link.prospectId);
-  }
-
-  const template = await deps.templates.findVersion(
-    organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
   }
 
   const system = buildSystemPromptFromTemplate({
@@ -147,5 +246,5 @@ export async function sendMessage(
     answer,
   );
   const mediaPending = await hasEligibleMedia(deps, organizationId, link);
-  return { message, mediaPending, connaissances };
+  return { organizationId, userMessage, message, mediaPending, connaissances };
 }

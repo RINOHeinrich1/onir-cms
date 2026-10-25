@@ -882,7 +882,7 @@ export default function SdkDocsPage() {
         <dd>
           Déclarez la capacité correspondante (<code>messages</code>, <code>media</code>,{" "}
           <code>modelForm</code>, <code>theme</code>, <code>userState</code>, <code>knowledge</code>
-          ).
+          , <code>attachments</code>).
         </dd>
       </dl>
 

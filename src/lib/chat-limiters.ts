@@ -22,6 +22,12 @@ export const chatMessageLimiter = createRateLimiter({
   windowMs: envInt("CHAT_MESSAGE_WINDOW_MS", 5 * 60 * 1000),
 });
 
+/** Upload de pièces jointes (ADR-0034) : par **IP + conversation**, 20 / 5 min. */
+export const chatAttachmentLimiter = createRateLimiter({
+  limit: envInt("CHAT_ATTACHMENT_LIMIT", 20),
+  windowMs: envInt("CHAT_ATTACHMENT_WINDOW_MS", 5 * 60 * 1000),
+});
+
 /** Recherche de médias : par conversation, défaut 30 / 5 min. */
 export const chatMediaLimiter = createRateLimiter({
   limit: envInt("CHAT_MEDIA_LIMIT", 30),

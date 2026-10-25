@@ -93,8 +93,9 @@ aperçu du template dans le catalogue et sur sa fiche.
   copié d'un exemple).
 - `ui.shadowDom` : `open` | `closed` | `none` (mode WC).
 - `capabilities` : sous-ensemble de `messages`, `media`, `modelForm`, `theme`,
-  `userState`, `knowledge` (une capacité non déclarée n'est **pas** fournie).
-  `userState` et `knowledge` sont des **extensions additives** (ADR-0020, §11).
+  `userState`, `knowledge`, `attachments` (une capacité non déclarée n'est **pas**
+  fournie). `userState`, `knowledge` et `attachments` sont des **extensions
+  additives** (ADR-0020, ADR-0034).
 - `network` : liste de domaines externes autorisés — **vide par défaut**.
 - `params` : variables **paramétrables par lien** (ADR-0023, §12) — optionnel,
   `[]` par défaut.
@@ -115,7 +116,8 @@ export type TemplateCapability =
   | "modelForm"
   | "theme"
   | "userState"     // extension additive (ADR-0020)
-  | "knowledge";    // extension additive (ADR-0020)
+  | "knowledge"     // extension additive (ADR-0020)
+  | "attachments";  // extension additive (ADR-0034)
 
 export type TemplateMessageMedia = {
   type: "photo" | "lien";
@@ -132,12 +134,24 @@ export type TemplateMessageUserState = {
 /** Référence de connaissance utilisée (message **assistant**, capacité `knowledge`). */
 export type ConnaissanceRef = { ref: string; titre: string };
 
+export type TemplateAttachment = {
+  id: string;
+  fieldName: string;
+  fieldLabel: string;
+  originalName: string;
+  mime: string;
+  sizeBytes: number;
+  url: string;          // URL signée courte durée
+  createdAt: string;
+};
+
 export type TemplateMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   medias: TemplateMessageMedia[];
   at: string;           // ISO 8601
+  attachments?: TemplateAttachment[];     // optionnel (ADR-0034)
   userState?: TemplateMessageUserState;   // optionnel (ADR-0020)
   knowledge?: ConnaissanceRef[];          // optionnel (ADR-0020)
 };
@@ -146,9 +160,13 @@ export type TemplateMediaItem = { id: string; libelle: string; url: string };
 export type TemplateFormField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "multi" | "url" | "email";
+  type: "text" | "textarea" | "select" | "multi" | "url" | "email" | "file";
   required: boolean;
   options?: string[];
+  /** Champ `file` uniquement (ADR-0034). */
+  accept?: string[];
+  maxFiles?: number;
+  maxBytes?: number;
 };
 
 export type OnirtechTemplateContext = Readonly<{
@@ -172,6 +190,8 @@ export type OnirtechTemplateContext = Readonly<{
     status: "en_cours" | "finalisee";
     messages: readonly TemplateMessage[];
     typing: boolean;
+    /** Pièces téléversées, pas encore envoyées (capacité `attachments`). */
+    pendingAttachments?: readonly TemplateAttachment[];
   }>;
   resources: Readonly<{
     media: Readonly<{ photos: readonly TemplateMediaItem[]; liens: readonly TemplateMediaItem[] }>;
@@ -184,8 +204,12 @@ export type OnirtechTemplateContext = Readonly<{
       contacts?: { type: string; valeur: string }[];
       consentement?: boolean;
     }): void;
-    /** Message du visiteur. */
+    /** Message du visiteur (peut être vide si des pièces sont en attente). */
     sendMessage(content: string): void;
+    /** Téléverse une pièce pour un champ fichier (capacité `attachments`). */
+    attachFile(fieldName: string, file: File): Promise<void>;
+    /** Retire une pièce en attente. */
+    removeAttachment(attachmentId: string): Promise<void>;
     /** Bouton « Terminer » : génère la fiche. */
     finish(): void;
     /** Rafraîchit une ressource (résout la promesse avec la donnée à jour). */
@@ -245,7 +269,9 @@ L'hôte monte `<iframe sandbox="allow-scripts allow-forms">` (**sans**
   - `{ __onirtech: 1, type: "error", code, message }`
 - **iframe → hôte**
   - `{ __onirtech: 1, type: "ready" }`
-  - `{ __onirtech: 1, type: "action", action: "sendMessage", payload: { content } }`
+  - `{ __onirtech: 1, type: "action", action: "sendMessage", payload: { content, attachmentIds? } }`
+  - `{ __onirtech: 1, type: "action", action: "attachFile", payload: { fieldName, name, mime, data } }`
+  - `{ __onirtech: 1, type: "action", action: "removeAttachment", payload: { attachmentId } }`
   - `{ __onirtech: 1, type: "action", action: "submitIdentity", payload }`
   - `{ __onirtech: 1, type: "action", action: "finish" }`
   - `{ __onirtech: 1, type: "action", action: "request", payload: { capability } }`

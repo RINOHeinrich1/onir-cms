@@ -5,6 +5,7 @@
  * Fonctions pures et testables.
  */
 
+import { ATTACHMENT_MAX_FILES } from "@/domain/entities/attachment";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,6 +63,8 @@ function checkType(field: TemplateField, value: unknown): string | null {
       }
       return null;
     }
+    case "file":
+      return null;
   }
 }
 
@@ -83,6 +86,8 @@ function normalize(field: TemplateField, value: unknown): unknown {
 export function validateTemplateData(
   definition: TemplateDefinition,
   data: unknown,
+  /** Nombre de pièces jointes par champ fichier (ADR-0034). */
+  attachmentCounts: Record<string, number> = {},
 ): { ok: true; value: Record<string, unknown> } | { ok: false; errors: string[] } {
   const errors: string[] = [];
   const source =
@@ -93,7 +98,8 @@ export function validateTemplateData(
 
   for (const field of definition.fields) {
     const value = source[field.name];
-    const empty = isEmpty(field, value);
+    const attachmentCount = attachmentCounts[field.name] ?? 0;
+    const empty = field.type === "file" ? attachmentCount === 0 : isEmpty(field, value);
     const required =
       field.required ||
       (field.requiredIf !== undefined &&
@@ -106,6 +112,14 @@ export function validateTemplateData(
             ? `« ${field.label} » est requis dans ce cas`
             : `« ${field.label} » est obligatoire`,
         );
+      }
+      continue;
+    }
+
+    if (field.type === "file") {
+      const maxFiles = field.file?.maxFiles ?? ATTACHMENT_MAX_FILES;
+      if (attachmentCount > maxFiles) {
+        errors.push(`« ${field.label} » : ${maxFiles} fichier(s) maximum`);
       }
       continue;
     }

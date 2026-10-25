@@ -1,11 +1,13 @@
 "use client";
 
-import type { FormEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { ChatAttachmentDto } from "@/application/use-cases/attachments/attachment-dto";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
 import type { ChatMessageMedia } from "@/domain/entities/chat";
+import type { TemplateFormField } from "@/domain/template-contract";
 import type { ChatMessageDto } from "./types";
 
 type Message = ChatMessageDto;
@@ -19,6 +21,8 @@ type ChatWindowProps = {
   anonymous?: boolean;
   /** Historique éventuel (reprise de conversation). */
   initialMessages?: ChatMessageDto[];
+  /** Champs fichier demandés par le modèle (ADR-0034). */
+  attachmentFields?: TemplateFormField[];
 };
 
 /** Heure courte (HH:MM) d'un message, dans la locale du navigateur. */
@@ -26,6 +30,58 @@ function formatTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function inlineImageUrl(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}inline=1`;
+}
+
+function AttachmentList({
+  attachments,
+  onImage,
+}: {
+  attachments: ChatAttachmentDto[];
+  onImage: (image: LightboxImage) => void;
+}) {
+  if (attachments.length === 0) return null;
+  return (
+    <ul className="chat-attachments">
+      {attachments.map((attachment) => (
+        <li key={attachment.id} className="chat-attachment-item">
+          {attachment.mime.startsWith("image/") ? (
+            <button
+              type="button"
+              className="chat-attachment-image"
+              onClick={() =>
+                onImage({
+                  url: inlineImageUrl(attachment.url),
+                  libelle: attachment.originalName,
+                })
+              }
+              aria-label={`Agrandir : ${attachment.originalName}`}
+            >
+              {/* biome-ignore lint/performance/noImgElement: fichier servi par route privée */}
+              <img
+                src={inlineImageUrl(attachment.url)}
+                alt={attachment.originalName}
+                loading="lazy"
+              />
+            </button>
+          ) : (
+            <a
+              className="chat-attachment-file"
+              href={attachment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {attachment.originalName}
+            </a>
+          )}
+          <span className="chat-attachment-label">{attachment.fieldLabel}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /**
@@ -39,6 +95,7 @@ export function ChatWindow({
   token,
   anonymous = false,
   initialMessages,
+  attachmentFields = [],
 }: ChatWindowProps) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
@@ -48,6 +105,8 @@ export function ChatWindow({
   const [finishing, setFinishing] = useState(false);
   const [docs, setDocs] = useState<{ pdf: string; md: string } | null>(null);
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachmentDto[]>([]);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
 
   const logRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -55,6 +114,8 @@ export function ChatWindow({
   const programmaticTimer = useRef<number | undefined>(undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const conversationRef = useRef<string | null>(conversationId);
+  const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
 
   /**
    * Descend au dernier message. Le défilement est marqué « programmatique »
@@ -112,27 +173,39 @@ export function ChatWindow({
    * le texte, une fois la sélection revenue (idempotente côté serveur).
    */
   const ensureConversation = async (): Promise<string | null> => {
-    if (activeConversationId !== null) return activeConversationId;
+    if (conversationRef.current !== null) return conversationRef.current;
     if (token === undefined) return null;
-    const response = await fetch("/api/chat/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
-    });
-    const json = (await response.json()) as {
-      conversationId?: string;
-      messages?: Message[];
-      error?: string;
-    };
-    if (!response.ok || typeof json.conversationId !== "string") {
-      setError(json.error ?? "Démarrage de la discussion impossible");
-      return null;
+    if (sessionPromiseRef.current !== null) return sessionPromiseRef.current;
+    const promise = (async () => {
+      const response = await fetch("/api/chat/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
+      });
+      const json = (await response.json()) as {
+        conversationId?: string;
+        messages?: Message[];
+        error?: string;
+      };
+      if (!response.ok || typeof json.conversationId !== "string") {
+        setError(json.error ?? "Démarrage de la discussion impossible");
+        return null;
+      }
+      conversationRef.current = json.conversationId;
+      setActiveConversationId(json.conversationId);
+      if (json.messages !== undefined && json.messages.length > 0) {
+        setMessages((previous) =>
+          previous.length === 0 ? (json.messages as Message[]) : previous,
+        );
+      }
+      return json.conversationId;
+    })();
+    sessionPromiseRef.current = promise;
+    try {
+      return await promise;
+    } finally {
+      sessionPromiseRef.current = null;
     }
-    setActiveConversationId(json.conversationId);
-    if (json.messages !== undefined && json.messages.length > 0) {
-      setMessages((previous) => (previous.length === 0 ? (json.messages as Message[]) : previous));
-    }
-    return json.conversationId;
   };
 
   const loadMedia = async (message: Message, conversationId: string): Promise<void> => {
@@ -155,16 +228,75 @@ export function ChatWindow({
     }
   };
 
+  const uploadAttachment = async (file: File, field: TemplateFormField): Promise<void> => {
+    const activeId = await ensureConversation();
+    if (activeId === null) return;
+    const form = new FormData();
+    form.append("conversationId", activeId);
+    form.append("fieldName", field.name);
+    form.append("fichier", file);
+    setUploadingField(field.name);
+    setError(null);
+    try {
+      const response = await fetch("/api/chat/attachments", {
+        method: "POST",
+        body: form,
+      });
+      const json = (await response.json()) as {
+        attachment?: ChatAttachmentDto;
+        error?: string;
+      };
+      if (!response.ok || json.attachment === undefined) {
+        setError(json.error ?? "Envoi du fichier impossible");
+        return;
+      }
+      setPendingAttachments((previous) => [...previous, json.attachment as ChatAttachmentDto]);
+    } catch {
+      setError("Erreur réseau pendant l'envoi du fichier");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const onFiles = (event: ChangeEvent<HTMLInputElement>, field: TemplateFormField): void => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    for (const file of files) void uploadAttachment(file, field);
+  };
+
+  const removePendingAttachment = async (attachment: ChatAttachmentDto): Promise<void> => {
+    const activeId = activeConversationId;
+    setPendingAttachments((previous) => previous.filter((entry) => entry.id !== attachment.id));
+    if (activeId === null) return;
+    await fetch(
+      `/api/chat/attachments/${attachment.id}?conversationId=${encodeURIComponent(activeId)}`,
+      { method: "DELETE" },
+    ).catch(() => undefined);
+  };
+
+  const attachmentCount = (fieldName: string): number =>
+    pendingAttachments.filter((attachment) => attachment.fieldName === fieldName).length +
+    messages.reduce(
+      (total, message) =>
+        total +
+        message.attachments.filter((attachment) => attachment.fieldName === fieldName).length,
+      0,
+    );
+
   const send = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const content = draft.trim();
-    if (content === "" || pending) return;
+    const attachments = pendingAttachments;
+    if ((content === "" && attachments.length === 0) || pending || uploadingField !== null) {
+      return;
+    }
 
     const local: Message = {
       id: `local-${Date.now()}`,
       role: "user",
       content,
       medias: [],
+      attachments,
       createdAt: new Date().toISOString(),
     };
     setMessages((previous) => [...previous, local]);
@@ -172,30 +304,45 @@ export function ChatWindow({
     setDraft("");
     setPending(true);
     setError(null);
+    const removeLocal = (): void => {
+      setMessages((previous) => previous.filter((message) => message.id !== local.id));
+    };
 
     try {
       const activeId = await ensureConversation();
-      if (activeId === null) return;
+      if (activeId === null) {
+        removeLocal();
+        return;
+      }
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: activeId, content }),
+        body: JSON.stringify({
+          conversationId: activeId,
+          content,
+          attachmentIds: attachments.map((attachment) => attachment.id),
+        }),
       });
       const json = (await response.json()) as {
-        message?: Message;
+        message?: Message | null;
         mediaPending?: boolean;
         error?: string;
       };
-      if (!response.ok || json.message === undefined) {
+      if (!response.ok) {
+        removeLocal();
         setError(json.error ?? "Réponse impossible pour le moment");
         return;
       }
-      const answer = json.message;
-      setMessages((previous) => [...previous, answer]);
-      if (json.mediaPending === true) {
-        void loadMedia(answer, activeId);
+      setPendingAttachments([]);
+      const answer = json.message ?? null;
+      if (answer !== null) {
+        setMessages((previous) => [...previous, answer]);
+        if (json.mediaPending === true) {
+          void loadMedia(answer, activeId);
+        }
       }
     } catch {
+      removeLocal();
       setError("Erreur réseau, veuillez réessayer");
     } finally {
       setPending(false);
@@ -249,7 +396,8 @@ export function ChatWindow({
     }
   };
 
-  const canSend = draft.trim() !== "" && !pending;
+  const canSend =
+    (draft.trim() !== "" || pendingAttachments.length > 0) && !pending && uploadingField === null;
 
   return (
     <div className="chat">
@@ -316,9 +464,13 @@ export function ChatWindow({
                         )}
                       </ul>
                     ) : null}
+                    <AttachmentList attachments={message.attachments} onImage={setLightbox} />
                   </div>
                 ) : (
-                  <p className="bubble">{message.content}</p>
+                  <div className="bubble">
+                    {message.content !== "" ? <p>{message.content}</p> : null}
+                    <AttachmentList attachments={message.attachments} onImage={setLightbox} />
+                  </div>
                 )}
                 <span className="msg-time">{formatTime(message.createdAt)}</span>
               </div>
@@ -362,6 +514,56 @@ export function ChatWindow({
       {lightbox !== null ? <Lightbox image={lightbox} onClose={() => setLightbox(null)} /> : null}
 
       <form className="chat-composer" ref={formRef} onSubmit={send}>
+        {attachmentFields.length > 0 ? (
+          <div className="chat-attachments-bar">
+            {attachmentFields.map((field) => {
+              const maxFiles = field.maxFiles ?? 1;
+              const count = attachmentCount(field.name);
+              const full = count >= maxFiles;
+              return (
+                <label
+                  key={field.name}
+                  className={`chat-attach-button${full ? " disabled" : ""}`}
+                  title={
+                    field.accept === undefined ? undefined : `Formats : ${field.accept.join(", ")}`
+                  }
+                >
+                  {uploadingField === field.name
+                    ? "Envoi…"
+                    : `Joindre ${field.label}${maxFiles > 1 ? ` (${count}/${maxFiles})` : ""}`}
+                  <input
+                    className="sr-only"
+                    type="file"
+                    accept={field.accept?.join(",")}
+                    multiple={maxFiles > 1}
+                    disabled={full || uploadingField !== null || pending || finishing}
+                    onChange={(event) => onFiles(event, field)}
+                  />
+                </label>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {pendingAttachments.length > 0 ? (
+          <ul className="chat-pending-attachments">
+            {pendingAttachments.map((attachment) => (
+              <li key={attachment.id}>
+                <span>
+                  {attachment.fieldLabel} — {attachment.originalName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void removePendingAttachment(attachment)}
+                  aria-label={`Retirer ${attachment.originalName}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <div className="chat-composer-inner">
           <label className="sr-only" htmlFor="chat-message">
             Votre message

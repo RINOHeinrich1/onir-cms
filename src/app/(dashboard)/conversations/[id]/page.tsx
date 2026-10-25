@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
+import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { getConversation } from "@/application/use-cases/conversations/list-conversations";
 import { ConversationTranscript } from "@/components/conversations/ConversationTranscript";
 import { GenerateFicheButton } from "@/components/conversations/GenerateFicheButton";
@@ -104,7 +105,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
       ) : null}
 
       <div className="transcript">
-        <ConversationTranscript messages={messages} />
+        <ConversationTranscript messages={messages.map(toDashboardChatMessage)} />
       </div>
     </section>
   );

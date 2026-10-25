@@ -19,6 +19,7 @@ export type TemplateCapability =
   | "theme"
   | "userState"
   | "knowledge"
+  | "attachments"
   | "data";
 
 /** Mode du Shadow DOM (option de `defineTemplate`). */
@@ -146,6 +147,18 @@ export type TemplateMessageMedia = {
   url: string;
 };
 
+/** Pièce jointe de prospection (capacité `attachments`, ADR-0034). */
+export type TemplateAttachment = {
+  id: string;
+  fieldName: string;
+  fieldLabel: string;
+  originalName: string;
+  mime: string;
+  sizeBytes: number;
+  url: string;
+  createdAt: string;
+};
+
 /** Référence légère d'une connaissance (capacité `knowledge`, ADR-0020). */
 export type TemplateKnowledgeRef = {
   ref: string;
@@ -158,6 +171,8 @@ export type TemplateMessage = {
   role: "user" | "assistant";
   content: string;
   medias: TemplateMessageMedia[];
+  /** Présent si la capacité `attachments` (ADR-0034). */
+  attachments?: TemplateAttachment[];
   at: string;
   /** Présent si la capacité `userState` ET le flag du lien sont actifs. */
   userState?: TemplateMessageUserState;
@@ -172,9 +187,13 @@ export type TemplateMediaItem = { id: string; libelle: string; url: string };
 export type TemplateFormField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "multi" | "url" | "email";
+  type: "text" | "textarea" | "select" | "multi" | "url" | "email" | "file";
   required: boolean;
   options?: string[];
+  /** Champ `file` uniquement (ADR-0034). */
+  accept?: string[];
+  maxFiles?: number;
+  maxBytes?: number;
 };
 
 /** État de la discussion. */
@@ -183,6 +202,8 @@ export type TemplateState = {
   status: "en_cours" | "finalisee";
   messages: TemplateMessage[];
   typing: boolean;
+  /** Pièces téléversées mais pas encore envoyées (capacité `attachments`). */
+  pendingAttachments?: TemplateAttachment[];
 };
 
 /** Identité soumise par le visiteur. */
@@ -196,7 +217,12 @@ export type TemplateIdentity = {
 /** Action émise par le template vers l'hôte. */
 export type TemplateAction =
   | { action: "ready" }
-  | { action: "sendMessage"; payload: { content: string } }
+  | { action: "sendMessage"; payload: { content: string; attachmentIds?: string[] } }
+  | {
+      action: "attachFile";
+      payload: { fieldName: string; name: string; mime: string; data: ArrayBuffer };
+    }
+  | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
   | { action: "request"; payload: { capability: TemplateCapability } }
@@ -241,7 +267,9 @@ export type TemplateDataApi = {
 /** Actions exécutées par l'hôte pour le compte du template. */
 export type TemplateActions = {
   submitIdentity(data: TemplateIdentity): void;
-  sendMessage(content: string): void;
+  sendMessage(content: string, attachmentIds?: string[]): void;
+  attachFile(fieldName: string, file: File): Promise<void>;
+  removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;

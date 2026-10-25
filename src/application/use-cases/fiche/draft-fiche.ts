@@ -13,8 +13,10 @@ export type DraftTemplateDependencies = {
  * (B007) : clés attendues + règles par champ, réponse JSON uniquement.
  */
 export function buildExtractionGuide(definition: TemplateDefinition): string {
-  const keys = definition.fields.map((field) => `"${field.name}"`).join(", ");
-  const rules = definition.fields.map((field) => {
+  // Les champs fichier ne sont jamais extraits par l'IA (ADR-0034).
+  const fields = definition.fields.filter((field) => field.type !== "file");
+  const keys = fields.map((field) => `"${field.name}"`).join(", ");
+  const rules = fields.map((field) => {
     const base =
       field.type === "multi"
         ? `${field.label} : tableau (plusieurs possibles parmi ${field.options?.join(", ") ?? "—"})`
@@ -61,6 +63,8 @@ export async function draftTemplateDataFromConversation(
   if (messages.length === 0) {
     throw new NotFoundError("Conversation vide");
   }
+  const extractable = definition.fields.filter((field) => field.type !== "file");
+  if (extractable.length === 0) return {};
 
   const raw = await deps.ai.complete({
     system: buildExtractionGuide(definition),
@@ -81,7 +85,7 @@ export async function draftTemplateDataFromConversation(
   const source = parsed as Record<string, unknown>;
 
   const draft: Record<string, unknown> = {};
-  for (const field of definition.fields) {
+  for (const field of extractable) {
     const value = source[field.name];
     if (field.type === "multi") {
       if (Array.isArray(value)) draft[field.name] = value;

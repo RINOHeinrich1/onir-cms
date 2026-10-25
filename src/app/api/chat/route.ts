@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { sendMessage } from "@/application/use-cases/chat/send-message";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
+import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
@@ -42,7 +44,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const pool = getPool();
-    const { message, mediaPending, connaissances } = await sendMessage(
+    const result = await sendMessage(
       {
         organizations: pgOrganizationRepository(pool),
         links: pgChatLinkRepository(pool),
@@ -51,11 +53,18 @@ export async function POST(request: Request): Promise<NextResponse> {
         templates: pgChatTemplateRepository(pool),
         connaissances: pgConnaissanceRepository(pool),
         medias: pgMediaRepository(pool),
+        attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
       },
-      { conversationId, content: body.content },
+      { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );
-    return NextResponse.json({ message, mediaPending, connaissances });
+    return NextResponse.json({
+      userMessage: toPublicChatMessage(result.userMessage, result.organizationId),
+      message:
+        result.message === null ? null : toPublicChatMessage(result.message, result.organizationId),
+      connaissances: result.connaissances,
+      mediaPending: result.mediaPending,
+    });
   } catch (error) {
     return errorResponse(error);
   }

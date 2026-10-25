@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { TemplateFormField } from "@/domain/template-contract";
 import { ChatWindow } from "./ChatWindow";
 import { ContactGate } from "./ContactGate";
 import type { ChatMessageDto } from "./types";
@@ -10,12 +11,15 @@ export function ChatPortal({
   token,
   confidentialite,
   anonymous = false,
+  attachmentFields = [],
 }: {
   token: string;
   /** Politique de confidentialité à accepter (null = aucune). */
   confidentialite: { texte: string; lien: string } | null;
   /** Mode anonyme : aucun formulaire nom/contact. */
   anonymous?: boolean;
+  /** Champs fichier du modèle de raisonnement (ADR-0034). */
+  attachmentFields?: TemplateFormField[];
 }) {
   const [started, setStarted] = useState<{
     conversationId: string;
@@ -24,7 +28,14 @@ export function ChatPortal({
 
   if (started === null) {
     if (anonymous && confidentialite === null) {
-      return <ChatWindow conversationId={null} token={token} anonymous />;
+      return (
+        <ChatWindow
+          conversationId={null}
+          token={token}
+          anonymous
+          attachmentFields={attachmentFields}
+        />
+      );
     }
     return (
       <div className="chat-gate">
@@ -42,6 +53,7 @@ export function ChatPortal({
       conversationId={started.conversationId}
       initialMessages={started.messages}
       anonymous={anonymous}
+      attachmentFields={attachmentFields}
     />
   );
 }
