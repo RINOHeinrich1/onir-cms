@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { toTemplateKey, uniqueTemplateKey } from "@/domain/template-defaults";
 import { TemplateForm } from "./TemplateForm";
 import { TemplatePreview } from "./TemplatePreview";
@@ -30,6 +31,7 @@ export function TemplatesTable({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [previewingKey, setPreviewingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(templates);
   const showUnassigned = hasUnassignedCreator(templates);

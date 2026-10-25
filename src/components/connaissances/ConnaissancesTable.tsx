@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
 import { TemplateKeysBadges } from "@/components/ui/TemplateKeysBadges";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ConnaissanceForm } from "./ConnaissanceForm";
 import type { ConnaissanceDto } from "./types";
 
@@ -26,6 +27,7 @@ export function ConnaissancesTable({
   const [editing, setEditing] = useState<ConnaissanceDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(connaissances);
   const showUnassigned = hasUnassignedCreator(connaissances);

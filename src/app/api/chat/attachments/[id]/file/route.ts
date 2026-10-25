@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isImageAttachment } from "@/domain/entities/attachment";
+import { isInlineAttachment } from "@/domain/entities/attachment";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -59,7 +59,8 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
       return NextResponse.json({ error: "Introuvable" }, { status: 404 });
     }
     const inline =
-      new URL(request.url).searchParams.get("inline") === "1" && isImageAttachment(attachment.mime);
+      new URL(request.url).searchParams.get("inline") === "1" &&
+      isInlineAttachment(attachment.mime);
     return new Response(new Uint8Array(file.data), {
       headers: {
         "Content-Type": attachment.mime,

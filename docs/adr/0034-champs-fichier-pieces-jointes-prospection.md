@@ -126,8 +126,9 @@ ignore simplement les pièces.
   la fiche.
 - Un champ fichier obligatoire est validé par la **présence d'au moins une
   pièce** pour ce champ.
-- Le Markdown et le PDF affichent les **noms des pièces** sous le champ
-  correspondant. Les liens de téléchargement sont fournis par le backoffice.
+- Le Markdown et le PDF affichent des **liens cliquables** vers les pièces sous
+  le champ correspondant. Les liens passent par une route protégée par la
+  session backoffice ; ils ne sont jamais publics.
 - La fiche ne stocke pas les octets : elle référence les pièces.
 
 ### 6. Sécurité et validation

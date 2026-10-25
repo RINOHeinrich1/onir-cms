@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type ChangeResponse = { ok?: boolean; error?: string };
 
@@ -10,6 +11,7 @@ type ChangeResponse = { ok?: boolean; error?: string };
 export function ChangePasswordForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {

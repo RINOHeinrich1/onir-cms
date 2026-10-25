@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { InvitationStatus } from "@/domain/entities/invitation";
 import type { Role } from "@/domain/entities/user";
 
@@ -70,6 +71,7 @@ export function InvitationsManager({
   const [role, setRole] = useState<Role>(initialOrganizationId === "" ? "admin" : "lecteur");
   const [organizationId, setOrganizationId] = useState(initialOrganizationId);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 

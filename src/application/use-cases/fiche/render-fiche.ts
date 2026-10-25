@@ -9,6 +9,7 @@ import type { FicheAttachment } from "@/domain/entities/attachment";
 import type { Fiche } from "@/domain/entities/fiche";
 import { renderTemplateMarkdown } from "@/domain/render-template";
 import { buildServerVariables } from "@/domain/template-variables";
+import { attachmentMarkdownLink } from "@/lib/attachment-links";
 
 export type RenderFicheDependencies = {
   fiches: FicheRepository;
@@ -56,7 +57,7 @@ export async function renderFiche(
   const fileValues: Record<string, string[]> = {};
   for (const attachment of attachments) {
     const names = fileValues[attachment.fieldName] ?? [];
-    names.push(attachment.originalName);
+    names.push(attachmentMarkdownLink(attachment.originalName, attachment.id));
     fileValues[attachment.fieldName] = names;
   }
 

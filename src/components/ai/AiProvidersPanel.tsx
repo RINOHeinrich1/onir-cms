@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { AI_PROVIDER_PRESET_LABELS } from "@/domain/entities/ai-provider";
 import { AiDefaultSettings } from "./AiDefaultSettings";
 import { AiModelsPanel } from "./AiModelsPanel";
@@ -33,6 +34,7 @@ export function AiProvidersPanel({
   const [managingModels, setManagingModels] = useState<AiProviderDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useToastOnMessage(error, notice);
 
   const reload = async (): Promise<void> => {
     const [providersResponse, settingsResponse] = await Promise.all([

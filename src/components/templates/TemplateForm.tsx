@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_FILES,
@@ -189,6 +190,15 @@ function fieldsFromDefinition(definition: Record<string, unknown>): FieldRow[] {
     : [withUid({ ...EMPTY_FIELD })];
 }
 
+function renameTemplateVariables(text: string, oldName: string, newName: string): string {
+  if (oldName === "" || newName === "" || oldName === newName) return text;
+  return text
+    .split(`{{${oldName}}}`)
+    .join(`{{${newName}}}`)
+    .split(`{{#if ${oldName}}}`)
+    .join(`{{#if ${newName}}}`);
+}
+
 function splitOptions(value: string): string[] {
   return value
     .split(",")
@@ -209,11 +219,11 @@ function materializeSimpleFieldNames(fields: readonly FieldRow[]): FieldRow[] {
 
 /**
  * Convertit les lignes d'édition en définition validable.
- * En mode simple, le nom technique est dérivé du libellé et rendu unique.
+ * Le nom technique est toujours dérivé du libellé et rendu unique.
  */
 function fieldsToTemplateFields(
   fields: readonly FieldRow[],
-  mode: TemplateFormMode,
+  _mode: TemplateFormMode,
 ): TemplateField[] {
   const used: string[] = [];
   const result: TemplateField[] = [];
@@ -223,10 +233,7 @@ function fieldsToTemplateFields(
     const rawName = field.name.trim();
     if (label === "" && rawName === "") continue;
 
-    let name = rawName;
-    if (name === "" || mode === "simple") {
-      name = uniqueFieldName(toFieldName(label === "" ? rawName : label), used);
-    }
+    const name = uniqueFieldName(toFieldName(label === "" ? rawName : label), used);
     used.push(name);
 
     const type = isTemplateFieldType(field.type) ? field.type : "text";
@@ -295,7 +302,8 @@ export function TemplateForm({
 }: TemplateFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [savedVersion, setSavedVersion] = useState<number | null>(null);
+  const toast = useToast();
+  useToastOnMessage(error);
   const [mode, setMode] = useState<TemplateFormMode>(
     templateKey === null && seed === null ? "simple" : "expert",
   );
@@ -388,20 +396,25 @@ export function TemplateForm({
   };
 
   const updateFieldLabel = (uid: number, value: string): void => {
+    const current = fields.find((entry) => entry.uid === uid);
+    if (current === undefined) return;
+    const used = fields
+      .filter((other) => other.uid !== uid && other.name.trim() !== "")
+      .map((other) => other.name);
+    const newName = value.trim() === "" ? "" : uniqueFieldName(toFieldName(value), used);
     setFields((previous) =>
       previous.map((entry) => {
-        if (entry.uid !== uid) return entry;
-        if (mode === "expert") return { ...entry, label: value };
-        const used = previous
-          .filter((other) => other.uid !== uid && other.name.trim() !== "")
-          .map((other) => other.name);
-        return {
-          ...entry,
-          label: value,
-          name: value.trim() === "" ? "" : uniqueFieldName(toFieldName(value), used),
-        };
+        if (entry.uid === uid) return { ...entry, label: value, name: newName };
+        if (current.name !== "" && entry.requiredIfField === current.name) {
+          return { ...entry, requiredIfField: newName };
+        }
+        return entry;
       }),
     );
+    if (current.name !== newName) {
+      setSystemPrompt((previous) => renameTemplateVariables(previous, current.name, newName));
+      setRenderTemplateText((previous) => renameTemplateVariables(previous, current.name, newName));
+    }
   };
 
   const addField = (): void => {
@@ -459,7 +472,6 @@ export function TemplateForm({
     event.preventDefault();
     setPending(true);
     setError(null);
-    setSavedVersion(null);
     try {
       if (label.trim() === "") {
         setError("Le nom du modèle est obligatoire");
@@ -482,6 +494,15 @@ export function TemplateForm({
       }
       if (render.trim() === "") {
         setError("La fiche reçue par l'équipe est obligatoire");
+        return;
+      }
+
+      if (
+        templateKey !== null &&
+        !window.confirm(
+          "Cette modification crée une nouvelle version du modèle. Les liens déjà actifs conservent leur version figée et ne seront pas mis à jour automatiquement. Continuer ?",
+        )
+      ) {
         return;
       }
 
@@ -512,7 +533,17 @@ export function TemplateForm({
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
-      setSavedVersion(json.version.version);
+      if (templateKey !== null) {
+        toast.warning(
+          `Version ${json.version.version} enregistrée. Les liens existants restent sur leur ancienne version figée : mettez-les à jour explicitement pour appliquer les nouveaux champs.`,
+          {
+            durationMs: 15000,
+            action: { label: "Voir les liens de chat", href: "/liens" },
+          },
+        );
+      } else {
+        toast.success(`Modèle créé (version ${json.version.version}).`);
+      }
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -524,11 +555,12 @@ export function TemplateForm({
   return (
     <form className="form template-form" onSubmit={onSubmit} noValidate>
       <div className="template-form-main">
-        {error !== null ? <p className="alert error">{error}</p> : null}
-        {savedVersion !== null ? (
-          <p className="alert success" role="status">
-            Version {savedVersion} enregistrée.
-          </p>
+        {templateKey !== null ? (
+          <div className="alert warning" role="status">
+            <strong>Snapshot immuable :</strong> modifier ce modèle crée une nouvelle version. Les
+            liens déjà actifs conservent leur ancienne version et ne sont pas mis à jour
+            automatiquement. Pour appliquer les nouveaux champs, mettez à jour le lien concerné.
+          </div>
         ) : null}
 
         <div className="template-mode-switch">
@@ -799,30 +831,19 @@ export function TemplateForm({
                 </>
               ) : (
                 <>
-                  <div className="grid-2">
-                    <label className="field">
-                      Nom technique
-                      <input
-                        type="text"
-                        placeholder="budget"
-                        value={field.name}
-                        onChange={(event) => updateField(field.uid, { name: event.target.value })}
-                      />
-                    </label>
-                    <label className="field">
-                      Type
-                      <select
-                        value={field.type}
-                        onChange={(event) => updateField(field.uid, { type: event.target.value })}
-                      >
-                        {FIELD_TYPE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
+                  <label className="field">
+                    Type
+                    <select
+                      value={field.type}
+                      onChange={(event) => updateField(field.uid, { type: event.target.value })}
+                    >
+                      {FIELD_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="field">
                     Libellé
                     <input
@@ -872,15 +893,22 @@ export function TemplateForm({
                   ) : null}
                   <div className="grid-2">
                     <label className="field">
-                      Requis si champ…
-                      <input
-                        type="text"
-                        placeholder="statut"
+                      Requis si le champ…
+                      <select
                         value={field.requiredIfField}
                         onChange={(event) =>
                           updateField(field.uid, { requiredIfField: event.target.value })
                         }
-                      />
+                      >
+                        <option value="">Aucun</option>
+                        {fields
+                          .filter((other) => other.uid !== field.uid && other.name.trim() !== "")
+                          .map((other) => (
+                            <option key={other.uid} value={other.name}>
+                              {other.label.trim() === "" ? other.name : other.label}
+                            </option>
+                          ))}
+                      </select>
                     </label>
                     <label className="field">
                       …vaut

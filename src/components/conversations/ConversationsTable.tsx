@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LinkFilter } from "@/components/ui/LinkFilter";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConversationFilter } from "@/domain/entities/chat";
 import type { ConversationRowDto } from "./types";
 
@@ -46,6 +47,7 @@ export function ConversationsTable({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState<string | null>(null);
 
   const generate = async (conversation: ConversationRowDto): Promise<void> => {
@@ -67,7 +69,7 @@ export function ConversationsTable({
         setError(json.error ?? "Génération impossible");
         return;
       }
-      router.push(`/fiches/${json.fiche.id}`);
+      router.push(`/leads/${json.fiche.id}`);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {

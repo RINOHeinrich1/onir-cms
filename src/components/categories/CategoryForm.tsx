@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Category } from "@/domain/entities/category";
 
 /** Création / édition d'une catégorie (label, description, ordre, actif). */
@@ -15,6 +16,7 @@ export function CategoryForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(category?.actif ?? true);
 

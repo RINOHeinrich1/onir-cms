@@ -85,24 +85,23 @@ export function buildRenderVariables(
     }
   }
 
-  const labels = definition.fields
-    .filter((field) => field.type !== "file")
-    .map((field) => {
-      const required = field.required
-        ? " (obligatoire)"
-        : field.requiredIf !== undefined
-          ? ` (obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »)`
-          : "";
-      const options =
-        field.options !== undefined && field.options.length > 0
-          ? ` — valeurs possibles : ${field.options.join(", ")}`
-          : "";
-      const example =
-        field.example !== undefined && field.example.trim() !== ""
-          ? ` — exemple : ${field.example.trim()}`
-          : "";
-      return `- ${field.label}${required}${options}${example}`;
-    });
+  const labels = definition.fields.map((field) => {
+    const required = field.required
+      ? " (obligatoire)"
+      : field.requiredIf !== undefined
+        ? ` (obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »)`
+        : "";
+    const options =
+      field.options !== undefined && field.options.length > 0
+        ? ` — valeurs possibles : ${field.options.join(", ")}`
+        : "";
+    const example =
+      field.example !== undefined && field.example.trim() !== ""
+        ? ` — exemple : ${field.example.trim()}`
+        : "";
+    const fileHint = field.type === "file" ? " — pièce jointe à demander" : "";
+    return `- ${field.label}${required}${options}${example}${fileHint}`;
+  });
   vars.champs_guide = labels.join("\n");
 
   return vars;

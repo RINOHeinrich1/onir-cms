@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { CategoryForm } from "./CategoryForm";
 import type { CategoryListItem } from "./types";
 
@@ -24,6 +25,7 @@ export function CategoriesManager({
   const [categories, setCategories] = useState(initialCategories);
   const [editing, setEditing] = useState<CategoryListItem | null | "new">(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(categories);
   const showUnassigned = hasUnassignedCreator(categories);

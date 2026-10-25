@@ -17,6 +17,50 @@ type Block =
   | { kind: "bullet"; text: string }
   | { kind: "paragraph"; text: string };
 
+type InlinePart = { text: string; url?: string };
+
+/** Découpe un texte inline en segments texte / liens Markdown http(s). */
+export function parseInlineLinks(text: string): InlinePart[] {
+  const parts: InlinePart[] = [];
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+  let cursor = 0;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push({ text: text.slice(cursor, index) });
+    parts.push({ text: match[1] ?? match[0], url: match[2] ?? "" });
+    cursor = index + match[0].length;
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor) });
+  return parts.length === 0 ? [{ text }] : parts;
+}
+
+function plainInline(text: string): string {
+  return parseInlineLinks(text)
+    .map((part) => part.text)
+    .join("");
+}
+
+function writeInline(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  options: PDFKit.Mixins.TextOptions,
+  color: string,
+): void {
+  const parts = parseInlineLinks(text);
+  if (parts.length === 1 && parts[0]?.url === undefined) {
+    doc.fillColor(color).text(text, options);
+    return;
+  }
+  parts.forEach((part, index) => {
+    const last = index === parts.length - 1;
+    doc.fillColor(part.url === undefined ? color : NAVY).text(part.text, {
+      ...options,
+      ...(part.url === undefined ? {} : { link: part.url, underline: true }),
+      continued: !last,
+    });
+  });
+}
+
 /** Découpe un Markdown simple en blocs (titres, puces, paragraphes). */
 export function parseMarkdownBlocks(markdown: string): Block[] {
   const blocks: Block[] = [];
@@ -67,16 +111,23 @@ export function renderMarkdownPdf(markdown: string, title: string): Promise<Buff
 
     for (const block of parseMarkdownBlocks(markdown)) {
       if (block.kind === "h1") {
-        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text(block.text);
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text(plainInline(block.text));
         doc.moveDown(0.3);
       } else if (block.kind === "h2") {
         doc.moveDown(1.1);
-        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(12.5).text(block.text.toUpperCase());
+        doc
+          .fillColor(NAVY)
+          .font("Helvetica-Bold")
+          .fontSize(12.5)
+          .text(plainInline(block.text).toUpperCase());
         doc.moveDown(0.35);
       } else if (block.kind === "bullet") {
-        doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(`•  ${block.text}`, { indent: 6 });
+        doc.fillColor(INK).font("Helvetica").fontSize(10.5);
+        doc.text("•  ", { indent: 6, continued: true });
+        writeInline(doc, block.text, { indent: 15 }, INK);
       } else {
-        doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(block.text);
+        doc.font("Helvetica").fontSize(10.5);
+        writeInline(doc, block.text, {}, INK);
       }
     }
 

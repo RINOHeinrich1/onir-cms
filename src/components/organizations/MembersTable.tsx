@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLES, type Role } from "@/domain/entities/user";
 
 /** Membres d'une organisation : ajout, changement de rôle, retrait. */
@@ -19,6 +20,7 @@ export function MembersTable({
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("lecteur");
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
   const refresh = async (): Promise<void> => {

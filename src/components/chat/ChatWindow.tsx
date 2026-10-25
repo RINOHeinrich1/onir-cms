@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatAttachmentDto } from "@/application/use-cases/attachments/attachment-dto";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatMessageMedia } from "@/domain/entities/chat";
 import type { TemplateFormField } from "@/domain/template-contract";
 import type { ChatMessageDto } from "./types";
@@ -101,6 +102,7 @@ export function ChatWindow({
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [docs, setDocs] = useState<{ pdf: string; md: string } | null>(null);

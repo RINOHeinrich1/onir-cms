@@ -73,7 +73,7 @@ export default async function FicheLecturePage({ params }: PageProps) {
           </p>
         </div>
         <div className="tools">
-          <a className="btn ghost small" href="/fiches">
+          <a className="btn ghost small" href="/leads">
             ← Toutes les fiches
           </a>
           <a className="btn small" href={`/api/fiche/${fiche.id}/download?format=pdf`}>

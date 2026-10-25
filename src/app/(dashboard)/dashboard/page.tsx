@@ -76,7 +76,7 @@ export default async function DashboardHomePage() {
       value: conversations.finalisees,
       warn: false,
     },
-    { href: "/fiches", label: "Fiches", value: fiches.length, warn: false },
+    { href: "/leads", label: "Leads", value: fiches.length, warn: false },
     { href: "/liens", label: "Liens actifs", value: linksActifs, warn: false },
     { href: "/liens", label: "Liens expirés", value: liensExpires, warn: true },
   ] as const;

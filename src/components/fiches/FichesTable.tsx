@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { Modal } from "@/components/ui/Modal";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { FicheArchiveFilter } from "@/domain/entities/fiche";
 import { FicheForm } from "./FicheForm";
 import type { FicheDto } from "./types";
@@ -41,6 +42,8 @@ export function FichesTable({
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  useToastOnMessage(error);
 
   const refresh = (): void => {
     router.refresh();
@@ -68,6 +71,7 @@ export function FichesTable({
         setError(json.error ?? "Action impossible");
         return;
       }
+      toast.success(archivee ? "Fiche archivée." : "Fiche désarchivée.");
       refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -85,7 +89,7 @@ export function FichesTable({
           return (
             <a
               key={item.key}
-              href={`/fiches?${params.toString()}`}
+              href={`/leads?${params.toString()}`}
               className={`subtab ${filtre === item.key ? "active" : ""}`}
               aria-current={filtre === item.key ? "page" : undefined}
             >
@@ -95,7 +99,7 @@ export function FichesTable({
         })}
       </nav>
 
-      <LinkFilter basePath="/fiches" value={lien} labels={linkLabels} preserve={{ filtre }} />
+      <LinkFilter basePath="/leads" value={lien} labels={linkLabels} preserve={{ filtre }} />
 
       {canWrite ? (
         <div className="tools" style={{ marginBottom: "1.5rem" }}>
@@ -145,7 +149,7 @@ export function FichesTable({
                   <td>{new Date(fiche.createdAt).toLocaleDateString("fr-FR")}</td>
                   <td>
                     <div className="tools">
-                      <a className="btn small" href={`/fiches/${fiche.id}`}>
+                      <a className="btn small" href={`/leads/${fiche.id}`}>
                         Regarder
                       </a>
                       <a

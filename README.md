@@ -24,7 +24,7 @@ premium pourront être développés séparément dans un dépôt privé.
   révocation, consentement du visiteur et reprise de conversation.
 - **Modèles de raisonnement** : comportements de prospection stockés en base, avec un mode
   simple (prompt et fiche générés) et un mode expert.
-- **Fiches de prospection** : collecte guidée, génération Markdown, export PDF.
+- **Leads** : fiches de prospection, fichiers récupérés, génération Markdown et export PDF.
 - **Sources de connaissances** : base de connaissances, photothèque et liens activables
   par lien de chat.
 - **Fournisseurs IA OpenAI-compatible** : clés chiffrées, catalogue de modèles, modèle par

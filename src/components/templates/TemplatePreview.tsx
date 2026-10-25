@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MarkdownReport } from "@/components/fiches/MarkdownReport";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /**
  * Prévisualisation d'un modèle : prompt final + fiche rendus avec des
@@ -17,6 +18,7 @@ export function TemplatePreview({
   const [prompt, setPrompt] = useState<string | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   useEffect(() => {
     fetch(`/api/templates/${templateKey}`)

@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ConfidentialiteForm } from "./ConfidentialiteForm";
 import type { ConfidentialiteDto } from "./types";
 
@@ -28,6 +29,7 @@ export function ConfidentialitesTable({
   const [editing, setEditing] = useState<ConfidentialiteDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(items);
   const showUnassigned = hasUnassignedCreator(items);

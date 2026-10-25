@@ -44,5 +44,5 @@ export function signedAttachmentUrl(attachmentId: string, organizationId: string
 
 /** URL dashboard (session) d'une pièce jointe. */
 export function dashboardAttachmentUrl(attachmentId: string): string {
-  return `/api/chat/attachments/${attachmentId}/file`;
+  return `/api/chat/attachments/${attachmentId}/file?inline=1`;
 }

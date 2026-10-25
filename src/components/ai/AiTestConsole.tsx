@@ -5,6 +5,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiProviderModel } from "@/domain/entities/ai-model";
 
 type TestMessage = { id: string; role: "user" | "assistant"; content: string };
@@ -35,6 +36,7 @@ export function AiTestConsole({
   const [pending, setPending] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 

@@ -20,7 +20,7 @@ const ITEMS: readonly NavItem[] = [
   { href: "/prospects", label: "Prospects", action: "prospects:list" },
   { href: "/liens", label: "Liens de chat", action: "links:list" },
   { href: "/conversations", label: "Conversations", action: "conversations:list" },
-  { href: "/fiches", label: "Fiches de prospection", action: "project:read" },
+  { href: "/leads", label: "Leads", action: "project:read" },
   { href: "/modeles", label: "Modèle de prospection", action: "templates:list" },
   { href: "/connaissances", label: "Connaissances", action: "connaissances:list" },
   { href: "/medias", label: "Médias", action: "medias:list" },

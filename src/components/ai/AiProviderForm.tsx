@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   AI_PROVIDER_PRESET_LABELS,
   AI_PROVIDER_PRESETS,
@@ -26,6 +27,7 @@ export function AiProviderForm({
   const [productId, setProductId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
   const changePreset = (next: AiProviderPreset): void => {

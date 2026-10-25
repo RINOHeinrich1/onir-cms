@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import type { VisualTemplate } from "@/application/ports/visual-template-repository";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { TemplateCover } from "./TemplateCover";
 import { modeLabel, trustLabel } from "./template-labels";
 
@@ -31,6 +32,7 @@ export function VisualTemplatesGrid({
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  useToastOnMessage(formError, message);
 
   const openImport = (): void => {
     setFormError(null);

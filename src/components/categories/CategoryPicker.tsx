@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CategoryContentType } from "@/application/ports/category-repository";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Category } from "@/domain/entities/category";
 
 /** Affectation multi-catégories d'un contenu (sauvegarde immédiate). */
@@ -18,6 +19,7 @@ export function CategoryPicker({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   useEffect(() => {
     let cancelled = false;

@@ -82,7 +82,8 @@ describe("renderTemplate", () => {
       { cin: ["cin.png", "cin-verso.png"] },
     );
     expect(vars.cin).toBe("- cin.png\n- cin-verso.png");
-    expect(vars.champs_guide).not.toContain("CIN");
+    expect(vars.champs_guide).toContain("CIN");
+    expect(vars.champs_guide).toContain("pièce jointe");
   });
 
   it("rend un markdown déterministe (trim + saut final)", () => {

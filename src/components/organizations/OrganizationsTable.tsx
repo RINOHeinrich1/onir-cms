@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Organization } from "@/domain/entities/organization";
 import { MembersTable } from "./MembersTable";
 import { OrganizationForm } from "./OrganizationForm";
@@ -25,6 +26,7 @@ export function OrganizationsTable({
     activeOrganizationId ?? initialOrganizations[0]?.id ?? null,
   );
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   const refresh = (): void => {
     router.refresh();

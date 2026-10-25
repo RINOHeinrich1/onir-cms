@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Import explicite de la configuration Infomaniak legacy (jamais automatique). */
 export function ImportLegacyPanel({ onImported }: { onImported: () => void }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useToastOnMessage(error, notice);
 
   const run = async (): Promise<void> => {
     setPending(true);

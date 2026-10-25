@@ -5,6 +5,7 @@ import {
   type CreateAttachmentInput,
   type FicheAttachment,
   isAttachmentMime,
+  type OrganizationAttachment,
 } from "@/domain/entities/attachment";
 
 type AttachmentRow = {
@@ -142,6 +143,54 @@ export function pgAttachmentRepository(pool: Pool): AttachmentRepository {
         [ficheId, organizationId],
       );
       return rows.map((row) => ({ ...toEntity(row), ficheId: row.fiche_id }));
+    },
+
+    async listForOrganization(organizationId, limit = 500): Promise<OrganizationAttachment[]> {
+      const { rows } = await pool.query<
+        AttachmentRow & {
+          prospect_id: string | null;
+          prospect_nom: string | null;
+          prospect_prenom: string | null;
+          visitor_nom: string;
+          visitor_email: string;
+          link_label: string | null;
+          fiche_id: string | null;
+        }
+      >(
+        `SELECT ${COLUMNS.split(", ")
+          .map((column) => `a.${column}`)
+          .join(", ")},
+                c.prospect_id, p.nom AS prospect_nom, p.prenom AS prospect_prenom,
+                c.visitor_nom, c.visitor_email, l.label AS link_label, fa.fiche_id
+           FROM conversation_attachments a
+           JOIN conversations c
+             ON c.id = a.conversation_id AND c.organization_id = a.organization_id
+           LEFT JOIN prospects p
+             ON p.id = c.prospect_id AND p.organization_id = a.organization_id
+           LEFT JOIN chat_links l
+             ON l.id = c.link_id AND l.organization_id = a.organization_id
+           LEFT JOIN LATERAL (
+             SELECT f.fiche_id
+               FROM fiche_attachments f
+              WHERE f.attachment_id = a.id
+              ORDER BY f.created_at DESC
+              LIMIT 1
+           ) fa ON true
+          WHERE a.organization_id = $1
+          ORDER BY a.created_at DESC
+          LIMIT $2`,
+        [organizationId, Math.max(1, Math.min(limit, 2000))],
+      );
+      return rows.map((row) => ({
+        ...toEntity(row),
+        prospectId: row.prospect_id,
+        prospectNom: row.prospect_nom ?? "",
+        prospectPrenom: row.prospect_prenom ?? "",
+        visitorNom: row.visitor_nom,
+        visitorEmail: row.visitor_email,
+        linkLabel: row.link_label ?? "",
+        ficheId: row.fiche_id,
+      }));
     },
 
     async attachToFiche(organizationId, ficheId, attachments): Promise<void> {

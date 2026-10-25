@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type OrganizationOption = { id: string; name: string };
 
@@ -16,6 +17,7 @@ export function OrganizationSwitcher({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   if (organizations.length === 0) return null;
 

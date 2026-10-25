@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiProviderModel } from "@/domain/entities/ai-model";
 import type { AiProviderDto } from "./types";
 
@@ -21,6 +22,7 @@ export function AiModelsPanel({
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useToastOnMessage(error, notice);
   const [pending, setPending] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, string>>({});
