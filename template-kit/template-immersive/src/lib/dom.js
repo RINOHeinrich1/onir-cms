@@ -24,3 +24,6 @@ export const ICON_BOOK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M
 export const ICON_SEND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>';
 /** Validation (coche) — bouton « Terminer ». */
 export const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+/** Trombone — joindre une pièce au message. */
+export const ICON_ATTACH = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.6 12.2 20.8a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>';

@@ -1,6 +1,7 @@
 // Overlay discussion : tableau, dialogue PAGINÉ (hauteur fixe, sans scroll),
 // frappe progressive, navigation page → message, composer, barre d'actions.
-import { h, ICON_CHECK, ICON_SEND } from "../lib/dom.js";
+import { h, ICON_ATTACH, ICON_CHECK, ICON_SEND } from "../lib/dom.js";
+import { acceptAttribute, attachmentsHtml, canAddFiles, fileFields, formatFileSize } from "../lib/attachments.js";
 import { mdToHtml } from "../lib/markdown.js";
 import { PAGE_MARK, pageLabel, resolveNav } from "../lib/pagination.js";
 import { TYPE_PAGE_PAUSE_MS } from "../lib/typewriter.js";
@@ -18,17 +19,32 @@ function markSpan(mark, extraClass) {
   return span;
 }
 
-export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary, onSend, onFinish, onExit, onReset, onNavigate, onToggleBoard }) {
+export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary, onSend, onAttach, onRemoveAttachment, getFileFields, onFinish, onExit, onReset, onNavigate, onToggleBoard }) {
   const dialogue = h("div", { class: "dialogue" });
   const liveRegion = h("div", { class: "sr-live", "aria-live": "polite" });
   const bubble = h("div", { class: "bubble assistant" });
   const input = h("input", { type: "text", placeholder: "Votre message…", "aria-label": "Votre message" });
+  let pending = [];
+  let attachFields = [];
+  let attachBusy = false;
+  let pickedField = null;
+  const fileInput = h("input", { type: "file", class: "cfiles", tabindex: "-1", "aria-hidden": "true" });
+  const attachMenu = h("div", { class: "attachmenu", role: "menu" });
+  const attachBtn = h("button", {
+    class: "cattach", type: "button", title: "Joindre une pièce", "aria-label": "Joindre une pièce",
+    onclick: () => chooseField(),
+  }, [h("span", { class: "ico", html: ICON_ATTACH }), h("span", { class: "lbl", text: "Joindre" })]);
+  const attachStatus = h("span", { class: "attachstatus", role: "status" });
+  const attachChips = h("div", { class: "attachchips" });
+  const attachPending = h("div", { class: "attachpending", "aria-live": "polite" }, [attachStatus, attachChips]);
   const send = () => {
     const value = input.value.trim();
-    if (!value) return;
+    if (attachBusy || (!value && pending.length === 0)) return;
     onSend(value);
     input.value = "";
+    updateSendState();
   };
+  input.addEventListener("input", updateSendState);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); send(); } });
   const sendBtn = h("button", { class: "csend", type: "button", "aria-label": "Envoyer", onclick: send }, [
     h("span", { class: "ico", html: ICON_SEND }),
@@ -41,7 +57,83 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     h("span", { class: "ico", html: ICON_CHECK }),
     h("span", { class: "lbl", text: "Terminer" }),
   ]);
-  const composer = h("div", { class: "composer" }, [input, finishBtn, sendBtn]);
+  function updateSendState() {
+    const hasText = input.value.trim() !== "";
+    sendBtn.disabled = attachBusy || (!hasText && pending.length === 0);
+    attachBtn.disabled = attachBusy || attachFields.length === 0;
+    attachBtn.hidden = attachFields.length === 0;
+  }
+
+  function setStatus(message) {
+    attachStatus.textContent = message;
+    attachStatus.classList.toggle("error", message !== "" && !message.startsWith("Envoi"));
+    attachPending.classList.toggle("show", pending.length > 0 || message !== "");
+  }
+
+  function closeMenu() { attachMenu.classList.remove("open"); }
+
+  function chooseField() {
+    if (attachBusy) return;
+    if (attachMenu.classList.contains("open")) { closeMenu(); return; }
+    const fields = fileFields(getFileFields?.() ?? attachFields);
+    if (fields.length === 0) return;
+    if (fields.length === 1) { pickField(fields[0]); return; }
+    attachMenu.replaceChildren(...fields.map((field) => h("button", {
+      type: "button", role: "menuitem", text: field.label || field.name,
+      onclick: () => pickField(field),
+    })));
+    attachMenu.classList.add("open");
+  }
+
+  function pickField(field) {
+    closeMenu();
+    pickedField = field;
+    fileInput.setAttribute("accept", acceptAttribute(field));
+    fileInput.multiple = (field.maxFiles ?? 1) > 1;
+    fileInput.value = "";
+    fileInput.click();
+  }
+
+  fileInput.addEventListener("change", () => {
+    const files = Array.from(fileInput.files ?? []);
+    const field = pickedField;
+    fileInput.value = "";
+    if (!field || files.length === 0) return;
+    const check = canAddFiles(field, pending, files);
+    if (!check.ok) {
+      setStatus(check.error);
+      liveRegion.textContent = check.error;
+      return;
+    }
+    attachBusy = true;
+    setStatus(`Envoi de ${files.length} fichier${files.length > 1 ? "s" : ""}…`);
+    updateSendState();
+    void Promise.allSettled(files.map((file) => Promise.resolve(onAttach(field.name, file)))).then(() => {
+      attachBusy = false;
+      setStatus("");
+      updateSendState();
+    });
+  });
+
+  function renderPending() {
+    attachChips.replaceChildren(...pending.map((item) => h("span", { class: "attachchip" }, [
+      h("span", { class: "attachlabel", text: `${item.originalName} · ${formatFileSize(item.sizeBytes)}` }),
+      h("button", {
+        type: "button", class: "attachremove", "aria-label": `Retirer ${item.originalName}`,
+        text: "×", onclick: () => onRemoveAttachment?.(item.id),
+      }),
+    ])));
+    attachPending.classList.toggle("show", pending.length > 0 || attachStatus.textContent !== "");
+  }
+
+  function setAttachments(nextPending, modelForm) {
+    pending = Array.isArray(nextPending) ? nextPending : [];
+    attachFields = fileFields(modelForm);
+    renderPending();
+    updateSendState();
+  }
+
+    const composer = h("div", { class: "composer" }, [attachBtn, input, finishBtn, sendBtn, fileInput, attachMenu]);
   const finishModal = createFinishModal({
     onConfirm: () => {
       liveRegion.textContent = "Conversation terminée : génération de la fiche en cours.";
@@ -61,7 +153,7 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     h("button", { class: "dreset", text: "Changer d'identité", onclick: () => onReset() }),
     toggle,
     board.el,
-    h("div", { class: "discbottom" }, [dialogue, liveRegion, discnav, composer]),
+    h("div", { class: "discbottom" }, [dialogue, liveRegion, discnav, attachPending, composer]),
   ]);
   const actionsEl = h("div", { class: "actions" }, createActionButtons({ onDiscuss, onAlbum, onLibrary }));
   root.append(actionsEl, el, finishModal.modal, finishModal.toast);
@@ -148,6 +240,12 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     updateNav();
   }
 
+  function messageHtml(message) {
+    const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
+    const content = message?.content || (attachments.length > 0 ? "" : PAGE_MARK);
+    return `${mdToHtml(content)}${attachmentsHtml(attachments)}`;
+  }
+
   function startMessage(message, { animate = true } = {}) {
     clearAuto();
     if (typing) { typing.cancel(); typing = null; }
@@ -162,7 +260,7 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     const { width, height } = measureBox();
     pages = paginateBubble({
       host: dialogue, role, width, height,
-      html: mdToHtml(message.content || PAGE_MARK),
+      html: messageHtml(message),
     });
     pageIdx = landLast && pages.length > 0 ? pages.length - 1 : 0;
     landLast = false;
@@ -180,7 +278,7 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     const { width, height } = measureBox();
     pages = paginateBubble({
       host: dialogue, role, width, height,
-      html: mdToHtml(view.message.content || PAGE_MARK),
+      html: messageHtml(view.message),
     });
     pageIdx = Math.min(pageIdx, Math.max(0, pages.length - 1));
     showPage(pageIdx, { animate });
@@ -224,7 +322,7 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     board.render(asst, resources);
     const message = view.message;
     const key = message ? `${msgIndex}|${message.id ?? ""}` : "none";
-    const print = message?.content ?? "";
+    const print = `${message?.content ?? ""}|${(message?.attachments ?? []).map((item) => item.id).join(",")}`;
     if (key !== msgKey) {
       msgKey = key;
       contentPrint = print;
@@ -277,8 +375,9 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     el, actionsEl, input,
     panelHeight() { return el.querySelector(".discbottom")?.getBoundingClientRect().height ?? 0; },
     open() { el.classList.add("open"); el.classList.remove("narrowboard-open"); },
-    close() { el.classList.remove("open"); clearAuto(); typing?.cancel(); typing = null; finishModal.close(); },
+    close() { el.classList.remove("open"); clearAuto(); typing?.cancel(); typing = null; finishModal.close(); closeMenu(); },
     render,
+    setAttachments,
     renderDialogue(message) { startMessage(message, { animate: false }); },
     setReact() { /* conservé pour compatibilité */ },
     setNarrow,
