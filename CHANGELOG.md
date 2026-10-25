@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.11.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.11.0...v0.11.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **templates:** attendre l'upload Immersive (4.45.1) ([#49](https://github.com/RINOHeinrich1/onir-cms/issues/49)) ([2a56b18](https://github.com/RINOHeinrich1/onir-cms/commit/2a56b1820206c17a86914de239fc022d9dadb7b5))
+
 ## [0.11.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.10.2...v0.11.0) (2026-10-25)
 
 
