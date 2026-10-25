@@ -2,10 +2,12 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Création d'organisation (super-admin) — nom prérempli côté serveur si vide. */
 export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {

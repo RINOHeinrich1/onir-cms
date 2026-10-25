@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { LinkEditModal } from "./LinkEditModal";
 import { LinkForm } from "./LinkForm";
 import type {
@@ -109,6 +110,7 @@ export function LinksTable({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(links);
   const showUnassigned = hasUnassignedCreator(links);

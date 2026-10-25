@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { isUserState } from "@/domain/entities/user-state";
 import type { TemplateCapability } from "@/domain/entities/visual-template";
 import {
@@ -90,6 +91,7 @@ export function TemplateHost({
   const [phase, setPhase] = useState<"identity" | "chat">(baseContext.state.phase);
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
 

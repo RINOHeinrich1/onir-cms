@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { OriginFilter } from "./OriginFilter";
 import { Prospect360Modal } from "./Prospect360Modal";
 import { ProspectForm } from "./ProspectForm";
@@ -27,6 +28,7 @@ export function ProspectsTable({
   const [creating, setCreating] = useState(false);
   const [fiche360Id, setFiche360Id] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   // Filtre « ?prospect=<id> » : n'affiche que le prospect ciblé.
   const focused =

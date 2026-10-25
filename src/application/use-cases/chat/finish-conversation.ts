@@ -14,6 +14,7 @@ import type { Prospect } from "@/domain/entities/prospect";
 import { renderTemplateMarkdown } from "@/domain/render-template";
 import { buildServerVariables } from "@/domain/template-variables";
 import { validateTemplateData } from "@/domain/validate-template-data";
+import { attachmentMarkdownLink } from "@/lib/attachment-links";
 
 export type FinishConversationDependencies = {
   organizations: OrganizationRepository;
@@ -164,7 +165,7 @@ export async function buildFicheFromConversation(
   for (const attachment of conversationAttachments) {
     attachmentCounts[attachment.fieldName] = (attachmentCounts[attachment.fieldName] ?? 0) + 1;
     const names = fileValues[attachment.fieldName] ?? [];
-    names.push(attachment.originalName);
+    names.push(attachmentMarkdownLink(attachment.originalName, attachment.id));
     fileValues[attachment.fieldName] = names;
   }
 

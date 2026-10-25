@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { STATUTS_FICHE } from "@/domain/entities/fiche";
 
 const PLATEFORMES = ["site web", "SaaS", "mobile", "automatisme background"] as const;
@@ -14,6 +15,8 @@ type FicheFormProps = {
 /** Formulaire de création d'une fiche de prospection (RM-FICHE-001/002). */
 export function FicheForm({ onSaved, onCancel }: FicheFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [plateformes, setPlateformes] = useState<string[]>(["site web"]);
   const [statut, setStatut] = useState<string>("initier");
@@ -50,6 +53,7 @@ export function FicheForm({ onSaved, onCancel }: FicheFormProps) {
         setError(json.error ?? "Échec de l'enregistrement");
         return;
       }
+      toast.success("Fiche de prospection enregistrée.");
       onSaved();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

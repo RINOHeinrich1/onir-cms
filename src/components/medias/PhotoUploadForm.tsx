@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 
 /** Formulaire d'import d'une photo (fichier + libellé + portée + actif). */
@@ -14,6 +15,7 @@ export function PhotoUploadForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
   const [fichier, setFichier] = useState<File | null>(null);

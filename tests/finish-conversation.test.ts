@@ -343,7 +343,8 @@ describe("finishConversation — pièces jointes (ADR-0034)", () => {
       },
       "conv-1",
     );
-    expect(finished.markdown).toContain("- cin.png");
+    expect(finished.markdown).toContain("cin.png");
+    expect(finished.markdown).toContain("/api/chat/attachments/a1/file");
     expect(attachToFiche).toHaveBeenCalledWith("org-1", "fiche-1", expect.any(Array));
   });
 });

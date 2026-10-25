@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type Contact = { type: string; valeur: string; source: "prospect" | "conversation" };
 
@@ -56,6 +57,7 @@ export function Prospect360Modal({
 }) {
   const [data, setData] = useState<ProspectFiche360 | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

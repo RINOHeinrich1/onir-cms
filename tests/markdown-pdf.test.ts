@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseMarkdownBlocks, renderMarkdownPdf } from "@/infrastructure/pdf/markdown-pdf";
+import {
+  parseInlineLinks,
+  parseMarkdownBlocks,
+  renderMarkdownPdf,
+} from "@/infrastructure/pdf/markdown-pdf";
 
 describe("parseMarkdownBlocks", () => {
   it("découpe titres, puces et paragraphes", () => {
@@ -16,6 +20,21 @@ describe("parseMarkdownBlocks", () => {
   });
 });
 
+describe("parseInlineLinks", () => {
+  it("isole les liens http(s) et conserve le texte", () => {
+    expect(parseInlineLinks("- [cv.pdf](https://cms.example/api/file)")).toEqual([
+      { text: "- " },
+      { text: "cv.pdf", url: "https://cms.example/api/file" },
+    ]);
+  });
+
+  it("laisse les liens non http(s) en texte", () => {
+    expect(parseInlineLinks("[x](javascript:alert(1))")).toEqual([
+      { text: "[x](javascript:alert(1))" },
+    ]);
+  });
+});
+
 describe("renderMarkdownPdf", () => {
   it("produit un PDF valide avec accents", async () => {
     const pdf = await renderMarkdownPdf(
@@ -24,5 +43,14 @@ describe("renderMarkdownPdf", () => {
     );
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(800);
+  });
+
+  it("produit un PDF avec un lien de pièce jointe", async () => {
+    const pdf = await renderMarkdownPdf(
+      "# CIN\n\n- [cin.png](https://cms-backoffice.onirtech.com/api/chat/attachments/a1/file)\n",
+      "Fiche — CIN",
+    );
+    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(pdf.includes(Buffer.from("/URI"))).toBe(true);
   });
 });

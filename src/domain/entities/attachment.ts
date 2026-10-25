@@ -173,6 +173,17 @@ export type FicheAttachment = Attachment & {
   ficheId: string;
 };
 
+/** Pièce jointe enrichie pour l'onglet Fichiers des leads. */
+export type OrganizationAttachment = Attachment & {
+  prospectId: string | null;
+  prospectNom: string;
+  prospectPrenom: string;
+  visitorNom: string;
+  visitorEmail: string;
+  linkLabel: string;
+  ficheId: string | null;
+};
+
 /** Nettoie un nom de fichier affichable (jamais utilisé comme chemin). */
 export function sanitizeOriginalName(value: string): string {
   const raw = value.replace(/\\/g, "/").split("/").pop();
@@ -211,6 +222,11 @@ export function attachmentExtension(mime: AttachmentMime): string {
 
 export function isImageAttachment(mime: AttachmentMime): boolean {
   return (ATTACHMENT_IMAGE_MIMES as readonly string[]).includes(mime);
+}
+
+/** Formats que le navigateur peut afficher directement. */
+export function isInlineAttachment(mime: AttachmentMime): boolean {
+  return isImageAttachment(mime) || mime === "application/pdf";
 }
 
 /** Vue sérialisable d'une pièce (jamais de clé de stockage ni de hash). */

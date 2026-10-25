@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 import type { MediaDto } from "./types";
 
@@ -20,6 +21,7 @@ export function MediaEditForm({
   onCancel: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(media.actif);
   const [templateKeys, setTemplateKeys] = useState<string[]>(media.templateKeys);

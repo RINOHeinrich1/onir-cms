@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ACTIVE_LINK_IDENTIFICATION_MODES,
   type ActiveLinkIdentificationMode,
@@ -52,6 +53,7 @@ export function LinkForm({
   onCancel,
 }: LinkFormProps) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [templateKey, setTemplateKey] = useState("fiche-projet");
   const [type, setType] = useState<ChatLinkType>("specifique");

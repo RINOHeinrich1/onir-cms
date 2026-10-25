@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ACTIVE_LINK_IDENTIFICATION_MODES,
   type ActiveLinkIdentificationMode,
@@ -70,6 +71,7 @@ export function LinkEditModal({
     aiModel: link.aiModel,
   });
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const paramsSchema = paramsSchemaForSelection(visualTemplates, visualTemplate);
   const orphans = orphanParamKeys(paramsSchema, params);

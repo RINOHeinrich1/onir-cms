@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
 
@@ -15,6 +16,7 @@ type UserFormProps = {
 /** Formulaire de création / modification d'un utilisateur (US-USERS-001, admin). */
 export function UserForm({ editing, canSetActif, onSaved, onCancel }: UserFormProps) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState<Role>("lecteur");
   const [actif, setActif] = useState(true);

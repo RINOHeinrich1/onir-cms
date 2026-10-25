@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
 import { UserForm } from "./UserForm";
@@ -24,6 +25,7 @@ export function UsersTable({
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<UserDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [attachEmail, setAttachEmail] = useState("");
   const [attachRole, setAttachRole] = useState<Role>("lecteur");
 

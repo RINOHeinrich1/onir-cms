@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Génère la fiche d'une conversation existante (opérateur, US-CONVERS-002). */
 export function GenerateFicheButton({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
 
   const generate = async (): Promise<void> => {
     if (
@@ -28,7 +30,7 @@ export function GenerateFicheButton({ conversationId }: { conversationId: string
         setError(json.error ?? "Génération impossible");
         return;
       }
-      router.push(`/fiches/${json.fiche.id}`);
+      router.push(`/leads/${json.fiche.id}`);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {

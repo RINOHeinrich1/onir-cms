@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useRef, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { CONTACT_TYPES } from "@/domain/entities/chat";
 import type { ChatMessageDto } from "./types";
 
@@ -32,6 +33,7 @@ export function ContactGate({
   anonymous = false,
 }: ContactGateProps) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [extras, setExtras] = useState<ExtraContact[]>([]);
   // Compteur d'identifiants stables (clés React, pas d'index de tableau).

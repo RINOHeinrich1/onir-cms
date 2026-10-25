@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 
 type LoginResponse = {
@@ -17,6 +18,7 @@ type LoginResponse = {
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [ready, setReady] = useState(false);
 

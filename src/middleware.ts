@@ -28,6 +28,7 @@ export const config = {
     "/prospects/:path*",
     "/liens/:path*",
     "/fiches/:path*",
+    "/leads/:path*",
     "/conversations/:path*",
     "/modeles/:path*",
     "/connaissances/:path*",

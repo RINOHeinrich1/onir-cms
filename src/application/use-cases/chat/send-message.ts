@@ -8,6 +8,7 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { buildAttachmentPromptContext } from "@/application/use-cases/attachments/attachment-prompt";
 import {
   buildContexteInterne,
   selectConnaissancesUtiles,
@@ -215,14 +216,28 @@ export async function sendMessage(
     serverVars: buildServerVariables({ mode: link.type, prospect, conversation }),
   });
 
-  // Mini-RAG connaissances (US-CHAT-004), uniquement si la source est cochée.
-  let systemEnrichi = system;
+  // Métadonnées des pièces (jamais leur contenu) pour que l'IA demande les
+  // champs fichier manquants, y compris les champs requis (ADR-0034).
+  const conversationAttachments = await deps.attachments.listByConversation(
+    organizationId,
+    conversation.id,
+  );
+  const attachmentContext = buildAttachmentPromptContext(
+    template.definition.fields,
+    conversationAttachments,
+  );
+  let systemEnrichi =
+    attachmentContext === ""
+      ? system
+      : `${system}
+
+${attachmentContext}`;
   let connaissances: ConnaissanceRef[] = [];
   if (link.sources.connaissances) {
     const actives = await deps.connaissances.listActives(organizationId, link.templateKey);
     const utiles = await selectConnaissancesUtiles({ ai }, actives, content);
     if (utiles.length > 0) {
-      systemEnrichi = `${system}\n\n${buildContexteInterne(utiles)}`;
+      systemEnrichi = `${systemEnrichi}\n\n${buildContexteInterne(utiles)}`;
       connaissances = utiles.map(toConnaissanceRef);
     }
   }

@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConnaissanceDto } from "./types";
 
 type ConnaissanceFormProps = {
@@ -15,6 +16,7 @@ type ConnaissanceFormProps = {
 /** Formulaire de création / modification d'une entrée (titre unique, portée). */
 export function ConnaissanceForm({ editing, onSaved, onCancel }: ConnaissanceFormProps) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
   const [templateKeys, setTemplateKeys] = useState<string[]>([]);

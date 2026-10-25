@@ -2,6 +2,7 @@ import type {
   Attachment,
   CreateAttachmentInput,
   FicheAttachment,
+  OrganizationAttachment,
 } from "@/domain/entities/attachment";
 
 export interface AttachmentRepository {
@@ -15,6 +16,8 @@ export interface AttachmentRepository {
   /** Supprime une pièce non envoyée (message_id NULL). False sinon/introuvable. */
   deletePending(organizationId: string, id: string): Promise<boolean>;
   listByFiche(organizationId: string, ficheId: string): Promise<FicheAttachment[]>;
+  /** Liste globale des pièces d'une organisation (onglet Fichiers des leads). */
+  listForOrganization(organizationId: string, limit?: number): Promise<OrganizationAttachment[]>;
   attachToFiche(
     organizationId: string,
     ficheId: string,

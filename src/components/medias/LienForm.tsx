@@ -3,11 +3,13 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 
 /** Formulaire de création d'un lien média (libellé + URL + portée + actif). */
 export function LienForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
   const [templateKeys, setTemplateKeys] = useState<string[]>([]);

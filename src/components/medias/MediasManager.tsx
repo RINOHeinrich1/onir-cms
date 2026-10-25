@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { LiensPanel } from "./LiensPanel";
 import { MediaEditForm } from "./MediaEditForm";
 import { PhotosPanel } from "./PhotosPanel";
@@ -27,6 +28,7 @@ export function MediasManager({
   const [vue, setVue] = useState<TypeMedia>("photo");
   const [editing, setEditing] = useState<MediaDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
   const creators = creatorOptions(medias);
   const showUnassigned = hasUnassignedCreator(medias);

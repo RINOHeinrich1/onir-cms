@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { AiModelSelect } from "./AiModelSelect";
 import type { AiProviderDto, AiSettingsDto } from "./types";
 
@@ -20,6 +21,7 @@ export function AiDefaultSettings({
   const [model, setModel] = useState(settings?.defaultModel ?? "");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useToastOnMessage(error, notice);
   const [pending, setPending] = useState(false);
 
   const save = async (): Promise<void> => {

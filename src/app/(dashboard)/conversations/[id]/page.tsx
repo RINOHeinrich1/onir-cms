@@ -94,7 +94,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
           <ul className="contact-list">
             {fiches.map((item) => (
               <li key={item.id}>
-                <a className="link" href={`/fiches/${item.id}`}>
+                <a className="link" href={`/leads/${item.id}`}>
                   {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}
                   {item.archivee ? " · archivée" : ""}
                 </a>
