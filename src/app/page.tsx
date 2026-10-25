@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * renvoie vers le dashboard, puis vers la connexion si aucune session.
  */
 export default function RootPage() {
-  redirect("/dashboard");
+  redirect("/login");
 }
