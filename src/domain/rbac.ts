@@ -65,6 +65,13 @@ export const ACTIONS = [
   "api_keys:list",
   "api_keys:create",
   "api_keys:revoke",
+  "webhooks:list",
+  "webhooks:read",
+  "webhooks:trigger",
+  "webhooks:create",
+  "webhooks:update",
+  "webhooks:delete",
+  "webhooks:test",
   "organizations:list",
   "organizations:read",
   "organizations:create",
@@ -152,6 +159,9 @@ const MARKETEUR: readonly Action[] = [
   "ai:list",
   "ai:read",
   "ai:assign",
+  "webhooks:list",
+  "webhooks:read",
+  "webhooks:trigger",
 ];
 
 const MATRIX: Record<Role, readonly Action[]> = {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { AppSecretsPanel } from "@/components/app-secrets/AppSecretsPanel";
 import { getSessionContext } from "@/infrastructure/session/current-user";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,8 @@ export default async function ConfigurationPage() {
           <span className="btn ghost small">Ouvrir</span>
         </a>
       </div>
+
+      <AppSecretsPanel />
     </section>
   );
 }

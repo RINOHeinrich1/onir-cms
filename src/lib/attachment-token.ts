@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { sessionSecret } from "@/lib/env";
+import { sessionSecret } from "@/infrastructure/config/app-secrets";
 
 /** Jetons d'accès public aux pièces jointes (ADR-0034). Durée : 1 heure. */
 export const ATTACHMENT_TOKEN_TTL_MS = 60 * 60 * 1000;

@@ -35,3 +35,5 @@ ADR qui remplace la précédente.
 | [0032](./0032-chat-test-modeles-ia.md) | Chat de test des modèles IA | Accepté |
 | [0033](./0033-modes-identification-visiteurs.md) | Modes d’identification des visiteurs — contact, anonyme, OTP, interne | Accepté |
 | [0034](./0034-champs-fichier-pieces-jointes-prospection.md) | Champs fichier et pièces jointes de prospection | Accepté |
+| [0035](./0035-webhooks-sortants-modeles-raisonnement.md) | Webhooks sortants configurables par modèle de raisonnement | Accepté |
+| [0036](./0036-configuration-secrets-applicatifs.md) | Configuration des secrets applicatifs depuis le panneau | Accepté |

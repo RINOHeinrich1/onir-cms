@@ -3,12 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { renderFiche } from "@/application/use-cases/fiche/render-fiche";
+import { listWebhookEndpointsForFiche } from "@/application/use-cases/webhooks/trigger-webhook";
+import { FicheWebhookActions } from "@/components/fiches/FicheWebhookActions";
 import { MarkdownReport } from "@/components/fiches/MarkdownReport";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { getSessionContext } from "@/infrastructure/session/current-user";
 import { dashboardAttachmentUrl } from "@/lib/attachment-token";
 
@@ -60,6 +63,16 @@ export default async function FicheLecturePage({ params }: PageProps) {
       : await deps.prospects.findById(organizationId, fiche.prospectId);
   const titreProspect =
     prospect === null ? "Prospect libre" : `${prospect.nom} ${prospect.prenom}`.trim();
+  const webhookEndpoints = actorCan(context.actor, "webhooks:trigger")
+    ? await listWebhookEndpointsForFiche(
+        {
+          fiches: deps.fiches,
+          endpoints: pgWebhookEndpointRepository(pool),
+        },
+        context.actor,
+        fiche.id,
+      )
+    : [];
 
   return (
     <section>
@@ -82,6 +95,7 @@ export default async function FicheLecturePage({ params }: PageProps) {
           <a className="btn ghost small" href={`/api/fiche/${fiche.id}/download`}>
             Markdown
           </a>
+          <FicheWebhookActions ficheId={fiche.id} endpoints={webhookEndpoints} />
         </div>
       </div>
       <article className="report-doc">

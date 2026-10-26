@@ -86,7 +86,9 @@ export async function syncProviderModels(
   try {
     apiKey = openAiKey(sealed);
   } catch {
-    throw new BadGatewayError("Clé fournisseur illisible : vérifiez AI_PROVIDER_KEY");
+    throw new BadGatewayError(
+      "Clé fournisseur illisible : vérifiez Configuration → Secrets applicatifs",
+    );
   }
 
   let catalog: AiModelCatalogResult;

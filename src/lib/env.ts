@@ -2,7 +2,7 @@
  * Lecture d'environnement centralisée (A011).
  * Toutes les variables sont lues ici : aucun `process.env` dispersé dans le code.
  * `env()` renvoie `undefined` si absente ou vide ; les accesseurs "forts"
- * (`databaseUrl`, `sessionSecret`, ...) échouent explicitement pour éviter
+ * (`databaseUrl`, `appUrl`, ...) échouent explicitement pour éviter
  * une config silencieusement incomplète.
  */
 
@@ -24,11 +24,6 @@ function required(name: string): string {
 /** URL de connexion PostgreSQL dédiée (RM-DATA-001). */
 export function databaseUrl(): string {
   return required("DATABASE_URL");
-}
-
-/** Secret applicatif de session. */
-export function sessionSecret(): string {
-  return required("SESSION_SECRET");
 }
 
 /**
@@ -98,34 +93,14 @@ export function legacyAiCredentials(): LegacyAiCredentials | null {
   };
 }
 
-/**
- * Clé de chiffrement des clés API fournisseurs (AES-256-GCM).
- * 64 caractères hexadécimaux = 32 octets. Lue uniquement au moment d'écrire
- * ou de déchiffrer un fournisseur, jamais au démarrage.
- */
-export function aiProviderKey(): Buffer {
-  const raw = required("AI_PROVIDER_KEY");
-  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
-    throw new Error("AI_PROVIDER_KEY invalide : 64 caractères hexadécimaux attendus");
-  }
-  return Buffer.from(raw, "hex");
-}
-
 /** Autorise explicitement les fournisseurs sur réseau privé (auto-hébergement). */
 export function allowPrivateAiNetworks(): boolean {
   return env("AI_ALLOW_PRIVATE_NETWORKS") === "true";
 }
 
-/**
- * Clé 32 octets (64 hex) de chiffrement des jetons de liens (AES-256-GCM).
- * Génération : `openssl rand -hex 32`. Jamais commise, jamais exposée.
- */
-export function linkTokenKey(): Buffer {
-  const raw = required("LINK_TOKEN_KEY");
-  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
-    throw new Error("LINK_TOKEN_KEY invalide : 64 caractères hexadécimaux attendus");
-  }
-  return Buffer.from(raw, "hex");
+/** Active le worker de livraison des webhooks (désactivable en test). */
+export function webhookWorkerEnabled(): boolean {
+  return env("WEBHOOK_WORKER_ENABLED") !== "false";
 }
 
 /** Compte administrateur par défaut (seed), jamais exposé au client. */

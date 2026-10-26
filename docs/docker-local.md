@@ -89,15 +89,17 @@ passe `POSTGRES_PASSWORD` de `.env.docker`, base `onir_cms`.
 Le fichier `.env.docker` est généré localement et **jamais versionné**. Il
 contient :
 
-- `POSTGRES_PASSWORD`, `SESSION_SECRET`, `LINK_TOKEN_KEY`,
-  `AI_PROVIDER_KEY` et `DEFAULT_ADMIN_PASSWORD`, générés aléatoirement ;
+- `POSTGRES_PASSWORD`, `CONFIG_MASTER_KEY`, `SESSION_SECRET`, `LINK_TOKEN_KEY`,
+  `WEBHOOK_SECRET_KEY`, `AI_PROVIDER_KEY` et `DEFAULT_ADMIN_PASSWORD`, générés
+  aléatoirement ; les quatre secrets applicatifs sont ensuite gérés dans
+  `/configuration` ;
 - les ports et l'URL de l'application ;
 - les variables IA, facultatives.
 
-`LINK_TOKEN_KEY` et `AI_PROVIDER_KEY` doivent rester **64 caractères
-hexadécimaux**. Changer `LINK_TOKEN_KEY` rend les liens existants illisibles ;
-changer `AI_PROVIDER_KEY` rend les clés fournisseurs stockées illisibles (il faut
-les ressaisir).
+`CONFIG_MASTER_KEY` doit rester **64 caractères hexadécimaux**. Les quatre
+secrets applicatifs sont ensuite gérés dans `/configuration` : leur rotation
+ré-chiffre automatiquement les données dépendantes. Changer
+`CONFIG_MASTER_KEY` rend tous les secrets gérés en base illisibles.
 
 Sans `AI_API_TOKEN` / `AI_PRODUCT_ID`, l'infrastructure et l'application démarrent,
 mais le chat legacy ne peut pas appeler le fournisseur. La page

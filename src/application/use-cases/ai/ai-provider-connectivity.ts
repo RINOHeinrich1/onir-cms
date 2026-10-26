@@ -23,7 +23,9 @@ async function targetFor(
   try {
     apiKey = openAiKey(sealed);
   } catch {
-    throw new BadGatewayError("Clé fournisseur illisible : vérifiez AI_PROVIDER_KEY");
+    throw new BadGatewayError(
+      "Clé fournisseur illisible : vérifiez Configuration → Secrets applicatifs",
+    );
   }
   return {
     baseUrl: provider.baseUrl,

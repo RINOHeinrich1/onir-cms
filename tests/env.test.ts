@@ -1,13 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { aiProviderKey, sessionSecret } from "@/infrastructure/config/app-secrets";
 import {
   aiConfig,
-  aiProviderKey,
   allowPrivateAiNetworks,
   appUrl,
   databaseUrl,
   env,
   legacyAiCredentials,
-  sessionSecret,
 } from "@/lib/env";
 
 const KEYS = [

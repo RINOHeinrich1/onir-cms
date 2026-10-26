@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { sessionSecret } from "@/lib/env";
+import { sessionSecret } from "@/infrastructure/config/app-secrets";
 
 /**
  * Jetons d'accès public aux fichiers médias (ADR-0025, H8).
