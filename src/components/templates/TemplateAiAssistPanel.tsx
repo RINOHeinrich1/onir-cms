@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { TemplateAiGenerationDto, TemplateAiModelsDto } from "./ai-types";
@@ -28,6 +28,7 @@ export function TemplateAiAssistPanel({
   const [catalog, setCatalog] = useState<TemplateAiModelsDto | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   useToastOnMessage(error, notice);
@@ -62,6 +63,18 @@ export function TemplateAiAssistPanel({
     };
   }, []);
 
+  useEffect(() => {
+    if (!pending) {
+      setElapsed(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pending]);
+
   const selectedProvider = useMemo(
     () => catalog?.providers.find((provider) => provider.id === providerId) ?? null,
     [catalog, providerId],
@@ -95,8 +108,7 @@ export function TemplateAiAssistPanel({
     setFiles(next);
   };
 
-  const generate = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
+  const generate = async (): Promise<void> => {
     setError(null);
     setNotice(null);
     if (!consent) {
@@ -147,7 +159,7 @@ export function TemplateAiAssistPanel({
   }
 
   return (
-    <form className="template-ai-panel" onSubmit={generate}>
+    <div className="template-ai-panel" aria-busy={pending}>
       <div className="template-ai-head">
         <div>
           <strong>Décrivez le chatbot, l'IA prépare le modèle.</strong>
@@ -166,6 +178,7 @@ export function TemplateAiAssistPanel({
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="Ex. : assistant de qualification pour une entreprise de rénovation ; il doit comprendre le projet, la surface, le budget et le délai."
+          disabled={pending}
           required
         />
       </label>
@@ -177,6 +190,7 @@ export function TemplateAiAssistPanel({
           value={websiteUrl}
           onChange={(event) => setWebsiteUrl(event.target.value)}
           placeholder="https://exemple.fr"
+          disabled={pending}
         />
         <span className="hint">Le site est analysé sans exécuter JavaScript.</span>
       </label>
@@ -224,6 +238,7 @@ export function TemplateAiAssistPanel({
             onChange={(event) => setModel(event.target.value)}
             disabled={pending}
           >
+            <option value="">— Choisir un modèle —</option>
             {selectedProvider?.models.map((entry) => (
               <option key={entry.modelId} value={entry.modelId}>
                 {entry.label}
@@ -270,6 +285,7 @@ export function TemplateAiAssistPanel({
           type="checkbox"
           checked={consent}
           onChange={(event) => setConsent(event.target.checked)}
+          disabled={pending}
         />{" "}
         J'accepte que la description, les pages du site et les documents soient envoyés au
         fournisseur IA sélectionné pour générer le modèle.
@@ -277,14 +293,29 @@ export function TemplateAiAssistPanel({
 
       <div className="tools">
         <button
-          type="submit"
+          type="button"
           className="btn small"
+          onClick={() => void generate()}
           disabled={pending || !hasModels || model === ""}
         >
           {pending ? "Génération en cours…" : "Générer le modèle"}
         </button>
         <span className="hint">Aucune donnée n'est écrite avant votre validation.</span>
       </div>
-    </form>
+
+      {pending ? (
+        <div className="template-ai-progress" role="status" aria-live="polite">
+          <span className="template-ai-spinner" aria-hidden="true" />
+          <div>
+            <strong>Préparation du modèle…</strong>
+            <p>
+              Lecture des documents, analyse du site si fourni, puis génération IA. Cela peut
+              prendre jusqu'à deux minutes.
+            </p>
+            <span className="hint">{elapsed} s</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

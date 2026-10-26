@@ -43,6 +43,11 @@ export function TemplateAiReview({
         </span>
       </div>
 
+      <p className="alert success">
+        Le brouillon est prêt mais il n'est pas encore enregistré. Vérifiez-le puis cliquez sur «
+        Enregistrer » en bas du formulaire.
+      </p>
+
       <dl className="template-ai-summary">
         <dt>Rôle</dt>
         <dd>{result.draft.role}</dd>
