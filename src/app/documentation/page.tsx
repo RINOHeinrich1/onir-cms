@@ -92,6 +92,14 @@ export default function DocumentationIndexPage() {
           <p>Manifeste, capacités, paramètres, contexte : la référence normative du protocole.</p>
           <span>Consulter le contrat →</span>
         </a>
+        <a className="doc-card" href="/documentation/api">
+          <strong>API fiches</strong>
+          <p>
+            Rechercher les fiches par organisation, modèle, date et texte, avec clés API
+            server-to-server et pagination.
+          </p>
+          <span>Lire la référence →</span>
+        </a>
         <a className="doc-card" href="/documentation/skill">
           <strong>Skill pour agents IA</strong>
           <p>
