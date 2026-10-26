@@ -12,6 +12,9 @@ type ConnaissanceRow = {
   titre: string;
   contenu: string;
   template_keys: string[];
+  origin: string;
+  source_template_key: string | null;
+  ai_generation_id: string | null;
   actif: boolean;
   created_by: string | null;
   created_at: Date;
@@ -19,7 +22,7 @@ type ConnaissanceRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, titre, contenu, template_keys, actif, created_by, created_at, updated_at";
+  "id, organization_id, titre, contenu, template_keys, origin, source_template_key, ai_generation_id, actif, created_by, created_at, updated_at";
 
 function toEntity(row: ConnaissanceRow): Connaissance {
   return {
@@ -28,6 +31,9 @@ function toEntity(row: ConnaissanceRow): Connaissance {
     titre: row.titre,
     contenu: row.contenu,
     templateKeys: row.template_keys,
+    origin: row.origin === "ai" ? "ai" : "manual",
+    sourceTemplateKey: row.source_template_key,
+    aiGenerationId: row.ai_generation_id,
     actif: row.actif,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
@@ -81,10 +87,20 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
 
     async create(organizationId, input: CreateConnaissanceInput): Promise<Connaissance> {
       const { rows } = await pool.query<ConnaissanceRow>(
-        `INSERT INTO base_connaissances (organization_id, titre, contenu, template_keys, created_by)
-         VALUES ($1, $2, $3, $4::text[], $5)
+        `INSERT INTO base_connaissances
+           (organization_id, titre, contenu, template_keys, created_by, origin, source_template_key, ai_generation_id)
+         VALUES ($1, $2, $3, $4::text[], $5, $6, $7, $8)
          RETURNING ${COLUMNS}`,
-        [organizationId, input.titre, input.contenu, input.templateKeys, input.createdBy],
+        [
+          organizationId,
+          input.titre,
+          input.contenu,
+          input.templateKeys,
+          input.createdBy,
+          input.origin ?? "manual",
+          input.sourceTemplateKey ?? null,
+          input.aiGenerationId ?? null,
+        ],
       );
       const row = rows[0];
       if (!row) throw new Error("Échec de création de l'entrée");
@@ -118,6 +134,15 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       );
       const row = rows[0];
       return row ? toEntity(row) : null;
+    },
+
+    async countAiByTemplate(organizationId, templateKey): Promise<number> {
+      const { rows } = await pool.query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM base_connaissances
+          WHERE organization_id = $1 AND origin = 'ai' AND source_template_key = $2`,
+        [organizationId, templateKey],
+      );
+      return Number(rows[0]?.count ?? "0");
     },
 
     async delete(organizationId, id): Promise<boolean> {

@@ -5,6 +5,9 @@ export type CreateConnaissanceInput = {
   contenu: string;
   templateKeys: string[];
   createdBy: string | null;
+  origin?: "manual" | "ai";
+  sourceTemplateKey?: string | null;
+  aiGenerationId?: string | null;
 };
 
 export type UpdateConnaissanceInput = {
@@ -22,6 +25,8 @@ export interface ConnaissanceRepository {
   /** Entrées actives visibles par un modèle (globales + restreintes), récentes d'abord. */
   listActives(organizationId: string, templateKey: string): Promise<Connaissance[]>;
   create(organizationId: string, input: CreateConnaissanceInput): Promise<Connaissance>;
+  /** Nombre de connaissances IA générées pour un modèle (provenance). */
+  countAiByTemplate(organizationId: string, templateKey: string): Promise<number>;
   update(
     organizationId: string,
     id: string,

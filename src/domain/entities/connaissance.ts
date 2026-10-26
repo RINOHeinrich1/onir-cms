@@ -13,6 +13,11 @@ export type Connaissance = {
   contenu: string;
   /** Portée : vide = toutes les conversations, sinon clés des modèles. */
   templateKeys: string[];
+  /** Provenance : saisie manuelle ou assistance IA (ADR-0038). */
+  origin?: "manual" | "ai";
+  /** Modèle à l'origine d'une connaissance IA (provenance, pas portée). */
+  sourceTemplateKey?: string | null;
+  aiGenerationId?: string | null;
   actif: boolean;
   createdBy: string | null;
   createdAt: string;
