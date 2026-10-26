@@ -7,6 +7,7 @@ import {
 } from "@/application/use-cases/webhooks/manage-webhooks";
 import { listWebhookDeliveries } from "@/application/use-cases/webhooks/trigger-webhook";
 import { WebhooksPanel } from "@/components/webhooks/WebhooksPanel";
+import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
@@ -17,7 +18,6 @@ import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoin
 import { getSessionContext } from "@/infrastructure/session/current-user";
 import { attachmentStorage } from "@/infrastructure/storage/attachments";
 import { httpWebhookSender } from "@/infrastructure/webhooks/http-sender";
-import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,14 @@ export default async function WebhooksPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
   if (!actorCan(context.actor, "webhooks:create")) redirect("/dashboard");
+
+  await ensureAppSecretsLoaded();
+  let webhookKeyReady = true;
+  try {
+    getAppSecret("WEBHOOK_SECRET_KEY");
+  } catch {
+    webhookKeyReady = false;
+  }
 
   const pool = getPool();
   const management = {
@@ -68,10 +76,10 @@ export default async function WebhooksPage() {
         </div>
       </div>
 
-      {env("WEBHOOK_SECRET_KEY") === undefined ? (
+      {!webhookKeyReady ? (
         <p className="alert error">
-          WEBHOOK_SECRET_KEY n’est pas configurée : les webhooks authentifiés et les en-têtes
-          secrets sont indisponibles.
+          La clé de chiffrement des webhooks n’est pas disponible. Un super-admin doit la configurer
+          dans <a href="/configuration">Configuration → Secrets applicatifs</a>.
         </p>
       ) : null}
 
