@@ -25,7 +25,7 @@ server {
     access_log /var/log/nginx/__DOMAIN__.access.log;
     error_log /var/log/nginx/__DOMAIN__.error.log;
 
-    client_max_body_size 25m;
+    client_max_body_size 55m;
     add_header X-Robots-Tag "noindex, nofollow" always;
 
     auth_basic "ONIR CMS preprod";

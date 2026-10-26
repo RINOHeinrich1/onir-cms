@@ -34,6 +34,10 @@ import {
   uniqueFieldName,
   uniqueTemplateKey,
 } from "@/domain/template-defaults";
+import type { TemplateAiGenerationDto, TemplateAiKnowledgeDto } from "./ai-types";
+import { KnowledgeMergeDialog } from "./KnowledgeMergeDialog";
+import { TemplateAiAssistPanel } from "./TemplateAiAssistPanel";
+import { TemplateAiReview } from "./TemplateAiReview";
 import { TemplateLivePreview } from "./TemplateLivePreview";
 import {
   EMPTY_FIELD,
@@ -326,6 +330,11 @@ export function TemplateForm({
   const [fields, setFields] = useState<FieldRow[]>(() =>
     seed === null ? [withUid({ ...EMPTY_FIELD })] : fieldsFromDefinition(seed.definition),
   );
+  const [aiAssist, setAiAssist] = useState(false);
+  const [aiGeneration, setAiGeneration] = useState<TemplateAiGenerationDto | null>(null);
+  const [aiKnowledge, setAiKnowledge] = useState<TemplateAiKnowledgeDto[]>([]);
+  const [aiMergeOpen, setAiMergeOpen] = useState(false);
+  const [aiMergePolicy, setAiMergePolicy] = useState<"append" | "replace" | null>(null);
 
   useEffect(() => {
     if (templateKey === null) return;
@@ -465,13 +474,33 @@ export function TemplateForm({
     if (mode === "simple") {
       setFields((previous) => materializeSimpleFieldNames(previous));
     }
+    setAiAssist(false);
     setSystemPrompt(effectivePrompt);
     setRenderTemplateText(effectiveRender);
     setMode("expert");
   };
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
+  const onAiGenerated = (result: TemplateAiGenerationDto): void => {
+    setAiGeneration(result);
+    setAiKnowledge(result.draft.knowledge);
+    setAiMergePolicy(null);
+    setKey(result.key);
+    setKeyTouched(true);
+    setLabel(result.draft.label);
+    setDescription(result.draft.description);
+    setRole(result.draft.role);
+    setObjective(result.draft.objective);
+    setTone(result.draft.tone);
+    setGuardrails(result.draft.guardrails as PromptGuardrailId[]);
+    setFields(result.draft.fields.map((field) => withUid(draftFromApi(field))));
+    setSystemPrompt(result.draft.systemPrompt);
+    setRenderTemplateText(result.draft.renderTemplate);
+    setMode("simple");
+    setAiAssist(true);
+    setError(null);
+  };
+
+  const runSave = async (knowledgePolicy: "append" | "replace" = "append"): Promise<void> => {
     setPending(true);
     setError(null);
     try {
@@ -510,7 +539,7 @@ export function TemplateForm({
 
       const effectiveKey =
         templateKey ?? (key.trim() || uniqueTemplateKey(toTemplateKey(label), existingKeys));
-      const payload = {
+      const definition = {
         key: templateKey ?? effectiveKey,
         label: label.trim(),
         description: description.trim(),
@@ -518,6 +547,48 @@ export function TemplateForm({
         renderTemplate: render,
         fields: prepared,
       };
+
+      if (aiGeneration !== null) {
+        const response = await fetch("/api/templates/ai/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(templateKey === null ? {} : { templateKey }),
+            definition,
+            knowledge: aiKnowledge,
+            mergePolicy: knowledgePolicy,
+            generationId: aiGeneration.generationId,
+          }),
+        });
+        const json = (await response.json()) as {
+          version?: { version?: number };
+          knowledge?: { created?: number; replaced?: number; skipped?: number };
+          error?: string;
+        };
+        if (!response.ok || json.version?.version === undefined) {
+          setError(json.error ?? "Enregistrement impossible");
+          return;
+        }
+        const knowledgeMessage =
+          json.knowledge === undefined
+            ? ""
+            : ` · ${json.knowledge.created ?? 0} connaissance(s) ajoutée(s)`;
+        if (templateKey !== null) {
+          toast.warning(
+            `Version ${json.version.version} enregistrée${knowledgeMessage}. Les liens existants restent sur leur ancienne version figée.`,
+            {
+              durationMs: 15000,
+              action: { label: "Voir les liens de chat", href: "/liens" },
+            },
+          );
+        } else {
+          toast.success(`Modèle créé (version ${json.version.version})${knowledgeMessage}.`);
+        }
+        onSaved();
+        return;
+      }
+
+      const payload = definition;
       const response =
         templateKey === null
           ? await fetch("/api/templates", {
@@ -554,6 +625,24 @@ export function TemplateForm({
     }
   };
 
+  const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setError(null);
+    if (aiAssist && aiGeneration === null) {
+      setError("Générez d'abord le modèle avec l'assistance IA.");
+      return;
+    }
+    if (
+      aiGeneration !== null &&
+      aiGeneration.existingAiKnowledgeCount > 0 &&
+      aiMergePolicy === null
+    ) {
+      setAiMergeOpen(true);
+      return;
+    }
+    await runSave(aiMergePolicy ?? "append");
+  };
+
   return (
     <form className="form template-form" onSubmit={onSubmit} noValidate>
       <div className="template-form-main">
@@ -588,6 +677,42 @@ export function TemplateForm({
             ? "Le prompt et la fiche sont générés automatiquement. Passez en mode expert pour les personnaliser."
             : "Toutes les options techniques sont accessibles : clé, prompt brut et mise en page Markdown."}
         </p>
+        {mode === "simple" ? (
+          <>
+            <label className="check template-ai-switch">
+              <input
+                type="checkbox"
+                checked={aiAssist}
+                disabled={pending}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  if (next) setMode("simple");
+                  setAiAssist(next);
+                }}
+              />{" "}
+              <strong>Assistance par IA</strong>
+              <span className="hint">
+                Remplit automatiquement le modèle à partir d'une description, d'un site et de
+                documents.
+              </span>
+            </label>
+            {aiAssist ? (
+              <TemplateAiAssistPanel templateKey={templateKey} onGenerated={onAiGenerated} />
+            ) : null}
+            {aiAssist && aiGeneration !== null ? (
+              <TemplateAiReview
+                result={aiGeneration}
+                knowledge={aiKnowledge}
+                onKnowledgeChange={setAiKnowledge}
+                onAdjustSimple={() => setAiAssist(false)}
+                onExpert={() => {
+                  setAiAssist(false);
+                  changeMode("expert");
+                }}
+              />
+            ) : null}
+          </>
+        ) : null}
         {seed !== null ? (
           <p className="hint">
             Le modèle source est copié à l’identique. Modifiez ce que vous voulez, ou passez en mode
@@ -595,82 +720,86 @@ export function TemplateForm({
           </p>
         ) : null}
 
-        <div className="grid-2">
-          <label className="field">
-            Nom du modèle *
-            <input
-              type="text"
-              value={label}
-              onChange={(event) => {
-                const value = event.target.value;
-                setLabel(value);
-                if (templateKey === null && !keyTouched) {
-                  setKey(uniqueTemplateKey(toTemplateKey(value), existingKeys));
-                }
-              }}
-              placeholder="Qualification artisan"
-              required
-            />
-          </label>
-          <label className="field">
-            Description courte
-            <input
-              type="text"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="À quoi sert ce modèle ?"
-            />
-          </label>
-        </div>
-
-        {mode === "simple" ? (
-          <fieldset className="field template-section">
-            <legend>Objectif et comportement</legend>
+        {!aiAssist ? (
+          <div className="grid-2">
             <label className="field">
-              Rôle de l'assistant
+              Nom du modèle *
               <input
                 type="text"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                placeholder="l'assistant de prospection"
+                value={label}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLabel(value);
+                  if (templateKey === null && !keyTouched) {
+                    setKey(uniqueTemplateKey(toTemplateKey(value), existingKeys));
+                  }
+                }}
+                placeholder="Qualification artisan"
+                required
               />
             </label>
             <label className="field">
-              Objectif de la conversation
-              <textarea
-                rows={3}
-                value={objective}
-                onChange={(event) => setObjective(event.target.value)}
-                placeholder="Comprendre le besoin et réunir les informations nécessaires."
+              Description courte
+              <input
+                type="text"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="À quoi sert ce modèle ?"
               />
             </label>
-            <label className="field">
-              Ton
-              <select value={tone} onChange={(event) => setTone(event.target.value)}>
-                {PROMPT_TONES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
+          </div>
+        ) : null}
+
+        {mode === "simple" ? (
+          !aiAssist ? (
+            <fieldset className="field template-section">
+              <legend>Objectif et comportement</legend>
+              <label className="field">
+                Rôle de l'assistant
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value)}
+                  placeholder="l'assistant de prospection"
+                />
+              </label>
+              <label className="field">
+                Objectif de la conversation
+                <textarea
+                  rows={3}
+                  value={objective}
+                  onChange={(event) => setObjective(event.target.value)}
+                  placeholder="Comprendre le besoin et réunir les informations nécessaires."
+                />
+              </label>
+              <label className="field">
+                Ton
+                <select value={tone} onChange={(event) => setTone(event.target.value)}>
+                  {PROMPT_TONES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="template-guardrails">
+                <strong>Garde-fous</strong>
+                {PROMPT_GUARDRAILS.map((guardrail) => (
+                  <label className="check" key={guardrail.id}>
+                    <input
+                      type="checkbox"
+                      checked={guardrails.includes(guardrail.id)}
+                      onChange={() => toggleGuardrail(guardrail.id)}
+                    />{" "}
+                    {guardrail.label}
+                  </label>
                 ))}
-              </select>
-            </label>
-            <div className="template-guardrails">
-              <strong>Garde-fous</strong>
-              {PROMPT_GUARDRAILS.map((guardrail) => (
-                <label className="check" key={guardrail.id}>
-                  <input
-                    type="checkbox"
-                    checked={guardrails.includes(guardrail.id)}
-                    onChange={() => toggleGuardrail(guardrail.id)}
-                  />{" "}
-                  {guardrail.label}
-                </label>
-              ))}
-            </div>
-            <p className="hint">
-              La clé technique et la mise en page sont générées automatiquement.
-            </p>
-          </fieldset>
+              </div>
+              <p className="hint">
+                La clé technique et la mise en page sont générées automatiquement.
+              </p>
+            </fieldset>
+          ) : null
         ) : (
           <>
             {templateKey === null ? (
@@ -727,51 +856,133 @@ export function TemplateForm({
           </>
         )}
 
-        <fieldset className="field template-section">
-          <legend>Informations à collecter</legend>
-          {fields.map((field, position) => (
-            <div className="field-row" key={field.uid}>
-              <div className="field-row-head">
-                <strong>Information {position + 1}</strong>
-                <div className="tools">
-                  <button
-                    type="button"
-                    className="btn ghost small"
-                    aria-label="Monter cette information"
-                    disabled={position === 0}
-                    onClick={() => moveField(field.uid, -1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="btn ghost small"
-                    aria-label="Descendre cette information"
-                    disabled={position === fields.length - 1}
-                    onClick={() => moveField(field.uid, 1)}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="btn danger ghost small"
-                    onClick={() => removeField(field.uid)}
-                  >
-                    Retirer
-                  </button>
+        {!aiAssist ? (
+          <fieldset className="field template-section">
+            <legend>Informations à collecter</legend>
+            {fields.map((field, position) => (
+              <div className="field-row" key={field.uid}>
+                <div className="field-row-head">
+                  <strong>Information {position + 1}</strong>
+                  <div className="tools">
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      aria-label="Monter cette information"
+                      disabled={position === 0}
+                      onClick={() => moveField(field.uid, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      aria-label="Descendre cette information"
+                      disabled={position === fields.length - 1}
+                      onClick={() => moveField(field.uid, 1)}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="btn danger ghost small"
+                      onClick={() => removeField(field.uid)}
+                    >
+                      Retirer
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {mode === "simple" ? (
-                <>
-                  <div className="grid-2">
+                {mode === "simple" ? (
+                  <>
+                    <div className="grid-2">
+                      <label className="field">
+                        Information à collecter *
+                        <input
+                          type="text"
+                          placeholder="Budget total"
+                          value={field.label}
+                          onChange={(event) => updateFieldLabel(field.uid, event.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        Exemple de réponse
+                        <input
+                          type="text"
+                          placeholder="5 000 €"
+                          value={field.example}
+                          onChange={(event) =>
+                            updateField(field.uid, { example: event.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="grid-2">
+                      <label className="field">
+                        Format
+                        <select
+                          value={field.type}
+                          onChange={(event) => updateField(field.uid, { type: event.target.value })}
+                        >
+                          {FIELD_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {field.type === "select" || field.type === "multi" ? (
+                        <label className="field">
+                          Choix possibles (séparés par des virgules)
+                          <input
+                            type="text"
+                            placeholder="a, b, c"
+                            value={field.options}
+                            onChange={(event) =>
+                              updateField(field.uid, { options: event.target.value })
+                            }
+                          />
+                        </label>
+                      ) : null}
+                    </div>
+                    {field.type === "file" ? (
+                      <FileConstraintsEditor
+                        field={field}
+                        onChange={(patch) => updateField(field.uid, patch)}
+                      />
+                    ) : null}
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        onChange={(event) =>
+                          updateField(field.uid, { required: event.target.checked })
+                        }
+                      />{" "}
+                      Toujours demander
+                    </label>
+                  </>
+                ) : (
+                  <>
                     <label className="field">
-                      Information à collecter *
+                      Type
+                      <select
+                        value={field.type}
+                        onChange={(event) => updateField(field.uid, { type: event.target.value })}
+                      >
+                        {FIELD_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      Libellé
                       <input
                         type="text"
-                        placeholder="Budget total"
+                        placeholder="Budget"
                         value={field.label}
-                        onChange={(event) => updateFieldLabel(field.uid, event.target.value)}
+                        onChange={(event) => updateField(field.uid, { label: event.target.value })}
                       />
                     </label>
                     <label className="field">
@@ -785,24 +996,25 @@ export function TemplateForm({
                         }
                       />
                     </label>
-                  </div>
-                  <div className="grid-2">
-                    <label className="field">
-                      Format
-                      <select
-                        value={field.type}
-                        onChange={(event) => updateField(field.uid, { type: event.target.value })}
-                      >
-                        {FIELD_TYPE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                    {field.type === "file" ? (
+                      <FileConstraintsEditor
+                        field={field}
+                        onChange={(patch) => updateField(field.uid, patch)}
+                      />
+                    ) : null}
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        onChange={(event) =>
+                          updateField(field.uid, { required: event.target.checked })
+                        }
+                      />{" "}
+                      Requis
                     </label>
                     {field.type === "select" || field.type === "multi" ? (
                       <label className="field">
-                        Choix possibles (séparés par des virgules)
+                        Options (séparées par des virgules)
                         <input
                           type="text"
                           placeholder="a, b, c"
@@ -813,130 +1025,55 @@ export function TemplateForm({
                         />
                       </label>
                     ) : null}
-                  </div>
-                  {field.type === "file" ? (
-                    <FileConstraintsEditor
-                      field={field}
-                      onChange={(patch) => updateField(field.uid, patch)}
-                    />
-                  ) : null}
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={field.required}
-                      onChange={(event) =>
-                        updateField(field.uid, { required: event.target.checked })
-                      }
-                    />{" "}
-                    Toujours demander
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="field">
-                    Type
-                    <select
-                      value={field.type}
-                      onChange={(event) => updateField(field.uid, { type: event.target.value })}
-                    >
-                      {FIELD_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    Libellé
-                    <input
-                      type="text"
-                      placeholder="Budget"
-                      value={field.label}
-                      onChange={(event) => updateField(field.uid, { label: event.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    Exemple de réponse
-                    <input
-                      type="text"
-                      placeholder="5 000 €"
-                      value={field.example}
-                      onChange={(event) => updateField(field.uid, { example: event.target.value })}
-                    />
-                  </label>
-                  {field.type === "file" ? (
-                    <FileConstraintsEditor
-                      field={field}
-                      onChange={(patch) => updateField(field.uid, patch)}
-                    />
-                  ) : null}
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={field.required}
-                      onChange={(event) =>
-                        updateField(field.uid, { required: event.target.checked })
-                      }
-                    />{" "}
-                    Requis
-                  </label>
-                  {field.type === "select" || field.type === "multi" ? (
-                    <label className="field">
-                      Options (séparées par des virgules)
-                      <input
-                        type="text"
-                        placeholder="a, b, c"
-                        value={field.options}
-                        onChange={(event) =>
-                          updateField(field.uid, { options: event.target.value })
-                        }
-                      />
-                    </label>
-                  ) : null}
-                  <div className="grid-2">
-                    <label className="field">
-                      Requis si le champ…
-                      <select
-                        value={field.requiredIfField}
-                        onChange={(event) =>
-                          updateField(field.uid, { requiredIfField: event.target.value })
-                        }
-                      >
-                        <option value="">Aucun</option>
-                        {fields
-                          .filter((other) => other.uid !== field.uid && other.name.trim() !== "")
-                          .map((other) => (
-                            <option key={other.uid} value={other.name}>
-                              {other.label.trim() === "" ? other.name : other.label}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      …vaut
-                      <input
-                        type="text"
-                        placeholder="reprendre"
-                        value={field.requiredIfEquals}
-                        onChange={(event) =>
-                          updateField(field.uid, { requiredIfEquals: event.target.value })
-                        }
-                      />
-                    </label>
-                  </div>
-                </>
-              )}
+                    <div className="grid-2">
+                      <label className="field">
+                        Requis si le champ…
+                        <select
+                          value={field.requiredIfField}
+                          onChange={(event) =>
+                            updateField(field.uid, { requiredIfField: event.target.value })
+                          }
+                        >
+                          <option value="">Aucun</option>
+                          {fields
+                            .filter((other) => other.uid !== field.uid && other.name.trim() !== "")
+                            .map((other) => (
+                              <option key={other.uid} value={other.name}>
+                                {other.label.trim() === "" ? other.name : other.label}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        …vaut
+                        <input
+                          type="text"
+                          placeholder="reprendre"
+                          value={field.requiredIfEquals}
+                          onChange={(event) =>
+                            updateField(field.uid, { requiredIfEquals: event.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+            <div className="tools">
+              <button type="button" className="btn ghost small" onClick={addField}>
+                + Ajouter une information
+              </button>
             </div>
-          ))}
-          <div className="tools">
-            <button type="button" className="btn ghost small" onClick={addField}>
-              + Ajouter une information
-            </button>
-          </div>
-        </fieldset>
+          </fieldset>
+        ) : null}
 
         <div className="tools">
-          <button type="submit" className="btn small" disabled={pending}>
+          <button
+            type="submit"
+            className="btn small"
+            disabled={pending || (aiAssist && aiGeneration === null)}
+          >
             {pending ? "Enregistrement…" : "Enregistrer"}
           </button>
           <button type="button" className="btn ghost small" onClick={onCancel}>
@@ -949,6 +1086,17 @@ export function TemplateForm({
         definition={previewDefinition}
         ready={label.trim() !== "" && preparedFields.length > 0}
       />
+      {aiMergeOpen ? (
+        <KnowledgeMergeDialog
+          existingCount={aiGeneration?.existingAiKnowledgeCount ?? 0}
+          onCancel={() => setAiMergeOpen(false)}
+          onChoose={(policy) => {
+            setAiMergeOpen(false);
+            setAiMergePolicy(policy);
+            void runSave(policy);
+          }}
+        />
+      ) : null}
     </form>
   );
 }

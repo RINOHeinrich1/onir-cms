@@ -60,3 +60,6 @@ export const changePasswordLimiter = createRateLimiter({ limit: 10, windowMs: 10
 
 /** Acceptation d'invitation : 10 tentatives / 10 min par IP. */
 export const invitationLimiter = createRateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
+
+/** Assistance IA des modèles : 5 générations / minute par utilisateur. */
+export const templateAiLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 1000 });

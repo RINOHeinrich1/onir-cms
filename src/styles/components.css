@@ -2999,3 +2999,145 @@ a.subtab {
   background: color-mix(in srgb, var(--orange, #fcad28) 14%, var(--surface));
   color: var(--fg);
 }
+
+.template-ai-switch {
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.template-ai-switch .hint {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.template-ai-panel,
+.template-ai-review {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.template-ai-head,
+.template-ai-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.template-ai-head .hint,
+.template-ai-review-head .muted-text {
+  margin: 0.2rem 0 0;
+}
+
+.template-ai-review h3 {
+  margin: 0.1rem 0;
+  font-size: 1.05rem;
+}
+
+.template-ai-files {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-ai-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.template-ai-consent {
+  padding: 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.template-ai-summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.template-ai-summary dt {
+  color: var(--fg-muted);
+  font-weight: 700;
+}
+
+.template-ai-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.template-ai-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.template-ai-section h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.template-ai-knowledge {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.template-ai-knowledge-row {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.template-ai-knowledge-row .btn {
+  width: fit-content;
+}
+
+.template-ai-prompt {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.template-ai-prompt summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.template-ai-prompt[open] {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.template-ai-sources ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .template-ai-head,
+  .template-ai-review-head {
+    flex-direction: column;
+  }
+}

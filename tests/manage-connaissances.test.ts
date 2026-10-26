@@ -40,6 +40,7 @@ function repo(current: Connaissance | null) {
       current === null || id !== current.id ? null : { ...current, ...patch },
     ),
     delete: vi.fn(async () => current !== null),
+    countAiByTemplate: async () => 0,
     listActives: async () => (current === null ? [] : [current]),
   } satisfies ConnaissanceRepository;
 }

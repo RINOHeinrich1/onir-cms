@@ -13,7 +13,8 @@ The full dependency tree and versions are recorded in the lockfiles:
 - `packages/create-onirtech-template/package-lock.json`
 
 Each package keeps its own licence. Common dependencies include Next.js, React, `pg`,
-`pdfkit`, `react-markdown`, `remark-gfm`, `fflate`, Three.js, and their transitive
+`pdfkit`, `react-markdown`, `remark-gfm`, `fflate`, `officeparser`, `cheerio`, `undici`,
+Three.js, and their transitive
 dependencies.
 
 ## Template SDK and generator
