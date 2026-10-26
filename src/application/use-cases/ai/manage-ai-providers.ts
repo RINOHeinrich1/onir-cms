@@ -79,7 +79,7 @@ function sealKeyOrThrow(apiKey: string) {
     return sealAiKey(apiKey);
   } catch {
     throw new UnprocessableError(
-      "AI_PROVIDER_KEY absente ou invalide : configurez une clé de 64 caractères hexadécimaux",
+      "Clé de chiffrement IA absente ou invalide : configurez-la dans Configuration → Secrets applicatifs",
     );
   }
 }

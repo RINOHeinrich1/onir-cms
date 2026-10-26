@@ -23,9 +23,11 @@ if (Test-Path -LiteralPath $EnvFile) {
 
 $content = Get-Content -LiteralPath $ExampleFile -Raw -Encoding UTF8
 $content = $content -replace "(?m)^POSTGRES_PASSWORD=.*$", "POSTGRES_PASSWORD=$(New-Hex 16)"
+$content = $content -replace "(?m)^CONFIG_MASTER_KEY=.*$", "CONFIG_MASTER_KEY=$(New-Hex 32)"
 $content = $content -replace "(?m)^SESSION_SECRET=.*$", "SESSION_SECRET=$(New-Hex 32)"
 $content = $content -replace "(?m)^LINK_TOKEN_KEY=.*$", "LINK_TOKEN_KEY=$(New-Hex 32)"
 $content = $content -replace "(?m)^AI_PROVIDER_KEY=.*$", "AI_PROVIDER_KEY=$(New-Hex 32)"
+$content = $content -replace "(?m)^WEBHOOK_SECRET_KEY=.*$", "WEBHOOK_SECRET_KEY=$(New-Hex 32)"
 $adminPassword = "Admin-$(New-Hex 8)"
 $content = $content -replace "(?m)^DEFAULT_ADMIN_PASSWORD=.*$", "DEFAULT_ADMIN_PASSWORD=$adminPassword"
 

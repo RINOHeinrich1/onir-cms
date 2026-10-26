@@ -2,9 +2,11 @@ name: onir-cms-preprod
 
 x-app-environment: &app-environment
   DATABASE_URL: postgres://onir_cms:${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env.preprod}@db:5432/onir_cms
-  SESSION_SECRET: ${SESSION_SECRET:?Définir SESSION_SECRET dans .env.preprod}
-  LINK_TOKEN_KEY: ${LINK_TOKEN_KEY:?Définir LINK_TOKEN_KEY dans .env.preprod}
-  AI_PROVIDER_KEY: ${AI_PROVIDER_KEY:?Définir AI_PROVIDER_KEY dans .env.preprod}
+  CONFIG_MASTER_KEY: ${CONFIG_MASTER_KEY:-}
+  SESSION_SECRET: ${SESSION_SECRET:-}
+  LINK_TOKEN_KEY: ${LINK_TOKEN_KEY:-}
+  WEBHOOK_SECRET_KEY: ${WEBHOOK_SECRET_KEY:-}
+  AI_PROVIDER_KEY: ${AI_PROVIDER_KEY:-}
   AI_ALLOW_PRIVATE_NETWORKS: ${AI_ALLOW_PRIVATE_NETWORKS:-false}
   DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-preprod-admin@onirtech.com}
   DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Définir DEFAULT_ADMIN_PASSWORD dans .env.preprod}

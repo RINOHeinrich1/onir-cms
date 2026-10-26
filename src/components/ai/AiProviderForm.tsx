@@ -151,7 +151,7 @@ export function AiProviderForm({
             onChange={(event) => setApiKey(event.target.value)}
           />
           <span className="hint">
-            La clé est chiffrée avec AI_PROVIDER_KEY et n&apos;est jamais réaffichée.
+            La clé est chiffrée avec la clé de configuration et n&apos;est jamais réaffichée.
           </span>
         </label>
 

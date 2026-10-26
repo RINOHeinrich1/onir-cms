@@ -4,11 +4,12 @@ import { actorCan } from "@/application/actor";
 import { listAiProviders } from "@/application/use-cases/ai/manage-ai-providers";
 import { getOrganizationAiSettings } from "@/application/use-cases/ai/manage-ai-settings";
 import { AiProvidersPanel } from "@/components/ai/AiProvidersPanel";
+import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { getSessionContext } from "@/infrastructure/session/current-user";
-import { env, legacyAiCredentials } from "@/lib/env";
+import { legacyAiCredentials } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,14 @@ export default async function AiSettingsPage() {
     getOrganizationAiSettings({ providers: repository, models: modelRepository }, context.actor),
   ]);
 
+  await ensureAppSecretsLoaded();
+  let aiKeyReady = true;
+  try {
+    getAppSecret("AI_PROVIDER_KEY");
+  } catch {
+    aiKeyReady = false;
+  }
+
   return (
     <section>
       <div className="page-head">
@@ -46,10 +55,11 @@ export default async function AiSettingsPage() {
         </a>
       </div>
 
-      {env("AI_PROVIDER_KEY") === undefined ? (
+      {!aiKeyReady ? (
         <p className="alert error">
-          AI_PROVIDER_KEY n&apos;est pas configurée : l&apos;ajout et le test de fournisseurs sont
-          indisponibles. Le chat legacy continue de fonctionner.
+          La clé de chiffrement des fournisseurs IA n&apos;est pas disponible. Un super-admin doit
+          la configurer dans <a href="/configuration">Configuration → Secrets applicatifs</a>. Le
+          chat legacy continue de fonctionner.
         </p>
       ) : null}
 

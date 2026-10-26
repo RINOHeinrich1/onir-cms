@@ -4,6 +4,7 @@ import { getTemplate } from "@/application/use-cases/templates/get-template";
 import { updateTemplate } from "@/application/use-cases/templates/update-template";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { errorResponse } from "../../_lib/errors";
 import { readJsonObject } from "../../_lib/http";
 import { requireRole } from "../../_lib/require-user";
@@ -54,7 +55,15 @@ export async function DELETE(request: Request, context: RouteContext): Promise<N
   try {
     const actor = await requireRole(request, "templates:delete");
     const { key } = await context.params;
-    await deleteTemplate({ templates: pgChatTemplateRepository(getPool()) }, actor, key);
+    const pool = getPool();
+    await deleteTemplate(
+      {
+        templates: pgChatTemplateRepository(pool),
+        webhooks: pgWebhookEndpointRepository(pool),
+      },
+      actor,
+      key,
+    );
     return NextResponse.json({ ok: true });
   } catch (error) {
     return errorResponse(error);

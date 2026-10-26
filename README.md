@@ -65,7 +65,7 @@ Détails : [`docs/docker-local.md`](docs/docker-local.md).
 ```bash
 npm ci
 cp .env.example .env
-# Renseigner DATABASE_URL, SESSION_SECRET, LINK_TOKEN_KEY et les clés IA si nécessaire.
+# Renseigner DATABASE_URL, CONFIG_MASTER_KEY et les clés IA si nécessaire.
 docker compose up -d
 npm run db:migrate
 npm run db:seed
@@ -89,9 +89,11 @@ Les variables sont documentées dans [`.env.example`](.env.example). Les princip
 | Variable | Rôle |
 | --- | --- |
 | `DATABASE_URL` | Connexion PostgreSQL |
-| `SESSION_SECRET` | Signature des sessions |
-| `LINK_TOKEN_KEY` | Chiffrement des jetons de liens (64 caractères hex, 32 octets) |
-| `AI_PROVIDER_KEY` | Chiffrement des clés fournisseurs IA (64 caractères hex, 32 octets) |
+| `CONFIG_MASTER_KEY` | Clé racine des secrets applicatifs (64 hex) ; les autres sont gérés dans `/configuration` |
+| `SESSION_SECRET` | Import initial uniquement — ensuite géré dans `/configuration` |
+| `LINK_TOKEN_KEY` | Import initial uniquement — ensuite géré dans `/configuration` |
+| `WEBHOOK_SECRET_KEY` | Import initial uniquement — ensuite géré dans `/configuration` |
+| `AI_PROVIDER_KEY` | Import initial uniquement — ensuite géré dans `/configuration` |
 | `DEFAULT_ADMIN_EMAIL` | Compte admin initial |
 | `DEFAULT_ADMIN_PASSWORD` | Mot de passe initial, à changer immédiatement |
 | `APP_URL` | URL publique de l'instance |
@@ -99,6 +101,9 @@ Les variables sont documentées dans [`.env.example`](.env.example). Les princip
 | `ATTACHMENTS_DIR` | Pièces jointes de prospection (défaut : `MEDIA_DIR/attachments`) |
 
 Ne jamais committer de secret. Utilisez `openssl rand -hex 32` pour générer les clés.
+Les quatre secrets applicatifs sont générés/importés au premier démarrage puis gérés par un
+super-admin dans `/configuration`. Sauvegardez `CONFIG_MASTER_KEY` avec la base : sans elle,
+les secrets stockés sont illisibles.
 
 ## Tests et qualité
 

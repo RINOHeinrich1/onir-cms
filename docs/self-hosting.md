@@ -37,9 +37,7 @@ cp .env.release.example .env.release
 Générer les secrets :
 
 ```bash
-openssl rand -hex 32   # SESSION_SECRET
-openssl rand -hex 32   # LINK_TOKEN_KEY
-openssl rand -hex 32   # AI_PROVIDER_KEY
+openssl rand -hex 32   # CONFIG_MASTER_KEY
 openssl rand -hex 16   # POSTGRES_PASSWORD
 ```
 
@@ -47,7 +45,8 @@ Renseigner `.env.release` :
 
 - `ONIR_CMS_VERSION` : version sans le préfixe `v` (ex. `0.1.1`)
 - `POSTGRES_PASSWORD` : mot de passe fort
-- `SESSION_SECRET`, `LINK_TOKEN_KEY`, `AI_PROVIDER_KEY`
+- `CONFIG_MASTER_KEY` (les quatre secrets applicatifs sont générés/importés au premier démarrage puis gérés dans `/configuration`)
+- sauvegarder `CONFIG_MASTER_KEY` avec la base : sans elle, les secrets stockés sont illisibles
 - `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`
 - `APP_URL` : URL publique HTTPS de l'instance
 - éventuellement `AI_API_TOKEN`, `AI_PRODUCT_ID`, `AI_MODEL`

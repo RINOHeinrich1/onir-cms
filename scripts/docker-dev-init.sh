@@ -17,9 +17,11 @@ fi
 
 cp "$EXAMPLE_FILE" "$ENV_FILE"
 
+CONFIG_MASTER_KEY=$(openssl rand -hex 32)
 SESSION_SECRET=$(openssl rand -hex 32)
 LINK_TOKEN_KEY=$(openssl rand -hex 32)
 AI_PROVIDER_KEY=$(openssl rand -hex 32)
+WEBHOOK_SECRET_KEY=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 ADMIN_PASSWORD="Admin-$(openssl rand -hex 8)"
 
@@ -32,9 +34,11 @@ replace() {
 }
 
 replace POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+replace CONFIG_MASTER_KEY "$CONFIG_MASTER_KEY"
 replace SESSION_SECRET "$SESSION_SECRET"
 replace LINK_TOKEN_KEY "$LINK_TOKEN_KEY"
 replace AI_PROVIDER_KEY "$AI_PROVIDER_KEY"
+replace WEBHOOK_SECRET_KEY "$WEBHOOK_SECRET_KEY"
 replace DEFAULT_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 
 chmod 600 "$ENV_FILE"

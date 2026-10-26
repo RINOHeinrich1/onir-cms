@@ -50,17 +50,13 @@ openssl version
 sudo -v`;
 
 const HUB_ENV = `DB_PASSWORD="$(openssl rand -hex 16)"
-SESSION_SECRET="$(openssl rand -hex 32)"
-LINK_TOKEN_KEY="$(openssl rand -hex 32)"
-AI_PROVIDER_KEY="$(openssl rand -hex 32)"
+CONFIG_MASTER_KEY="$(openssl rand -hex 32)"
 ADMIN_PASSWORD="Admin-$(openssl rand -hex 8)"
 
 cat > "$HOME/.onir-cms.env" <<EOF
 ONIR_CMS_VERSION=0.1.1
 DATABASE_URL=postgres://onir_cms:$DB_PASSWORD@onir-cms-db:5432/onir_cms
-SESSION_SECRET=$SESSION_SECRET
-LINK_TOKEN_KEY=$LINK_TOKEN_KEY
-AI_PROVIDER_KEY=$AI_PROVIDER_KEY
+CONFIG_MASTER_KEY=$CONFIG_MASTER_KEY
 AI_ALLOW_PRIVATE_NETWORKS=false
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=$ADMIN_PASSWORD
@@ -316,8 +312,9 @@ export default function InstallationPage() {
       <Step id="hub-env" title="2. Créer le fichier d'environnement">
         <p>
           Ce fichier reste en dehors du dépôt, dans <code>~/.onir-cms.env</code>. Il contient les
-          secrets générés une seule fois, dont <code>AI_PROVIDER_KEY</code> qui chiffre les clés des
-          fournisseurs IA.
+          secrets générés une seule fois. Les quatre secrets applicatifs (SESSION_SECRET,
+          LINK_TOKEN_KEY, AI_PROVIDER_KEY, WEBHOOK_SECRET_KEY) sont générés au premier démarrage
+          puis gérés depuis <code>/configuration</code>.
         </p>
         <Code>{HUB_ENV}</Code>
         <p className="hint">
