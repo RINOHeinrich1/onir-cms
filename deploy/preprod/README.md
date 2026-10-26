@@ -44,14 +44,13 @@ ssh deploy-preprod@preprod-cms.onirtech.com \
 
 Le tag `preprod-<sha>` est immuable : un rollback consiste à redéployer un tag précédent.
 
-## Secrets
+## Runner et secrets
+
+Le job de déploiement utilise le runner self-hosted `onir-cms-preprod` (utilisateur
+`deploy-preprod`, groupe `docker`). Le build reste sur `ubuntu-latest`.
 
 Les secrets de l'environnement GitHub `preprod` sont :
 
-- `PREPROD_HOST`
-- `PREPROD_USER`
-- `PREPROD_SSH_KEY`
-- `PREPROD_KNOWN_HOSTS`
 - `PREPROD_BASIC_USER`
 - `PREPROD_BASIC_PASSWORD`
 

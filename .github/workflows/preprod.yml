@@ -83,35 +83,17 @@ jobs:
     name: Deploy and smoke test preprod
     needs: build
     if: vars.PREPROD_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, onir-cms-preprod]
     environment:
       name: preprod
       url: https://preprod-cms.onirtech.com
     steps:
-      - name: Configure SSH
-        env:
-          PREPROD_SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
-          PREPROD_KNOWN_HOSTS: ${{ secrets.PREPROD_KNOWN_HOSTS }}
-        run: |
-          set -euo pipefail
-          install -d -m 700 "${HOME}/.ssh"
-          printf '%s\n' "${PREPROD_SSH_KEY}" > "${HOME}/.ssh/preprod"
-          chmod 600 "${HOME}/.ssh/preprod"
-          printf '%s\n' "${PREPROD_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
-          chmod 600 "${HOME}/.ssh/known_hosts"
-
       - name: Deploy
         env:
-          PREPROD_HOST: ${{ secrets.PREPROD_HOST }}
-          PREPROD_USER: ${{ secrets.PREPROD_USER }}
           IMAGE_TAG: ${{ needs.build.outputs.tag }}
         run: |
           set -euo pipefail
-          ssh -i "${HOME}/.ssh/preprod" \
-            -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
-            -o StrictHostKeyChecking=yes \
-            "${PREPROD_USER}@${PREPROD_HOST}" \
-            "/opt/onir-cms-preprod/deploy.sh '${IMAGE_TAG}'"
+          /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
 
       - name: Smoke test
         env:
