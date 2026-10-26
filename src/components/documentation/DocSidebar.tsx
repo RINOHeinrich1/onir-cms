@@ -19,6 +19,7 @@ const SECTIONS = [
       { href: "/documentation/actions", label: "Actions" },
       { href: "/documentation/host", label: "Données & hôte" },
       { href: "/documentation/templates-visuels", label: "Contrat des templates" },
+      { href: "/documentation/api", label: "API fiches" },
     ],
   },
   {
