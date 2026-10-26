@@ -38,8 +38,7 @@ gh variable set PREPROD_ENABLED --body true
 ## Déploiement manuel / rollback
 
 ```bash
-ssh deploy-preprod@preprod-cms.onirtech.com \
-  "/opt/onir-cms-preprod/deploy.sh preprod-<sha>"
+sudo -u deploy-preprod /opt/onir-cms-preprod/deploy.sh preprod-<sha>
 ```
 
 Le tag `preprod-<sha>` est immuable : un rollback consiste à redéployer un tag précédent.
