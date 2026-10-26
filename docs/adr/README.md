@@ -38,3 +38,4 @@ ADR qui remplace la précédente.
 | [0035](./0035-webhooks-sortants-modeles-raisonnement.md) | Webhooks sortants configurables par modèle de raisonnement | Accepté |
 | [0036](./0036-configuration-secrets-applicatifs.md) | Configuration des secrets applicatifs depuis le panneau | Accepté |
 | [0037](./0037-environnements-preprod-release.md) | Environnements de préproduction, runners et cadence de release | Accepté |
+| [0038](./0038-assistance-ia-modeles-raisonnement.md) | Assistance IA de création des modèles de raisonnement | Accepté |
