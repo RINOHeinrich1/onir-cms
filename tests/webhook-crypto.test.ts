@@ -30,7 +30,9 @@ describe("webhook-crypto — AES-256-GCM dédié", () => {
     const sealed = sealWebhookSecret("secret");
     const parts = sealed.split(":");
     const ciphertext = parts[3] ?? "";
-    const tampered = [...parts.slice(0, 3), `${ciphertext.slice(0, -1)}A`].join(":");
+    const bytes = Buffer.from(ciphertext, "base64url");
+    bytes[0] = (bytes[0] ?? 0) ^ 0x01;
+    const tampered = [...parts.slice(0, 3), bytes.toString("base64url")].join(":");
     expect(() => openWebhookSecret(tampered)).toThrow();
   });
 });
