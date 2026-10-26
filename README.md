@@ -125,7 +125,9 @@ Les releases publient deux images sur GitHub Container Registry :
 - `ghcr.io/rinoheinrich1/onir-cms:<version>`
 - `ghcr.io/rinoheinrich1/onir-cms:<version>-migrate`
 
-Guide complet : [`docs/self-hosting.md`](docs/self-hosting.md).
+Les images sont publiées en **linux/amd64** par défaut, l’architecture de production.
+Le multiarch (`linux/amd64,linux/arm64`) reste disponible via `workflow_dispatch` pour
+un besoin explicite. Guide complet : [`docs/self-hosting.md`](docs/self-hosting.md).
 
 ## Architecture
 

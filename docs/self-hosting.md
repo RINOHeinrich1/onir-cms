@@ -19,6 +19,10 @@ Chaque release `vX.Y.Z` publie :
 | `ghcr.io/rinoheinrich1/onir-cms:X.Y.Z` | Application Next.js |
 | `ghcr.io/rinoheinrich1/onir-cms:X.Y.Z-migrate` | Migrations et seed PostgreSQL |
 
+Les images de release sont construites en **linux/amd64** par défaut. Une variante
+`linux/amd64,linux/arm64` peut être demandée manuellement via le workflow
+`Release` (`workflow_dispatch`).
+
 Les packages GHCR sont publics après la première publication si leur visibilité a été
 réglée sur **Public** dans GitHub → Packages. Si le package est privé :
 
