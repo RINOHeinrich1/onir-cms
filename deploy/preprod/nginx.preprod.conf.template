@@ -31,6 +31,9 @@ server {
     auth_basic "ONIR CMS preprod";
     auth_basic_user_file __AUTH_FILE__;
 
+    root __LANDING_ROOT__;
+    index index.html;
+
     location = /api/health {
         auth_basic off;
         proxy_pass http://127.0.0.1:__APP_PORT__;
@@ -41,7 +44,21 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /assets/ {
+        try_files $uri =404;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
+    }
+
+    location ^~ /plugins/ {
+        try_files $uri $uri/ =404;
+    }
+
     location / {
+        try_files $uri $uri/ $uri.html @app;
+    }
+
+    location @app {
         proxy_pass http://127.0.0.1:__APP_PORT__;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

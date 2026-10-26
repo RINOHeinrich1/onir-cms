@@ -122,7 +122,5 @@ jobs:
           BASE="https://preprod-cms.onirtech.com"
           AUTH="${PREPROD_BASIC_USER}:${PREPROD_BASIC_PASSWORD}"
           curl -fsS "${BASE}/api/health" | grep -q '"ok":true'
-          curl -fsS -u "${AUTH}" "${BASE}/" | grep -q "Des conversations qui deviennent des prospects"
-          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/plugins"
-          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/plugins/immersive-4.44.0.onirtech-template"
-          echo "Preprod smoke test OK."
+          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/login"
+          echo "Preprod application smoke test OK."

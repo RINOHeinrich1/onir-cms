@@ -6,6 +6,8 @@ Environnement isolé pour valider `main` avant une release de production.
 
 - URL : `https://preprod-cms.onirtech.com`
 - Répertoire hôte : `/opt/onir-cms-preprod`
+- Landing : `https://preprod-cms.onirtech.com/` (déployée depuis `onir-cms-landing`)
+- Application : routes `/login`, `/dashboard`, `/api`, `/l/...`
 - Projet Compose : `onir-cms-preprod`
 - App : `127.0.0.1:3200`
 - PostgreSQL : `127.0.0.1:5436`
@@ -18,9 +20,10 @@ Environnement isolé pour valider `main` avant une release de production.
 1. Merge sur `main`.
 2. GitHub Actions construit `preprod-<sha>` et `preprod-<sha>-migrate`.
 3. Déploiement SSH dans `/opt/onir-cms-preprod`.
-4. Smoke tests sur `preprod-cms.onirtech.com`.
-5. Après validation, la release `vX.Y.Z` est publiée.
-6. Le déploiement production reste manuel avec approbation.
+4. Smoke tests applicatifs sur `preprod-cms.onirtech.com`.
+5. La landing est déployée séparément par le workflow du dépôt `onir-cms-landing`.
+6. Après validation des deux dépôts, la release `vX.Y.Z` est publiée.
+7. Le déploiement production reste manuel avec approbation.
 
 ## Activation
 
@@ -55,3 +58,5 @@ Les secrets de l'environnement GitHub `preprod` sont :
 ## Données
 
 Ne jamais copier la base de production. Utiliser une base vide et un compte admin de preprod.
+
+La remise à zéro s’effectue avec `docker compose down -v` puis un nouveau déploiement ; les secrets applicatifs sont alors régénérés dans `app_secrets`.

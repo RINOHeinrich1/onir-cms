@@ -12,6 +12,7 @@ CERTBOT_EMAIL="${CERTBOT_EMAIL:-admin@onirtech.com}"
 NGINX_SITE="/etc/nginx/sites-available/${DOMAIN}.conf"
 NGINX_LINK="/etc/nginx/sites-enabled/${DOMAIN}.conf"
 AUTH_FILE="/etc/nginx/onir-cms-preprod.htpasswd"
+LANDING_ROOT="${LANDING_ROOT:-/var/www/onir-cms-landing-preprod}"
 
 die() {
   printf 'ERREUR: %s\n' "$*" >&2
@@ -84,6 +85,7 @@ chown "root:${NGINX_GROUP}" "${AUTH_FILE}"
 chmod 640 "${AUTH_FILE}"
 
 install -d -m 755 /var/www/html
+install -d -m 755 -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" "${LANDING_ROOT}"
 
 cat > "${NGINX_SITE}" <<EOF
 server {
@@ -113,6 +115,7 @@ sed \
   -e "s|__DOMAIN__|${DOMAIN}|g" \
   -e "s|__APP_PORT__|${PREPROD_APP_PORT:-3200}|g" \
   -e "s|__AUTH_FILE__|${AUTH_FILE}|g" \
+  -e "s|__LANDING_ROOT__|${LANDING_ROOT}|g" \
   "${SCRIPT_DIR}/nginx.preprod.conf.template" > "${NGINX_SITE}"
 nginx -t
 systemctl reload nginx

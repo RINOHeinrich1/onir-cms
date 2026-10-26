@@ -47,13 +47,11 @@ if [[ "${HEALTHY}" -ne 1 ]]; then
   die "santé applicative indisponible après 300 s"
 fi
 
-LANDING_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${APP_PORT}/")"
-PLUGINS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${APP_PORT}/plugins")"
-PLUGIN_FILE_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${APP_PORT}/plugins/immersive-4.44.0.onirtech-template")"
+LOGIN_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${APP_PORT}/login")"
+HEALTH_JSON="$(curl -fsS --max-time 5 "http://127.0.0.1:${APP_PORT}/api/health")"
 
-[[ "${LANDING_CODE}" == "200" ]] || die "landing HTTP ${LANDING_CODE}"
-[[ "${PLUGINS_CODE}" == "200" ]] || die "marketplace HTTP ${PLUGINS_CODE}"
-[[ "${PLUGIN_FILE_CODE}" == "200" ]] || die "archive plugin HTTP ${PLUGIN_FILE_CODE}"
+[[ "${LOGIN_CODE}" == "200" ]] || die "login HTTP ${LOGIN_CODE}"
+printf '%s' "${HEALTH_JSON}" | grep -q '"ok":true' || die "health JSON invalide"
 
 APP_ID="$("${COMPOSE[@]}" ps -q app)"
 [[ -n "${APP_ID}" ]] || die "conteneur app introuvable"
@@ -63,7 +61,5 @@ printf '\nPreprod déployée.\n'
 printf 'Tag image     : %s\n' "${TAG}"
 printf 'Image         : %s\n' "${RUNNING_IMAGE}"
 printf 'Health        : OK\n'
-printf 'Landing       : HTTP %s\n' "${LANDING_CODE}"
-printf 'Marketplace   : HTTP %s\n' "${PLUGINS_CODE}"
-printf 'Plugin file   : HTTP %s\n' "${PLUGIN_FILE_CODE}"
+printf 'Login         : HTTP %s\n' "${LOGIN_CODE}"
 "${COMPOSE[@]}" ps
