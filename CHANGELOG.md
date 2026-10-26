@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.13.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.13.0...v0.13.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **webhooks:** lire la clé de chiffrement depuis la configuration ([#55](https://github.com/RINOHeinrich1/onir-cms/issues/55)) ([fc7ff42](https://github.com/RINOHeinrich1/onir-cms/commit/fc7ff42af8c6efcab280de0ee3421d77e2fba0d7))
+
 ## [0.13.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.12.0...v0.13.0) (2026-10-26)
 
 
