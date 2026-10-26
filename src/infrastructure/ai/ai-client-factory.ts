@@ -136,7 +136,9 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     try {
       apiKey = openAiKey(sealed);
     } catch {
-      throw unavailable("Clé fournisseur IA illisible : vérifiez AI_PROVIDER_KEY");
+      throw unavailable(
+        "Clé fournisseur IA illisible : vérifiez Configuration → Secrets applicatifs",
+      );
     }
     return {
       async complete(input) {

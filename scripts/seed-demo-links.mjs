@@ -96,12 +96,51 @@ const knowledge = [
   },
 ];
 
-function encryptionKey() {
+let linkKey = null;
+
+function decodeBase64url(value) {
+  return Buffer.from(value, "base64url");
+}
+
+async function resolveLinkKey(client) {
+  const master = process.env.CONFIG_MASTER_KEY || "";
+  if (/^[0-9a-fA-F]{64}$/.test(master)) {
+    try {
+      const { rows } = await client.query(
+        "SELECT value_enc FROM app_secrets WHERE key = 'LINK_TOKEN_KEY' LIMIT 1",
+      );
+      if (rows[0]?.value_enc) {
+        const [version, iv, tag, data] = String(rows[0].value_enc).split(":");
+        if (version !== "v1" || !iv || !tag || !data) throw new Error("secret illisible");
+        const decipher = crypto.createDecipheriv(
+          "aes-256-gcm",
+          Buffer.from(master, "hex"),
+          decodeBase64url(iv),
+        );
+        decipher.setAAD(Buffer.from("onir:app-secret:LINK_TOKEN_KEY:v1", "utf8"));
+        decipher.setAuthTag(decodeBase64url(tag));
+        const plain = Buffer.concat([
+          decipher.update(decodeBase64url(data)),
+          decipher.final(),
+        ]).toString("utf8");
+        if (/^[0-9a-fA-F]{64}$/.test(plain)) return Buffer.from(plain, "hex");
+      }
+    } catch {
+      // Table absente ou clé non encore initialisée : fallback environnement.
+    }
+  }
   const raw = process.env.LINK_TOKEN_KEY || "";
   if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
-    throw new Error("LINK_TOKEN_KEY absente ou invalide (64 hex attendus)");
+    throw new Error(
+      "LINK_TOKEN_KEY absente de app_secrets et de l'environnement (64 hex attendus)",
+    );
   }
   return Buffer.from(raw, "hex");
+}
+
+function encryptionKey() {
+  if (linkKey === null) throw new Error("Clé des liens non initialisée");
+  return linkKey;
 }
 
 function hashToken(token) {
@@ -142,6 +181,7 @@ async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
+    linkKey = await resolveLinkKey(client);
     await client.query("BEGIN");
     let organizationId = ORG_ID;
     if (organizationId === null) {
