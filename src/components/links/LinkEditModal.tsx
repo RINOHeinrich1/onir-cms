@@ -118,10 +118,6 @@ export function LinkEditModal({
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setError(null);
-    if (!channels.page.enabled && !channels.widget.enabled) {
-      setError("Activez au moins un canal de diffusion");
-      return;
-    }
     if (channels.widget.enabled && widgetDisplay === null) {
       setError("Choisissez un template visuel compatible avec le widget");
       return;
