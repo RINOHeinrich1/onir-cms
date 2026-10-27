@@ -18,7 +18,7 @@ type NavItem = {
 const ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Vue globale", action: "dashboard:view" },
   { href: "/prospects", label: "Prospects", action: "prospects:list" },
-  { href: "/liens", label: "Liens de chat", action: "links:list" },
+  { href: "/liens", label: "Chatbots", action: "links:list" },
   { href: "/conversations", label: "Conversations", action: "conversations:list" },
   { href: "/leads", label: "Leads", action: "project:read" },
   { href: "/modeles", label: "Modèle de prospection", action: "templates:list" },
