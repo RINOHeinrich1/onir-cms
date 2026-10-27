@@ -123,7 +123,7 @@ export function LinkForm({
         setError(json.error ?? "Création impossible");
         return;
       }
-      toast.success("Lien de chat créé.");
+      toast.success("Chatbot créé.");
       onCreated(json);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -250,7 +250,7 @@ export function LinkForm({
 
       <div className="tools">
         <button type="submit" className="btn small" disabled={pending}>
-          {pending ? "Création…" : "Créer le lien"}
+          {pending ? "Création…" : "Créer le chatbot"}
         </button>
         <button type="button" className="btn ghost small" onClick={onCancel}>
           Annuler

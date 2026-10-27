@@ -146,7 +146,7 @@ export function LinkEditModal({
         setError(json.error ?? "Modification impossible");
         return;
       }
-      toast.success("Lien de chat mis à jour.");
+      toast.success("Chatbot mis à jour.");
       onSaved(json.link);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -162,12 +162,12 @@ export function LinkEditModal({
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Modifier le lien"
+        aria-label="Modifier le chatbot"
         tabIndex={-1}
         ref={dialogRef}
       >
         <div className="modal-head">
-          <h3>Modifier le lien</h3>
+          <h3>Modifier le chatbot</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Fermer">
             ×
           </button>
