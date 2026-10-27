@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import { isCompleteColorInput, normalizeColorInput } from "./color-input";
 
 type TemplateParamsFieldsProps = {
   schema: TemplateParamSchema[];
@@ -52,6 +53,17 @@ export function TemplateParamsFields({
                 />{" "}
                 {param.label}
               </label>
+            ) : param.type === "color" ? (
+              <div>
+                <span className="param-label">{param.label}</span>
+                <ColorParamField
+                  id={controlId}
+                  label={param.label}
+                  value={typeof value === "string" ? value : String(param.default)}
+                  defaultValue={String(param.default)}
+                  onChange={(next) => set(param.key, next)}
+                />
+              </div>
             ) : (
               <label htmlFor={controlId}>
                 {param.label}
@@ -99,6 +111,89 @@ export function TemplateParamsFields({
   );
 }
 
+type ColorParamFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  defaultValue: string;
+  onChange: (next: string) => void;
+};
+
+function ColorParamField({ id, label, value, defaultValue, onChange }: ColorParamFieldProps) {
+  const normalized = value === "" ? defaultValue : value;
+  const [text, setText] = useState(normalized);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setText(normalized);
+    setError(false);
+  }, [normalized]);
+
+  const commit = (raw: string): void => {
+    if (raw.trim() === "") {
+      setText(normalized);
+      setError(false);
+      return;
+    }
+    const next = normalizeColorInput(raw);
+    if (next === null) {
+      setError(true);
+      return;
+    }
+    setError(false);
+    setText(next);
+    if (next !== normalized) onChange(next);
+  };
+
+  return (
+    <span className="param-color">
+      <input
+        id={id}
+        type="color"
+        value={normalized}
+        aria-label={`${label} : sélecteur`}
+        onChange={(event) => {
+          setError(false);
+          setText(event.target.value);
+          onChange(event.target.value);
+        }}
+      />
+      <span className="param-color-text">
+        <input
+          type="text"
+          value={text}
+          placeholder="#023777 ou rgb(2, 55, 119)"
+          aria-label={`${label} : code couleur`}
+          aria-invalid={error ? true : undefined}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(event) => {
+            const raw = event.target.value;
+            setText(raw);
+            setError(false);
+            if (isCompleteColorInput(raw)) {
+              const next = normalizeColorInput(raw);
+              if (next !== null) onChange(next);
+            }
+          }}
+          onBlur={() => commit(text)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit(text);
+            }
+          }}
+        />
+        {error ? (
+          <span className="param-color-error" role="alert">
+            Format attendu : #RRGGBB ou rgb(r, g, b).
+          </span>
+        ) : null}
+      </span>
+    </span>
+  );
+}
+
 function renderControl(
   param: TemplateParamSchema,
   value: string | number | boolean,
@@ -133,15 +228,6 @@ function renderControl(
             const parsed = Number(event.target.value);
             if (Number.isFinite(parsed)) onChange(parsed);
           }}
-        />
-      );
-    case "color":
-      return (
-        <input
-          id={controlId}
-          type="color"
-          value={typeof value === "string" ? value : String(param.default)}
-          onChange={(event) => onChange(event.target.value)}
         />
       );
     case "select":
