@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         audit: pgApiKeyAuditRepository(pool),
       },
       actor,
-      { name: body.name, expiresInDays: body.expiresInDays },
+      { name: body.name, expiresInDays: body.expiresInDays, scopes: body.scopes },
       {
         ip: clientIp(request),
         userAgent: request.headers.get("user-agent"),

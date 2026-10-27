@@ -61,8 +61,18 @@ export async function createChatLink(
   input: unknown,
 ): Promise<CreatedChatLink> {
   assertCan(actor, "links:create");
-  const organizationId = organizationOf(actor);
+  return createChatLinkForOrganization(deps, organizationOf(actor), actor.id, input, () =>
+    assertCan(actor, "ai:assign"),
+  );
+}
 
+export async function createChatLinkForOrganization(
+  deps: CreateChatLinkDependencies,
+  organizationId: string,
+  createdBy: string | null,
+  input: unknown,
+  canAssignAi: () => void = () => undefined,
+): Promise<CreatedChatLink> {
   const source =
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
@@ -79,7 +89,7 @@ export async function createChatLink(
 
   const aiAssignment = parseAiAssignmentInput(source);
   if (aiAssignment !== null && aiAssignment.aiProviderId !== null) {
-    assertCan(actor, "ai:assign");
+    canAssignAi();
     await assertAssignableProvider(deps, organizationId, aiAssignment);
   }
 
@@ -128,7 +138,7 @@ export async function createChatLink(
     type,
     ...summary,
     prospectId: type === "specifique" ? rawProspectId : null,
-    createdBy: actor.id,
+    createdBy,
     expiresAt,
     templateKey,
     templateVersion: template.version,

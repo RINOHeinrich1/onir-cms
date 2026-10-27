@@ -99,13 +99,21 @@ export async function createWebhookEndpoint(
   input: unknown,
 ): Promise<WebhookEndpointAdminDto> {
   assertCan(actor, "webhooks:create");
-  const organizationId = organizationOf(actor);
+  return createWebhookEndpointForOrganization(deps, organizationOf(actor), actor.id, input);
+}
+
+export async function createWebhookEndpointForOrganization(
+  deps: WebhookManagementDependencies,
+  organizationId: string,
+  createdBy: string | null,
+  input: unknown,
+): Promise<WebhookEndpointAdminDto> {
   const config = parseWebhookConfig(input);
   const { definition } = await definitionForTemplate(deps, organizationId, config.templateKey);
   assertMappingsForDefinition(config.fieldMappings, definition);
   const endpoint = await deps.endpoints.create(organizationId, {
     ...config,
-    createdBy: actor.id,
+    createdBy,
   });
   return toWebhookEndpointAdminDto(endpoint);
 }
@@ -117,7 +125,15 @@ export async function updateWebhookEndpoint(
   input: unknown,
 ): Promise<WebhookEndpointAdminDto> {
   assertCan(actor, "webhooks:update");
-  const organizationId = organizationOf(actor);
+  return updateWebhookEndpointForOrganization(deps, organizationOf(actor), id, input);
+}
+
+export async function updateWebhookEndpointForOrganization(
+  deps: WebhookManagementDependencies,
+  organizationId: string,
+  id: string,
+  input: unknown,
+): Promise<WebhookEndpointAdminDto> {
   const existing = await deps.endpoints.findById(organizationId, id);
   if (existing === null || existing.deletedAt !== null) {
     throw new NotFoundError("Webhook introuvable");
@@ -139,7 +155,15 @@ export async function deleteWebhookEndpoint(
   id: string,
 ): Promise<void> {
   assertCan(actor, "webhooks:delete");
-  const deleted = await deps.endpoints.softDelete(organizationOf(actor), id);
+  return deleteWebhookEndpointForOrganization(deps, organizationOf(actor), id);
+}
+
+export async function deleteWebhookEndpointForOrganization(
+  deps: WebhookManagementDependencies,
+  organizationId: string,
+  id: string,
+): Promise<void> {
+  const deleted = await deps.endpoints.softDelete(organizationId, id);
   if (!deleted) throw new NotFoundError("Webhook introuvable");
 }
 
