@@ -1,4 +1,5 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import type { TemplateLanguagePolicy } from "@/domain/template-settings";
 
 export type TemplateAiKnowledgeDto = {
   titre: string;
@@ -10,8 +11,10 @@ export type TemplateAiDraftDto = {
   description: string;
   role: string;
   objective: string;
+  language: TemplateLanguagePolicy;
   tone: string;
   guardrails: string[];
+  extraInstructions: string;
   fields: TemplateField[];
   systemPrompt: string;
   renderTemplate: string;

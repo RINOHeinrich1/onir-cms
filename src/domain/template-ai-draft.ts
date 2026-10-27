@@ -16,16 +16,15 @@ import {
 import {
   buildDefaultRenderTemplate,
   buildDefaultSystemPrompt,
-  DEFAULT_PROMPT_GUARDRAILS,
-  DEFAULT_PROMPT_OBJECTIVE,
-  DEFAULT_PROMPT_ROLE,
-  PROMPT_GUARDRAILS,
-  PROMPT_TONES,
-  type PromptGuardrailId,
   toFieldName,
   uniqueFieldName,
 } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
+import {
+  normalizeLanguagePolicy,
+  type TemplateLanguagePolicy,
+  type TemplateSimpleSettings,
+} from "@/domain/template-settings";
 
 export const TEMPLATE_AI_MAX_KNOWLEDGE = 10;
 export const TEMPLATE_AI_MAX_FIELDS = 12;
@@ -42,13 +41,16 @@ export type TemplateAiDraft = {
   description: string;
   role: string;
   objective: string;
+  language: TemplateLanguagePolicy;
   tone: string;
-  guardrails: PromptGuardrailId[];
+  guardrails: string[];
+  extraInstructions: string;
   fields: TemplateField[];
   systemPrompt: string;
   renderTemplate: string;
   knowledge: TemplateAiKnowledgeCandidate[];
   warnings: string[];
+  settings: TemplateSimpleSettings;
 };
 
 export type TemplateAiDraftContext = {
@@ -96,16 +98,26 @@ export function extractAiJsonObject(raw: string): unknown | null {
 }
 
 function normalizeTone(value: unknown): string {
-  const candidate = text(value);
-  return PROMPT_TONES.some((tone) => tone.value === candidate) ? candidate : PROMPT_TONES[0].value;
+  return text(value).slice(0, 200);
 }
 
-function normalizeGuardrails(value: unknown): PromptGuardrailId[] {
-  const allowed = new Set<string>(PROMPT_GUARDRAILS.map((guardrail) => guardrail.id));
-  const selected = stringArray(value).filter((entry): entry is PromptGuardrailId =>
-    allowed.has(entry),
-  );
-  return selected.length > 0 ? selected : [...DEFAULT_PROMPT_GUARDRAILS];
+/** Conserve les suggestions connues et les instructions personnalisées. */
+function normalizeGuardrails(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    const candidate = isRecord(raw)
+      ? text(raw.instruction) || text(raw.label) || text(raw.value)
+      : text(raw);
+    if (candidate === "") continue;
+    const clipped = candidate.slice(0, 500);
+    const fingerprint = clipped.toLocaleLowerCase("fr");
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    result.push(clipped);
+  }
+  return result.slice(0, 20);
 }
 
 function normalizeType(value: unknown): TemplateFieldType {
@@ -132,8 +144,8 @@ function fileConstraints(value: unknown): FileFieldConstraints {
   return { ...DEFAULT_FILE_CONSTRAINTS };
 }
 
-function normalizeFields(value: unknown, warnings: string[]): TemplateField[] | null {
-  if (!Array.isArray(value) || value.length === 0) return null;
+function normalizeFields(value: unknown, warnings: string[]): TemplateField[] {
+  if (!Array.isArray(value)) return [];
   if (value.length > TEMPLATE_AI_MAX_FIELDS) {
     warnings.push(
       `L'IA a proposé ${value.length} informations ; seules les ${TEMPLATE_AI_MAX_FIELDS} premières sont conservées.`,
@@ -166,7 +178,7 @@ function normalizeFields(value: unknown, warnings: string[]): TemplateField[] | 
       ...(type === "file" ? { file: fileConstraints(raw.file) } : {}),
     });
   }
-  return fields.length > 0 ? fields : null;
+  return fields;
 }
 
 function normalizeKnowledge(value: unknown, warnings: string[]): TemplateAiKnowledgeCandidate[] {
@@ -211,24 +223,35 @@ export function parseTemplateAiDraft(
   const warnings: string[] = [];
   const label = text(input.label);
   if (label === "") errors.push("L'IA n'a pas proposé de nom de modèle");
-  const fields = normalizeFields(input.fields, warnings);
-  if (fields === null) errors.push("L'IA n'a proposé aucune information à collecter");
+  const normalizedFields = normalizeFields(input.fields, warnings);
 
   const description = text(input.description) || context.descriptionFallback?.trim() || "";
-  const role = text(input.role) || DEFAULT_PROMPT_ROLE;
-  const objective = text(input.objective) || DEFAULT_PROMPT_OBJECTIVE;
+  const role = text(input.role);
+  if (role === "") errors.push("L'IA n'a pas proposé de rôle");
+  const objective = text(input.objective);
+  const language = normalizeLanguagePolicy(input.language);
   const tone = normalizeTone(input.tone);
   const guardrails = normalizeGuardrails(input.guardrails);
+  const extraInstructions = text(input.extraInstructions).slice(0, 4_000);
   const knowledge = normalizeKnowledge(input.knowledge, warnings);
 
   if (errors.length > 0) return { ok: false, errors };
 
-  const normalizedFields = fields ?? [];
+  const settings: TemplateSimpleSettings = {
+    role,
+    objective,
+    language,
+    tone,
+    guardrails,
+    extraInstructions,
+  };
   const systemPrompt = buildDefaultSystemPrompt({
     role,
     objective,
+    language,
     tone,
     guardrails,
+    extraInstructions,
     fields: normalizedFields,
   });
   const renderTemplate = buildDefaultRenderTemplate(label, normalizedFields);
@@ -239,6 +262,7 @@ export function parseTemplateAiDraft(
     systemPrompt,
     fields: normalizedFields,
     renderTemplate,
+    simple: settings,
   };
   const validated = validateTemplateDefinition(candidate);
   if (!validated.ok) return { ok: false, errors: validated.errors };
@@ -250,13 +274,16 @@ export function parseTemplateAiDraft(
       description: validated.value.description,
       role,
       objective,
+      language,
       tone,
       guardrails,
+      extraInstructions,
       fields: validated.value.fields,
       systemPrompt: validated.value.systemPrompt,
       renderTemplate: validated.value.renderTemplate,
       knowledge,
       warnings,
+      settings,
     },
   };
 }

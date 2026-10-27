@@ -6,6 +6,11 @@
  */
 
 import type { TemplateField } from "@/domain/entities/chat-template";
+import {
+  DEFAULT_TEMPLATE_LANGUAGE,
+  languageInstruction,
+  type TemplateLanguagePolicy,
+} from "@/domain/template-settings";
 
 export const PROMPT_TONES = [
   { value: "professionnel et chaleureux", label: "Professionnel et chaleureux" },
@@ -24,76 +29,97 @@ export type PromptGuardrailId =
 export const PROMPT_GUARDRAILS: ReadonlyArray<{
   id: PromptGuardrailId;
   label: string;
+  instruction: string;
 }> = [
-  { id: "professional", label: "Rester dans le cadre professionnel" },
-  { id: "no_promise", label: "Ne promettre ni prix, ni délai, ni livrable" },
-  { id: "one_question", label: "Poser une question à la fois et rester concis" },
-  { id: "known_contacts", label: "Ne pas redemander les coordonnées déjà connues" },
-  { id: "finish", label: "Inviter à cliquer sur « Terminer » à la fin" },
+  {
+    id: "professional",
+    label: "Rester dans le cadre professionnel",
+    instruction:
+      "Tu restes strictement dans le cadre professionnel : si on te pose une question hors sujet, tu refuses poliment et tu proposes de revenir au sujet.",
+  },
+  {
+    id: "no_promise",
+    label: "Ne promettre ni prix, ni délai, ni livrable",
+    instruction:
+      "Tu ne promets jamais de prix, de délai ni de livrable : tu collectes les informations et c'est l'équipe qui chiffrera.",
+  },
+  {
+    id: "one_question",
+    label: "Poser une question à la fois et rester concis",
+    instruction: "Tu poses une question à la fois et tu gardes tes réponses courtes.",
+  },
+  {
+    id: "known_contacts",
+    label: "Ne pas redemander les coordonnées déjà connues",
+    instruction:
+      "{{#if prospect_connu}}Tu parles déjà avec un prospect connu : ne lui redemande pas ses coordonnées de base.\n{{prospect_contexte}}{{/if}}{{#if visiteur_connu}}Le visiteur s'est déjà identifié : ne lui redemande pas son nom ni son email.{{/if}}",
+  },
+  {
+    id: "finish",
+    label: "Inviter à cliquer sur « Terminer » à la fin",
+    instruction:
+      "Dès que tu as réuni les informations essentielles, invite explicitement le visiteur à cliquer sur le bouton « Terminer » pour envoyer sa fiche. Précise que sans ce clic, elle n'est pas transmise à l'équipe.",
+  },
 ];
 
-export const DEFAULT_PROMPT_GUARDRAILS: PromptGuardrailId[] = PROMPT_GUARDRAILS.map(
-  (guardrail) => guardrail.id,
+/** Aucun garde-fou n'est activé implicitement. */
+export const DEFAULT_PROMPT_GUARDRAILS: string[] = [];
+
+const GUARDRAIL_BY_ID = new Map<string, (typeof PROMPT_GUARDRAILS)[number]>(
+  PROMPT_GUARDRAILS.map((guardrail) => [guardrail.id, guardrail]),
+);
+const GUARDRAIL_BY_LABEL = new Map<string, (typeof PROMPT_GUARDRAILS)[number]>(
+  PROMPT_GUARDRAILS.map((guardrail) => [guardrail.label, guardrail]),
 );
 
-export const DEFAULT_PROMPT_ROLE = "l'assistant de prospection";
-export const DEFAULT_PROMPT_OBJECTIVE =
-  "Comprendre le besoin du visiteur et réunir les informations nécessaires pour que l'équipe puisse le recontacter.";
-
-function hasGuardrail(guardrails: readonly string[], id: PromptGuardrailId): boolean {
-  return guardrails.includes(id);
+/** Résout un identifiant de suggestion ou conserve une instruction libre. */
+export function resolveGuardrailInstruction(value: string): string {
+  const trimmed = value.trim();
+  return (
+    GUARDRAIL_BY_ID.get(trimmed)?.instruction ??
+    GUARDRAIL_BY_LABEL.get(trimmed)?.instruction ??
+    trimmed
+  );
 }
 
-/** Construit un prompt système lisible et fonctionnel (variables incluses). */
+export function guardrailLabel(value: string): string {
+  return GUARDRAIL_BY_ID.get(value)?.label ?? value;
+}
+
+/** Construit un prompt système à partir des réglages, sans restriction implicite. */
 export function buildDefaultSystemPrompt(input: {
   role: string;
   objective: string;
+  language?: TemplateLanguagePolicy;
   tone: string;
   guardrails: readonly string[];
+  extraInstructions?: string;
   fields: readonly TemplateField[];
 }): string {
-  const role = input.role.trim() === "" ? DEFAULT_PROMPT_ROLE : input.role.trim();
-  const objective =
-    input.objective.trim() === "" ? DEFAULT_PROMPT_OBJECTIVE : input.objective.trim();
-  const tone = input.tone.trim() === "" ? PROMPT_TONES[0].value : input.tone.trim();
-  const lines: string[] = [
-    `Tu es ${role}.`,
-    "",
-    `Tu t'exprimes en français naturel, avec un ton ${tone}.`,
-  ];
+  const role = input.role.trim();
+  const objective = input.objective.trim();
+  const tone = input.tone.trim();
+  const language = input.language ?? DEFAULT_TEMPLATE_LANGUAGE;
+  const lines: string[] = [];
 
-  if (hasGuardrail(input.guardrails, "professional")) {
-    lines.push(
-      "",
-      "Tu restes strictement dans le cadre professionnel : si on te pose une question hors sujet, tu refuses poliment et tu proposes de revenir au sujet.",
-    );
-  }
-  if (hasGuardrail(input.guardrails, "no_promise")) {
-    lines.push(
-      "",
-      "Tu ne promets jamais de prix, de délai ni de livrable : tu collectes les informations et c'est l'équipe qui chiffrera.",
-    );
-  }
-  if (hasGuardrail(input.guardrails, "one_question")) {
-    lines.push("", "Tu poses une question à la fois et tu gardes tes réponses courtes.");
+  if (role !== "") lines.push(`Tu es ${role}.`);
+  lines.push("", languageInstruction(language));
+  if (tone !== "") lines.push("", `Adopte un ton ${tone}.`);
+  if (input.extraInstructions !== undefined && input.extraInstructions.trim() !== "") {
+    lines.push("", input.extraInstructions.trim());
   }
 
-  lines.push("", "Ton objectif :", objective);
+  const seen = new Set<string>();
+  for (const guardrail of input.guardrails) {
+    const instruction = resolveGuardrailInstruction(guardrail);
+    if (instruction === "" || seen.has(instruction)) continue;
+    seen.add(instruction);
+    lines.push("", instruction);
+  }
+
+  if (objective !== "") lines.push("", "Ton objectif :", objective);
   if (input.fields.length > 0) {
     lines.push("", "Informations à réunir :", "{{champs_guide}}");
-  }
-  if (hasGuardrail(input.guardrails, "known_contacts")) {
-    lines.push(
-      "",
-      "{{#if prospect_connu}}Tu parles déjà avec un prospect connu : ne lui redemande pas ses coordonnées de base.",
-      "{{prospect_contexte}}{{/if}}{{#if visiteur_connu}}Le visiteur s'est déjà identifié : ne lui redemande pas son nom ni son email.{{/if}}",
-    );
-  }
-  if (hasGuardrail(input.guardrails, "finish")) {
-    lines.push(
-      "",
-      "Dès que tu as réuni les informations essentielles, invite explicitement le visiteur à cliquer sur le bouton « Terminer » pour envoyer sa fiche. Précise que sans ce clic, elle n'est pas transmise à l'équipe.",
-    );
   }
 
   return lines.join("\n").trim();

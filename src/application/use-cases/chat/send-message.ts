@@ -16,6 +16,7 @@ import {
 import { type Attachment, DEFAULT_FILE_CONSTRAINTS } from "@/domain/entities/attachment";
 import type { ChatLink, ChatMessage } from "@/domain/entities/chat";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
+import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
 import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt";
 
@@ -240,6 +241,12 @@ ${attachmentContext}`;
       systemEnrichi = `${systemEnrichi}\n\n${buildContexteInterne(utiles)}`;
       connaissances = utiles.map(toConnaissanceRef);
     }
+  }
+
+  // Les contextes runtime (pièces jointes, RAG) sont en français : on rappelle
+  // la politique de langue du modèle simple en dernier.
+  if (template.definition.simple !== undefined) {
+    systemEnrichi = `${systemEnrichi}\n\n${languageReminder(template.definition.simple.language)}`;
   }
 
   let answer: string;

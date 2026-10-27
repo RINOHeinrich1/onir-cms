@@ -47,6 +47,22 @@ describe("template-defaults", () => {
     expect(prompt).toContain("{{champs_guide}}");
     expect(prompt).toContain("Terminer");
     expect(prompt).toContain("{{#if prospect_connu}}");
+    expect(prompt).toContain("langue du visiteur");
+    expect(prompt).not.toContain("français naturel");
+  });
+
+  it("ne force ni le français, ni le ton, ni les garde-fous", () => {
+    const prompt = buildDefaultSystemPrompt({
+      role: "un assistant",
+      objective: "",
+      tone: "",
+      guardrails: [],
+      fields: [],
+    });
+    expect(prompt).toContain("langue du visiteur");
+    expect(prompt).not.toContain("français");
+    expect(prompt).not.toContain("ton");
+    expect(prompt).not.toContain("Terminer");
   });
 
   it("génère une fiche qui suit l'ordre des champs", () => {

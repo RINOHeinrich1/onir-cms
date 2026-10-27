@@ -11,6 +11,7 @@ import {
   type TemplateDefinition,
   type TemplateField,
 } from "@/domain/entities/chat-template";
+import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
 
 const KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -47,8 +48,8 @@ export function validateTemplateDefinition(
 
   const fields: TemplateField[] = [];
   const seen = new Set<string>();
-  if (!Array.isArray(input.fields) || input.fields.length === 0) {
-    errors.push("Au moins un champ est requis");
+  if (!Array.isArray(input.fields)) {
+    errors.push("Liste de champs invalide");
   } else {
     for (const raw of input.fields) {
       if (!isRecord(raw)) {
@@ -137,6 +138,7 @@ export function validateTemplateDefinition(
   if (errors.length > 0) {
     return { ok: false, errors };
   }
+  const simple = normalizeTemplateSimpleSettings(input.simple);
   return {
     ok: true,
     value: {
@@ -146,6 +148,7 @@ export function validateTemplateDefinition(
       systemPrompt,
       fields,
       renderTemplate,
+      ...(simple === null ? {} : { simple }),
     },
   };
 }
