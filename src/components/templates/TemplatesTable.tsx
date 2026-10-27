@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
 import {
   creatorOptions,
@@ -11,11 +11,16 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { toTemplateKey, uniqueTemplateKey } from "@/domain/template-defaults";
+import { TemplateCards } from "./TemplateCards";
 import { TemplateForm } from "./TemplateForm";
 import { TemplatePreview } from "./TemplatePreview";
 import type { TemplateSeed, TemplateSummary } from "./types";
 
-/** Table des modèles + création/édition/suppression + prévisualisation. */
+type ViewMode = "cards" | "table";
+
+const VIEW_MODE_STORAGE_KEY = "onir-cms:modeles-view";
+
+/** Liste des modèles (cartes ou tableau) + création/édition/suppression + prévisualisation. */
 export function TemplatesTable({
   initialTemplates,
   canWrite,
@@ -33,9 +38,28 @@ export function TemplatesTable({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const creators = creatorOptions(templates);
   const showUnassigned = hasUnassignedCreator(templates);
   const visibleTemplates = templates.filter((template) => matchesCreator(template, creatorFilter));
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (stored === "cards" || stored === "table") setViewMode(stored);
+    } catch {
+      // Préférence d'affichage indisponible : conserver la vue tableau.
+    }
+  }, []);
+
+  const changeViewMode = (mode: ViewMode): void => {
+    setViewMode(mode);
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Le choix reste actif pour la session courante.
+    }
+  };
 
   const refresh = async (): Promise<void> => {
     try {
@@ -98,16 +122,39 @@ export function TemplatesTable({
     <div className="templates-admin">
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <CreatorFilter
-        options={creators}
-        showUnassigned={showUnassigned}
-        value={creatorFilter}
-        onChange={setCreatorFilter}
-      />
-
-      {canWrite ? (
-        <div className="template-starters">
-          <div className="tools" style={{ marginBottom: "1rem" }}>
+      <div className="modeles-toolbar">
+        <div className="modeles-toolbar-filters">
+          <CreatorFilter
+            options={creators}
+            showUnassigned={showUnassigned}
+            value={creatorFilter}
+            onChange={setCreatorFilter}
+          />
+          <span className="templates-count">
+            {creatorFilter === null
+              ? `${templates.length} modèle${templates.length > 1 ? "s" : ""}`
+              : `${visibleTemplates.length} sur ${templates.length} modèles`}
+          </span>
+        </div>
+        <div className="tools">
+          <fieldset className="modeles-view-switch">
+            <legend className="sr-only">Mode d’affichage</legend>
+            <button
+              type="button"
+              aria-pressed={viewMode === "cards"}
+              onClick={() => changeViewMode("cards")}
+            >
+              Cartes
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === "table"}
+              onClick={() => changeViewMode("table")}
+            >
+              Tableau
+            </button>
+          </fieldset>
+          {canWrite ? (
             <button
               type="button"
               className="btn small"
@@ -119,105 +166,103 @@ export function TemplatesTable({
             >
               Nouveau modèle
             </button>
-          </div>
-          {templates.length > 0 ? (
-            <>
-              <p className="hint">Partir d’un modèle existant :</p>
-              <div className="template-starter-grid">
-                {templates.map((template) => (
-                  <button
-                    type="button"
-                    className="template-starter"
-                    key={template.key}
-                    disabled={duplicatingKey !== null}
-                    onClick={() => void startFrom(template)}
-                  >
-                    <strong>{template.label}</strong>
-                    <span>{template.description || template.key}</span>
-                    <span className="hint">
-                      {duplicatingKey === template.key ? "Chargement…" : "Dupliquer"}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
           ) : null}
         </div>
-      ) : null}
-
-      <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Clé</th>
-              <th>Description</th>
-              <th>Créé par</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleTemplates.map((template) => (
-              <tr key={template.key}>
-                <td>
-                  <strong>{template.label}</strong>
-                </td>
-                <td>
-                  <code>{template.key}</code>
-                </td>
-                <td>{template.description}</td>
-                <td>{template.createdByLabel ?? <span className="muted-text">—</span>}</td>
-                <td>
-                  <div className="tools">
-                    <button
-                      type="button"
-                      className="btn ghost small"
-                      onClick={() => setPreviewingKey(template.key)}
-                    >
-                      Aperçu
-                    </button>
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        disabled={duplicatingKey !== null}
-                        onClick={() => void startFrom(template)}
-                      >
-                        Dupliquer
-                      </button>
-                    ) : null}
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        onClick={() => setEditingKey(template.key)}
-                      >
-                        Modifier
-                      </button>
-                    ) : null}
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        className="btn danger ghost small"
-                        onClick={() => void remove(template)}
-                      >
-                        Supprimer
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {visibleTemplates.length === 0 ? (
-              <tr>
-                <td colSpan={5}>
-                  {templates.length === 0 ? "Aucun modèle." : "Aucun modèle pour ce créateur."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
       </div>
+
+      {viewMode === "cards" ? (
+        visibleTemplates.length === 0 ? (
+          <section className="card modeles-empty">
+            <p className="hint">
+              {templates.length === 0 ? "Aucun modèle." : "Aucun modèle pour ce créateur."}
+            </p>
+          </section>
+        ) : (
+          <TemplateCards
+            templates={visibleTemplates}
+            canWrite={canWrite}
+            duplicatingKey={duplicatingKey}
+            onPreview={(template) => setPreviewingKey(template.key)}
+            onDuplicate={(template) => void startFrom(template)}
+            onEdit={(template) => setEditingKey(template.key)}
+            onRemove={(template) => void remove(template)}
+          />
+        )
+      ) : (
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Clé</th>
+                <th>Description</th>
+                <th>Créé par</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTemplates.map((template) => (
+                <tr key={template.key}>
+                  <td>
+                    <strong>{template.label}</strong>
+                  </td>
+                  <td>
+                    <code>{template.key}</code>
+                  </td>
+                  <td>{template.description}</td>
+                  <td>{template.createdByLabel ?? <span className="muted-text">—</span>}</td>
+                  <td>
+                    <div className="modeles-row-actions">
+                      <button
+                        type="button"
+                        className="btn ghost small"
+                        onClick={() => setPreviewingKey(template.key)}
+                      >
+                        Aperçu
+                      </button>
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          disabled={duplicatingKey !== null}
+                          onClick={() => void startFrom(template)}
+                        >
+                          Dupliquer
+                        </button>
+                      ) : null}
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          onClick={() => setEditingKey(template.key)}
+                        >
+                          Modifier
+                        </button>
+                      ) : null}
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className="btn danger ghost small"
+                          onClick={() => void remove(template)}
+                        >
+                          Supprimer
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {visibleTemplates.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    {templates.length === 0 ? "Aucun modèle." : "Aucun modèle pour ce créateur."}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {creating || editingKey !== null ? (
         <Modal

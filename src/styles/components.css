@@ -2535,6 +2535,209 @@ a.subtab {
   letter-spacing: 0.04em;
 }
 
+/* Modèles de raisonnement : bascule cartes / tableau. */
+.modeles-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.9rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.modeles-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  min-width: 0;
+}
+
+.modeles-toolbar .link-filter {
+  margin: 0;
+}
+
+.modeles-toolbar .link-filter select {
+  min-width: 13rem;
+  height: 2.25rem;
+}
+
+.modeles-view-switch {
+  display: inline-flex;
+  gap: 0.15rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+}
+
+.modeles-view-switch button {
+  padding: 0.38rem 0.72rem;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out-expo),
+    color var(--dur-fast) var(--ease-out-expo);
+}
+
+.modeles-view-switch button:hover {
+  color: var(--fg);
+}
+
+.modeles-view-switch button[aria-pressed="true"] {
+  background: var(--surface-raised);
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgb(2 55 119 / 0.12);
+}
+
+.modeles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+
+.modeles-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1.1rem 1.15rem;
+  border-top: 4px solid var(--orange);
+}
+
+.modeles-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.modeles-card-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.8rem;
+  background:
+    radial-gradient(circle at 18% 20%, rgb(252 173 40 / 0.38), transparent 42%),
+    linear-gradient(135deg, #023777, #0b2247 58%, #1d3f78);
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.modeles-card-title {
+  min-width: 0;
+}
+
+.modeles-card-title h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.modeles-card-title code {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.modeles-card-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.modeles-card-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.55rem 0.8rem;
+  margin: auto 0 0;
+  padding-top: 0.4rem;
+}
+
+.modeles-card-meta div {
+  min-width: 0;
+}
+
+.modeles-card-meta dt {
+  color: var(--fg-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modeles-card-meta dd {
+  margin: 0.12rem 0 0;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.modeles-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+.modeles-card-actions .btn,
+.modeles-row-actions .btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+
+.modeles-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 10.5rem;
+}
+
+.modeles-empty {
+  padding: 1.5rem;
+}
+
+@media (max-width: 48rem) {
+  .modeles-toolbar {
+    align-items: stretch;
+  }
+
+  .modeles-toolbar-filters,
+  .modeles-toolbar > .tools {
+    width: 100%;
+  }
+
+  .modeles-toolbar .link-filter select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .modeles-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .templates-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2985,49 +3188,6 @@ a.subtab {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface);
-}
-
-.template-starters {
-  margin-bottom: 1.5rem;
-}
-
-.template-starter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.template-starter {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-raised);
-  color: var(--fg);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.template-starter:hover:not(:disabled) {
-  border-color: var(--orange);
-}
-
-.template-starter:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
-.template-starter strong {
-  font-size: 0.95rem;
-}
-
-.template-starter span {
-  font-size: 0.82rem;
-  color: var(--fg-muted);
 }
 
 @media (max-width: 56rem) {
