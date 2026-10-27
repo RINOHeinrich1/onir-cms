@@ -128,8 +128,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
 
     async create(organizationId, input: CreateChatLinkInput): Promise<ChatLink> {
       const { rows } = await pool.query<ChatLinkRow>(
-        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
