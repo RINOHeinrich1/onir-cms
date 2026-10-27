@@ -123,7 +123,7 @@ export function LinkForm({
         setError(json.error ?? "Création impossible");
         return;
       }
-      toast.success("Lien de chat créé.");
+      toast.success("Chatbot créé.");
       onCreated(json);
     } catch {
       setError("Erreur réseau, veuillez réessayer");

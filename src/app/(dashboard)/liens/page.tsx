@@ -23,7 +23,7 @@ import { getSessionContext } from "@/infrastructure/session/current-user";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Liens de chat",
+  title: "Chatbots",
 };
 
 /** US-LIENS-001 — génération et gestion des liens de prospection (admin/marketeur). */
@@ -69,7 +69,7 @@ export default async function LiensPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow">Prospection</span>
-          <h1 className="text-title">Liens de chat</h1>
+          <h1 className="text-title">Chatbots</h1>
         </div>
       </div>
       <LinksTable

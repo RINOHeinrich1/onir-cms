@@ -146,7 +146,7 @@ export function LinkEditModal({
         setError(json.error ?? "Modification impossible");
         return;
       }
-      toast.success("Lien de chat mis à jour.");
+      toast.success("Chatbot mis à jour.");
       onSaved(json.link);
     } catch {
       setError("Erreur réseau, veuillez réessayer");

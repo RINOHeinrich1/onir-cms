@@ -227,7 +227,7 @@ export function LinksTable({
 
       <div className="tools" style={{ marginBottom: "1.5rem" }}>
         <button type="button" className="btn small" onClick={() => setCreating(true)}>
-          Nouveau lien
+          Nouveau chatbot
         </button>
       </div>
 
@@ -401,7 +401,7 @@ export function LinksTable({
       </div>
 
       {creating ? (
-        <Modal title="Nouveau lien de chat" onClose={() => setCreating(false)}>
+        <Modal title="Nouveau chatbot" onClose={() => setCreating(false)}>
           <LinkForm
             prospects={prospects}
             templates={templates}
