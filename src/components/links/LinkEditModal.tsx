@@ -162,12 +162,12 @@ export function LinkEditModal({
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Modifier le chatbot"
+        aria-label="Modifier le lien"
         tabIndex={-1}
         ref={dialogRef}
       >
         <div className="modal-head">
-          <h3>Modifier le chatbot</h3>
+          <h3>Modifier le lien</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Fermer">
             ×
           </button>

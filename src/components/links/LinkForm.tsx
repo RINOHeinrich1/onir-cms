@@ -250,7 +250,7 @@ export function LinkForm({
 
       <div className="tools">
         <button type="submit" className="btn small" disabled={pending}>
-          {pending ? "Création…" : "Créer le chatbot"}
+          {pending ? "Création…" : "Créer le lien"}
         </button>
         <button type="button" className="btn ghost small" onClick={onCancel}>
           Annuler

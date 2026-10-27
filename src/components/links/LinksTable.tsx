@@ -166,7 +166,7 @@ export function LinksTable({
 
   const remove = async (link: ChatLinkRow): Promise<void> => {
     setError(null);
-    if (!window.confirm("Supprimer ce chatbot et ses conversations ?")) return;
+    if (!window.confirm("Supprimer ce lien et ses conversations ?")) return;
     try {
       const response = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
       if (!response.ok) {
@@ -392,7 +392,7 @@ export function LinksTable({
             {visibleLinks.length === 0 ? (
               <tr>
                 <td colSpan={11}>
-                  {links.length === 0 ? "Aucun chatbot." : "Aucun chatbot pour ce créateur."}
+                  {links.length === 0 ? "Aucun lien." : "Aucun lien pour ce créateur."}
                 </td>
               </tr>
             ) : null}
