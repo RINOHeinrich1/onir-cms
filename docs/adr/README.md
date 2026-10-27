@@ -42,3 +42,4 @@ ADR qui remplace la précédente.
 | [0039](./0039-reglages-libres-mode-simple.md) | Réglages libres du mode Simple (langue, ton, garde-fous, champs) | Accepté |
 | [0040](./0040-surface-widget-liens-chat.md) | Surface widget des liens de chat et intégration externe | Accepté |
 | [0041](./0041-canaux-diffusion-multiples-liens-chat.md) | Canaux de diffusion multiples des liens de chat | Accepté |
+| [0042](./0042-api-publique-v1.md) | API publique v1 — contrat OpenAPI, scopes et architecture | Accepté |
