@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.16.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.15.0...v0.16.0) (2026-10-27)
+
+
+### Features
+
+* **api:** API publique v1 et Swagger authentifié ([#82](https://github.com/RINOHeinrich1/onir-cms/issues/82)) ([8000ece](https://github.com/RINOHeinrich1/onir-cms/commit/8000ecea27c97d1432027933d6bb8f6afdc61413))
+* **modeles:** bascule entre vue cartes et tableau ([#79](https://github.com/RINOHeinrich1/onir-cms/issues/79)) ([67c2f86](https://github.com/RINOHeinrich1/onir-cms/commit/67c2f86170fab8a3a13e9e5c8e2be72e1643f977))
+
 ## [0.15.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.14.0...v0.15.0) (2026-10-27)
 
 
