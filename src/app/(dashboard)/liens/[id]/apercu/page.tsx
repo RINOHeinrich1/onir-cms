@@ -7,6 +7,7 @@ import {
   loadTemplateSpec,
 } from "@/application/use-cases/visual-templates/link-template";
 import { TemplateHost } from "@/components/templates/TemplateHost";
+import { channelsForLink } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
@@ -70,17 +71,32 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
   };
-  const spec = await loadTemplateSpec(deps, link, link.surface === "widget" ? "widget" : "page");
+  const channels = channelsForLink(link);
+  const requestedSurface =
+    query.surface === "widget" || query.surface === "page" ? query.surface : null;
+  const surface =
+    requestedSurface !== null && channels[requestedSurface].enabled
+      ? requestedSurface
+      : channels.page.enabled
+        ? "page"
+        : channels.widget.enabled
+          ? "widget"
+          : null;
+  if (surface === null) {
+    notFound();
+  }
+  const channel = channels[surface];
+  const spec = await loadTemplateSpec(deps, link, surface, channel);
   if (spec?.dataContracts.some((contract) => contract.loading === "eager")) {
     const dataDeps = await tryTemplateDataDependencies(pool);
     if (dataDeps !== undefined) deps.data = dataDeps;
   }
 
   let consent: { texte: string; lien: string } | null = null;
-  if (link.surface !== "widget" && link.confidentialiteId !== null) {
+  if (surface === "page" && channel.confidentialiteId !== null) {
     const policy = await pgConfidentialiteRepository(pool).findById(
       organizationId,
-      link.confidentialiteId,
+      channel.confidentialiteId,
     );
     if (policy?.actif === true) consent = { texte: policy.texte, lien: policy.lien };
   }
@@ -89,9 +105,11 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     spec === null
       ? null
       : await buildLinkContext(deps, link, spec, {
-          phase: link.surface === "widget" ? "chat" : "identity",
+          phase: surface === "widget" ? "chat" : "identity",
           messages: [],
-          consent: link.surface === "widget" ? null : consent,
+          consent: surface === "widget" ? null : consent,
+          surface,
+          channel,
           ...(paramsOverride === undefined ? {} : { paramsOverride }),
         });
 
@@ -133,7 +151,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
               baseContext={context}
               conversationId={null}
               initialMessages={[]}
-              anonymous={link.surface === "widget" && link.type === "standard"}
+              anonymous={surface === "widget" && link.type === "standard"}
               preview
             />
           </div>

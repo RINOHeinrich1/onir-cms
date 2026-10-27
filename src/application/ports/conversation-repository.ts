@@ -19,6 +19,7 @@ export type CreateConversationInput = {
   consentementAt: string | null;
   /** Politique de confidentialité acceptée. */
   confidentialiteId: string | null;
+  channel?: "page" | "widget";
 };
 
 /** Compteurs de conversations actives (non archivées), par statut. */
@@ -56,6 +57,7 @@ export interface ConversationRepository {
     organizationId: string,
     linkId: string,
     prospectId: string,
+    channel?: "page" | "widget",
   ): Promise<Conversation | null>;
   /** Liste enrichie filtrée par statut (filtre serveur). */
   listWithDetails(

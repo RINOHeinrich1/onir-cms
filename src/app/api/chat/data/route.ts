@@ -5,6 +5,7 @@ import {
   loadTemplateData,
   type TemplateDataDependencies,
 } from "@/application/use-cases/visual-templates/load-template-data";
+import { channelsForLink, isChatLinkSurface } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
@@ -33,6 +34,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const token = stringField(body, "token");
     const contract = stringField(body, "contract");
+    const surface = stringField(body, "surface");
     if (token === undefined || contract === undefined) {
       return NextResponse.json({ error: "Lien ou ressource manquant" }, { status: 400 });
     }
@@ -82,6 +84,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
+    const channelKind =
+      surface !== undefined && isChatLinkSurface(surface) ? surface : link.surface;
+    const channel = channelsForLink(link)[channelKind];
+    if (!channel.enabled) {
+      return NextResponse.json(
+        { status: "error", code: "DATA_UNAUTHORIZED", message: "Canal de diffusion désactivé" },
+        { status: 404 },
+      );
+    }
     const spec = await loadTemplateSpec(
       {
         visualTemplates: pgVisualTemplateRepository(pool),
@@ -89,6 +100,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         templates: pgChatTemplateRepository(pool),
       },
       link,
+      channelKind,
+      channel,
     );
     if (spec === null) {
       return NextResponse.json(
@@ -114,6 +127,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       spec,
       contractKey: contract,
       inputs: body.inputs,
+      params: channel.visualTemplateParams,
     });
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

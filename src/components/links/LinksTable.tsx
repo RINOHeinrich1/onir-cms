@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { channelsForLink } from "@/domain/entities/chat";
 import { LinkEditModal } from "./LinkEditModal";
 import { LinkForm } from "./LinkForm";
 import type {
@@ -252,13 +253,20 @@ export function LinksTable({
               const expired =
                 link.expiresAt !== null &&
                 new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
+              const channels = channelsForLink(link);
+              const pageEnabled = channels.page.enabled;
+              const widgetEnabled = channels.widget.enabled;
+              const previewSurface = pageEnabled ? "page" : "widget";
 
               return (
                 <tr key={link.id}>
                   <td>
                     <span className="badge">{link.type}</span>
-                    {link.surface === "widget" ? <div className="muted-text">widget</div> : null}
-                    {link.identificationMode === "anonymous" ? (
+                    <div className="channel-badges">
+                      {pageEnabled ? <span className="badge muted">page</span> : null}
+                      {widgetEnabled ? <span className="badge orange">widget</span> : null}
+                    </div>
+                    {pageEnabled && channels.page.identificationMode === "anonymous" ? (
                       <div className="muted-text">anonyme</div>
                     ) : null}
                   </td>
@@ -309,7 +317,11 @@ export function LinksTable({
                     )}
                   </td>
                   <td>
-                    {link.url === null ? (
+                    {!pageEnabled ? (
+                      <span className="muted-text">
+                        Page désactivée{widgetEnabled ? " · widget actif" : ""}
+                      </span>
+                    ) : link.url === null ? (
                       <button
                         type="button"
                         className="btn ghost small"
@@ -342,10 +354,13 @@ export function LinksTable({
                   <td>{new Date(link.createdAt).toLocaleDateString("fr-FR")}</td>
                   <td>
                     <div className="tools">
-                      <a className="btn ghost small" href={`/liens/${link.id}/apercu`}>
+                      <a
+                        className="btn ghost small"
+                        href={`/liens/${link.id}/apercu?surface=${previewSurface}`}
+                      >
                         Aperçu
                       </a>
-                      {link.surface === "widget" ? (
+                      {widgetEnabled ? (
                         <button
                           type="button"
                           className="btn ghost small"

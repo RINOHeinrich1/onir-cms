@@ -15,7 +15,7 @@ export function buildWidgetSnippet(token: string, position: WidgetPosition): str
   return [
     `<script`,
     `  async`,
-    `  src="${base}/widget/v1.js"`,
+    `  src="${base}/widget/v2.js"`,
     `  data-onir-token="${token}"`,
     `  data-onir-position="${position}"`,
     `></script>`,

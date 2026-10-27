@@ -1,5 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -10,24 +10,18 @@ import {
   assertAssignableProvider,
   parseAiAssignmentInput,
 } from "@/application/use-cases/links/link-ai-assignment";
+import { resolveLinkChannels } from "@/application/use-cases/links/link-channels";
 import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import {
-  parseExpiresAt,
-  parseIdentificationMode,
-  parseLabel,
-  parseSurface,
-} from "@/application/use-cases/links/link-fields";
-import { prepareLinkParams } from "@/application/use-cases/links/link-params";
-import { validateWidgetLink } from "@/application/use-cases/links/widget-link";
+import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
+  channelsForLink,
+  legacyChannelFields,
   parseLinkSources,
   parseUserStateEnabled,
-  parseVisualTemplateConfig,
-  parseWidgetConfig,
 } from "@/domain/entities/chat";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { appUrl } from "@/lib/env";
@@ -135,6 +129,7 @@ export async function updateChatLink(
     !("visualTemplateConfig" in source) &&
     !("visualTemplateParams" in source) &&
     !("widgetConfig" in source) &&
+    !("channels" in source) &&
     !("dataBindings" in source) &&
     !("aiProviderId" in source) &&
     !("aiModel" in source)
@@ -146,20 +141,7 @@ export async function updateChatLink(
   if (existing === null) {
     throw new NotFoundError("Lien introuvable");
   }
-  const surface = "surface" in source ? parseSurface(source.surface) : existing.surface;
-  let identificationMode =
-    "identificationMode" in source
-      ? parseIdentificationMode(source.identificationMode)
-      : existing.identificationMode;
-  // Un widget standard n'a pas de formulaire : sans choix explicite, il est anonyme.
-  if (surface === "widget" && existing.type === "standard" && !("identificationMode" in source)) {
-    identificationMode = "anonymous";
-  }
-  if (existing.type === "specifique" && identificationMode !== "contact") {
-    throw new ValidationError(
-      "Un lien spécifique utilise le prospect rattaché : le mode anonyme est indisponible",
-    );
-  }
+  const existingChannels = channelsForLink(existing);
   const dataBindings = parseDataBindingSelections(source.dataBindings);
   const aiAssignment = parseAiAssignmentInput(source, {
     aiProviderId: existing.aiProviderId,
@@ -170,96 +152,32 @@ export async function updateChatLink(
     await assertAssignableProvider(deps, organizationId, aiAssignment);
   }
 
-  const nextVisualTemplateId =
-    "visualTemplateId" in source
-      ? typeof source.visualTemplateId === "string" && source.visualTemplateId.trim() !== ""
-        ? source.visualTemplateId.trim()
-        : null
-      : existing.visualTemplateId;
-  const nextVisualTemplateVersion =
-    "visualTemplateVersion" in source
-      ? typeof source.visualTemplateVersion === "string" &&
-        source.visualTemplateVersion.trim() !== ""
-        ? source.visualTemplateVersion.trim()
-        : null
-      : existing.visualTemplateVersion;
-  const nextVisualTemplateParams =
-    "visualTemplateParams" in source
-      ? await prepareLinkParams(
-          deps.visualTemplates,
-          nextVisualTemplateId,
-          nextVisualTemplateVersion,
-          source.visualTemplateParams,
-        )
-      : existing.visualTemplateParams;
-
-  // Un nouveau choix de template visuel doit être assigné à l'organisation.
-  // Un template déjà posé reste accepté même s'il a été retiré depuis (A057).
-  if (nextVisualTemplateId !== null && nextVisualTemplateId !== existing.visualTemplateId) {
-    const assigned = await deps.visualTemplates.findAssignedById(
-      organizationId,
-      nextVisualTemplateId,
-    );
-    if (assigned === null) {
-      throw new NotFoundError("Template visuel introuvable");
-    }
-  }
-
-  let confidentialiteId: string | null =
-    "confidentialiteId" in source
-      ? typeof source.confidentialiteId === "string" && source.confidentialiteId.trim() !== ""
-        ? source.confidentialiteId.trim()
-        : null
-      : existing.confidentialiteId;
-  if (surface === "widget") {
-    if (
-      "confidentialiteId" in source &&
-      typeof source.confidentialiteId === "string" &&
-      source.confidentialiteId.trim() !== ""
-    ) {
-      throw new ValidationError("Un widget ne peut pas porter de politique de confidentialité");
-    }
-    confidentialiteId = null;
-  }
-
-  const parsedWidgetConfig =
-    "widgetConfig" in source ? parseWidgetConfig(source.widgetConfig) : existing.widgetConfig;
-  const widgetInfo = await validateWidgetLink(deps.visualTemplates, organizationId, {
-    surface,
+  const channels = await resolveLinkChannels({
     type: existing.type,
-    identificationMode,
-    confidentialiteId,
-    visualTemplateId: nextVisualTemplateId,
-    visualTemplateVersion: nextVisualTemplateVersion,
-    widgetConfig: parsedWidgetConfig,
+    source,
+    existing: existingChannels,
+    visualTemplates: deps.visualTemplates,
+    organizationId,
   });
-  const widgetConfig = widgetInfo?.widgetConfig ?? parsedWidgetConfig;
+  const summary = legacyChannelFields(channels);
 
-  const updated = await deps.links.updateDetails(organizationId, id, {
+  const updatedRaw = await deps.links.updateDetails(organizationId, id, {
     label: "label" in source ? parseLabel(source.label) : existing.label,
-    surface,
-    identificationMode,
+    ...summary,
     expiresAt: "expiresAt" in source ? parseExpiresAt(source.expiresAt) : existing.expiresAt,
     sources: "sources" in source ? parseLinkSources(source.sources) : existing.sources,
-    confidentialiteId,
     userStateEnabled:
       "userStateEnabled" in source
         ? parseUserStateEnabled(source.userStateEnabled)
         : existing.userStateEnabled,
-    visualTemplateId: nextVisualTemplateId,
-    visualTemplateVersion: nextVisualTemplateVersion,
-    visualTemplateConfig:
-      "visualTemplateConfig" in source
-        ? parseVisualTemplateConfig(source.visualTemplateConfig)
-        : existing.visualTemplateConfig,
-    visualTemplateParams: nextVisualTemplateParams,
-    widgetConfig,
+    channels,
     aiProviderId: aiAssignment === null ? existing.aiProviderId : aiAssignment.aiProviderId,
     aiModel: aiAssignment === null ? existing.aiModel : aiAssignment.aiModel,
   });
-  if (updated === null) {
+  if (updatedRaw === null) {
     throw new NotFoundError("Lien introuvable");
   }
+  const updated: ChatLink = { ...updatedRaw, channels };
 
   const templateChanged =
     updated.visualTemplateId !== existing.visualTemplateId ||

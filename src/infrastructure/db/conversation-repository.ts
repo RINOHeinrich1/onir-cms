@@ -32,11 +32,12 @@ type ConversationRow = {
   last_message_at: Date | null;
   consentement_at: Date | null;
   confidentialite_id: string | null;
+  channel: string;
   created_at: Date;
 };
 
 const CONVERSATION_COLUMNS =
-  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, created_at";
+  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, channel, created_at";
 
 type MessageRow = {
   id: string;
@@ -78,6 +79,7 @@ function toConversation(row: ConversationRow): Conversation {
     lastMessageAt: row.last_message_at ? row.last_message_at.toISOString() : null,
     consentementAt: row.consentement_at ? row.consentement_at.toISOString() : null,
     confidentialiteId: row.confidentialite_id,
+    channel: row.channel === "widget" ? "widget" : "page",
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -191,12 +193,14 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
       organizationId,
       linkId,
       prospectId,
+      channel = "page",
     ): Promise<Conversation | null> {
       const { rows } = await pool.query<ConversationRow>(
         `SELECT ${CONVERSATION_COLUMNS} FROM conversations
-         WHERE organization_id = $1 AND link_id = $2 AND prospect_id = $3 AND statut = 'en_cours'
+         WHERE organization_id = $1 AND link_id = $2 AND prospect_id = $3
+           AND channel = $4 AND statut = 'en_cours'
          ORDER BY created_at DESC LIMIT 1`,
-        [organizationId, linkId, prospectId],
+        [organizationId, linkId, prospectId, channel],
       );
       const row = rows[0];
       return row ? toConversation(row) : null;
@@ -272,8 +276,8 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
 
     async create(organizationId, input: CreateConversationInput): Promise<Conversation> {
       const { rows } = await pool.query<ConversationRow>(
-        `INSERT INTO conversations (organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, consentement_at, confidentialite_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO conversations (organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, consentement_at, confidentialite_id, channel)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING ${CONVERSATION_COLUMNS}`,
         [
           organizationId,
@@ -284,6 +288,7 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
           input.prospectId,
           input.consentementAt,
           input.confidentialiteId,
+          input.channel ?? "page",
         ],
       );
       const row = rows[0];

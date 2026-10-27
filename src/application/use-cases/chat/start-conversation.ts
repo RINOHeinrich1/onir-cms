@@ -3,7 +3,13 @@ import type { ChatLinkRepository } from "@/application/ports/chat-link-repositor
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
-import { type Conversation, isContactType, type VisitorContact } from "@/domain/entities/chat";
+import {
+  type ChatLinkSurface,
+  type Conversation,
+  channelsForLink,
+  isContactType,
+  type VisitorContact,
+} from "@/domain/entities/chat";
 import type { Prospect } from "@/domain/entities/prospect";
 import { hashLinkToken } from "@/domain/link-token";
 
@@ -89,7 +95,12 @@ export type StartedConversation = {
  */
 export async function startConversation(
   deps: StartConversationDependencies,
-  input: { token: string; visitor?: unknown; consentement?: unknown },
+  input: {
+    token: string;
+    visitor?: unknown;
+    consentement?: unknown;
+    channel?: ChatLinkSurface;
+  },
 ): Promise<StartedConversation> {
   if (typeof input.token !== "string" || input.token.trim() === "") {
     throw new ValidationError("Lien invalide");
@@ -103,14 +114,19 @@ export async function startConversation(
     throw new ValidationError("Lien expiré");
   }
 
+  const channelKind = input.channel ?? link.surface;
+  const channel = channelsForLink(link)[channelKind];
+  if (!channel.enabled) {
+    throw new NotFoundError("Canal de diffusion désactivé");
+  }
   const organizationId = link.organizationId;
   const organization = await deps.organizations.findById(organizationId);
   if (organization === null || organization.suspendedAt !== null) {
     throw new NotFoundError("Lien invalide ou révoqué");
   }
 
-  if (link.type === "standard" && link.identificationMode === "anonymous") {
-    const consentementRequis = link.confidentialiteId !== null;
+  if (link.type === "standard" && channel.identificationMode === "anonymous") {
+    const consentementRequis = channel.confidentialiteId !== null;
     const consentement = input.consentement === true;
     if (consentementRequis && !consentement) {
       throw new ValidationError(
@@ -124,13 +140,14 @@ export async function startConversation(
       visitorContacts: [],
       prospectId: null,
       consentementAt: consentementRequis ? new Date().toISOString() : null,
-      confidentialiteId: consentementRequis ? link.confidentialiteId : null,
+      confidentialiteId: consentementRequis ? channel.confidentialiteId : null,
+      channel: channelKind,
     });
     return { conversation, prospect: null, resumed: false };
   }
 
   if (link.type === "standard") {
-    if (link.identificationMode !== "contact") {
+    if (channel.identificationMode !== "contact") {
       throw new ValidationError("Mode d'identification indisponible");
     }
     const source =
@@ -144,7 +161,7 @@ export async function startConversation(
     }
     const contacts = parseContacts(source.contacts);
 
-    const consentementRequis = link.confidentialiteId !== null;
+    const consentementRequis = channel.confidentialiteId !== null;
     const consentement = input.consentement === true;
     if (consentementRequis && !consentement) {
       throw new ValidationError(
@@ -164,6 +181,7 @@ export async function startConversation(
       organizationId,
       link.id,
       prospect.id,
+      channelKind,
     );
     if (existing !== null) {
       return { conversation: existing, prospect, resumed: true };
@@ -175,7 +193,8 @@ export async function startConversation(
       visitorContacts: contacts,
       prospectId: prospect.id,
       consentementAt,
-      confidentialiteId: consentementAt !== null ? link.confidentialiteId : null,
+      confidentialiteId: consentementAt !== null ? channel.confidentialiteId : null,
+      channel: channelKind,
     });
     return { conversation, prospect, resumed: false };
   }
@@ -189,6 +208,7 @@ export async function startConversation(
       organizationId,
       link.id,
       prospect.id,
+      channelKind,
     );
     if (existing !== null) {
       return { conversation: existing, prospect, resumed: true };
@@ -202,6 +222,7 @@ export async function startConversation(
     prospectId: prospect?.id ?? null,
     consentementAt: null,
     confidentialiteId: null,
+    channel: channelKind,
   });
   return { conversation, prospect, resumed: false };
 }

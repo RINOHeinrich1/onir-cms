@@ -1,6 +1,7 @@
 import type {
   ActiveLinkIdentificationMode,
   ChatLink,
+  ChatLinkChannels,
   ChatLinkSources,
   ChatLinkSurface,
   ChatLinkType,
@@ -35,6 +36,8 @@ export type CreateChatLinkInput = {
   /** Variables du template visuel valorisées par lien (ADR-0023). */
   visualTemplateParams: Record<string, string | number | boolean>;
   widgetConfig: Record<string, unknown>;
+  /** Canaux page/widget (ADR-0041) ; absent = dérivé des champs legacy. */
+  channels?: ChatLinkChannels;
   /** Affectation IA explicite (ADR-0029) ; absent/null = hériter. */
   aiProviderId?: string | null;
   aiModel?: string | null;
@@ -56,17 +59,18 @@ export interface ChatLinkRepository {
     id: string,
     patch: {
       label: string;
-      surface: ChatLinkSurface;
-      identificationMode: ActiveLinkIdentificationMode;
+      surface?: ChatLinkSurface;
+      identificationMode?: ActiveLinkIdentificationMode;
       expiresAt: string | null;
       sources: ChatLinkSources;
-      confidentialiteId: string | null;
+      confidentialiteId?: string | null;
       userStateEnabled: boolean;
-      visualTemplateId: string | null;
-      visualTemplateVersion: string | null;
-      visualTemplateConfig: Record<string, string>;
-      visualTemplateParams: Record<string, string | number | boolean>;
-      widgetConfig: Record<string, unknown>;
+      visualTemplateId?: string | null;
+      visualTemplateVersion?: string | null;
+      visualTemplateConfig?: Record<string, string>;
+      visualTemplateParams?: Record<string, string | number | boolean>;
+      widgetConfig?: Record<string, unknown>;
+      channels?: ChatLinkChannels;
       aiProviderId?: string | null;
       aiModel?: string | null;
     },

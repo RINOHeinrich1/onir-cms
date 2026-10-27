@@ -31,7 +31,7 @@ describe("surface widget — domaine", () => {
 
   it("génère un snippet avec token et position, sans template", () => {
     const snippet = buildWidgetSnippet("lk_test", "bottom-left");
-    expect(snippet).toContain("widget/v1.js");
+    expect(snippet).toContain("widget/v2.js");
     expect(snippet).toContain('data-onir-token="lk_test"');
     expect(snippet).toContain('data-onir-position="bottom-left"');
     expect(snippet).not.toContain("template");
