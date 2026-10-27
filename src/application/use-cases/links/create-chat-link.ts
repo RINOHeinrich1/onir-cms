@@ -21,8 +21,10 @@ import {
   parseExpiresAt,
   parseIdentificationMode,
   parseLabel,
+  parseSurface,
 } from "@/application/use-cases/links/link-fields";
 import { prepareLinkParams } from "@/application/use-cases/links/link-params";
+import { validateWidgetLink } from "@/application/use-cases/links/widget-link";
 import {
   type ChatLink,
   type ChatLinkType,
@@ -30,6 +32,7 @@ import {
   parseLinkSources,
   parseUserStateEnabled,
   parseVisualTemplateConfig,
+  parseWidgetConfig,
 } from "@/domain/entities/chat";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { encryptLinkToken } from "@/lib/link-crypto";
@@ -78,7 +81,12 @@ export async function createChatLink(
   const type: ChatLinkType = rawType;
 
   const rawProspectId = typeof source.prospectId === "string" ? source.prospectId.trim() : "";
-  const identificationMode = parseIdentificationMode(source.identificationMode);
+  const surface = parseSurface(source.surface);
+  let identificationMode = parseIdentificationMode(source.identificationMode);
+  // Un widget standard n'a pas de formulaire : sans choix explicite, il est anonyme.
+  if (surface === "widget" && type === "standard" && !("identificationMode" in source)) {
+    identificationMode = "anonymous";
+  }
   const label = parseLabel(source.label);
   const expiresAt = parseExpiresAt(source.expiresAt);
 
@@ -101,6 +109,7 @@ export async function createChatLink(
       ? source.visualTemplateVersion.trim()
       : null;
   const visualTemplateConfig = parseVisualTemplateConfig(source.visualTemplateConfig);
+  const parsedWidgetConfig = parseWidgetConfig(source.widgetConfig);
   const dataBindings = parseDataBindingSelections(source.dataBindings);
   const visualTemplateParams = await prepareLinkParams(
     deps.visualTemplates,
@@ -110,8 +119,16 @@ export async function createChatLink(
   );
 
   // Politique de confidentialité : choisie explicitement, sinon la première active.
+  // Un widget n'affiche aucune politique et ne peut pas en porter.
   let confidentialiteId: string | null = null;
-  if ("confidentialiteId" in source) {
+  if (surface === "widget") {
+    if ("confidentialiteId" in source) {
+      const raw = source.confidentialiteId;
+      if (typeof raw === "string" && raw.trim() !== "") {
+        throw new ValidationError("Un widget ne peut pas porter de politique de confidentialité");
+      }
+    }
+  } else if ("confidentialiteId" in source) {
     const raw = source.confidentialiteId;
     confidentialiteId = typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
   } else {
@@ -150,12 +167,24 @@ export async function createChatLink(
     }
   }
 
+  const widgetInfo = await validateWidgetLink(deps.visualTemplates, organizationId, {
+    surface,
+    type,
+    identificationMode,
+    confidentialiteId,
+    visualTemplateId,
+    visualTemplateVersion,
+    widgetConfig: parsedWidgetConfig,
+  });
+  const widgetConfig = widgetInfo?.widgetConfig ?? parsedWidgetConfig;
+
   const token = generateLinkToken();
   const link = await deps.links.create(organizationId, {
     tokenHash: hashLinkToken(token),
     tokenEnc: encryptLinkToken(token),
     label,
     type,
+    surface,
     identificationMode,
     prospectId: type === "specifique" ? rawProspectId : null,
     createdBy: actor.id,
@@ -169,6 +198,7 @@ export async function createChatLink(
     visualTemplateVersion,
     visualTemplateConfig,
     visualTemplateParams,
+    widgetConfig,
     aiProviderId: aiAssignment?.aiProviderId ?? null,
     aiModel: aiAssignment?.aiModel ?? null,
   });

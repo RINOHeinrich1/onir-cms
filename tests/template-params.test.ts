@@ -170,6 +170,7 @@ describe("manifeste et contrat", () => {
 
   it("expose ctx.params gelé", () => {
     const ctx = buildTemplateContext({
+      surface: "page",
       link: { type: "standard", label: "" },
       locale: "fr",
       brand: { name: "ONIRTECH", logoUrl: null },

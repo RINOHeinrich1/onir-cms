@@ -70,6 +70,8 @@ export type Prospect = {
   lienId: string | null;
   /** Libellé du lien d'entrée (modèle de lecture, sinon null). */
   lienLabel: string | null;
+  /** Vrai si aucun email exploitable n'a été fourni (widget sans contact). */
+  contactMissing: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

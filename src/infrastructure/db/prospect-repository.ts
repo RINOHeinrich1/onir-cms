@@ -49,6 +49,7 @@ function toEntity(row: ProspectRow): Prospect {
     origine: parseOrigineProspect(row.origine),
     lienId: row.link_id,
     lienLabel: row.lien_label ?? null,
+    contactMissing: row.email.trim() === "",
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

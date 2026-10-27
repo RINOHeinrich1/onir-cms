@@ -37,6 +37,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     tokenEnc: "enc",
     label: "Lien IA",
     type: "standard",
+    surface: "page" as const,
     identificationMode: "contact",
     prospectId: null,
     createdBy: null,
@@ -50,6 +51,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     visualTemplateVersion: null,
     visualTemplateConfig: {},
     visualTemplateParams: {},
+    widgetConfig: {},
     ...overrides,
   };
 }
@@ -92,6 +94,7 @@ describe("chat_links — affectation IA", () => {
     );
     const updated = await repo.updateDetails(orgA, created.id, {
       label: created.label,
+      surface: "page" as const,
       identificationMode: "contact",
       expiresAt: null,
       sources: created.sources,
@@ -101,6 +104,7 @@ describe("chat_links — affectation IA", () => {
       visualTemplateVersion: null,
       visualTemplateConfig: {},
       visualTemplateParams: {},
+      widgetConfig: {},
       aiProviderId: null,
       aiModel: null,
     });

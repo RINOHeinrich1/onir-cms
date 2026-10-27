@@ -2,6 +2,7 @@ import type { ChatLinkListItem } from "@/application/use-cases/links/link-urls";
 import type { ChatLink } from "@/domain/entities/chat";
 import type { Prospect } from "@/domain/entities/prospect";
 import type { TemplateParamSchema } from "@/domain/template-params";
+import type { WidgetDisplay } from "@/domain/widget";
 
 /** Lien exposé au client (jamais le hash du jeton). */
 export type ChatLinkDto = ChatLink;
@@ -23,7 +24,11 @@ export type AiProviderOption = {
 export type VisualTemplateOption = {
   id: string;
   name: string;
-  versions: { version: string; params: TemplateParamSchema[] }[];
+  versions: {
+    version: string;
+    params: TemplateParamSchema[];
+    widget: WidgetDisplay | null;
+  }[];
 };
 
 export type CreatedLink = {
@@ -31,6 +36,7 @@ export type CreatedLink = {
   /** Jeton en clair : affiché à la demande (le chiffré est en base). */
   token: string;
   url: string;
-  /** Vrai après une rotation (l'ancien jeton de la ligne est alors invalidé). */
-  rotated: boolean;
+  /** Snippet widget (si le lien a la surface widget). */
+  widgetSnippet?: string;
+  widgetEmbedUrl?: string;
 };

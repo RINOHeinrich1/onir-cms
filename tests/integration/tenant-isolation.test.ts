@@ -32,6 +32,7 @@ function linkInput(tokenHash: string) {
     tokenEnc: "enc",
     label: tokenHash,
     type: "standard" as const,
+    surface: "page" as const,
     identificationMode: "contact" as const,
     prospectId: null,
     createdBy: null,
@@ -45,6 +46,7 @@ function linkInput(tokenHash: string) {
     visualTemplateVersion: null,
     visualTemplateConfig: {},
     visualTemplateParams: {},
+    widgetConfig: {},
     aiProviderId: null,
     aiModel: null,
   };
@@ -151,6 +153,7 @@ describe("isolation croisée SQL — liens et conversations", () => {
     expect(
       await repo.updateDetails(orgA, b.id, {
         label: "piraté",
+        surface: "page" as const,
         identificationMode: "contact",
         expiresAt: null,
         sources: { connaissances: true, phototheque: true, lien: true },
@@ -160,6 +163,7 @@ describe("isolation croisée SQL — liens et conversations", () => {
         visualTemplateVersion: null,
         visualTemplateConfig: {},
         visualTemplateParams: {},
+        widgetConfig: {},
         aiProviderId: null,
         aiModel: null,
       }),

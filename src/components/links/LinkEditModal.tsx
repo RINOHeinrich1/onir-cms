@@ -6,10 +6,13 @@ import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ACTIVE_LINK_IDENTIFICATION_MODES,
   type ActiveLinkIdentificationMode,
+  CHAT_LINK_SURFACES,
   type ChatLinkSources,
+  type ChatLinkSurface,
 } from "@/domain/entities/chat";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { orphanParamKeys } from "@/domain/template-params";
+import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { SourcesField } from "./SourcesField";
@@ -25,6 +28,7 @@ import {
   defaultsForSchema,
   paramsSchemaForSelection,
   parseVisualTemplateSelection,
+  widgetDisplayForSelection,
 } from "./visual-template-selection";
 
 /**
@@ -49,6 +53,7 @@ export function LinkEditModal({
   onClose: () => void;
 }) {
   const [label, setLabel] = useState(link.label);
+  const [surface, setSurface] = useState<ChatLinkSurface>(link.surface);
   const [identificationMode, setIdentificationMode] = useState<ActiveLinkIdentificationMode>(
     link.identificationMode,
   );
@@ -64,6 +69,9 @@ export function LinkEditModal({
       : "",
   );
   const [params, setParams] = useState<TemplateParamValues>({ ...link.visualTemplateParams });
+  const [widgetPosition, setWidgetPosition] = useState<WidgetPosition>(
+    link.widgetConfig.position ?? "bottom-right",
+  );
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
   const [dataBindingsLoaded, setDataBindingsLoaded] = useState(false);
   const [ai, setAi] = useState<LinkAiValue>({
@@ -75,8 +83,19 @@ export function LinkEditModal({
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const paramsSchema = paramsSchemaForSelection(visualTemplates, visualTemplate);
+  const widgetDisplay = widgetDisplayForSelection(visualTemplates, visualTemplate);
+  const selectableVisualTemplates =
+    surface === "widget"
+      ? visualTemplates.filter((item) => item.versions.some((version) => version.widget !== null))
+      : visualTemplates;
   const orphans = orphanParamKeys(paramsSchema, params);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (widgetDisplay !== null && !widgetDisplay.allowedPositions.includes(widgetPosition)) {
+      setWidgetPosition(widgetDisplay.defaultPosition);
+    }
+  }, [widgetDisplay, widgetPosition]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,14 +126,19 @@ export function LinkEditModal({
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    setPending(true);
     setError(null);
+    if (surface === "widget" && widgetDisplay === null) {
+      setError("Choisissez un template visuel compatible avec le widget");
+      return;
+    }
+    setPending(true);
     try {
       const response = await fetch(`/api/links/${link.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label,
+          surface,
           identificationMode,
           expiresAt,
           sources,
@@ -128,6 +152,7 @@ export function LinkEditModal({
               visualTemplateId: parsed.id,
               visualTemplateVersion: parsed.version,
               visualTemplateParams: params,
+              ...(surface === "widget" ? { widgetConfig: { position: widgetPosition } } : {}),
               ...(dataBindingsLoaded ? { dataBindings } : {}),
             };
           })(),
@@ -173,7 +198,38 @@ export function LinkEditModal({
               Type : <span className="badge">{link.type}</span> — non modifiable.
             </p>
 
-            {link.type === "standard" ? (
+            <label className="field">
+              Diffusion
+              <select
+                value={surface}
+                onChange={(event) => {
+                  const next = event.target.value as ChatLinkSurface;
+                  setSurface(next);
+                  if (next === "widget") {
+                    if (link.type === "standard") setIdentificationMode("anonymous");
+                    setConfidentialiteId("");
+                    if (widgetDisplayForSelection(visualTemplates, visualTemplate) === null) {
+                      setVisualTemplate("");
+                      setParams({});
+                      setDataBindings({});
+                      setDataBindingsLoaded(true);
+                    }
+                  }
+                }}
+              >
+                {CHAT_LINK_SURFACES.map((value) => (
+                  <option key={value} value={value}>
+                    {value === "page" ? "Page publique" : "Widget intégrable"}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {link.type === "standard" && surface === "widget" ? (
+              <p className="hint">
+                Identification : anonyme (obligatoire). Aucun formulaire de contact dans le widget.
+              </p>
+            ) : link.type === "standard" ? (
               <label className="field">
                 Identification
                 <select
@@ -217,52 +273,84 @@ export function LinkEditModal({
 
             <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
 
-            <label className="field">
-              Confidentialité
-              <select
-                value={confidentialiteId}
-                onChange={(event) => setConfidentialiteId(event.target.value)}
-              >
-                <option value="">— Aucune —</option>
-                {confidentialites.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.titre}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {surface === "widget" ? (
+              <p className="hint">Confidentialité : aucune politique affichée dans le widget.</p>
+            ) : (
+              <label className="field">
+                Confidentialité
+                <select
+                  value={confidentialiteId}
+                  onChange={(event) => setConfidentialiteId(event.target.value)}
+                >
+                  <option value="">— Aucune —</option>
+                  {confidentialites.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.titre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <label className="field">
               Template visuel
               <select
                 value={visualTemplate}
+                disabled={selectableVisualTemplates.length === 0}
                 onChange={(event) => {
-                  setVisualTemplate(event.target.value);
-                  setParams(
-                    defaultsForSchema(
-                      paramsSchemaForSelection(visualTemplates, event.target.value),
-                    ),
-                  );
+                  const next = event.target.value;
+                  const display = widgetDisplayForSelection(visualTemplates, next);
+                  setVisualTemplate(next);
+                  setParams(defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)));
                   setDataBindings({});
                   setDataBindingsLoaded(true);
+                  if (display !== null) setWidgetPosition(display.defaultPosition);
                 }}
               >
                 <option value="">— Défaut —</option>
-                {visualTemplates.flatMap((item) =>
-                  item.versions.map((entry) => (
-                    <option
-                      key={`${item.id}@${entry.version}`}
-                      value={`${item.id}@${entry.version}`}
-                    >
-                      {item.name} ({entry.version})
-                    </option>
-                  )),
+                {selectableVisualTemplates.flatMap((item) =>
+                  item.versions
+                    .filter((entry) => surface !== "widget" || entry.widget !== null)
+                    .map((entry) => (
+                      <option
+                        key={`${item.id}@${entry.version}`}
+                        value={`${item.id}@${entry.version}`}
+                      >
+                        {item.name} ({entry.version})
+                      </option>
+                    )),
                 )}
               </select>
               <span className="hint">
-                Changer de template réinitialise ses paramètres aux valeurs par défaut.
+                {surface === "widget" && selectableVisualTemplates.length === 0
+                  ? "Aucun template installé ne supporte le widget."
+                  : "Changer de template réinitialise ses paramètres aux valeurs par défaut."}
               </span>
             </label>
+
+            {surface === "widget" && widgetDisplay !== null ? (
+              <label className="field">
+                Position du widget
+                <select
+                  value={widgetPosition}
+                  onChange={(event) => setWidgetPosition(event.target.value as WidgetPosition)}
+                >
+                  {WIDGET_POSITIONS.filter((position) =>
+                    widgetDisplay.allowedPositions.includes(position),
+                  ).map((position) => (
+                    <option key={position} value={position}>
+                      {position === "bottom-right"
+                        ? "En bas à droite"
+                        : position === "bottom-left"
+                          ? "En bas à gauche"
+                          : position === "top-right"
+                            ? "En haut à droite"
+                            : "En haut à gauche"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             <LinkDataBindingsField
               templateId={parseVisualTemplateSelection(visualTemplate).id}

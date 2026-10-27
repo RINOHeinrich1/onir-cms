@@ -26,19 +26,25 @@ export type LinkTemplateDependencies = {
 export async function loadTemplateSpec(
   deps: LinkTemplateDependencies,
   link: ChatLink,
+  surface: "page" | "widget" = "page",
 ): Promise<TemplateSpec | null> {
   if (link.visualTemplateId === null || link.visualTemplateVersion === null) return null;
   const template = await deps.visualTemplates.findById(link.visualTemplateId);
   if (template === null) return null;
   const version = await deps.visualTemplates.findVersion(template.id, link.visualTemplateVersion);
   if (version === null) return null;
+  const widget = version.manifest.ui.widget;
+  if (surface === "widget" && widget === undefined) return null;
   return {
     id: template.id,
     versionId: version.id,
     version: version.version,
     mode: version.mode,
-    entryUrl: `/api/template-assets/${template.id}/${version.version}/${version.entry}`,
-    element: version.manifest.ui.element,
+    entryUrl: `/api/template-assets/${template.id}/${version.version}/${
+      surface === "widget" && widget !== undefined ? widget.entry : version.entry
+    }`,
+    element:
+      surface === "widget" && widget !== undefined ? widget.element : version.manifest.ui.element,
     capabilities: version.manifest.capabilities,
     // Manifestes legacy (avant ADR-0023) : `params` absent => aucun paramètre.
     params: Array.isArray(version.manifest.params) ? version.manifest.params : [],
@@ -139,6 +145,7 @@ export async function buildLinkContext(
       })) ?? null;
   }
   const context = buildTemplateContext({
+    surface: link.surface,
     link: { type: link.type, label: link.label },
     locale: "fr",
     brand: { name: "ONIRTECH", logoUrl: null },

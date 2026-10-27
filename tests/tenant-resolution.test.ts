@@ -29,6 +29,7 @@ function link(organizationId: string): ChatLink {
     organizationId,
     label: "",
     type: "standard",
+    surface: "page",
     identificationMode: "contact",
     prospectId: null,
     createdBy: "admin-a",
@@ -43,6 +44,7 @@ function link(organizationId: string): ChatLink {
     visualTemplateVersion: null,
     visualTemplateConfig: {},
     visualTemplateParams: {},
+    widgetConfig: {},
     aiProviderId: null,
     aiModel: null,
     visitCount: 0,
@@ -95,6 +97,7 @@ describe("résolution tenant — aucun organizationId client (ADR-0025 §4)", ()
     const deps = createDeps(created);
     await createChatLink(deps, ACTOR, {
       type: "standard",
+      surface: "page",
       identificationMode: "contact",
       organizationId: "org-b",
     });

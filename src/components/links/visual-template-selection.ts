@@ -1,6 +1,7 @@
 "use client";
 
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type { WidgetDisplay } from "@/domain/widget";
 import type { VisualTemplateOption } from "./types";
 
 /** Décompose la sélection "templateId@version" du menu. */
@@ -38,4 +39,15 @@ export function encodeParamsOverride(values: unknown): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Réglages widget de la version sélectionnée (null si non compatible). */
+export function widgetDisplayForSelection(
+  templates: VisualTemplateOption[],
+  selection: string,
+): WidgetDisplay | null {
+  const { id, version } = parseVisualTemplateSelection(selection);
+  if (id === null || version === null) return null;
+  const template = templates.find((item) => item.id === id);
+  return template?.versions.find((entry) => entry.version === version)?.widget ?? null;
 }

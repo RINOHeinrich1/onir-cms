@@ -28,6 +28,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     tokenEnc: "enc",
     label: "Lien visites",
     type: "standard",
+    surface: "page" as const,
     identificationMode: "contact",
     prospectId: null,
     createdBy: null,
@@ -41,6 +42,7 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     visualTemplateVersion: null,
     visualTemplateConfig: {},
     visualTemplateParams: {},
+    widgetConfig: {},
     ...overrides,
   };
 }

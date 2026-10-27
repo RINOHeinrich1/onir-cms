@@ -6,6 +6,13 @@
  */
 import { type TemplateDataContract, validateTemplateDataBlock } from "@/domain/data-contracts";
 import { type TemplateParamSchema, validateTemplateParamSchema } from "@/domain/template-params";
+import {
+  DEFAULT_WIDGET_DISPLAY,
+  WIDGET_POSITIONS,
+  type WidgetDisplay,
+  type WidgetPosition,
+  type WidgetSize,
+} from "@/domain/widget";
 
 export const TEMPLATE_HOST_PROTOCOL = "onirtech.template-host.v1";
 export const TEMPLATE_SCHEMA_VERSION = 1;
@@ -37,6 +44,13 @@ export type TemplateCapability = (typeof TEMPLATE_CAPABILITIES)[number];
 export const TEMPLATE_SHADOW_DOMS = ["open", "closed", "none"] as const;
 export type TemplateShadowDom = (typeof TEMPLATE_SHADOW_DOMS)[number];
 
+export type TemplateWidgetSurface = {
+  entry: string;
+  element: string;
+  integrity: string;
+  display: WidgetDisplay;
+};
+
 export type TemplateManifest = {
   schemaVersion: number;
   kind: typeof TEMPLATE_KIND;
@@ -52,6 +66,8 @@ export type TemplateManifest = {
     element: string;
     integrity: string;
     shadowDom: TemplateShadowDom;
+    /** Surface widget optionnelle (ADR-0040). Absent = template page uniquement. */
+    widget?: TemplateWidgetSurface;
   };
   capabilities: TemplateCapability[];
   network: string[];
@@ -86,6 +102,97 @@ export function normalizeArchivePath(path: string): string {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function parseWidgetSize(
+  value: unknown,
+  field: string,
+  add: (field: string, message: string) => void,
+): WidgetSize | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    add(field, "objet { width, height } attendu");
+    return null;
+  }
+  const size = value as Record<string, unknown>;
+  const width = size.width;
+  const height = size.height;
+  if (!Number.isInteger(width) || (width as number) < 24 || (width as number) > 1200) {
+    add(`${field}.width`, "entier 24..1200 attendu");
+  }
+  if (!Number.isInteger(height) || (height as number) < 24 || (height as number) > 2000) {
+    add(`${field}.height`, "entier 24..2000 attendu");
+  }
+  return Number.isInteger(width) && Number.isInteger(height)
+    ? { width: width as number, height: height as number }
+    : null;
+}
+
+function parseWidgetDisplay(
+  value: unknown,
+  add: (field: string, message: string) => void,
+): WidgetDisplay {
+  if (value === undefined) return { ...DEFAULT_WIDGET_DISPLAY };
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    add("ui.widget.display", "objet attendu");
+    return { ...DEFAULT_WIDGET_DISPLAY };
+  }
+  const src = value as Record<string, unknown>;
+  const defaultPositionRaw = text(src.defaultPosition);
+  const defaultPosition =
+    defaultPositionRaw === "" ? DEFAULT_WIDGET_DISPLAY.defaultPosition : defaultPositionRaw;
+  if (!(WIDGET_POSITIONS as readonly string[]).includes(defaultPosition)) {
+    add("ui.widget.display.defaultPosition", `position ∈ ${WIDGET_POSITIONS.join(", ")}`);
+  }
+
+  const allowedRaw = src.allowedPositions;
+  const allowedPositions = isStringArray(allowedRaw)
+    ? allowedRaw.filter((entry): entry is WidgetPosition =>
+        (WIDGET_POSITIONS as readonly string[]).includes(entry),
+      )
+    : [...DEFAULT_WIDGET_DISPLAY.allowedPositions];
+  if (allowedRaw !== undefined && !isStringArray(allowedRaw)) {
+    add("ui.widget.display.allowedPositions", "liste de positions attendue");
+  }
+  if (allowedPositions.length === 0) {
+    add("ui.widget.display.allowedPositions", "au moins une position");
+  }
+  if (!allowedPositions.includes(defaultPosition as WidgetPosition)) {
+    add("ui.widget.display.allowedPositions", "doit contenir defaultPosition");
+  }
+
+  const closedSize = parseWidgetSize(
+    src.closedSize ?? DEFAULT_WIDGET_DISPLAY.closedSize,
+    "ui.widget.display.closedSize",
+    add,
+  );
+  const openSize = parseWidgetSize(
+    src.openSize ?? DEFAULT_WIDGET_DISPLAY.openSize,
+    "ui.widget.display.openSize",
+    add,
+  );
+  const maxSize = parseWidgetSize(
+    src.maxSize ?? DEFAULT_WIDGET_DISPLAY.maxSize,
+    "ui.widget.display.maxSize",
+    add,
+  );
+  if (openSize !== null && maxSize !== null) {
+    if (openSize.width > maxSize.width || openSize.height > maxSize.height) {
+      add("ui.widget.display.maxSize", "doit être supérieure ou égale à openSize");
+    }
+  }
+  if (closedSize !== null && openSize !== null) {
+    if (closedSize.width > openSize.width || closedSize.height > openSize.height) {
+      add("ui.widget.display.openSize", "doit être supérieure ou égale à closedSize");
+    }
+  }
+
+  return {
+    defaultPosition: defaultPosition as WidgetPosition,
+    allowedPositions,
+    closedSize: closedSize ?? DEFAULT_WIDGET_DISPLAY.closedSize,
+    openSize: openSize ?? DEFAULT_WIDGET_DISPLAY.openSize,
+    maxSize: maxSize ?? DEFAULT_WIDGET_DISPLAY.maxSize,
+  };
 }
 
 /** Valide un manifeste de template visuel (norme v1). */
@@ -177,6 +284,36 @@ export function validateTemplateManifest(
     }
   }
 
+  let widget: TemplateWidgetSurface | undefined;
+  if (ui.widget !== undefined) {
+    if (ui.widget === null || typeof ui.widget !== "object" || Array.isArray(ui.widget)) {
+      add("ui.widget", "objet attendu");
+    } else {
+      const rawWidget = ui.widget as Record<string, unknown>;
+      const widgetEntry = normalizeArchivePath(text(rawWidget.entry));
+      if (!isSafeRelativePath(widgetEntry)) {
+        add("ui.widget.entry", "entry doit être un chemin relatif sûr (pas d'absolu ni de ..)");
+      }
+      const widgetElement = text(rawWidget.element);
+      if (!ELEMENT.test(widgetElement)) {
+        add("ui.widget.element", "element doit être en kebab-case (custom element)");
+      }
+      const widgetIntegrity = text(rawWidget.integrity);
+      if (!INTEGRITY.test(widgetIntegrity)) {
+        add("ui.widget.integrity", "integrity doit être au format SRI sha256-<base64>");
+      }
+      if (!capabilities.includes("messages")) {
+        add("ui.widget", "la surface widget exige la capacité messages");
+      }
+      widget = {
+        entry: widgetEntry,
+        element: widgetElement,
+        integrity: widgetIntegrity,
+        display: parseWidgetDisplay(rawWidget.display, add),
+      };
+    }
+  }
+
   const network = src.network === undefined ? [] : src.network;
   if (!isStringArray(network)) {
     add("network", "network doit être une liste de domaines (vide par défaut)");
@@ -228,6 +365,7 @@ export function validateTemplateManifest(
         element,
         integrity,
         shadowDom: shadowDom as TemplateShadowDom,
+        ...(widget === undefined ? {} : { widget }),
       },
       capabilities: capabilities as TemplateCapability[],
       network: network as string[],

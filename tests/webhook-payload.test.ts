@@ -57,6 +57,7 @@ const PROSPECT = {
   origine: "saisie",
   lienId: null,
   lienLabel: null,
+  contactMissing: false,
   createdBy: null,
   createdAt: "2026-10-26T10:00:00.000Z",
   updatedAt: "2026-10-26T10:00:00.000Z",

@@ -2,6 +2,7 @@ import type {
   ActiveLinkIdentificationMode,
   ChatLink,
   ChatLinkSources,
+  ChatLinkSurface,
   ChatLinkType,
 } from "@/domain/entities/chat";
 
@@ -13,6 +14,7 @@ export type CreateChatLinkInput = {
   /** Libellé lisible donné par l'équipe (vide = sans nom). */
   label: string;
   type: ChatLinkType;
+  surface: ChatLinkSurface;
   identificationMode: ActiveLinkIdentificationMode;
   prospectId: string | null;
   createdBy: string | null;
@@ -32,6 +34,7 @@ export type CreateChatLinkInput = {
   visualTemplateConfig: Record<string, string>;
   /** Variables du template visuel valorisées par lien (ADR-0023). */
   visualTemplateParams: Record<string, string | number | boolean>;
+  widgetConfig: Record<string, unknown>;
   /** Affectation IA explicite (ADR-0029) ; absent/null = hériter. */
   aiProviderId?: string | null;
   aiModel?: string | null;
@@ -53,6 +56,7 @@ export interface ChatLinkRepository {
     id: string,
     patch: {
       label: string;
+      surface: ChatLinkSurface;
       identificationMode: ActiveLinkIdentificationMode;
       expiresAt: string | null;
       sources: ChatLinkSources;
@@ -62,6 +66,7 @@ export interface ChatLinkRepository {
       visualTemplateVersion: string | null;
       visualTemplateConfig: Record<string, string>;
       visualTemplateParams: Record<string, string | number | boolean>;
+      widgetConfig: Record<string, unknown>;
       aiProviderId?: string | null;
       aiModel?: string | null;
     },

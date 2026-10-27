@@ -33,6 +33,19 @@ export type FinishedConversation = {
   markdown: string;
 };
 
+/** Nom du prospect technique créé pour une conversation widget standard. */
+function widgetProspectName(link: { label: string }): string {
+  const label = link.label.trim();
+  return `Prospect issu du widget : ${label === "" ? "sans libellé" : label}`;
+}
+
+/** Extrait un email exploitable du contact proposé par l'IA, sans le deviner. */
+function extractEmail(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const match = value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match?.[0].toLowerCase() ?? "";
+}
+
 /** Formate les contacts connus (visiteur ou prospect) pour la fiche. */
 function formatContact(parts: string[]): string {
   return parts
@@ -99,7 +112,10 @@ export async function buildFicheFromConversation(
     conversation.visitorNom.trim() === "" &&
     conversation.visitorEmail.trim() === "" &&
     conversation.prospectId === null;
-  if (link.identificationMode === "anonymous" || anonymousConversation) {
+  if (
+    link.surface !== "widget" &&
+    (link.identificationMode === "anonymous" || anonymousConversation)
+  ) {
     throw new UnprocessableError("Une conversation anonyme ne génère pas de fiche nominative");
   }
   const template = await deps.templates.findVersion(
@@ -132,24 +148,41 @@ export async function buildFicheFromConversation(
   if (prospect === null && link.prospectId !== null) {
     prospect = await deps.prospects.findById(organizationId, link.prospectId);
   }
+  if (prospect === null && link.surface === "widget" && link.type === "standard") {
+    const rawContact = typeof draft.contact === "string" ? draft.contact.trim() : "";
+    prospect = await deps.prospects.create(organizationId, {
+      nom: widgetProspectName(link),
+      prenom: "",
+      nature: "physique",
+      email: extractEmail(draft.contact),
+      activite: "",
+      fonction: "",
+      detail: rawContact,
+      createdBy: null,
+      origine: "libre",
+      lienId: link.id,
+    });
+  }
   if (prospect === null) {
     prospect = await ensureVisitorProspect(deps.prospects, organizationId, conversation, link.id);
   }
 
-  // Contact de la fiche : lien spécifique ⇒ coordonnées du prospect ; lien
-  // standard ⇒ coordonnées saisies par le visiteur (+ contacts complémentaires).
+  // Contact de la fiche : widget ⇒ prospect technique ou contact collecté dans
+  // le chat ; spécifique ⇒ coordonnées du prospect ; standard ⇒ visiteur.
   const contact =
-    link.type === "specifique" && prospect !== null
-      ? formatContact([
-          `${prospect.nom} ${prospect.prenom}`.trim(),
-          prospect.email,
-          prospect.fonction,
-        ])
-      : formatContact([
-          conversation.visitorNom,
-          conversation.visitorEmail,
-          ...conversation.visitorContacts.map((entry) => `${entry.type} : ${entry.valeur}`),
-        ]);
+    link.surface === "widget" && prospect !== null
+      ? formatContact([prospect.nom, prospect.email, prospect.detail])
+      : link.type === "specifique" && prospect !== null
+        ? formatContact([
+            `${prospect.nom} ${prospect.prenom}`.trim(),
+            prospect.email,
+            prospect.fonction,
+          ])
+        : formatContact([
+            conversation.visitorNom,
+            conversation.visitorEmail,
+            ...conversation.visitorContacts.map((entry) => `${entry.type} : ${entry.valeur}`),
+          ]);
 
   const merged: Record<string, unknown> = { ...draft };
   if (definition.fields.some((field) => field.name === "contact") && contact !== "") {
