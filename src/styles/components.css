@@ -3479,3 +3479,51 @@ a.subtab {
     transform: rotate(360deg);
   }
 }
+
+/* Clés API — sélection des scopes. */
+.api-scope-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.api-scope-field legend {
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.api-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.8rem;
+  max-height: 15rem;
+  overflow: auto;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.api-scope-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.api-scope-option input {
+  accent-color: var(--orange);
+}
+
+@media (max-width: 40rem) {
+  .api-scope-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

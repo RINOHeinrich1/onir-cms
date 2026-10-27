@@ -14,8 +14,11 @@ The full dependency tree and versions are recorded in the lockfiles:
 
 Each package keeps its own licence. Common dependencies include Next.js, React, `pg`,
 `pdfkit`, `react-markdown`, `remark-gfm`, `fflate`, `officeparser`, `cheerio`, `undici`,
-Three.js, and their transitive
-dependencies.
+`swagger-ui-dist`, Three.js, and their transitive dependencies.
+
+## API documentation
+
+- **Swagger UI** (`swagger-ui-dist`) — Apache License 2.0
 
 ## Template SDK and generator
 

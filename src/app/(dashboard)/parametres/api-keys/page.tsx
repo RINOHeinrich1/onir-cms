@@ -27,9 +27,9 @@ export default async function ApiKeysPage() {
           <span className="eyebrow">Développeur</span>
           <h1 className="text-title">Clés API</h1>
           <p className="muted-text">
-            Connectez un service externe en lecture seule aux fiches de l’organisation active. Les
-            clés sont réservées aux administrateurs et ne doivent jamais être utilisées côté
-            navigateur.
+            Connectez un service externe aux ressources de l’organisation active. Choisissez les
+            scopes de chaque clé ; elles sont réservées aux administrateurs et ne doivent jamais
+            être utilisées côté navigateur.
           </p>
         </div>
       </div>

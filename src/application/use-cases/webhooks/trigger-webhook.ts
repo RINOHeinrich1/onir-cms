@@ -50,7 +50,15 @@ async function loadFiche(
   ficheId: string,
 ): Promise<Fiche> {
   assertCan(actor, "project:read");
-  const fiche = await deps.fiches.findById(organizationOf(actor), ficheId);
+  return loadFicheForOrganization(deps, organizationOf(actor), ficheId);
+}
+
+async function loadFicheForOrganization(
+  deps: Pick<WebhookExecutionDependencies, "fiches">,
+  organizationId: string,
+  ficheId: string,
+): Promise<Fiche> {
+  const fiche = await deps.fiches.findById(organizationId, ficheId);
   if (fiche === null) throw new NotFoundError("Fiche introuvable");
   return fiche;
 }
@@ -286,12 +294,20 @@ export async function retryWebhookDelivery(
   id: string,
 ): Promise<WebhookDeliveryDto> {
   assertCan(actor, "webhooks:trigger");
-  const organizationId = organizationOf(actor);
+  return retryWebhookDeliveryForOrganization(deps, organizationOf(actor), id, actor.id);
+}
+
+export async function retryWebhookDeliveryForOrganization(
+  deps: WebhookExecutionDependencies,
+  organizationId: string,
+  id: string,
+  triggeredBy: string | null,
+): Promise<WebhookDeliveryDto> {
   const previous = await deps.deliveries.findById(organizationId, id);
   if (previous === null) throw new NotFoundError("Livraison introuvable");
   if (previous.isTest) throw new UnprocessableError("Un test ne peut pas être relancé ainsi");
   if (previous.ficheId === null) throw new UnprocessableError("Fiche d'origine introuvable");
-  const fiche = await loadFiche(deps, actor, previous.ficheId);
+  const fiche = await loadFicheForOrganization(deps, organizationId, previous.ficheId);
   const endpoint = await loadWebhookEndpoint(deps, organizationId, previous.endpointId);
   assertEndpointUsable(endpoint);
   assertSameTemplate(endpoint, fiche);
@@ -305,7 +321,7 @@ export async function retryWebhookDelivery(
     replayOfId: previous.id,
     idempotencyKey: randomUUID(),
     requestSnapshot: built.snapshot,
-    triggeredBy: actor.id,
+    triggeredBy,
   });
   return toWebhookDeliveryDto(delivery);
 }

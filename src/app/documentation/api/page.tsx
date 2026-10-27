@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DocCode } from "@/components/documentation/DocCode";
 
 export const metadata: Metadata = {
-  title: "API fiches — Documentation",
+  title: "API — Documentation",
 };
 
 const AUTH = `curl "https://cms-backoffice.onirtech.com/api/v1/fiches?limit=25" \\
@@ -30,10 +30,16 @@ export default function ApiFichesPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow">Référence</span>
-          <h1 className="text-title">API fiches</h1>
+          <h1 className="text-title">API</h1>
           <p className="hint">
-            API server-to-server en lecture seule. Les clés sont créées dans le backoffice par un
-            administrateur et ne doivent jamais être exposées dans un navigateur.
+            API server-to-server, isolée par organisation et limitée par scopes. Les clés sont
+            créées dans le backoffice par un administrateur et ne doivent jamais être exposées dans
+            un navigateur.
+          </p>
+          <p>
+            <a className="btn small" href="/api/v1/docs" target="_blank" rel="noreferrer">
+              Ouvrir Swagger
+            </a>
           </p>
         </div>
       </div>

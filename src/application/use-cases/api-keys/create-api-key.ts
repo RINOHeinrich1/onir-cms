@@ -2,8 +2,8 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { ValidationError } from "@/application/errors";
 import type { ApiKeyAuditRepository } from "@/application/ports/api-key-audit-repository";
 import type { ApiKeyRepository } from "@/application/ports/api-key-repository";
-import type { ApiKey, ApiKeyScope } from "@/domain/entities/api-key";
-import { API_KEY_SCOPES } from "@/domain/entities/api-key";
+import type { ApiKey } from "@/domain/entities/api-key";
+import { parseApiKeyScopes } from "@/domain/entities/api-key";
 import { generateApiKey, hashApiKeySecret } from "@/lib/api-key-token";
 
 export type CreateApiKeyDependencies = {
@@ -14,6 +14,7 @@ export type CreateApiKeyDependencies = {
 export type CreateApiKeyInput = {
   name: unknown;
   expiresInDays: unknown;
+  scopes?: unknown;
 };
 
 export type CreatedApiKey = {
@@ -49,12 +50,14 @@ export async function createApiKey(
   const organizationId = organizationOf(actor);
   const name = parseName(input.name);
   const expiresAt = parseExpiry(input.expiresInDays);
+  const parsedScopes = parseApiKeyScopes(input.scopes);
+  if (!parsedScopes.ok) throw new ValidationError(parsedScopes.message);
   const generated = generateApiKey();
   const key = await deps.apiKeys.create(organizationId, {
     name,
     keyPrefix: generated.prefix,
     keyHash: await hashApiKeySecret(generated.secret),
-    scopes: [...API_KEY_SCOPES] as ApiKeyScope[],
+    scopes: parsedScopes.scopes,
     createdBy: actor.id,
     expiresAt,
   });

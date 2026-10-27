@@ -3,10 +3,12 @@ import type { ApiKeyAuditRepository } from "@/application/ports/api-key-audit-re
 import type { ApiKeyRepository } from "@/application/ports/api-key-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import { type ApiKey, type ApiKeyStatus, apiKeyStatus } from "@/domain/entities/api-key";
+import type { Organization } from "@/domain/entities/organization";
 import { parseApiKey, verifyApiKeySecret } from "@/lib/api-key-token";
 
 export type AuthenticatedApiKey = {
   key: ApiKey;
+  organization: Organization;
   organizationId: string;
   scopes: ApiKey["scopes"];
 };
@@ -71,5 +73,10 @@ export async function authenticateApiKey(
   }
 
   await deps.apiKeys.touchLastUsed(key.id, meta.ip).catch(() => undefined);
-  return { key, organizationId: key.organizationId, scopes: key.scopes };
+  return {
+    key,
+    organization,
+    organizationId: key.organizationId,
+    scopes: key.scopes,
+  };
 }

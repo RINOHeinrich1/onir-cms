@@ -2,9 +2,25 @@
 
 import { useMemo, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import { type ApiKey, apiKeyStatus } from "@/domain/entities/api-key";
+import {
+  API_KEY_SCOPE_LABELS,
+  API_KEY_SCOPES,
+  type ApiKey,
+  type ApiKeyScope,
+  apiKeyStatus,
+} from "@/domain/entities/api-key";
 
 type CreatedKey = { key: ApiKey; secret: string };
+
+const DEFAULT_SCOPES: ApiKeyScope[] = [
+  "fiches:read",
+  "prospects:read",
+  "conversations:read",
+  "chatbots:read",
+  "modeles:read",
+  "webhooks:read",
+  "statistiques:read",
+];
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -24,6 +40,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
   const [created, setCreated] = useState<CreatedKey | null>(null);
   const [name, setName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("90");
+  const [scopes, setScopes] = useState<ApiKeyScope[]>(DEFAULT_SCOPES);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +62,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
         body: JSON.stringify({
           name,
           expiresInDays: expiresInDays === "never" ? null : Number(expiresInDays),
+          scopes,
         }),
       });
       const json = (await response.json()) as CreatedKey & { error?: string };
@@ -57,6 +75,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
       setCreating(false);
       setName("");
       setExpiresInDays("90");
+      setScopes(DEFAULT_SCOPES);
       setCopied(false);
       toast.success("Clé API créée.");
     } catch {
@@ -137,7 +156,12 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
                       <code>{key.keyPrefix}…</code>
                     </td>
                     <td>
-                      <span className="badge muted">Lecture des fiches</span>
+                      <span
+                        className="badge muted"
+                        title={key.scopes.map((scope) => API_KEY_SCOPE_LABELS[scope]).join(" · ")}
+                      >
+                        {key.scopes.length} scope{key.scopes.length > 1 ? "s" : ""}
+                      </span>
                     </td>
                     <td>{formatDate(key.lastUsedAt)}</td>
                     <td>{key.expiresAt === null ? "Jamais" : formatDate(key.expiresAt)}</td>
@@ -216,15 +240,36 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
                     <option value="never">Jamais</option>
                   </select>
                 </label>
+                <fieldset className="field api-scope-field">
+                  <legend>Scopes</legend>
+                  <div className="api-scope-grid">
+                    {API_KEY_SCOPES.map((scope) => (
+                      <label className="api-scope-option" key={scope}>
+                        <input
+                          type="checkbox"
+                          checked={scopes.includes(scope)}
+                          onChange={(event) => {
+                            setScopes((previous) =>
+                              event.target.checked
+                                ? [...previous, scope]
+                                : previous.filter((entry) => entry !== scope),
+                            );
+                          }}
+                        />
+                        <span>{API_KEY_SCOPE_LABELS[scope]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
                 <p className="hint">
-                  La clé donne un accès en lecture à toutes les fiches de l’organisation active.
-                  Elle ne peut pas être utilisée depuis un navigateur.
+                  La clé reste limitée à l’organisation active et ne doit jamais être utilisée
+                  depuis un navigateur.
                 </p>
                 <div className="tools">
                   <button
                     type="submit"
                     className="btn"
-                    disabled={pending || name.trim().length < 2}
+                    disabled={pending || name.trim().length < 2 || scopes.length === 0}
                   >
                     {pending ? "Création…" : "Créer la clé"}
                   </button>

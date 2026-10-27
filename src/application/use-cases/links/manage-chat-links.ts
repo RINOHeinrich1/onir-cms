@@ -110,8 +110,18 @@ export async function updateChatLink(
   input: unknown,
 ): Promise<ChatLink> {
   assertCan(actor, "links:update");
-  const organizationId = organizationOf(actor);
+  return updateChatLinkForOrganization(deps, organizationOf(actor), id, input, () =>
+    assertCan(actor, "ai:assign"),
+  );
+}
 
+export async function updateChatLinkForOrganization(
+  deps: ManageChatLinksDependencies,
+  organizationId: string,
+  id: string,
+  input: unknown,
+  canAssignAi: () => void = () => undefined,
+): Promise<ChatLink> {
   const source =
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
@@ -148,7 +158,7 @@ export async function updateChatLink(
     aiModel: existing.aiModel,
   });
   if (aiAssignment !== null) {
-    assertCan(actor, "ai:assign");
+    canAssignAi();
     await assertAssignableProvider(deps, organizationId, aiAssignment);
   }
 
@@ -210,8 +220,15 @@ export async function deleteChatLink(
   id: string,
 ): Promise<void> {
   assertCan(actor, "links:revoke");
+  return deleteChatLinkForOrganization(deps, organizationOf(actor), id);
+}
 
-  const deleted = await deps.links.delete(organizationOf(actor), id);
+export async function deleteChatLinkForOrganization(
+  deps: ChatLinksDependencies,
+  organizationId: string,
+  id: string,
+): Promise<void> {
+  const deleted = await deps.links.delete(organizationId, id);
   if (!deleted) {
     throw new NotFoundError("Lien introuvable");
   }
