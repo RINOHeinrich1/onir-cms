@@ -3,8 +3,16 @@
 // cœur ne fournit que l'iframe, les actions et les bornes de taille.
 const ELEMENT = "onirtech-widget-starter";
 const OPEN_SIZE = { width: 420, height: 680 };
-const PRIMARY_FALLBACK = "#023777";
-const ACCENT_FALLBACK = "#fcad28";
+const DEFAULT_COLORS = {
+  primary: "#023777",
+  accent: "#fcad28",
+  launcherIcon: "#ffffff",
+  background: "#f7f9fc",
+  surface: "#ffffff",
+  text: "#0f172a",
+  muted: "#64748b",
+  border: "#e2e8f0",
+};
 
 const STYLE = `
   :host {
@@ -15,10 +23,12 @@ const STYLE = `
     --onir-primary-ink: #ffffff;
     --onir-accent: #fcad28;
     --onir-accent-ink: #3b2500;
+    --onir-launcher-icon: #ffffff;
+    --onir-bg: #f7f9fc;
+    --onir-surface: #ffffff;
     --onir-ink: #0f172a;
     --onir-muted: #64748b;
     --onir-border: #e2e8f0;
-    --onir-soft: #eef4fb;
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--onir-ink);
   }
@@ -36,16 +46,17 @@ const STYLE = `
     padding: 0;
     border: 0;
     border-radius: 50%;
-    color: #fff;
+    color: var(--onir-launcher-icon);
     background: var(--onir-primary);
     background: linear-gradient(145deg, var(--onir-primary), color-mix(in srgb, var(--onir-primary) 78%, #000));
     box-shadow: 0 12px 30px rgba(2, 55, 119, .32), 0 2px 8px rgba(15, 23, 42, .18);
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--onir-primary) 32%, transparent), 0 2px 8px rgba(15, 23, 42, .18);
     cursor: pointer;
     display: grid;
     place-items: center;
     transition: transform .18s ease, box-shadow .18s ease;
   }
-  .launcher:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(2, 55, 119, .38), 0 3px 10px rgba(15, 23, 42, .2); }
+  .launcher:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(2, 55, 119, .38), 0 3px 10px rgba(15, 23, 42, .2); box-shadow: 0 16px 34px color-mix(in srgb, var(--onir-primary) 38%, transparent), 0 3px 10px rgba(15, 23, 42, .2); }
   .launcher:active { transform: translateY(0) scale(.97); }
   .launcher:focus-visible { outline: 3px solid var(--onir-accent); outline-offset: 3px; }
   .launcher svg { width: 54%; height: 54%; }
@@ -59,24 +70,22 @@ const STYLE = `
     min-height: 8px;
     border-radius: 50%;
     background: #22c55e;
-    border: 2px solid #fff;
+    border: 2px solid var(--onir-surface);
     box-shadow: 0 0 0 2px rgba(34, 197, 94, .2);
   }
   .launcher .badge {
     position: absolute;
-    top: -3px;
-    right: -3px;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 5px;
-    border-radius: 999px;
+    top: 4px;
+    right: 4px;
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border-radius: 50%;
     background: #ef4444;
-    color: #fff;
-    border: 2px solid #fff;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 16px;
-    text-align: center;
+    color: transparent;
+    border: 2px solid var(--onir-surface);
+    font-size: 0;
+    line-height: 0;
   }
 
   .panel {
@@ -85,7 +94,7 @@ const STYLE = `
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #fff;
+    background: var(--onir-surface);
     border: 1px solid rgba(15, 23, 42, .08);
     border-radius: 22px;
     box-shadow: 0 24px 70px rgba(15, 23, 42, .28), 0 4px 16px rgba(15, 23, 42, .12);
@@ -110,6 +119,7 @@ const STYLE = `
     inset: 0;
     pointer-events: none;
     background: radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.16), transparent 52%);
+    background: radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--onir-primary-ink) 16%, transparent), transparent 52%);
   }
   .brand-avatar {
     position: relative;
@@ -122,7 +132,9 @@ const STYLE = `
     display: grid;
     place-items: center;
     background: rgba(255, 255, 255, .16);
+    background: color-mix(in srgb, var(--onir-primary-ink) 16%, transparent);
     border: 1px solid rgba(255, 255, 255, .22);
+    border-color: color-mix(in srgb, var(--onir-primary-ink) 24%, transparent);
     font-size: 15px;
     font-weight: 800;
     letter-spacing: .02em;
@@ -146,7 +158,8 @@ const STYLE = `
     margin-top: 3px;
     font-size: 11px;
     font-weight: 600;
-    color: rgba(255, 255, 255, .78);
+    color: var(--onir-primary-ink);
+    color: color-mix(in srgb, var(--onir-primary-ink) 78%, transparent);
   }
   .status-dot {
     width: 6px;
@@ -166,6 +179,7 @@ const STYLE = `
     height: 30px;
     padding: 0 10px;
     border: 1px solid rgba(255, 255, 255, .28);
+    border-color: color-mix(in srgb, var(--onir-primary-ink) 30%, transparent);
     border-radius: 999px;
     background: transparent;
     color: inherit;
@@ -177,7 +191,7 @@ const STYLE = `
     white-space: nowrap;
     transition: background .15s ease, border-color .15s ease;
   }
-  .finish:hover:not(:disabled) { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .5); }
+  .finish:hover:not(:disabled) { background: rgba(255, 255, 255, .12); background: color-mix(in srgb, var(--onir-primary-ink) 12%, transparent); border-color: rgba(255, 255, 255, .5); border-color: color-mix(in srgb, var(--onir-primary-ink) 50%, transparent); }
   .finish:disabled { opacity: .45; cursor: not-allowed; }
   .icon-btn {
     width: 32px;
@@ -193,7 +207,7 @@ const STYLE = `
     opacity: .9;
     transition: background .15s ease, opacity .15s ease;
   }
-  .icon-btn:hover { background: rgba(255, 255, 255, .13); opacity: 1; }
+  .icon-btn:hover { background: rgba(255, 255, 255, .13); background: color-mix(in srgb, var(--onir-primary-ink) 13%, transparent); opacity: 1; }
   .icon-btn:focus-visible, .finish:focus-visible, .send:focus-visible, .media:focus-visible, .done-close:focus-visible {
     outline: 3px solid var(--onir-accent);
     outline-offset: 2px;
@@ -205,23 +219,23 @@ const STYLE = `
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 14px 13px 8px;
-    background: #f7f9fc;
+    background: var(--onir-bg);
     scrollbar-gutter: stable;
     scroll-behavior: smooth;
   }
   .log::-webkit-scrollbar { width: 8px; }
-  .log::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f7f9fc; }
+  .log::-webkit-scrollbar-thumb { background: #cbd5e1; background: color-mix(in srgb, var(--onir-muted) 35%, transparent); border-radius: 999px; border: 2px solid var(--onir-bg); }
   .intro {
     display: flex;
     gap: 9px;
     align-items: flex-start;
     margin: 0 0 14px;
     padding: 11px 12px;
-    border: 1px solid #dbe7f5;
+    border: 1px solid var(--onir-border);
     border-radius: 13px;
-    background: #fff;
+    background: var(--onir-surface);
     box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
-    color: #334155;
+    color: var(--onir-muted);
     font-size: 12px;
     line-height: 1.5;
   }
@@ -254,7 +268,7 @@ const STYLE = `
     border: 1px solid var(--onir-border);
     border-radius: 14px;
     border-bottom-left-radius: 5px;
-    background: #fff;
+    background: var(--onir-surface);
     color: var(--onir-ink);
     font-size: 12.5px;
     line-height: 1.52;
@@ -285,13 +299,13 @@ const STYLE = `
     padding: 1px 4px;
     border: 1px solid var(--onir-border);
     border-radius: 5px;
-    background: #f1f5f9;
+    background: var(--onir-bg);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: .88em;
   }
-  .md pre { margin: 7px 0; padding: 9px 10px; overflow-x: auto; border: 1px solid var(--onir-border); border-radius: 8px; background: #f1f5f9; }
+  .md pre { margin: 7px 0; padding: 9px 10px; overflow-x: auto; border: 1px solid var(--onir-border); border-radius: 8px; background: var(--onir-bg); }
   .md pre code { padding: 0; border: 0; background: none; }
-  .md blockquote { margin: 7px 0; padding-left: 9px; border-left: 3px solid var(--onir-accent); color: #475569; }
+  .md blockquote { margin: 7px 0; padding-left: 9px; border-left: 3px solid var(--onir-accent); color: var(--onir-muted); }
   .md-h { margin: 8px 0 5px; font-size: 13px; font-weight: 800; line-height: 1.3; }
   .md-h1 { font-size: 15px; }
   .md-h2 { font-size: 14px; }
@@ -299,27 +313,27 @@ const STYLE = `
   .media-list { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 0; padding: 0; }
   .media { padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: none; cursor: zoom-in; line-height: 0; }
   .media img { display: block; width: 100%; max-width: 210px; max-height: 170px; object-fit: cover; border-radius: 8px; border: 1px solid var(--onir-border); }
-  .media-link { display: inline-flex; padding: 5px 8px; border: 1px solid var(--onir-border); border-radius: 7px; color: var(--onir-primary); font-size: 11px; font-weight: 650; text-decoration: none; background: #fff; }
+  .media-link { display: inline-flex; padding: 5px 8px; border: 1px solid var(--onir-border); border-radius: 7px; color: var(--onir-primary); font-size: 11px; font-weight: 650; text-decoration: none; background: var(--onir-surface); }
   .media-link:hover { border-color: var(--onir-primary); }
   .typing-row { display: flex; align-items: flex-end; gap: 7px; margin-top: 12px; animation: msg-in .2s ease both; }
-  .typing-bubble { display: inline-flex; align-items: center; gap: 3px; padding: 10px 12px; border: 1px solid var(--onir-border); border-radius: 14px; border-bottom-left-radius: 5px; background: #fff; }
-  .typing-bubble span { width: 5px; height: 5px; border-radius: 50%; background: #94a3b8; animation: typing-bounce 1.1s ease-in-out infinite; }
+  .typing-bubble { display: inline-flex; align-items: center; gap: 3px; padding: 10px 12px; border: 1px solid var(--onir-border); border-radius: 14px; border-bottom-left-radius: 5px; background: var(--onir-surface); }
+  .typing-bubble span { width: 5px; height: 5px; border-radius: 50%; background: var(--onir-muted); animation: typing-bounce 1.1s ease-in-out infinite; }
   .typing-bubble span:nth-child(2) { animation-delay: .15s; }
   .typing-bubble span:nth-child(3) { animation-delay: .3s; }
   @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
-  .empty { margin: 18px 0 0; padding: 14px 12px; border: 1px dashed #cbd8e8; border-radius: 12px; color: #64748b; font-size: 12px; text-align: center; line-height: 1.5; }
+  .empty { margin: 18px 0 0; padding: 14px 12px; border: 1px dashed var(--onir-border); border-radius: 12px; color: var(--onir-muted); font-size: 12px; text-align: center; line-height: 1.5; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-  .footer { flex: none; background: #fff; border-top: 1px solid var(--onir-border); }
+  .footer { flex: none; background: var(--onir-surface); border-top: 1px solid var(--onir-border); }
   .composer { padding: 10px 11px 8px; }
   .composer-box {
     display: flex;
     align-items: flex-end;
     gap: 7px;
     padding: 5px 5px 5px 11px;
-    border: 1.5px solid #d5dfeb;
+    border: 1.5px solid var(--onir-border);
     border-radius: 14px;
-    background: #fff;
+    background: var(--onir-surface);
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   .composer-box:focus-within { border-color: var(--onir-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--onir-primary) 14%, transparent); }
@@ -338,7 +352,7 @@ const STYLE = `
     font-size: 12.5px;
     line-height: 1.45;
   }
-  .composer textarea::placeholder { color: #94a3b8; }
+  .composer textarea::placeholder { color: var(--onir-muted); opacity: .8; }
   .send {
     flex: none;
     width: 34px;
@@ -355,13 +369,13 @@ const STYLE = `
   }
   .send:hover:not(:disabled) { transform: translateY(-1px); }
   .send:disabled { opacity: .42; cursor: not-allowed; }
-  .hint { margin: 6px 2px 0; color: #94a3b8; font-size: 9.5px; text-align: center; }
+  .hint { margin: 6px 2px 0; color: var(--onir-muted); font-size: 9.5px; text-align: center; }
   .done { display: flex; align-items: center; gap: 10px; padding: 13px 14px; background: #f0fdf4; border-top: 1px solid #bbf7d0; }
   .done-icon { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #16a34a; color: #fff; }
   .done-copy { flex: 1; min-width: 0; }
   .done-copy strong { display: block; color: #166534; font-size: 12px; }
   .done-copy span { display: block; margin-top: 1px; color: #3f6212; font-size: 10.5px; line-height: 1.35; }
-  .done-close { flex: none; height: 28px; padding: 0 10px; border: 1px solid #86efac; border-radius: 999px; background: #fff; color: #166534; font-size: 10px; font-weight: 750; cursor: pointer; }
+  .done-close { flex: none; height: 28px; padding: 0 10px; border: 1px solid #86efac; border-radius: 999px; background: var(--onir-surface); color: #166534; font-size: 10px; font-weight: 750; cursor: pointer; }
   .done-close:hover { background: #dcfce7; }
 
   @media (max-width: 380px) {
@@ -440,6 +454,13 @@ function safeColor(value, fallback) {
     return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`;
   }
   return fallback;
+}
+
+function themedColor(ctx, key, themeValue, fallback) {
+  const param = safeColor(ctx?.params?.[key], "");
+  if (param !== "") return param;
+  const themed = safeColor(themeValue, "");
+  return themed !== "" ? themed : fallback;
 }
 
 function readableInk(hex) {
@@ -650,12 +671,40 @@ class StarterWidget extends HTMLElement {
   }
 
   #applyTheme() {
-    const primary = safeColor(this.#ctx?.theme?.primary, PRIMARY_FALLBACK);
-    const accent = safeColor(this.#ctx?.theme?.accent ?? this.#ctx?.theme?.secondary, ACCENT_FALLBACK);
+    const ctx = this.#ctx;
+    const primary = themedColor(ctx, "primary_color", ctx?.theme?.primary, DEFAULT_COLORS.primary);
+    const accent = themedColor(
+      ctx,
+      "accent_color",
+      ctx?.theme?.accent ?? ctx?.theme?.secondary,
+      DEFAULT_COLORS.accent,
+    );
+    const launcherIcon = themedColor(
+      ctx,
+      "launcher_icon_color",
+      ctx?.theme?.launcherIcon,
+      DEFAULT_COLORS.launcherIcon,
+    );
+    const background = themedColor(
+      ctx,
+      "background_color",
+      ctx?.theme?.background,
+      DEFAULT_COLORS.background,
+    );
+    const surface = themedColor(ctx, "surface_color", ctx?.theme?.surface, DEFAULT_COLORS.surface);
+    const text = themedColor(ctx, "text_color", ctx?.theme?.text, DEFAULT_COLORS.text);
+    const muted = themedColor(ctx, "muted_color", ctx?.theme?.muted, DEFAULT_COLORS.muted);
+    const border = themedColor(ctx, "border_color", ctx?.theme?.border, DEFAULT_COLORS.border);
     this.style.setProperty("--onir-primary", primary);
     this.style.setProperty("--onir-primary-ink", readableInk(primary));
     this.style.setProperty("--onir-accent", accent);
     this.style.setProperty("--onir-accent-ink", readableInk(accent));
+    this.style.setProperty("--onir-launcher-icon", launcherIcon);
+    this.style.setProperty("--onir-bg", background);
+    this.style.setProperty("--onir-surface", surface);
+    this.style.setProperty("--onir-ink", text);
+    this.style.setProperty("--onir-muted", muted);
+    this.style.setProperty("--onir-border", border);
   }
 
   #showLauncher() {

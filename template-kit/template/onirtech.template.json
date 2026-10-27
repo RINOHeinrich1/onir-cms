@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.2.1",
+  "version": "1.3.1",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -22,7 +22,7 @@
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-0UaRB5R9fqKr5oPZXtC8fDRYPAO1Sgsyi6hJsMfDOFQ=",
+      "integrity": "sha256-t2uTsNJS6s2ukyrfuRc8HM3RvgqUCqLsWA5L7YEewS0=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [
@@ -49,5 +49,63 @@
     "media",
     "theme"
   ],
-  "network": []
+  "network": [],
+  "params": [
+    {
+      "key": "primary_color",
+      "label": "Couleur principale",
+      "description": "En-tête, launcher, bulle visiteur et bouton d'envoi.",
+      "type": "color",
+      "default": "#023777"
+    },
+    {
+      "key": "accent_color",
+      "label": "Couleur d'accent",
+      "description": "Liens, focus, badges et petits accents.",
+      "type": "color",
+      "default": "#fcad28"
+    },
+    {
+      "key": "launcher_icon_color",
+      "label": "Couleur de l'icône du chatbot",
+      "description": "Couleur du pictogramme dans le bouton flottant.",
+      "type": "color",
+      "default": "#ffffff"
+    },
+    {
+      "key": "background_color",
+      "label": "Fond de la conversation",
+      "description": "Fond derrière les messages.",
+      "type": "color",
+      "default": "#f7f9fc"
+    },
+    {
+      "key": "surface_color",
+      "label": "Surface",
+      "description": "Bulles de l'assistant, composeur et cartes.",
+      "type": "color",
+      "default": "#ffffff"
+    },
+    {
+      "key": "text_color",
+      "label": "Couleur du texte",
+      "description": "Texte principal des messages et des champs.",
+      "type": "color",
+      "default": "#0f172a"
+    },
+    {
+      "key": "muted_color",
+      "label": "Texte secondaire",
+      "description": "Horodatages, aides et libellés discrets.",
+      "type": "color",
+      "default": "#64748b"
+    },
+    {
+      "key": "border_color",
+      "label": "Bordures",
+      "description": "Bordures des bulles, du composeur et des séparateurs.",
+      "type": "color",
+      "default": "#e2e8f0"
+    }
+  ]
 }
