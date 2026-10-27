@@ -5,6 +5,21 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.14.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.13.1...v0.14.0) (2026-10-27)
+
+
+### Features
+
+* **templates:** assistance IA de création des modèles ([#63](https://github.com/RINOHeinrich1/onir-cms/issues/63)) ([b81f115](https://github.com/RINOHeinrich1/onir-cms/commit/b81f115e7b603060a35915975a2b8b9dbcf6115a))
+* **templates:** libérer les réglages du mode Simple ([#65](https://github.com/RINOHeinrich1/onir-cms/issues/65)) ([f1bc53f](https://github.com/RINOHeinrich1/onir-cms/commit/f1bc53f75a5bda2742331b5aeeadf6058312c2c0))
+
+
+### Bug Fixes
+
+* **preprod:** séparer le smoke applicatif de la landing ([#58](https://github.com/RINOHeinrich1/onir-cms/issues/58)) ([53e625e](https://github.com/RINOHeinrich1/onir-cms/commit/53e625eb8c0051f36bfc04b0e79155622589cff3))
+* **templates:** empêcher le rechargement du formulaire IA ([#64](https://github.com/RINOHeinrich1/onir-cms/issues/64)) ([8aa2b00](https://github.com/RINOHeinrich1/onir-cms/commit/8aa2b00bf001d63cd8eda9446961a3d9078a9dce))
+* **templates:** ouvrir le mode Simple quand les réglages existent ([#66](https://github.com/RINOHeinrich1/onir-cms/issues/66)) ([1ef10cb](https://github.com/RINOHeinrich1/onir-cms/commit/1ef10cb6b143d348e5a726db4de2bb81b4d17b91))
+
 ## [0.13.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.13.0...v0.13.1) (2026-10-26)
 
 
