@@ -5,6 +5,24 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.15.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.14.0...v0.15.0) (2026-10-27)
+
+
+### Features
+
+* **links:** canaux de diffusion multiples (ADR-0041) ([#75](https://github.com/RINOHeinrich1/onir-cms/issues/75)) ([c0b6bee](https://github.com/RINOHeinrich1/onir-cms/commit/c0b6bee46f30872ae87dcefcd90c1c047e1f5be4))
+* **templates:** paramétrer les couleurs du widget Starter ([#71](https://github.com/RINOHeinrich1/onir-cms/issues/71)) ([d70aa9e](https://github.com/RINOHeinrich1/onir-cms/commit/d70aa9e6da6b2e3b601919e848ef62236d58b68f))
+* **templates:** personnaliser le titre et l'accueil du chatbot ([#73](https://github.com/RINOHeinrich1/onir-cms/issues/73)) ([e9f6b1e](https://github.com/RINOHeinrich1/onir-cms/commit/e9f6b1eec8732148c9497caa9c6db005599773a3))
+* **templates:** soigner le widget du template Starter ([#70](https://github.com/RINOHeinrich1/onir-cms/issues/70)) ([bd88e7b](https://github.com/RINOHeinrich1/onir-cms/commit/bd88e7b0812565fd8a2b937efb62c52f6f05a555))
+* **templates:** surface widget des liens de chat ([#67](https://github.com/RINOHeinrich1/onir-cms/issues/67)) ([307a82d](https://github.com/RINOHeinrich1/onir-cms/commit/307a82d44c0c5928aa52f811f4305eabe647d389))
+
+
+### Bug Fixes
+
+* **fiche:** extraire le JSON de la réponse IA ([#69](https://github.com/RINOHeinrich1/onir-cms/issues/69)) ([0172bac](https://github.com/RINOHeinrich1/onir-cms/commit/0172bacb18f3f4a4babef2ea79e09296e1c88aa2))
+* **links:** autoriser la suspension des deux canaux ([#76](https://github.com/RINOHeinrich1/onir-cms/issues/76)) ([48b1db0](https://github.com/RINOHeinrich1/onir-cms/commit/48b1db01d7625029814fb2768e33f052768dc97d))
+* **templates:** saisir ou coller une couleur hexadécimale ([#72](https://github.com/RINOHeinrich1/onir-cms/issues/72)) ([b72309f](https://github.com/RINOHeinrich1/onir-cms/commit/b72309fc3295b89674fdeca1ba0a336fc239d6db))
+
 ## [0.14.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.13.1...v0.14.0) (2026-10-27)
 
 
