@@ -14,6 +14,8 @@ import type {
   TemplateParamOption,
   TemplateParamSchema,
   TemplateTrustLevel,
+  TemplateWidgetSurface,
+  WidgetDisplay,
 } from "./types.js";
 
 type ParamBase = {
@@ -43,6 +45,12 @@ export type TemplateManifestInput = {
     entry: string;
     element: string;
     shadowDom?: ShadowDomMode;
+    /** Surface widget optionnelle (ADR-0040). */
+    widget?: {
+      entry: string;
+      element: string;
+      display?: WidgetDisplay;
+    };
   };
   capabilities: readonly TemplateCapability[];
   network?: readonly string[];
@@ -66,6 +74,7 @@ export type TemplateManifestOutput = {
     entry: string;
     element: string;
     shadowDom: ShadowDomMode;
+    widget?: TemplateWidgetSurface;
   };
   capabilities: readonly TemplateCapability[];
   network: readonly string[];
@@ -130,6 +139,25 @@ export function defineManifest(input: TemplateManifestInput): TemplateManifestOu
       entry: input.ui.entry,
       element: input.ui.element,
       shadowDom: input.ui.shadowDom ?? "open",
+      ...(input.ui.widget === undefined
+        ? {}
+        : {
+            widget: {
+              entry: input.ui.widget.entry,
+              element: input.ui.widget.element,
+              integrity: "",
+              display:
+                input.ui.widget.display === undefined
+                  ? {
+                      defaultPosition: "bottom-right",
+                      allowedPositions: ["bottom-right", "bottom-left"],
+                      closedSize: { width: 64, height: 64 },
+                      openSize: { width: 420, height: 680 },
+                      maxSize: { width: 520, height: 760 },
+                    }
+                  : input.ui.widget.display,
+            },
+          }),
     },
     capabilities: [...input.capabilities],
     network: [...(input.network ?? [])],

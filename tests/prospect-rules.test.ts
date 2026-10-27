@@ -57,6 +57,7 @@ describe("prospectContext", () => {
       origine: "saisie",
       lienId: null,
       lienLabel: null,
+      contactMissing: false,
       createdBy: null,
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),

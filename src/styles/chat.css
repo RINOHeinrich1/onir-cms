@@ -944,3 +944,22 @@ body:has(.ai-test-shell.is-fullscreen) {
   color: var(--fg-muted);
   font-size: 0.68rem;
 }
+
+/* ---------- Surface widget (ADR-0040) ---------- */
+html:has(.widget-page),
+body:has(.widget-page) {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+.widget-page {
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: transparent;
+}
+.widget-page .template-host {
+  width: 100%;
+  height: 100%;
+}

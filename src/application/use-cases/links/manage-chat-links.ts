@@ -18,13 +18,16 @@ import {
   parseExpiresAt,
   parseIdentificationMode,
   parseLabel,
+  parseSurface,
 } from "@/application/use-cases/links/link-fields";
 import { prepareLinkParams } from "@/application/use-cases/links/link-params";
+import { validateWidgetLink } from "@/application/use-cases/links/widget-link";
 import {
   type ChatLink,
   parseLinkSources,
   parseUserStateEnabled,
   parseVisualTemplateConfig,
+  parseWidgetConfig,
 } from "@/domain/entities/chat";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { appUrl } from "@/lib/env";
@@ -121,6 +124,7 @@ export async function updateChatLink(
       : {};
   if (
     !("label" in source) &&
+    !("surface" in source) &&
     !("identificationMode" in source) &&
     !("expiresAt" in source) &&
     !("sources" in source) &&
@@ -130,6 +134,7 @@ export async function updateChatLink(
     !("visualTemplateVersion" in source) &&
     !("visualTemplateConfig" in source) &&
     !("visualTemplateParams" in source) &&
+    !("widgetConfig" in source) &&
     !("dataBindings" in source) &&
     !("aiProviderId" in source) &&
     !("aiModel" in source)
@@ -141,10 +146,15 @@ export async function updateChatLink(
   if (existing === null) {
     throw new NotFoundError("Lien introuvable");
   }
-  const identificationMode =
+  const surface = "surface" in source ? parseSurface(source.surface) : existing.surface;
+  let identificationMode =
     "identificationMode" in source
       ? parseIdentificationMode(source.identificationMode)
       : existing.identificationMode;
+  // Un widget standard n'a pas de formulaire : sans choix explicite, il est anonyme.
+  if (surface === "widget" && existing.type === "standard" && !("identificationMode" in source)) {
+    identificationMode = "anonymous";
+  }
   if (existing.type === "specifique" && identificationMode !== "contact") {
     throw new ValidationError(
       "Un lien spécifique utilise le prospect rattaché : le mode anonyme est indisponible",
@@ -195,17 +205,43 @@ export async function updateChatLink(
     }
   }
 
+  let confidentialiteId: string | null =
+    "confidentialiteId" in source
+      ? typeof source.confidentialiteId === "string" && source.confidentialiteId.trim() !== ""
+        ? source.confidentialiteId.trim()
+        : null
+      : existing.confidentialiteId;
+  if (surface === "widget") {
+    if (
+      "confidentialiteId" in source &&
+      typeof source.confidentialiteId === "string" &&
+      source.confidentialiteId.trim() !== ""
+    ) {
+      throw new ValidationError("Un widget ne peut pas porter de politique de confidentialité");
+    }
+    confidentialiteId = null;
+  }
+
+  const parsedWidgetConfig =
+    "widgetConfig" in source ? parseWidgetConfig(source.widgetConfig) : existing.widgetConfig;
+  const widgetInfo = await validateWidgetLink(deps.visualTemplates, organizationId, {
+    surface,
+    type: existing.type,
+    identificationMode,
+    confidentialiteId,
+    visualTemplateId: nextVisualTemplateId,
+    visualTemplateVersion: nextVisualTemplateVersion,
+    widgetConfig: parsedWidgetConfig,
+  });
+  const widgetConfig = widgetInfo?.widgetConfig ?? parsedWidgetConfig;
+
   const updated = await deps.links.updateDetails(organizationId, id, {
     label: "label" in source ? parseLabel(source.label) : existing.label,
+    surface,
     identificationMode,
     expiresAt: "expiresAt" in source ? parseExpiresAt(source.expiresAt) : existing.expiresAt,
     sources: "sources" in source ? parseLinkSources(source.sources) : existing.sources,
-    confidentialiteId:
-      "confidentialiteId" in source
-        ? typeof source.confidentialiteId === "string" && source.confidentialiteId.trim() !== ""
-          ? source.confidentialiteId.trim()
-          : null
-        : existing.confidentialiteId,
+    confidentialiteId,
     userStateEnabled:
       "userStateEnabled" in source
         ? parseUserStateEnabled(source.userStateEnabled)
@@ -217,6 +253,7 @@ export async function updateChatLink(
         ? parseVisualTemplateConfig(source.visualTemplateConfig)
         : existing.visualTemplateConfig,
     visualTemplateParams: nextVisualTemplateParams,
+    widgetConfig,
     aiProviderId: aiAssignment === null ? existing.aiProviderId : aiAssignment.aiProviderId,
     aiModel: aiAssignment === null ? existing.aiModel : aiAssignment.aiModel,
   });

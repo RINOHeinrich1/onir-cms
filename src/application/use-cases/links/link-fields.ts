@@ -1,7 +1,9 @@
 import { ValidationError } from "@/application/errors";
 import {
   type ActiveLinkIdentificationMode,
+  type ChatLinkSurface,
   isActiveLinkIdentificationMode,
+  isChatLinkSurface,
 } from "@/domain/entities/chat";
 
 /** Mode d'identification actif (contact par défaut ; OTP/interne pas encore ouverts). */
@@ -10,6 +12,14 @@ export function parseIdentificationMode(value: unknown): ActiveLinkIdentificatio
   if (raw === "") return "contact";
   if (isActiveLinkIdentificationMode(raw)) return raw;
   throw new ValidationError("Mode d'identification invalide");
+}
+
+/** Surface de diffusion : page (défaut) ou widget intégrable. */
+export function parseSurface(value: unknown): ChatLinkSurface {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (raw === "") return "page";
+  if (isChatLinkSurface(raw)) return raw;
+  throw new ValidationError("Surface de diffusion invalide (page ou widget)");
 }
 
 /** Libellé lisible d'un lien (vide = sans nom), 120 caractères maximum. */

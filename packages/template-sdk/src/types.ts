@@ -28,6 +28,28 @@ export type ShadowDomMode = "open" | "closed" | "none";
 /** Niveau de confiance d'un éditeur de template. */
 export type TemplateTrustLevel = "official" | "verified" | "community";
 
+/** Position d'un widget flottant (ADR-0040). */
+export type WidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
+
+export type WidgetSize = { width: number; height: number };
+
+/** Affichage déclaré par le template pour la surface widget. */
+export type WidgetDisplay = {
+  defaultPosition: WidgetPosition;
+  allowedPositions: WidgetPosition[];
+  closedSize: WidgetSize;
+  openSize: WidgetSize;
+  maxSize: WidgetSize;
+};
+
+/** Surface widget optionnelle déclarée dans `ui.widget`. */
+export type TemplateWidgetSurface = {
+  entry: string;
+  element: string;
+  integrity: string;
+  display: WidgetDisplay;
+};
+
 /** Type d'un paramètre déclaré (ADR-0023). */
 export type TemplateParamType =
   | "string"
@@ -227,7 +249,9 @@ export type TemplateAction =
   | { action: "finish" }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
-  | { action: "resize"; payload: { height: number } };
+  | { action: "resize"; payload: { height: number } }
+  | { action: "openWidget"; payload: { width?: number; height?: number } }
+  | { action: "closeWidget" };
 
 /**
  * Partie sérialisable du contexte remise au template (sans actions).
@@ -235,6 +259,8 @@ export type TemplateAction =
  */
 export type TemplateContext = {
   host: { protocol: string; version: number };
+  /** Surface de diffusion du lien (ADR-0040). */
+  surface: "page" | "widget";
   link: { type: "standard" | "specifique"; label: string; userStateEnabled: boolean };
   locale: string;
   brand: { name: string; logoUrl: string | null };
@@ -274,6 +300,8 @@ export type TemplateActions = {
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
+  openWidget(options?: { width?: number; height?: number }): void;
+  closeWidget(): void;
 };
 
 /**

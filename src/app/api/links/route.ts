@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createChatLink } from "@/application/use-cases/links/create-chat-link";
 import { linkListItems } from "@/application/use-cases/links/link-urls";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
+import { buildWidgetSnippet, widgetEmbedUrl } from "@/application/use-cases/links/widget-code";
 import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labels";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
@@ -64,7 +65,23 @@ export async function POST(request: Request): Promise<NextResponse> {
       actor,
       body,
     );
-    return NextResponse.json({ link, token, url: `${appUrl()}/l/${token}` }, { status: 201 });
+    return NextResponse.json(
+      {
+        link,
+        token,
+        url: `${appUrl()}/l/${token}`,
+        ...(link.surface === "widget"
+          ? {
+              widgetSnippet: buildWidgetSnippet(
+                token,
+                link.widgetConfig.position ?? "bottom-right",
+              ),
+              widgetEmbedUrl: widgetEmbedUrl(token),
+            }
+          : {}),
+      },
+      { status: 201 },
+    );
   } catch (error) {
     return errorResponse(error);
   }

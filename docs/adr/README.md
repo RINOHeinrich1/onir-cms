@@ -40,3 +40,4 @@ ADR qui remplace la précédente.
 | [0037](./0037-environnements-preprod-release.md) | Environnements de préproduction, runners et cadence de release | Accepté |
 | [0038](./0038-assistance-ia-modeles-raisonnement.md) | Assistance IA de création des modèles de raisonnement | Accepté |
 | [0039](./0039-reglages-libres-mode-simple.md) | Réglages libres du mode Simple (langue, ton, garde-fous, champs) | Accepté |
+| [0040](./0040-surface-widget-liens-chat.md) | Surface widget des liens de chat et intégration externe | Accepté |

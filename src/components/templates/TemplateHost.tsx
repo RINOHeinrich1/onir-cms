@@ -30,6 +30,8 @@ type TemplateActions = {
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
+  openWidget(options?: { width?: number; height?: number }): void;
+  closeWidget(): void;
 };
 
 type TemplateDataApi = {
@@ -94,6 +96,7 @@ export function TemplateHost({
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
+  const surface = baseContext.surface;
 
   const conversationRef = useRef<string | null>(initialConversationId);
   const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
@@ -101,6 +104,14 @@ export function TemplateHost({
   const mountRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const elementRef = useRef<HTMLElement | null>(null);
+
+  const postWidget = useCallback(
+    (message: { type: "open"; width?: number; height?: number } | { type: "close" }): void => {
+      if (surface !== "widget" || typeof window === "undefined" || window.parent === window) return;
+      window.parent.postMessage({ __onirWidget: 1, ...message }, "*");
+    },
+    [surface],
+  );
 
   const emit = useCallback((event: string, payload: unknown): void => {
     const set = listenersRef.current.get(event);
@@ -197,7 +208,7 @@ export function TemplateHost({
   const actions = useMemo<TemplateActions>(
     () => ({
       submitIdentity: (data) => {
-        if (anonymous) return;
+        if (anonymous || surface === "widget") return;
         if (preview) {
           setPhase("chat");
           setMessages([
@@ -393,7 +404,7 @@ export function TemplateHost({
       attachFile: uploadAttachment,
       removeAttachment,
       finish: () => {
-        if (anonymous) {
+        if (anonymous && surface !== "widget") {
           setStatus("finalisee");
           return;
         }
@@ -402,12 +413,13 @@ export function TemplateHost({
           return;
         }
         void (async () => {
-          if (conversationId === null) return;
+          const activeConversationId = conversationId ?? (await ensureConversation());
+          if (activeConversationId === null) return;
           try {
             const response = await fetch(`${platform}/finish`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId }),
+              body: JSON.stringify({ conversationId: activeConversationId }),
             });
             const json = (await response.json().catch(() => null)) as {
               error?: string;
@@ -434,6 +446,12 @@ export function TemplateHost({
       resize: (value) => {
         setHeight(Math.max(200, Math.min(value, 20000)));
       },
+      openWidget: (options) => {
+        postWidget({ type: "open", ...(options ?? {}) });
+      },
+      closeWidget: () => {
+        postWidget({ type: "close" });
+      },
     }),
     [
       anonymous,
@@ -446,7 +464,9 @@ export function TemplateHost({
       uploadAttachment,
       removeAttachment,
       conversationId,
+      postWidget,
       token,
+      surface,
     ],
   );
 
@@ -555,6 +575,12 @@ export function TemplateHost({
           break;
         case "resize":
           actions.resize(action.payload.height);
+          break;
+        case "openWidget":
+          actions.openWidget(action.payload);
+          break;
+        case "closeWidget":
+          actions.closeWidget();
           break;
         case "request":
           void actions.request(action.payload.capability).then((value) => emit("resources", value));

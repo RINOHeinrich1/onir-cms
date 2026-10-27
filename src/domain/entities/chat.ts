@@ -6,6 +6,7 @@
 
 import type { AttachmentView } from "@/domain/entities/attachment";
 import { normalizeTemplateParamValues, type TemplateParamValues } from "@/domain/template-params";
+import { type ChatLinkWidgetConfig, parseChatLinkWidgetConfig } from "@/domain/widget";
 
 export const CHAT_LINK_TYPES = ["specifique", "standard"] as const;
 
@@ -13,6 +14,14 @@ export type ChatLinkType = (typeof CHAT_LINK_TYPES)[number];
 
 export function isChatLinkType(value: string): value is ChatLinkType {
   return (CHAT_LINK_TYPES as readonly string[]).includes(value);
+}
+
+/** Surface de diffusion du lien (ADR-0040). */
+export const CHAT_LINK_SURFACES = ["page", "widget"] as const;
+export type ChatLinkSurface = (typeof CHAT_LINK_SURFACES)[number];
+
+export function isChatLinkSurface(value: string): value is ChatLinkSurface {
+  return (CHAT_LINK_SURFACES as readonly string[]).includes(value);
 }
 
 /** Modes d'identification stockés (ADR-0033). OTP/interne réservés. */
@@ -67,6 +76,8 @@ export type ChatLink = {
   organizationId: string;
   label: string;
   type: ChatLinkType;
+  /** Surface de diffusion : page publique ou widget intégrable (ADR-0040). */
+  surface: ChatLinkSurface;
   /** Mode d'identification du visiteur (ADR-0033). */
   identificationMode: ActiveLinkIdentificationMode;
   prospectId: string | null;
@@ -88,6 +99,8 @@ export type ChatLink = {
   visualTemplateConfig: Record<string, string>;
   /** Variables déclarées par le template, valorisées par l'exploitant (ADR-0023). */
   visualTemplateParams: TemplateParamValues;
+  /** Configuration d'intégration widget (position), sans logique template. */
+  widgetConfig: ChatLinkWidgetConfig;
   /** Fournisseur IA explicite du lien (ADR-0029) ; null = hériter. */
   aiProviderId: string | null;
   /** Modèle IA explicite du lien ; null = hériter. */
@@ -107,6 +120,11 @@ export function hasExplicitAiAssignment(link: Pick<ChatLink, "aiProviderId" | "a
 /** Libellés distincts des liens d'une organisation, triés (filtres UI). */
 export function distinctChatLinkLabels(links: readonly ChatLink[]): string[] {
   return [...new Set(links.map((link) => link.label))].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+/** Normalise la config widget d'un lien (position autorisée ou vide). */
+export function parseWidgetConfig(value: unknown): ChatLinkWidgetConfig {
+  return parseChatLinkWidgetConfig(value);
 }
 
 /** Normalise une config de thème (tokens string) provenant de la base. */

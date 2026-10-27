@@ -8,6 +8,7 @@ import {
 
 function input(overrides: Partial<BuildTemplateContextInput> = {}): BuildTemplateContextInput {
   return {
+    surface: "page",
     link: { type: "standard", label: "Campagne" },
     locale: "fr",
     brand: { name: "ONIRTECH", logoUrl: null },

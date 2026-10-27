@@ -7,11 +7,14 @@ import {
   type ActiveLinkIdentificationMode,
   type ChatLink,
   type ChatLinkSources,
+  type ChatLinkSurface,
   type ChatLinkType,
+  isChatLinkSurface,
   isChatLinkType,
   parseLinkSources,
   parseVisualTemplateConfig,
   parseVisualTemplateParams,
+  parseWidgetConfig,
 } from "@/domain/entities/chat";
 
 type ChatLinkRow = {
@@ -19,6 +22,7 @@ type ChatLinkRow = {
   organization_id: string;
   label: string;
   type: string;
+  surface: string;
   identification_mode: ActiveLinkIdentificationMode;
   prospect_id: string | null;
   created_by: string | null;
@@ -33,6 +37,7 @@ type ChatLinkRow = {
   visual_template_version: string | null;
   visual_template_config: unknown;
   visual_template_params: unknown;
+  widget_config: unknown;
   ai_provider_id: string | null;
   ai_model: string | null;
   visit_count: number;
@@ -41,18 +46,23 @@ type ChatLinkRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
+  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
 
 function toEntity(row: ChatLinkRow): ChatLink {
   if (!isChatLinkType(row.type)) {
     throw new Error(`Type de lien inconnu : ${row.type}`);
   }
   const type: ChatLinkType = row.type;
+  if (!isChatLinkSurface(row.surface)) {
+    throw new Error(`Surface de lien inconnue : ${row.surface}`);
+  }
+  const surface: ChatLinkSurface = row.surface;
   return {
     id: row.id,
     organizationId: row.organization_id,
     label: row.label,
     type,
+    surface,
     identificationMode: row.identification_mode,
     prospectId: row.prospect_id,
     createdBy: row.created_by,
@@ -67,6 +77,7 @@ function toEntity(row: ChatLinkRow): ChatLink {
     visualTemplateVersion: row.visual_template_version,
     visualTemplateConfig: parseVisualTemplateConfig(row.visual_template_config),
     visualTemplateParams: parseVisualTemplateParams(row.visual_template_params),
+    widgetConfig: parseWidgetConfig(row.widget_config),
     aiProviderId: row.ai_provider_id,
     aiModel: row.ai_model,
     visitCount: row.visit_count,
@@ -117,8 +128,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
 
     async create(organizationId, input: CreateChatLinkInput): Promise<ChatLink> {
       const { rows } = await pool.query<ChatLinkRow>(
-        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, ai_provider_id, ai_model)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -126,6 +137,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
           input.tokenEnc,
           input.label,
           input.type,
+          input.surface,
           input.identificationMode,
           input.prospectId,
           input.createdBy,
@@ -139,6 +151,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
           input.visualTemplateVersion,
           JSON.stringify(input.visualTemplateConfig),
           JSON.stringify(input.visualTemplateParams),
+          JSON.stringify(input.widgetConfig),
           input.aiProviderId ?? null,
           input.aiModel ?? null,
         ],
@@ -177,6 +190,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       id,
       patch: {
         label: string;
+        surface: ChatLinkSurface;
         identificationMode: ActiveLinkIdentificationMode;
         expiresAt: string | null;
         sources: ChatLinkSources;
@@ -186,16 +200,18 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         visualTemplateVersion: string | null;
         visualTemplateConfig: Record<string, string>;
         visualTemplateParams: Record<string, string | number | boolean>;
+        widgetConfig: Record<string, unknown>;
         aiProviderId?: string | null;
         aiModel?: string | null;
       },
     ): Promise<ChatLink | null> {
       const { rows } = await pool.query<ChatLinkRow>(
-        `UPDATE chat_links SET label = $1, identification_mode = $2, expires_at = $3, sources = $4, confidentialite_id = $5, user_state_enabled = $6, visual_template_id = $7, visual_template_version = $8, visual_template_config = $9, visual_template_params = $10, ai_provider_id = $11, ai_model = $12
-          WHERE organization_id = $13 AND id = $14
+        `UPDATE chat_links SET label = $1, surface = $2, identification_mode = $3, expires_at = $4, sources = $5, confidentialite_id = $6, user_state_enabled = $7, visual_template_id = $8, visual_template_version = $9, visual_template_config = $10, visual_template_params = $11, widget_config = $12, ai_provider_id = $13, ai_model = $14
+          WHERE organization_id = $15 AND id = $16
           RETURNING ${COLUMNS}`,
         [
           patch.label,
+          patch.surface,
           patch.identificationMode,
           patch.expiresAt,
           JSON.stringify(patch.sources),
@@ -205,6 +221,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
           patch.visualTemplateVersion,
           JSON.stringify(patch.visualTemplateConfig),
           JSON.stringify(patch.visualTemplateParams),
+          JSON.stringify(patch.widgetConfig),
           patch.aiProviderId ?? null,
           patch.aiModel ?? null,
           organizationId,

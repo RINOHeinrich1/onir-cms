@@ -75,6 +75,8 @@ export function useTemplate(): UseTemplateResult {
     request: (capability) => store.value.actions.request(capability),
     openMedia: (url) => store.value.actions.openMedia(url),
     resize: (height) => store.value.actions.resize(height),
+    openWidget: (options) => store.value.actions.openWidget(options),
+    closeWidget: () => store.value.actions.closeWidget(),
   };
 
   return {

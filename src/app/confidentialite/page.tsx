@@ -26,7 +26,8 @@ export default function ConfidentialitePage() {
           <h2>Données collectées</h2>
           <ul>
             <li>
-              Votre <strong>nom</strong> et votre <strong>adresse email</strong> (obligatoires) ;
+              selon le mode du lien, votre <strong>nom</strong> et votre{" "}
+              <strong>adresse email</strong> ;
             </li>
             <li>
               vos <strong>coordonnées complémentaires</strong> facultatives (téléphone, WhatsApp,
@@ -37,9 +38,16 @@ export default function ConfidentialitePage() {
               produites (fiches de prospection) ;
             </li>
             <li>
-              l&apos;horodatage de votre <strong>consentement</strong> et de vos messages.
+              l&apos;horodatage de votre <strong>consentement</strong>, lorsque celui-ci est requis,
+              et de vos messages.
             </li>
           </ul>
+          <p>
+            Un widget intégré sur un site tiers peut fonctionner sans formulaire de contact. Dans ce
+            cas, aucun nom ni email n&apos;est demandé à l&apos;entrée ; si vous les communiquez
+            dans la conversation, ils peuvent être enregistrés pour permettre à l&apos;équipe de
+            vous recontacter.
+          </p>
 
           <h2>Finalité</h2>
           <p>
@@ -54,15 +62,30 @@ export default function ConfidentialitePage() {
             relation commerciale et peuvent être supprimées sur simple demande.
           </p>
 
+          <h2>Responsabilité de l&apos;instance et intégration widget</h2>
+          <p>
+            ONIR CMS est un logiciel <strong>open source distribué sous licence MIT</strong>. Chaque
+            instance est installée et exploitée de manière autonome par son propriétaire. Le
+            propriétaire ou l&apos;exploitant de cette instance est responsable des traitements
+            réalisés, des finalités, des durées de conservation et de la conformité de son
+            installation. L&apos;éditeur du logiciel ne collecte pas les données des instances.
+          </p>
+          <p>
+            Lorsqu&apos;un widget ONIR CMS est copié et intégré sur un site tiers, l&apos;exploitant
+            de ce site est responsable de cette intégration, notamment de l&apos;information des
+            visiteurs et du respect de ses propres obligations en matière de confidentialité et de
+            protection des données.
+          </p>
+
           <h2>Vos droits</h2>
           <p>
-            Vous pouvez demander l&apos;accès, la rectification ou la suppression de vos données en
-            écrivant à <a href="mailto:contact@example.com">contact@example.com</a>.
+            Vous pouvez demander l&apos;accès, la rectification ou la suppression de vos données
+            auprès du propriétaire de cette instance, responsable du traitement.
           </p>
 
           <p className="hint">
             Modèle à adapter par l&apos;exploitant (responsable de traitement, durée exacte,
-            hébergement, base légale).
+            hébergement, base légale, coordonnées de contact).
           </p>
 
           <p>

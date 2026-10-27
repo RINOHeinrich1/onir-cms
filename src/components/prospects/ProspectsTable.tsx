@@ -126,7 +126,13 @@ export function ProspectsTable({
                     <span className="badge muted">Saisie</span>
                   )}
                 </td>
-                <td>{prospect.email}</td>
+                <td>
+                  {prospect.email === "" ? (
+                    <span className="badge warn">Contact non fourni</span>
+                  ) : (
+                    prospect.email
+                  )}
+                </td>
                 <td>
                   <div className="tools">
                     <button

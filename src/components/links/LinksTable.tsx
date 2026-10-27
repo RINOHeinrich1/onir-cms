@@ -20,6 +20,7 @@ import type {
   TemplateOption,
   VisualTemplateOption,
 } from "./types";
+import { WidgetCodeModal } from "./WidgetCodeModal";
 
 /** Icône d'avertissement (liens expirés). */
 function WarningIcon() {
@@ -107,6 +108,11 @@ export function LinksTable({
   const [links, setLinks] = useState<ChatLinkRow[]>(initialLinks);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ChatLinkRow | null>(null);
+  const [widgetCode, setWidgetCode] = useState<{
+    snippet: string;
+    embedUrl: string;
+  } | null>(null);
+  const [loadingWidgetId, setLoadingWidgetId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +139,28 @@ export function LinksTable({
     setEditing(null);
     setLinks((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
     router.refresh();
+  };
+
+  const openWidgetCode = async (link: ChatLinkRow): Promise<void> => {
+    setError(null);
+    setLoadingWidgetId(link.id);
+    try {
+      const response = await fetch(`/api/links/${link.id}/widget-code`, { cache: "no-store" });
+      const json = (await response.json()) as {
+        snippet?: string;
+        embedUrl?: string;
+        error?: string;
+      };
+      if (!response.ok || json.snippet === undefined || json.embedUrl === undefined) {
+        setError(json.error ?? "Code widget indisponible");
+        return;
+      }
+      setWidgetCode({ snippet: json.snippet, embedUrl: json.embedUrl });
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setLoadingWidgetId(null);
+    }
   };
 
   const remove = async (link: ChatLinkRow): Promise<void> => {
@@ -229,6 +257,7 @@ export function LinksTable({
                 <tr key={link.id}>
                   <td>
                     <span className="badge">{link.type}</span>
+                    {link.surface === "widget" ? <div className="muted-text">widget</div> : null}
                     {link.identificationMode === "anonymous" ? (
                       <div className="muted-text">anonyme</div>
                     ) : null}
@@ -316,6 +345,16 @@ export function LinksTable({
                       <a className="btn ghost small" href={`/liens/${link.id}/apercu`}>
                         Aperçu
                       </a>
+                      {link.surface === "widget" ? (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          disabled={loadingWidgetId === link.id}
+                          onClick={() => void openWidgetCode(link)}
+                        >
+                          {loadingWidgetId === link.id ? "…" : "Code widget"}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="btn ghost small"
@@ -355,13 +394,27 @@ export function LinksTable({
             visualTemplates={visualTemplates}
             aiProviders={aiProviders}
             canAssignAi={canAssignAi}
-            onCreated={() => {
+            onCreated={(created) => {
               setCreating(false);
+              if (created.widgetSnippet !== undefined && created.widgetEmbedUrl !== undefined) {
+                setWidgetCode({
+                  snippet: created.widgetSnippet,
+                  embedUrl: created.widgetEmbedUrl,
+                });
+              }
               void refresh();
             }}
             onCancel={() => setCreating(false)}
           />
         </Modal>
+      ) : null}
+
+      {widgetCode !== null ? (
+        <WidgetCodeModal
+          snippet={widgetCode.snippet}
+          embedUrl={widgetCode.embedUrl}
+          onClose={() => setWidgetCode(null)}
+        />
       ) : null}
 
       {editing !== null ? (

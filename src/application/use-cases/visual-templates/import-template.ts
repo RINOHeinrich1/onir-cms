@@ -71,6 +71,18 @@ export async function importVisualTemplate(
     );
   }
 
+  const widget = manifest.ui.widget;
+  if (widget !== undefined) {
+    const widgetBytes = files.get(widget.entry);
+    if (widgetBytes === undefined) {
+      throw new ValidationError(`Entrée widget introuvable dans l'archive : ${widget.entry}`);
+    }
+    const widgetSri = `sha256-${deps.hasher.sha256Base64(widgetBytes)}`;
+    if (widgetSri !== widget.integrity) {
+      throw new ValidationError("Intégrité SRI de l'entrée widget invalide (ui.widget.integrity)");
+    }
+  }
+
   const existing = await deps.templates.findByKey(manifest.id);
   const template =
     existing ??

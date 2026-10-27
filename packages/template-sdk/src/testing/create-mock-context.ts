@@ -130,6 +130,8 @@ function defaultActions(): TemplateActions {
     request: () => Promise.resolve(undefined),
     openMedia: () => undefined,
     resize: () => undefined,
+    openWidget: () => undefined,
+    closeWidget: () => undefined,
   };
 }
 
@@ -149,6 +151,7 @@ function defaultData(): TemplateDataApi {
 function defaultContext(): OnirtechContext {
   return {
     host: { protocol: TEMPLATE_HOST_PROTOCOL, version: CONTRACT_VERSION },
+    surface: "page",
     link: { type: "standard", label: "Lien standard", userStateEnabled: false },
     locale: "fr",
     brand: { name: "ONIRTECH", logoUrl: null },

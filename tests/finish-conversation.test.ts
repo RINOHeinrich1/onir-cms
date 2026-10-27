@@ -28,6 +28,7 @@ const LINK = {
   organizationId: "org-1",
   label: "",
   type: "standard",
+  surface: "page",
   identificationMode: "contact",
   prospectId: null,
   createdBy: null,
@@ -42,6 +43,7 @@ const LINK = {
   visualTemplateVersion: null,
   visualTemplateConfig: {},
   visualTemplateParams: {},
+  widgetConfig: {},
   aiProviderId: null,
   aiModel: null,
   visitCount: 0,
@@ -167,6 +169,7 @@ function deps(aiAnswer: string) {
         origine: input.origine ?? "saisie",
         lienId: input.lienId ?? null,
         lienLabel: null,
+        contactMissing: false,
         createdBy: input.createdBy,
         createdAt: new Date(0).toISOString(),
         updatedAt: new Date(0).toISOString(),
@@ -284,6 +287,40 @@ describe("finishConversation — bouton Terminer (moteur)", () => {
       findById: async () => ({ ...LINK, identificationMode: "anonymous" as const }),
     };
     await expect(finishConversation({ ...base, links }, "conv-1")).rejects.toThrow(/anonyme/i);
+  });
+
+  it("génère une fiche widget avec un prospect technique", async () => {
+    const base = deps(JSON.stringify({ sujet: "Refonte", contact: "jean.widget@exemple.mg" }));
+    const widgetLink = {
+      ...LINK,
+      label: "Site vitrine",
+      surface: "widget" as const,
+      identificationMode: "anonymous" as const,
+    };
+    const emptyConversation = {
+      ...CONVERSATION,
+      visitorNom: "",
+      visitorEmail: "",
+      visitorContacts: [],
+    };
+    const finished = await finishConversation(
+      {
+        ...base,
+        links: { ...base.links, findById: async () => widgetLink },
+        conversations: {
+          ...base.conversations,
+          findById: async () => emptyConversation,
+          findByIdPublic: async () => emptyConversation,
+        },
+      },
+      "conv-1",
+    );
+    expect(finished.fiche.prospectId).toBe("prospect-auto");
+    expect(base.createdProspects[0]).toMatchObject({
+      nom: "Prospect issu du widget : Site vitrine",
+      email: "jean.widget@exemple.mg",
+      lienId: "link-1",
+    });
   });
 });
 

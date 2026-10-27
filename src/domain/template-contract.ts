@@ -91,6 +91,8 @@ export type TemplateFormField = {
 /** Contexte envoyé au template (SANS les actions, qui sont injectées côté client). */
 export type TemplateContextPayload = {
   host: { protocol: string; version: number };
+  /** Surface de diffusion demandée par le lien (ADR-0040). */
+  surface: "page" | "widget";
   link: { type: "standard" | "specifique"; label: string; userStateEnabled: boolean };
   locale: string;
   brand: { name: string; logoUrl: string | null };
@@ -136,7 +138,9 @@ export type TemplateAction =
   | { action: "finish" }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
-  | { action: "resize"; payload: { height: number } };
+  | { action: "resize"; payload: { height: number } }
+  | { action: "openWidget"; payload: { width?: number; height?: number } }
+  | { action: "closeWidget" };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_CONTENT = 4000;
@@ -255,12 +259,35 @@ export function parseTemplateAction(
       }
       return { ok: true, value: { action, payload: { height } } };
     }
+    case "openWidget": {
+      const width = typeof payload.width === "number" ? payload.width : undefined;
+      const height = typeof payload.height === "number" ? payload.height : undefined;
+      if (width !== undefined && (!Number.isInteger(width) || width < 240 || width > 1200)) {
+        return { ok: false, error: "largeur de widget invalide" };
+      }
+      if (height !== undefined && (!Number.isInteger(height) || height < 240 || height > 2000)) {
+        return { ok: false, error: "hauteur de widget invalide" };
+      }
+      return {
+        ok: true,
+        value: {
+          action,
+          payload: {
+            ...(width === undefined ? {} : { width }),
+            ...(height === undefined ? {} : { height }),
+          },
+        },
+      };
+    }
+    case "closeWidget":
+      return { ok: true, value: { action } };
     default:
       return { ok: false, error: `action inconnue : ${action}` };
   }
 }
 
 export type BuildTemplateContextInput = {
+  surface: "page" | "widget";
   link: { type: "standard" | "specifique"; label: string };
   locale: string;
   brand: { name: string; logoUrl: string | null };
@@ -322,6 +349,7 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
   const allowAttachments = capabilities.has("attachments");
   return {
     host: { protocol: TEMPLATE_HOST_PROTOCOL, version: TEMPLATE_CONTRACT_VERSION },
+    surface: input.surface,
     link: { ...input.link, userStateEnabled: input.userStateEnabled === true },
     locale: input.locale,
     brand: input.brand,

@@ -55,6 +55,7 @@ export default async function LiensPage() {
             versions: (await visualTemplateRepo.listVersions(item.id)).map((v) => ({
               version: v.version,
               params: v.manifest.params,
+              widget: v.manifest.ui.widget?.display ?? null,
             })),
           })),
         ),

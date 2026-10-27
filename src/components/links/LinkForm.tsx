@@ -6,12 +6,15 @@ import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ACTIVE_LINK_IDENTIFICATION_MODES,
   type ActiveLinkIdentificationMode,
+  CHAT_LINK_SURFACES,
   CHAT_LINK_TYPES,
   type ChatLinkSources,
+  type ChatLinkSurface,
   type ChatLinkType,
   DEFAULT_LINK_SOURCES,
 } from "@/domain/entities/chat";
 import type { TemplateParamValues } from "@/domain/template-params";
+import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { SourcesField } from "./SourcesField";
@@ -19,6 +22,7 @@ import { TemplateParamsFields } from "./TemplateParamsFields";
 import type {
   AiProviderOption,
   ConfidentialiteOption,
+  CreatedLink,
   ProspectOption,
   TemplateOption,
   VisualTemplateOption,
@@ -28,6 +32,7 @@ import {
   defaultsForSchema,
   paramsSchemaForSelection,
   parseVisualTemplateSelection,
+  widgetDisplayForSelection,
 } from "./visual-template-selection";
 
 type LinkFormProps = {
@@ -37,7 +42,7 @@ type LinkFormProps = {
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
   canAssignAi: boolean;
-  onCreated: () => void;
+  onCreated: (created: CreatedLink) => void;
   onCancel: () => void;
 };
 
@@ -58,6 +63,7 @@ export function LinkForm({
   const [pending, setPending] = useState(false);
   const [templateKey, setTemplateKey] = useState("fiche-projet");
   const [type, setType] = useState<ChatLinkType>("specifique");
+  const [surface, setSurface] = useState<ChatLinkSurface>("page");
   const [identificationMode, setIdentificationMode] =
     useState<ActiveLinkIdentificationMode>("contact");
   const [prospectId, setProspectId] = useState("");
@@ -67,15 +73,25 @@ export function LinkForm({
   const [userStateEnabled, setUserStateEnabled] = useState(false);
   const [confidentialiteId, setConfidentialiteId] = useState<string>(confidentialites[0]?.id ?? "");
   const [visualTemplate, setVisualTemplate] = useState<string>("");
+  const [widgetPosition, setWidgetPosition] = useState<WidgetPosition>("bottom-right");
   const [params, setParams] = useState<TemplateParamValues>({});
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
   const [ai, setAi] = useState<LinkAiValue>({ aiProviderId: null, aiModel: null });
   const paramsSchema = paramsSchemaForSelection(visualTemplates, visualTemplate);
+  const widgetDisplay = widgetDisplayForSelection(visualTemplates, visualTemplate);
+  const selectableVisualTemplates =
+    surface === "widget"
+      ? visualTemplates.filter((item) => item.versions.some((version) => version.widget !== null))
+      : visualTemplates;
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    setPending(true);
     setError(null);
+    if (surface === "widget" && widgetDisplay === null) {
+      setError("Choisissez un template visuel compatible avec le widget");
+      return;
+    }
+    setPending(true);
     try {
       const response = await fetch("/api/links", {
         method: "POST",
@@ -83,6 +99,7 @@ export function LinkForm({
         body: JSON.stringify({
           templateKey,
           type,
+          surface,
           identificationMode,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
@@ -98,18 +115,19 @@ export function LinkForm({
               visualTemplateId: parsed.id,
               visualTemplateVersion: parsed.version,
               visualTemplateParams: params,
+              ...(surface === "widget" ? { widgetConfig: { position: widgetPosition } } : {}),
               dataBindings,
             };
           })(),
         }),
       });
-      const json = (await response.json()) as { error?: string };
+      const json = (await response.json()) as CreatedLink & { error?: string };
       if (!response.ok) {
         setError(json.error ?? "Création impossible");
         return;
       }
       toast.success("Lien de chat créé.");
-      onCreated();
+      onCreated(json);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -140,6 +158,7 @@ export function LinkForm({
             const next = event.target.value as ChatLinkType;
             setType(next);
             if (next === "specifique") setIdentificationMode("contact");
+            if (next === "standard" && surface === "widget") setIdentificationMode("anonymous");
           }}
         >
           {CHAT_LINK_TYPES.map((value) => (
@@ -148,6 +167,37 @@ export function LinkForm({
             </option>
           ))}
         </select>
+      </label>
+
+      <label className="field">
+        Diffusion
+        <select
+          value={surface}
+          onChange={(event) => {
+            const next = event.target.value as ChatLinkSurface;
+            setSurface(next);
+            if (next === "widget") {
+              if (type === "standard") setIdentificationMode("anonymous");
+              setConfidentialiteId("");
+              if (widgetDisplayForSelection(visualTemplates, visualTemplate) === null) {
+                setVisualTemplate("");
+                setParams({});
+                setDataBindings({});
+              }
+            }
+          }}
+        >
+          {CHAT_LINK_SURFACES.map((value) => (
+            <option key={value} value={value}>
+              {value === "page" ? "Page publique" : "Widget intégrable"}
+            </option>
+          ))}
+        </select>
+        <span className="hint">
+          {surface === "page"
+            ? "Page publique /l/<jeton>."
+            : "Widget flottant intégrable par copier/coller sur un site tiers."}
+        </span>
       </label>
 
       {type === "specifique" ? (
@@ -167,6 +217,11 @@ export function LinkForm({
             Identification : prospect lié au lien. Le visiteur n&apos;a pas de formulaire.
           </p>
         </>
+      ) : surface === "widget" ? (
+        <p className="hint">
+          Identification : anonyme (obligatoire). Aucun formulaire de contact ne s&apos;affiche dans
+          le widget.
+        </p>
       ) : (
         <>
           <label className="field">
@@ -210,48 +265,86 @@ export function LinkForm({
 
       <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
 
-      <label className="field">
-        Confidentialité
-        <select
-          value={confidentialiteId}
-          onChange={(event) => setConfidentialiteId(event.target.value)}
-        >
-          <option value="">— Aucune —</option>
-          {confidentialites.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.titre}
-            </option>
-          ))}
-        </select>
-        <span className="hint">Le visiteur devra accepter cette politique avant de discuter.</span>
-      </label>
+      {surface === "widget" ? (
+        <p className="hint">
+          Confidentialité : aucune politique affichée dans le widget. La responsabilité de
+          l&apos;intégration sur un site tiers est portée par son exploitant.
+        </p>
+      ) : (
+        <label className="field">
+          Confidentialité
+          <select
+            value={confidentialiteId}
+            onChange={(event) => setConfidentialiteId(event.target.value)}
+          >
+            <option value="">— Aucune —</option>
+            {confidentialites.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.titre}
+              </option>
+            ))}
+          </select>
+          <span className="hint">
+            Le visiteur devra accepter cette politique avant de discuter.
+          </span>
+        </label>
+      )}
 
       <label className="field">
         Template visuel
         <select
           value={visualTemplate}
+          disabled={selectableVisualTemplates.length === 0}
           onChange={(event) => {
-            setVisualTemplate(event.target.value);
-            setParams(
-              defaultsForSchema(paramsSchemaForSelection(visualTemplates, event.target.value)),
-            );
+            const next = event.target.value;
+            const display = widgetDisplayForSelection(visualTemplates, next);
+            setVisualTemplate(next);
+            setParams(defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)));
             setDataBindings({});
+            if (display !== null) setWidgetPosition(display.defaultPosition);
           }}
         >
           <option value="">— Défaut —</option>
-          {visualTemplates.flatMap((item) =>
-            item.versions.map((entry) => (
-              <option key={`${item.id}@${entry.version}`} value={`${item.id}@${entry.version}`}>
-                {item.name} ({entry.version})
-              </option>
-            )),
+          {selectableVisualTemplates.flatMap((item) =>
+            item.versions
+              .filter((entry) => surface !== "widget" || entry.widget !== null)
+              .map((entry) => (
+                <option key={`${item.id}@${entry.version}`} value={`${item.id}@${entry.version}`}>
+                  {item.name} ({entry.version})
+                </option>
+              )),
           )}
         </select>
         <span className="hint">
-          Personnalise l&apos;interface publique du chat et du formulaire. Changer de template
-          réinitialise ses paramètres aux valeurs par défaut.
+          {surface === "widget" && selectableVisualTemplates.length === 0
+            ? "Aucun template installé ne supporte le widget. Importez un template avec ui.widget."
+            : "Personnalise l'interface publique du chat. Changer de template réinitialise ses paramètres."}
         </span>
       </label>
+
+      {surface === "widget" && widgetDisplay !== null ? (
+        <label className="field">
+          Position du widget
+          <select
+            value={widgetPosition}
+            onChange={(event) => setWidgetPosition(event.target.value as WidgetPosition)}
+          >
+            {WIDGET_POSITIONS.filter((position) =>
+              widgetDisplay.allowedPositions.includes(position),
+            ).map((position) => (
+              <option key={position} value={position}>
+                {position === "bottom-right"
+                  ? "En bas à droite"
+                  : position === "bottom-left"
+                    ? "En bas à gauche"
+                    : position === "top-right"
+                      ? "En haut à droite"
+                      : "En haut à gauche"}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <TemplateParamsFields schema={paramsSchema} values={params} onChange={setParams} />
       <LinkDataBindingsField

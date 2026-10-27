@@ -70,14 +70,14 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
   };
-  const spec = await loadTemplateSpec(deps, link);
+  const spec = await loadTemplateSpec(deps, link, link.surface === "widget" ? "widget" : "page");
   if (spec?.dataContracts.some((contract) => contract.loading === "eager")) {
     const dataDeps = await tryTemplateDataDependencies(pool);
     if (dataDeps !== undefined) deps.data = dataDeps;
   }
 
   let consent: { texte: string; lien: string } | null = null;
-  if (link.confidentialiteId !== null) {
+  if (link.surface !== "widget" && link.confidentialiteId !== null) {
     const policy = await pgConfidentialiteRepository(pool).findById(
       organizationId,
       link.confidentialiteId,
@@ -89,9 +89,9 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     spec === null
       ? null
       : await buildLinkContext(deps, link, spec, {
-          phase: "identity",
+          phase: link.surface === "widget" ? "chat" : "identity",
           messages: [],
-          consent,
+          consent: link.surface === "widget" ? null : consent,
           ...(paramsOverride === undefined ? {} : { paramsOverride }),
         });
 
@@ -133,6 +133,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
               baseContext={context}
               conversationId={null}
               initialMessages={[]}
+              anonymous={link.surface === "widget" && link.type === "standard"}
               preview
             />
           </div>

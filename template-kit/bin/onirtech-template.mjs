@@ -23,6 +23,10 @@ const hex = (buf) => createHash("sha256").update(buf).digest("hex");
 const loadManifest = async () =>
   JSON.parse(await readFile(join(dir, "onirtech.template.json"), "utf8"));
 const loadEntry = async (manifest) => readFile(join(dir, manifest.ui.entry.replace(/^\.\//, "")));
+const loadWidgetEntry = async (manifest) =>
+  manifest.ui.widget === undefined
+    ? null
+    : readFile(join(dir, manifest.ui.widget.entry.replace(/^\.\//, "")));
 
 const PARAM_TYPES = ["string", "text", "number", "boolean", "color", "url", "select"];
 const PARAM_KEY = /^[a-z][a-z0-9_]{1,40}$/;
@@ -140,7 +144,7 @@ function checkParams(params) {
   return errors;
 }
 
-function checkManifest(m, entryBuf) {
+function checkManifest(m, entryBuf, widgetEntryBuf) {
   const errors = [];
   if (m.schemaVersion !== 1) errors.push("schemaVersion doit valoir 1");
   if (m.kind !== "template") errors.push('kind doit valoir "template"');
@@ -153,6 +157,18 @@ function checkManifest(m, entryBuf) {
     const entry = entryBuf.toString("utf8");
     if (!entry.includes(m.ui.element)) errors.push(`entry n'enregistre pas l'élément ${m.ui.element}`);
     if (sri(entryBuf) !== m.ui.integrity) errors.push("intégrité désynchronisée (lancez `pack`)");
+  }
+  if (m.ui.widget !== undefined && widgetEntryBuf) {
+    const entry = widgetEntryBuf.toString("utf8");
+    if (!entry.includes(m.ui.widget.element)) {
+      errors.push(`entry widget n'enregistre pas l'élément ${m.ui.widget.element}`);
+    }
+    if (sri(widgetEntryBuf) !== m.ui.widget.integrity) {
+      errors.push("intégrité widget désynchronisée (lancez `pack`)");
+    }
+  }
+  if (m.ui.widget !== undefined && !widgetEntryBuf) {
+    errors.push("entry widget introuvable");
   }
   return errors;
 }
@@ -171,9 +187,10 @@ async function walk(root) {
 
 const manifest = await loadManifest();
 const entryBuf = await loadEntry(manifest).catch(() => null);
+const widgetEntryBuf = await loadWidgetEntry(manifest).catch(() => null);
 
 if (cmd === "validate") {
-  const errors = checkManifest(manifest, entryBuf);
+  const errors = checkManifest(manifest, entryBuf, widgetEntryBuf);
   if (errors.length) {
     console.error(`✗ Manifeste invalide :\n - ${errors.join("\n - ")}`);
     process.exit(1);
@@ -184,9 +201,12 @@ if (cmd === "validate") {
 
 if (entryBuf) {
   manifest.ui.integrity = sri(entryBuf);
-  await writeFile(join(dir, "onirtech.template.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 }
-const errors = checkManifest(manifest, entryBuf);
+if (widgetEntryBuf && manifest.ui.widget !== undefined) {
+  manifest.ui.widget.integrity = sri(widgetEntryBuf);
+}
+await writeFile(join(dir, "onirtech.template.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+const errors = checkManifest(manifest, entryBuf, widgetEntryBuf);
 if (errors.length) {
   console.error(`✗ ${errors.join(" ; ")}`);
   process.exit(1);
