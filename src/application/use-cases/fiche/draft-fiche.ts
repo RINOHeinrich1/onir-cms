@@ -46,6 +46,28 @@ export function buildExtractionGuide(definition: TemplateDefinition): string {
 }
 
 /**
+ * Extrait un objet JSON d'une réponse IA, même si le modèle l'a entouré de
+ * texte ou d'un bloc Markdown. Retourne `null` si aucun JSON exploitable.
+ */
+export function parseExtractionJson(raw: string): unknown | null {
+  const trimmed = raw.trim();
+  const candidates = [trimmed];
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1] !== undefined) candidates.push(fenced[1].trim());
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) candidates.push(trimmed.slice(start, end + 1));
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Essai suivant.
+    }
+  }
+  return null;
+}
+
+/**
  * Pré-remplissage assisté générique : l'IA propose les champs du modèle,
  * la validation métier tranche ensuite. Remplace `draftFicheFromConversation`.
  */
@@ -71,10 +93,8 @@ export async function draftTemplateDataFromConversation(
     messages: messages.map((message) => ({ role: message.role, content: message.content })),
   });
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
+  const parsed = parseExtractionJson(raw);
+  if (parsed === null) {
     throw new UnprocessableError(
       "L'IA n'a pas pu structurer la fiche à partir de la conversation. Réessayez ou poursuivez la discussion.",
     );
