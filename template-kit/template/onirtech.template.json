@@ -3,8 +3,8 @@
   "kind": "template",
   "id": "starter",
   "name": "Starter",
-  "description": "Template de référence (formulaire d'identification + chat + médias).",
-  "version": "1.1.0",
+  "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
+  "version": "1.2.1",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -22,7 +22,7 @@
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-0ue2ZT5iYWq8h6ql24X7fdibSrOTO4kJza0rI3coIOU=",
+      "integrity": "sha256-0UaRB5R9fqKr5oPZXtC8fDRYPAO1Sgsyi6hJsMfDOFQ=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [
