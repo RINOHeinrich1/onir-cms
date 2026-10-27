@@ -8,7 +8,7 @@ import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { draftTemplateDataFromConversation } from "@/application/use-cases/fiche/draft-fiche";
-import type { Conversation } from "@/domain/entities/chat";
+import { type Conversation, channelsForLink } from "@/domain/entities/chat";
 import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
 import { renderTemplateMarkdown } from "@/domain/render-template";
@@ -108,13 +108,15 @@ export async function buildFicheFromConversation(
   if (link === null) {
     throw new NotFoundError("Lien introuvable");
   }
+  const channelKind = conversation.channel ?? link.surface;
+  const channel = channelsForLink(link)[channelKind];
   const anonymousConversation =
     conversation.visitorNom.trim() === "" &&
     conversation.visitorEmail.trim() === "" &&
     conversation.prospectId === null;
   if (
-    link.surface !== "widget" &&
-    (link.identificationMode === "anonymous" || anonymousConversation)
+    channelKind !== "widget" &&
+    (channel.identificationMode === "anonymous" || anonymousConversation)
   ) {
     throw new UnprocessableError("Une conversation anonyme ne génère pas de fiche nominative");
   }
@@ -148,7 +150,7 @@ export async function buildFicheFromConversation(
   if (prospect === null && link.prospectId !== null) {
     prospect = await deps.prospects.findById(organizationId, link.prospectId);
   }
-  if (prospect === null && link.surface === "widget" && link.type === "standard") {
+  if (prospect === null && channelKind === "widget" && link.type === "standard") {
     const rawContact = typeof draft.contact === "string" ? draft.contact.trim() : "";
     prospect = await deps.prospects.create(organizationId, {
       nom: widgetProspectName(link),
@@ -170,7 +172,7 @@ export async function buildFicheFromConversation(
   // Contact de la fiche : widget ⇒ prospect technique ou contact collecté dans
   // le chat ; spécifique ⇒ coordonnées du prospect ; standard ⇒ visiteur.
   const contact =
-    link.surface === "widget" && prospect !== null
+    channelKind === "widget" && prospect !== null
       ? formatContact([prospect.nom, prospect.email, prospect.detail])
       : link.type === "specifique" && prospect !== null
         ? formatContact([

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildWidgetSnippet, widgetEmbedUrl } from "@/application/use-cases/links/widget-code";
+import { channelsForLink } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { decryptLinkToken } from "@/lib/link-crypto";
@@ -24,8 +25,9 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     if (link === null) {
       return NextResponse.json({ error: "Lien introuvable" }, { status: 404 });
     }
-    if (link.surface !== "widget") {
-      return NextResponse.json({ error: "Ce lien n'est pas un widget" }, { status: 400 });
+    const widget = channelsForLink(link).widget;
+    if (!widget.enabled) {
+      return NextResponse.json({ error: "Le canal widget est désactivé" }, { status: 400 });
     }
     const tokenEnc = await repository.getTokenEnc(organizationId, id);
     if (tokenEnc === null) {
@@ -33,7 +35,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     }
     const token = decryptLinkToken(tokenEnc);
     return NextResponse.json({
-      snippet: buildWidgetSnippet(token, link.widgetConfig.position ?? "bottom-right"),
+      snippet: buildWidgetSnippet(token, widget.widgetConfig.position ?? "bottom-right"),
       embedUrl: widgetEmbedUrl(token),
     });
   } catch (error) {

@@ -8,6 +8,8 @@ import {
   toContractMessages,
 } from "@/application/use-cases/visual-templates/link-template";
 import { TemplateHost } from "@/components/templates/TemplateHost";
+import { WidgetReadySignal } from "@/components/templates/WidgetReadySignal";
+import { channelsForLink } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
@@ -29,7 +31,7 @@ export const metadata: Metadata = {
 type PageProps = { params: Promise<{ token: string }> };
 
 /**
- * Surface widget (ADR-0040) : iframe first-party chargée par `/widget/v1.js`.
+ * Surface widget (ADR-0040) : iframe first-party chargée par `/widget/v2.js`.
  * Aucun header dashboard, aucun formulaire de contact, aucune politique.
  * Le template widget démarre directement en phase `chat`.
  */
@@ -38,7 +40,11 @@ export default async function WidgetPage({ params }: PageProps) {
   const pool = getPool();
   const links = pgChatLinkRepository(pool);
   const link = await links.findByTokenHash(hashLinkToken(token.trim()));
-  if (link === null || !link.actif || link.surface !== "widget") {
+  if (link === null || !link.actif) {
+    notFound();
+  }
+  const channel = channelsForLink(link).widget;
+  if (!channel.enabled) {
     notFound();
   }
   const organization = await pgOrganizationRepository(pool).findById(link.organizationId);
@@ -54,7 +60,7 @@ export default async function WidgetPage({ params }: PageProps) {
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
   };
-  const spec = await loadTemplateSpec(deps, link, "widget");
+  const spec = await loadTemplateSpec(deps, link, "widget", channel);
   if (spec === null) {
     notFound();
   }
@@ -68,9 +74,12 @@ export default async function WidgetPage({ params }: PageProps) {
       phase: "chat",
       messages: [],
       consent: null,
+      surface: "widget",
+      channel,
     });
     return (
       <main className="widget-page template-page">
+        <WidgetReadySignal />
         <TemplateHost
           token={token}
           template={spec}
@@ -91,7 +100,7 @@ export default async function WidgetPage({ params }: PageProps) {
       conversations,
       prospects: pgProspectRepository(pool),
     },
-    { token },
+    { token, channel: "widget" },
   );
   const messages = await conversations.listMessages(
     started.conversation.organizationId,
@@ -102,9 +111,12 @@ export default async function WidgetPage({ params }: PageProps) {
     phase: "chat",
     messages: contract,
     consent: null,
+    surface: "widget",
+    channel,
   });
   return (
     <main className="widget-page template-page">
+      <WidgetReadySignal />
       <TemplateHost
         token={token}
         template={spec}

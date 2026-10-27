@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
+import { isChatLinkSurface } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -30,6 +31,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const token = stringField(body, "token");
+    const surface = stringField(body, "surface");
     if (token === undefined) {
       return NextResponse.json({ error: "Lien manquant" }, { status: 400 });
     }
@@ -61,6 +63,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           contacts: body.contacts,
         },
         consentement: body.consentement,
+        ...(surface !== undefined && isChatLinkSurface(surface) ? { channel: surface } : {}),
       },
     );
     // Reprise : on renvoie l'historique éventuel pour ré-afficher le fil.

@@ -24,6 +24,102 @@ export function isChatLinkSurface(value: string): value is ChatLinkSurface {
   return (CHAT_LINK_SURFACES as readonly string[]).includes(value);
 }
 
+/** Configuration d'un canal de diffusion (ADR-0041). */
+export type ChatLinkChannel = {
+  channel: ChatLinkSurface;
+  enabled: boolean;
+  identificationMode: ActiveLinkIdentificationMode;
+  confidentialiteId: string | null;
+  visualTemplateId: string | null;
+  visualTemplateVersion: string | null;
+  visualTemplateConfig: Record<string, string>;
+  visualTemplateParams: TemplateParamValues;
+  widgetConfig: ChatLinkWidgetConfig;
+};
+
+export type ChatLinkChannels = Record<ChatLinkSurface, ChatLinkChannel>;
+
+/** Valeurs par défaut d'un canal, utilisé par l'UI et les lignes legacy. */
+export function emptyChatLinkChannel(
+  channel: ChatLinkSurface,
+  type: ChatLinkType,
+): ChatLinkChannel {
+  return {
+    channel,
+    enabled: false,
+    identificationMode: channel === "widget" && type === "standard" ? "anonymous" : "contact",
+    confidentialiteId: null,
+    visualTemplateId: null,
+    visualTemplateVersion: null,
+    visualTemplateConfig: {},
+    visualTemplateParams: {},
+    widgetConfig: {},
+  };
+}
+
+/**
+ * Canaux d'un lien, avec repli sur les colonnes historiques (`surface`) tant
+ * que la migration de compatibilité n'est pas terminée.
+ */
+export function channelsForLink(link: ChatLink): ChatLinkChannels {
+  if (link.channels !== undefined) return link.channels;
+  const base = {
+    identificationMode: link.identificationMode,
+    confidentialiteId: link.confidentialiteId,
+    visualTemplateId: link.visualTemplateId,
+    visualTemplateVersion: link.visualTemplateVersion,
+    visualTemplateConfig: link.visualTemplateConfig,
+    visualTemplateParams: link.visualTemplateParams,
+  };
+  return {
+    page: {
+      channel: "page",
+      enabled: link.surface === "page",
+      ...base,
+      widgetConfig: {},
+    },
+    widget: {
+      channel: "widget",
+      enabled: link.surface === "widget",
+      ...base,
+      identificationMode: link.type === "standard" ? "anonymous" : link.identificationMode,
+      confidentialiteId: null,
+      widgetConfig: link.widgetConfig,
+    },
+  };
+}
+
+/** Champs historiques (surface, template, identification) dérivés des canaux. */
+export function legacyChannelFields(
+  channels: ChatLinkChannels,
+): Pick<
+  ChatLink,
+  | "surface"
+  | "identificationMode"
+  | "confidentialiteId"
+  | "visualTemplateId"
+  | "visualTemplateVersion"
+  | "visualTemplateConfig"
+  | "visualTemplateParams"
+  | "widgetConfig"
+> {
+  const active = channels.page.enabled
+    ? channels.page
+    : channels.widget.enabled
+      ? channels.widget
+      : channels.page;
+  return {
+    surface: active.channel,
+    identificationMode: active.identificationMode,
+    confidentialiteId: active.confidentialiteId,
+    visualTemplateId: active.visualTemplateId,
+    visualTemplateVersion: active.visualTemplateVersion,
+    visualTemplateConfig: active.visualTemplateConfig,
+    visualTemplateParams: active.visualTemplateParams,
+    widgetConfig: channels.widget.widgetConfig,
+  };
+}
+
 /** Modes d'identification stockés (ADR-0033). OTP/interne réservés. */
 export const CHAT_LINK_IDENTIFICATION_MODES = ["contact", "anonymous", "otp", "internal"] as const;
 
@@ -101,6 +197,8 @@ export type ChatLink = {
   visualTemplateParams: TemplateParamValues;
   /** Configuration d'intégration widget (position), sans logique template. */
   widgetConfig: ChatLinkWidgetConfig;
+  /** Canaux de diffusion (ADR-0041) ; optionnel pour les lignes/fixtures legacy. */
+  channels?: ChatLinkChannels;
   /** Fournisseur IA explicite du lien (ADR-0029) ; null = hériter. */
   aiProviderId: string | null;
   /** Modèle IA explicite du lien ; null = hériter. */
@@ -186,6 +284,8 @@ export type Conversation = {
   consentementAt: string | null;
   /** Politique acceptée (au moment du consentement). */
   confidentialiteId: string | null;
+  /** Canal d'origine de la conversation (ADR-0041). */
+  channel?: ChatLinkSurface;
   createdAt: string;
 };
 

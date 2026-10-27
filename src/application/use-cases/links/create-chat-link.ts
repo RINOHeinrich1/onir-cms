@@ -13,26 +13,19 @@ import {
   assertAssignableProvider,
   parseAiAssignmentInput,
 } from "@/application/use-cases/links/link-ai-assignment";
+import { resolveLinkChannels } from "@/application/use-cases/links/link-channels";
 import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import {
-  parseExpiresAt,
-  parseIdentificationMode,
-  parseLabel,
-  parseSurface,
-} from "@/application/use-cases/links/link-fields";
-import { prepareLinkParams } from "@/application/use-cases/links/link-params";
-import { validateWidgetLink } from "@/application/use-cases/links/widget-link";
+import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
   type ChatLinkType,
   isChatLinkType,
+  legacyChannelFields,
   parseLinkSources,
   parseUserStateEnabled,
-  parseVisualTemplateConfig,
-  parseWidgetConfig,
 } from "@/domain/entities/chat";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { encryptLinkToken } from "@/lib/link-crypto";
@@ -81,12 +74,6 @@ export async function createChatLink(
   const type: ChatLinkType = rawType;
 
   const rawProspectId = typeof source.prospectId === "string" ? source.prospectId.trim() : "";
-  const surface = parseSurface(source.surface);
-  let identificationMode = parseIdentificationMode(source.identificationMode);
-  // Un widget standard n'a pas de formulaire : sans choix explicite, il est anonyme.
-  if (surface === "widget" && type === "standard" && !("identificationMode" in source)) {
-    identificationMode = "anonymous";
-  }
   const label = parseLabel(source.label);
   const expiresAt = parseExpiresAt(source.expiresAt);
 
@@ -98,43 +85,16 @@ export async function createChatLink(
 
   const sources = parseLinkSources(source.sources);
   const userStateEnabled = parseUserStateEnabled(source.userStateEnabled);
-  const visualTemplateId =
-    typeof source.visualTemplateId === "string" && source.visualTemplateId.trim() !== ""
-      ? source.visualTemplateId.trim()
-      : null;
-  const visualTemplateVersion =
-    visualTemplateId !== null &&
-    typeof source.visualTemplateVersion === "string" &&
-    source.visualTemplateVersion.trim() !== ""
-      ? source.visualTemplateVersion.trim()
-      : null;
-  const visualTemplateConfig = parseVisualTemplateConfig(source.visualTemplateConfig);
-  const parsedWidgetConfig = parseWidgetConfig(source.widgetConfig);
   const dataBindings = parseDataBindingSelections(source.dataBindings);
-  const visualTemplateParams = await prepareLinkParams(
-    deps.visualTemplates,
-    visualTemplateId,
-    visualTemplateVersion,
-    source.visualTemplateParams,
-  );
-
-  // Politique de confidentialité : choisie explicitement, sinon la première active.
-  // Un widget n'affiche aucune politique et ne peut pas en porter.
-  let confidentialiteId: string | null = null;
-  if (surface === "widget") {
-    if ("confidentialiteId" in source) {
-      const raw = source.confidentialiteId;
-      if (typeof raw === "string" && raw.trim() !== "") {
-        throw new ValidationError("Un widget ne peut pas porter de politique de confidentialité");
-      }
-    }
-  } else if ("confidentialiteId" in source) {
-    const raw = source.confidentialiteId;
-    confidentialiteId = typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
-  } else {
-    const actives = await deps.confidentialites.listActives(organizationId);
-    confidentialiteId = actives[0]?.id ?? null;
-  }
+  const activeConfidentialites = await deps.confidentialites.listActives(organizationId);
+  const channels = await resolveLinkChannels({
+    type,
+    source,
+    defaultConfidentialiteId: activeConfidentialites[0]?.id ?? null,
+    visualTemplates: deps.visualTemplates,
+    organizationId,
+  });
+  const summary = legacyChannelFields(channels);
 
   const rawTemplateKey = typeof source.templateKey === "string" ? source.templateKey.trim() : "";
   const templateKey = rawTemplateKey === "" ? "fiche-projet" : rawTemplateKey;
@@ -144,7 +104,7 @@ export async function createChatLink(
   }
 
   if (type === "specifique") {
-    if (identificationMode !== "contact") {
+    if (channels.page.identificationMode !== "contact") {
       throw new ValidationError(
         "Un lien spécifique utilise le prospect rattaché : le mode anonyme est indisponible",
       );
@@ -160,48 +120,25 @@ export async function createChatLink(
     throw new ValidationError("Un lien standard ne porte aucun prospect");
   }
 
-  if (visualTemplateId !== null) {
-    const assigned = await deps.visualTemplates.findAssignedById(organizationId, visualTemplateId);
-    if (assigned === null) {
-      throw new NotFoundError("Template visuel introuvable");
-    }
-  }
-
-  const widgetInfo = await validateWidgetLink(deps.visualTemplates, organizationId, {
-    surface,
-    type,
-    identificationMode,
-    confidentialiteId,
-    visualTemplateId,
-    visualTemplateVersion,
-    widgetConfig: parsedWidgetConfig,
-  });
-  const widgetConfig = widgetInfo?.widgetConfig ?? parsedWidgetConfig;
-
   const token = generateLinkToken();
-  const link = await deps.links.create(organizationId, {
+  const created = await deps.links.create(organizationId, {
     tokenHash: hashLinkToken(token),
     tokenEnc: encryptLinkToken(token),
     label,
     type,
-    surface,
-    identificationMode,
+    ...summary,
     prospectId: type === "specifique" ? rawProspectId : null,
     createdBy: actor.id,
     expiresAt,
     templateKey,
     templateVersion: template.version,
     sources,
-    confidentialiteId,
     userStateEnabled,
-    visualTemplateId,
-    visualTemplateVersion,
-    visualTemplateConfig,
-    visualTemplateParams,
-    widgetConfig,
+    channels,
     aiProviderId: aiAssignment?.aiProviderId ?? null,
     aiModel: aiAssignment?.aiModel ?? null,
   });
+  const link: ChatLink = { ...created, channels };
   if (dataBindings !== null) {
     if (deps.bindings === undefined || deps.linkDataBindings === undefined) {
       throw new ValidationError("Sources de données indisponibles");

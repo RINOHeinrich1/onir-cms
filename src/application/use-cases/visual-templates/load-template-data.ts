@@ -45,6 +45,8 @@ export type LoadTemplateDataInput = {
   skipAudit?: boolean;
   /** Aperçu : binding précis (variante) au lieu du binding effectif du lien. */
   binding?: TemplateDataBinding;
+  /** Variables du canal courant (sinon repli sur les champs legacy du lien). */
+  params?: Record<string, string | number | boolean>;
 };
 
 type InputValues = Record<string, string | number | boolean>;
@@ -204,7 +206,7 @@ export async function loadTemplateData(
   }
 
   const linkParams: InputValues = {};
-  const resolved = resolveTemplateParams(spec.params, link.visualTemplateParams);
+  const resolved = resolveTemplateParams(spec.params, input.params ?? link.visualTemplateParams);
   for (const [key, value] of Object.entries(resolved)) {
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       linkParams[key] = value;

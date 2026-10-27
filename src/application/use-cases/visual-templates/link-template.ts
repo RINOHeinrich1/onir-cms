@@ -1,7 +1,13 @@
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
-import type { ChatLink, ChatMessage } from "@/domain/entities/chat";
+import {
+  type ChatLink,
+  type ChatLinkChannel,
+  type ChatLinkSurface,
+  type ChatMessage,
+  channelsForLink,
+} from "@/domain/entities/chat";
 import {
   buildTemplateContext,
   type TemplateContextPayload,
@@ -26,12 +32,16 @@ export type LinkTemplateDependencies = {
 export async function loadTemplateSpec(
   deps: LinkTemplateDependencies,
   link: ChatLink,
-  surface: "page" | "widget" = "page",
+  surface: ChatLinkSurface = "page",
+  channel: ChatLinkChannel = channelsForLink(link)[surface],
 ): Promise<TemplateSpec | null> {
-  if (link.visualTemplateId === null || link.visualTemplateVersion === null) return null;
-  const template = await deps.visualTemplates.findById(link.visualTemplateId);
+  if (channel.visualTemplateId === null || channel.visualTemplateVersion === null) return null;
+  const template = await deps.visualTemplates.findById(channel.visualTemplateId);
   if (template === null) return null;
-  const version = await deps.visualTemplates.findVersion(template.id, link.visualTemplateVersion);
+  const version = await deps.visualTemplates.findVersion(
+    template.id,
+    channel.visualTemplateVersion,
+  );
   if (version === null) return null;
   const widget = version.manifest.ui.widget;
   if (surface === "widget" && widget === undefined) return null;
@@ -103,6 +113,9 @@ export async function buildLinkContext(
     theme?: Record<string, string>;
     /** Aperçu : valeurs non enregistrées qui remplacent celles du lien. */
     paramsOverride?: unknown;
+    /** Canal courant (ADR-0041). Défaut : surface legacy du lien. */
+    surface?: ChatLinkSurface;
+    channel?: ChatLinkChannel;
   },
 ): Promise<TemplateContextPayload> {
   const caps = spec.capabilities;
@@ -144,16 +157,18 @@ export async function buildLinkContext(
             }),
       })) ?? null;
   }
+  const surface = input.surface ?? link.surface;
+  const channel = input.channel ?? channelsForLink(link)[surface];
   const context = buildTemplateContext({
-    surface: link.surface,
+    surface,
     link: { type: link.type, label: link.label },
     locale: "fr",
     brand: { name: "ONIRTECH", logoUrl: null },
-    theme: input.theme ?? link.visualTemplateConfig,
+    theme: input.theme ?? channel.visualTemplateConfig,
     // Résolution unique, tolérante : défauts ⊕ valeurs (invalid -> défaut).
     params: resolveTemplateParams(
       spec.params,
-      input.paramsOverride === undefined ? link.visualTemplateParams : input.paramsOverride,
+      input.paramsOverride === undefined ? channel.visualTemplateParams : input.paramsOverride,
     ),
     capabilities: caps,
     consent: input.consent,
@@ -174,7 +189,12 @@ export async function buildLinkContext(
     if (eager.length > 0) {
       const data: Record<string, unknown> = {};
       for (const contract of eager) {
-        const result = await loadTemplateData(deps.data, { link, spec, contractKey: contract.key });
+        const result = await loadTemplateData(deps.data, {
+          link,
+          spec,
+          contractKey: contract.key,
+          params: channel.visualTemplateParams,
+        });
         if (result.status === "ok") data[contract.key] = result.data;
       }
       if (Object.keys(data).length > 0) context.resources.data = data;

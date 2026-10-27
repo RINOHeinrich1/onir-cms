@@ -126,7 +126,7 @@ export function TemplateHost({
       const response = await fetch(`${platform}/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, loadedAt: Date.now() - 5000 }),
+        body: JSON.stringify({ token, loadedAt: Date.now() - 5000, surface }),
       }).catch(() => null);
       const json = (await response?.json().catch(() => null)) as {
         conversationId?: string;
@@ -154,7 +154,7 @@ export function TemplateHost({
     } finally {
       sessionPromiseRef.current = null;
     }
-  }, [anonymous, platform, template, token]);
+  }, [anonymous, platform, surface, template, token]);
 
   const uploadAttachment = useCallback(
     async (fieldName: string, file: File): Promise<void> => {
@@ -499,7 +499,7 @@ export function TemplateHost({
         const response = await fetch(`${platform}/data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, contract: key, inputs: options?.inputs }),
+          body: JSON.stringify({ token, contract: key, inputs: options?.inputs, surface }),
         });
         const json = (await response.json().catch(() => null)) as TemplateDataResult<T> | null;
         if (json !== null && (json.status === "ok" || json.status === "error")) return json;
@@ -508,7 +508,7 @@ export function TemplateHost({
         return { status: "error", code: "DATA_PROVIDER_ERROR", message: "Erreur réseau" };
       }
     },
-    [baseContext.resources.data, platform, preview, token],
+    [baseContext.resources.data, platform, preview, surface, token],
   );
 
   const liveContext = useMemo<LiveContext>(

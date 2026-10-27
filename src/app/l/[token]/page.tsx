@@ -15,6 +15,7 @@ import { BrandLogo } from "@/components/layout/BrandLogo";
 import { AnonymousTemplatePortal } from "@/components/templates/AnonymousTemplatePortal";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { TemplateLoader } from "@/components/templates/TemplateLoader";
+import { channelsForLink } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import type { TemplateFormField } from "@/domain/template-contract";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
@@ -71,6 +72,10 @@ export default async function ChatPortalPage({ params }: PageProps) {
   if (link === null || !link.actif) {
     notFound();
   }
+  const channel = channelsForLink(link).page;
+  if (!channel.enabled) {
+    notFound();
+  }
   const organization = await pgOrganizationRepository(pool).findById(link.organizationId);
   if (organization === null || organization.suspendedAt !== null) {
     notFound();
@@ -124,27 +129,29 @@ export default async function ChatPortalPage({ params }: PageProps) {
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
   };
-  const spec = await loadTemplateSpec(deps, link);
+  const spec = await loadTemplateSpec(deps, link, "page", channel);
   if (spec?.dataContracts.some((contract) => contract.loading === "eager")) {
     const dataDeps = await tryTemplateDataDependencies(pool);
     if (dataDeps !== undefined) deps.data = dataDeps;
   }
 
   let consent: { texte: string; lien: string } | null = null;
-  if (link.confidentialiteId !== null) {
+  if (channel.confidentialiteId !== null) {
     const policy = await pgConfidentialiteRepository(pool).findById(
       link.organizationId,
-      link.confidentialiteId,
+      channel.confidentialiteId,
     );
     if (policy?.actif === true) consent = { texte: policy.texte, lien: policy.lien };
   }
 
-  if (link.type === "standard" && link.identificationMode === "anonymous") {
+  if (link.type === "standard" && channel.identificationMode === "anonymous") {
     if (spec !== null) {
       const context = await buildLinkContext(deps, link, spec, {
         phase: "chat",
         messages: [],
         consent,
+        surface: "page",
+        channel,
       });
       return (
         <main className="chat-page template-page">
@@ -177,6 +184,8 @@ export default async function ChatPortalPage({ params }: PageProps) {
         phase: "identity",
         messages: [],
         consent,
+        surface: "page",
+        channel,
       });
       return (
         <main className="chat-page template-page">
@@ -207,7 +216,7 @@ export default async function ChatPortalPage({ params }: PageProps) {
       conversations,
       prospects: pgProspectRepository(pool),
     },
-    { token },
+    { token, channel: "page" },
   );
   const messages = await conversations.listMessages(
     started.conversation.organizationId,
@@ -223,6 +232,8 @@ export default async function ChatPortalPage({ params }: PageProps) {
       phase: "chat",
       messages: contract,
       consent,
+      surface: "page",
+      channel,
     });
     return (
       <main className="chat-page template-page">
