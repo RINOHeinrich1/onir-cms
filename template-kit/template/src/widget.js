@@ -456,6 +456,11 @@ function safeColor(value, fallback) {
   return fallback;
 }
 
+function paramText(ctx, key, fallback) {
+  const value = ctx?.params?.[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
+}
+
 function themedColor(ctx, key, themeValue, fallback) {
   const param = safeColor(ctx?.params?.[key], "");
   if (param !== "") return param;
@@ -625,6 +630,8 @@ class StarterWidget extends HTMLElement {
   #brandAvatar = null;
   #brandName = null;
   #brandSignature = null;
+  #welcomeTitle = null;
+  #welcomeMessage = null;
   #statusText = null;
   #statusDot = null;
   #finishButton = null;
@@ -776,6 +783,8 @@ class StarterWidget extends HTMLElement {
     this.#brandAvatar = null;
     this.#brandName = null;
     this.#brandSignature = null;
+    this.#welcomeTitle = null;
+    this.#welcomeMessage = null;
     this.#statusText = null;
     this.#statusDot = null;
     this.#finishButton = null;
@@ -815,12 +824,13 @@ class StarterWidget extends HTMLElement {
       el("div", { class: "head-actions" }, [finishButton, closeButton]),
     ]);
 
+    const welcomeTitle = el("strong", { text: "Bienvenue" });
+    const welcomeMessage = el("span", {
+      text: "Décrivez votre demande. Je vous réponds directement ici.",
+    });
     const intro = el("div", { class: "intro" }, [
       icon("spark", 17),
-      el("div", {}, [
-        el("strong", { text: "Bienvenue" }),
-        el("span", { text: "Décrivez votre demande. Je vous réponds directement ici." }),
-      ]),
+      el("div", {}, [welcomeTitle, welcomeMessage]),
     ]);
     const list = el("ul", { class: "log-list" });
     const typing = el("div", { class: "typing", hidden: "true" });
@@ -881,6 +891,8 @@ class StarterWidget extends HTMLElement {
 
     this.#brandAvatar = brandAvatar;
     this.#brandName = brandName;
+    this.#welcomeTitle = welcomeTitle;
+    this.#welcomeMessage = welcomeMessage;
     this.#statusText = statusText;
     this.#statusDot = statusDot;
     this.#finishButton = finishButton;
@@ -908,13 +920,19 @@ class StarterWidget extends HTMLElement {
     const brandSignature = `${brandName}|${ctx.brand?.logoUrl ?? ""}`;
     if (this.#brandSignature !== brandSignature) {
       this.#brandSignature = brandSignature;
-      this.#brandName.textContent = brandName;
       this.#brandAvatar.replaceChildren(
         ctx.brand?.logoUrl
           ? el("img", { src: ctx.brand.logoUrl, alt: "" })
           : el("span", { text: brandName.slice(0, 1).toUpperCase() }),
       );
     }
+    this.#brandName.textContent = paramText(ctx, "chat_title", brandName);
+    this.#welcomeTitle.textContent = paramText(ctx, "welcome_title", "Bienvenue");
+    this.#welcomeMessage.textContent = paramText(
+      ctx,
+      "welcome_message",
+      "Décrivez votre demande. Je vous réponds directement ici.",
+    );
     const finalised = ctx.state.status === "finalisee";
     this.#statusText.textContent = finalised ? "Demande enregistrée" : "Assistant en ligne";
     this.#statusDot.classList.toggle("is-done", finalised);

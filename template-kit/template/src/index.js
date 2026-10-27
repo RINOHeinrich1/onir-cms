@@ -4,6 +4,11 @@
 
 const ELEMENT = "onirtech-template-starter";
 
+function paramText(ctx, key, fallback) {
+  const value = ctx.params?.[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
+}
+
 function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -134,9 +139,21 @@ class StarterTemplate extends HTMLElement {
       ctx.actions.sendMessage(input.value.trim());
       input.value = "";
     };
+    const title = paramText(ctx, "chat_title", ctx.brand.name || "Discussion");
+    const welcomeTitle = paramText(ctx, "welcome_title", "Bienvenue");
+    const welcomeMessage = paramText(
+      ctx,
+      "welcome_message",
+      "Décrivez votre demande. Je vous réponds directement ici.",
+    );
     return el("section", {}, [
-      el("h2", { text: ctx.brand.name || "Discussion" }),
-      el("ul", {}, items.length ? items : [el("li", { class: "assistant", text: "Bonjour !" })]),
+      el("h2", { text: title }),
+      el("ul", {}, items.length ? items : [
+        el("li", { class: "assistant" }, [
+          el("strong", { text: welcomeTitle }),
+          el("div", { text: welcomeMessage }),
+        ]),
+      ]),
       ctx.state.typing ? el("p", { text: "…" }) : null,
       el("div", { class: "composer" }, [
         input,

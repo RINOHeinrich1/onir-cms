@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -17,12 +17,12 @@
     "mode": "web-component",
     "entry": "./src/index.js",
     "element": "onirtech-template-starter",
-    "integrity": "sha256-HTyyn5uf8gvDZmFEvussLc1Dliuuyr3ZoVLYrjFspO0=",
+    "integrity": "sha256-0VFfcqbGIwKTtkQmR6h42QW0yr0Nw+CNXrENng6AySo=",
     "shadowDom": "open",
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-t2uTsNJS6s2ukyrfuRc8HM3RvgqUCqLsWA5L7YEewS0=",
+      "integrity": "sha256-uPKmxZPCYaIJR60XWuHzvoi5dZw8/7vZAp9/OU/giwc=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [
@@ -51,6 +51,30 @@
   ],
   "network": [],
   "params": [
+    {
+      "key": "chat_title",
+      "label": "Titre du chatbot",
+      "description": "Nom affiché en haut du widget.",
+      "type": "string",
+      "default": "ONIRTECH",
+      "maxLength": 80
+    },
+    {
+      "key": "welcome_title",
+      "label": "Titre de bienvenue",
+      "description": "Titre affiché dans le message d'accueil.",
+      "type": "string",
+      "default": "Bienvenue",
+      "maxLength": 80
+    },
+    {
+      "key": "welcome_message",
+      "label": "Message de bienvenue",
+      "description": "Texte affiché sous le titre d'accueil.",
+      "type": "text",
+      "default": "Décrivez votre demande. Je vous réponds directement ici.",
+      "maxLength": 300
+    },
     {
       "key": "primary_color",
       "label": "Couleur principale",
