@@ -406,6 +406,50 @@
   border-color: var(--navy);
 }
 
+.param-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.param-color {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  margin-top: 0.35rem;
+}
+
+.field .param-color input[type="color"] {
+  width: 3rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+
+.param-color-text {
+  min-width: 0;
+}
+
+.field .param-color input[type="text"] {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.field .param-color input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.param-color-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: #b42318;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .hint {
   font-size: 0.85rem;
   color: var(--fg-muted);
