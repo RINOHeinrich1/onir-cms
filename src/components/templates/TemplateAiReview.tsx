@@ -1,14 +1,21 @@
 "use client";
 
-import { PROMPT_GUARDRAILS, PROMPT_TONES } from "@/domain/template-defaults";
+import { PROMPT_TONES, guardrailLabel as resolveGuardrailLabel } from "@/domain/template-defaults";
+import type { TemplateLanguagePolicy } from "@/domain/template-settings";
 import type { TemplateAiGenerationDto, TemplateAiKnowledgeDto } from "./ai-types";
 
-function guardrailLabel(id: string): string {
-  return PROMPT_GUARDRAILS.find((guardrail) => guardrail.id === id)?.label ?? id;
+function guardrailLabel(value: string): string {
+  return resolveGuardrailLabel(value);
 }
 
 function toneLabel(value: string): string {
   return PROMPT_TONES.find((tone) => tone.value === value)?.label ?? value;
+}
+
+function languageLabel(value: TemplateLanguagePolicy): string {
+  return value.mode === "auto"
+    ? "Automatique — langue du visiteur"
+    : `Langue fixe : ${value.value}`;
 }
 
 export function TemplateAiReview({
@@ -53,36 +60,52 @@ export function TemplateAiReview({
         <dd>{result.draft.role}</dd>
         <dt>Objectif</dt>
         <dd>{result.draft.objective}</dd>
+        <dt>Langue</dt>
+        <dd>{languageLabel(result.draft.language)}</dd>
         <dt>Ton</dt>
-        <dd>{toneLabel(result.draft.tone)}</dd>
+        <dd>{result.draft.tone === "" ? "Non précisé" : toneLabel(result.draft.tone)}</dd>
         <dt>Garde-fous</dt>
-        <dd>{result.draft.guardrails.map(guardrailLabel).join(" · ")}</dd>
+        <dd>
+          {result.draft.guardrails.length === 0
+            ? "Aucun"
+            : result.draft.guardrails.map(guardrailLabel).join(" · ")}
+        </dd>
+        {result.draft.extraInstructions !== "" ? (
+          <>
+            <dt>Instructions</dt>
+            <dd>{result.draft.extraInstructions}</dd>
+          </>
+        ) : null}
       </dl>
 
       <div className="template-ai-section">
         <h4>Informations à collecter</h4>
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Libellé</th>
-                <th>Type</th>
-                <th>Obligatoire</th>
-                <th>Exemple</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.draft.fields.map((field) => (
-                <tr key={field.name}>
-                  <td>{field.label}</td>
-                  <td>{field.type}</td>
-                  <td>{field.required ? "Oui" : "Non"}</td>
-                  <td>{field.example ?? "—"}</td>
+        {result.draft.fields.length === 0 ? (
+          <p className="hint">Aucune information à collecter : modèle conversationnel.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Libellé</th>
+                  <th>Type</th>
+                  <th>Obligatoire</th>
+                  <th>Exemple</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {result.draft.fields.map((field) => (
+                  <tr key={field.name}>
+                    <td>{field.label}</td>
+                    <td>{field.type}</td>
+                    <td>{field.required ? "Oui" : "Non"}</td>
+                    <td>{field.example ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="template-ai-section">

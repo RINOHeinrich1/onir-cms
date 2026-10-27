@@ -24,6 +24,12 @@ describe("validateTemplateDefinition", () => {
     }
   });
 
+  it("accepte un modèle sans champ", () => {
+    const result = validateTemplateDefinition(base({ fields: [] }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.fields).toEqual([]);
+  });
+
   it("accepte un exemple de réponse et le normalise", () => {
     const result = validateTemplateDefinition(
       base({

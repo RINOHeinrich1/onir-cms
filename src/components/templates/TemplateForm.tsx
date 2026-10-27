@@ -22,23 +22,35 @@ import {
 import {
   buildDefaultRenderTemplate,
   buildDefaultSystemPrompt,
-  DEFAULT_PROMPT_GUARDRAILS,
-  DEFAULT_PROMPT_OBJECTIVE,
-  DEFAULT_PROMPT_ROLE,
   PROMPT_GUARDRAILS,
   PROMPT_TONES,
-  type PromptGuardrailId,
   resolveFieldName,
   toFieldName,
   toTemplateKey,
   uniqueFieldName,
   uniqueTemplateKey,
 } from "@/domain/template-defaults";
+import {
+  normalizeTemplateSimpleSettings,
+  type TemplateLanguagePolicy,
+  type TemplateSimpleSettings,
+} from "@/domain/template-settings";
 import type { TemplateAiGenerationDto, TemplateAiKnowledgeDto } from "./ai-types";
 import { KnowledgeMergeDialog } from "./KnowledgeMergeDialog";
 import { TemplateAiAssistPanel } from "./TemplateAiAssistPanel";
 import { TemplateAiReview } from "./TemplateAiReview";
 import { TemplateLivePreview } from "./TemplateLivePreview";
+
+function normalizeLanguagePolicyForForm(
+  mode: "auto" | "fixed",
+  value: string,
+): TemplateLanguagePolicy {
+  if (mode === "fixed" && value.trim() !== "") {
+    return { mode: "fixed", value: value.trim() };
+  }
+  return { mode: "auto" };
+}
+
 import {
   EMPTY_FIELD,
   type TemplateFieldDraft,
@@ -315,6 +327,8 @@ export function TemplateForm({
   );
   const [key, setKey] = useState(templateKey ?? seed?.key ?? "");
   const [keyTouched, setKeyTouched] = useState(false);
+  const initialSimple =
+    seed === null ? null : normalizeTemplateSimpleSettings(seed.definition.simple);
   const [label, setLabel] = useState(seed?.label ?? "");
   const [description, setDescription] = useState(seed?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(() =>
@@ -323,10 +337,22 @@ export function TemplateForm({
   const [renderTemplateText, setRenderTemplateText] = useState(() =>
     typeof seed?.definition.renderTemplate === "string" ? seed.definition.renderTemplate : "",
   );
-  const [role, setRole] = useState(DEFAULT_PROMPT_ROLE);
-  const [objective, setObjective] = useState(seed?.description || DEFAULT_PROMPT_OBJECTIVE);
-  const [tone, setTone] = useState<string>(PROMPT_TONES[0].value);
-  const [guardrails, setGuardrails] = useState<PromptGuardrailId[]>([...DEFAULT_PROMPT_GUARDRAILS]);
+  const [role, setRole] = useState(initialSimple?.role ?? "");
+  const [objective, setObjective] = useState(initialSimple?.objective ?? seed?.description ?? "");
+  const [languageMode, setLanguageMode] = useState<"auto" | "fixed">(
+    initialSimple?.language.mode ?? "auto",
+  );
+  const [languageValue, setLanguageValue] = useState(
+    initialSimple?.language.mode === "fixed" ? initialSimple.language.value : "",
+  );
+  const [tone, setTone] = useState(initialSimple?.tone ?? "");
+  const [guardrails, setGuardrails] = useState<string[]>(initialSimple?.guardrails ?? []);
+  const [extraInstructions, setExtraInstructions] = useState(
+    initialSimple?.extraInstructions ?? "",
+  );
+  const [customGuardrail, setCustomGuardrail] = useState("");
+  const [hasSimpleSettings, setHasSimpleSettings] = useState(initialSimple !== null);
+  const [definitionLoaded, setDefinitionLoaded] = useState(templateKey === null);
   const [fields, setFields] = useState<FieldRow[]>(() =>
     seed === null ? [withUid({ ...EMPTY_FIELD })] : fieldsFromDefinition(seed.definition),
   );
@@ -353,15 +379,35 @@ export function TemplateForm({
         setKeyTouched(true);
         setLabel(json.template.label);
         setDescription(json.template.description);
-        setObjective(json.template.description || DEFAULT_PROMPT_OBJECTIVE);
+        const simple = normalizeTemplateSimpleSettings(definition.simple);
+        setHasSimpleSettings(simple !== null);
+        if (simple !== null) {
+          setRole(simple.role);
+          setObjective(simple.objective);
+          setLanguageMode(simple.language.mode);
+          setLanguageValue(simple.language.mode === "fixed" ? simple.language.value : "");
+          setTone(simple.tone);
+          setGuardrails(simple.guardrails);
+          setExtraInstructions(simple.extraInstructions);
+        } else {
+          setRole("");
+          setObjective(json.template.description);
+          setLanguageMode("auto");
+          setLanguageValue("");
+          setTone("");
+          setGuardrails([]);
+          setExtraInstructions("");
+        }
         setSystemPrompt(typeof definition.systemPrompt === "string" ? definition.systemPrompt : "");
         setRenderTemplateText(
           typeof definition.renderTemplate === "string" ? definition.renderTemplate : "",
         );
         setFields(fieldsFromDefinition(definition));
+        setDefinitionLoaded(true);
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
+        setDefinitionLoaded(true);
         setError(cause instanceof Error ? cause.message : "Chargement impossible");
       });
     return () => {
@@ -370,16 +416,33 @@ export function TemplateForm({
   }, [templateKey]);
 
   const preparedFields = useMemo(() => fieldsToTemplateFields(fields, mode), [fields, mode]);
+  const languagePolicy = useMemo<TemplateLanguagePolicy>(
+    () => normalizeLanguagePolicyForForm(languageMode, languageValue),
+    [languageMode, languageValue],
+  );
+  const simpleSettings = useMemo<TemplateSimpleSettings>(
+    () => ({
+      role: role.trim(),
+      objective: objective.trim(),
+      language: languagePolicy,
+      tone: tone.trim(),
+      guardrails: [...guardrails],
+      extraInstructions: extraInstructions.trim(),
+    }),
+    [role, objective, languagePolicy, tone, guardrails, extraInstructions],
+  );
   const generatedPrompt = useMemo(
     () =>
       buildDefaultSystemPrompt({
         role,
         objective,
+        language: languagePolicy,
         tone,
         guardrails,
+        extraInstructions,
         fields: preparedFields,
       }),
-    [role, objective, tone, guardrails, preparedFields],
+    [role, objective, languagePolicy, tone, guardrails, extraInstructions, preparedFields],
   );
   const generatedRender = useMemo(
     () => buildDefaultRenderTemplate(label, preparedFields),
@@ -396,8 +459,19 @@ export function TemplateForm({
       systemPrompt: effectivePrompt,
       fields: preparedFields,
       renderTemplate: effectiveRender,
+      ...(mode === "simple" ? { simple: simpleSettings } : {}),
     }),
-    [templateKey, key, label, description, effectivePrompt, preparedFields, effectiveRender],
+    [
+      templateKey,
+      key,
+      label,
+      description,
+      effectivePrompt,
+      preparedFields,
+      effectiveRender,
+      mode,
+      simpleSettings,
+    ],
   );
 
   const updateField = (uid: number, patch: Partial<TemplateFieldDraft>): void => {
@@ -451,10 +525,21 @@ export function TemplateForm({
     });
   };
 
-  const toggleGuardrail = (id: PromptGuardrailId): void => {
+  const toggleGuardrail = (id: string): void => {
     setGuardrails((previous) =>
       previous.includes(id) ? previous.filter((entry) => entry !== id) : [...previous, id],
     );
+  };
+
+  const addCustomGuardrail = (): void => {
+    const value = customGuardrail.trim();
+    if (value === "" || guardrails.includes(value)) return;
+    setGuardrails((previous) => [...previous, value]);
+    setCustomGuardrail("");
+  };
+
+  const removeGuardrail = (value: string): void => {
+    setGuardrails((previous) => previous.filter((entry) => entry !== value));
   };
 
   const changeMode = (next: TemplateFormMode): void => {
@@ -490,8 +575,12 @@ export function TemplateForm({
     setDescription(result.draft.description);
     setRole(result.draft.role);
     setObjective(result.draft.objective);
+    setLanguageMode(result.draft.language.mode);
+    setLanguageValue(result.draft.language.mode === "fixed" ? result.draft.language.value : "");
     setTone(result.draft.tone);
-    setGuardrails(result.draft.guardrails as PromptGuardrailId[]);
+    setGuardrails(result.draft.guardrails);
+    setExtraInstructions(result.draft.extraInstructions);
+    setHasSimpleSettings(true);
     setFields(result.draft.fields.map((field) => withUid(draftFromApi(field))));
     setSystemPrompt(result.draft.systemPrompt);
     setRenderTemplateText(result.draft.renderTemplate);
@@ -509,13 +598,21 @@ export function TemplateForm({
         return;
       }
       const prepared = fieldsToTemplateFields(fields, mode);
-      if (prepared.length === 0) {
-        setError("Ajoutez au moins une information à collecter");
+      if (mode === "simple" && role.trim() === "") {
+        setError("Le rôle de l'assistant est obligatoire.");
         return;
       }
       const prompt =
         mode === "simple"
-          ? buildDefaultSystemPrompt({ role, objective, tone, guardrails, fields: prepared })
+          ? buildDefaultSystemPrompt({
+              role,
+              objective,
+              language: languagePolicy,
+              tone,
+              guardrails,
+              extraInstructions,
+              fields: prepared,
+            })
           : systemPrompt.trim();
       const render =
         mode === "simple" ? buildDefaultRenderTemplate(label, prepared) : renderTemplateText;
@@ -546,6 +643,7 @@ export function TemplateForm({
         systemPrompt: prompt,
         renderTemplate: render,
         fields: prepared,
+        ...(mode === "simple" ? { simple: simpleSettings } : {}),
       };
 
       if (aiGeneration !== null) {
@@ -752,53 +850,174 @@ export function TemplateForm({
 
         {mode === "simple" ? (
           !aiAssist ? (
-            <fieldset className="field template-section">
-              <legend>Objectif et comportement</legend>
-              <label className="field">
-                Rôle de l'assistant
-                <input
-                  type="text"
-                  value={role}
-                  onChange={(event) => setRole(event.target.value)}
-                  placeholder="l'assistant de prospection"
-                />
-              </label>
-              <label className="field">
-                Objectif de la conversation
-                <textarea
-                  rows={3}
-                  value={objective}
-                  onChange={(event) => setObjective(event.target.value)}
-                  placeholder="Comprendre le besoin et réunir les informations nécessaires."
-                />
-              </label>
-              <label className="field">
-                Ton
-                <select value={tone} onChange={(event) => setTone(event.target.value)}>
-                  {PROMPT_TONES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="template-guardrails">
-                <strong>Garde-fous</strong>
-                {PROMPT_GUARDRAILS.map((guardrail) => (
-                  <label className="check" key={guardrail.id}>
-                    <input
-                      type="checkbox"
-                      checked={guardrails.includes(guardrail.id)}
-                      onChange={() => toggleGuardrail(guardrail.id)}
-                    />{" "}
-                    {guardrail.label}
+            <>
+              {templateKey !== null && definitionLoaded && !hasSimpleSettings ? (
+                <p className="alert warning">
+                  Cette ancienne version ne contient pas les réglages du mode Simple. Le prompt
+                  existant reste disponible en mode Expert ; si tu enregistres en Simple, il sera
+                  régénéré à partir des champs ci-dessous.
+                </p>
+              ) : null}
+              <fieldset className="field template-section">
+                <legend>Objectif et comportement</legend>
+                <label className="field">
+                  Rôle de l'assistant *
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(event) => setRole(event.target.value)}
+                    placeholder="assistant de qualification, conseiller commercial…"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  Objectif de la conversation
+                  <textarea
+                    rows={3}
+                    value={objective}
+                    onChange={(event) => setObjective(event.target.value)}
+                    placeholder="Comprendre le besoin et réunir les informations nécessaires."
+                  />
+                </label>
+                <div className="grid-2">
+                  <label className="field">
+                    Langue de réponse
+                    <select
+                      value={languageMode}
+                      onChange={(event) =>
+                        setLanguageMode(event.target.value === "fixed" ? "fixed" : "auto")
+                      }
+                    >
+                      <option value="auto">Automatique — langue du visiteur</option>
+                      <option value="fixed">Langue fixe</option>
+                    </select>
                   </label>
-                ))}
-              </div>
-              <p className="hint">
-                La clé technique et la mise en page sont générées automatiquement.
-              </p>
-            </fieldset>
+                  {languageMode === "fixed" ? (
+                    <label className="field">
+                      Langue
+                      <input
+                        type="text"
+                        list="template-language-suggestions"
+                        value={languageValue}
+                        onChange={(event) => setLanguageValue(event.target.value)}
+                        placeholder="français, malgache, anglais…"
+                      />
+                      <datalist id="template-language-suggestions">
+                        <option value="français" />
+                        <option value="anglais" />
+                        <option value="malgache" />
+                        <option value="espagnol" />
+                        <option value="allemand" />
+                        <option value="italien" />
+                        <option value="portugais" />
+                        <option value="arabe" />
+                        <option value="chinois" />
+                      </datalist>
+                      <span className="hint">
+                        Si la langue est vide, le mode automatique est appliqué.
+                      </span>
+                    </label>
+                  ) : (
+                    <div className="field">
+                      <span className="hint">
+                        Le modèle suit la langue du visiteur et s'adapte s'il en change.
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <label className="field">
+                  Ton
+                  <input
+                    type="text"
+                    list="template-tone-suggestions"
+                    value={tone}
+                    onChange={(event) => setTone(event.target.value)}
+                    placeholder="professionnel et chaleureux, direct, pédagogique…"
+                  />
+                  <datalist id="template-tone-suggestions">
+                    {PROMPT_TONES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </datalist>
+                  <span className="hint">
+                    Texte libre : tu peux combiner plusieurs tons ou en inventer un.
+                  </span>
+                </label>
+                <div className="template-guardrails">
+                  <strong>Garde-fous</strong>
+                  <span className="hint">Aucun n'est activé par défaut.</span>
+                  {PROMPT_GUARDRAILS.map((guardrail) => (
+                    <label className="check" key={guardrail.id}>
+                      <input
+                        type="checkbox"
+                        checked={guardrails.includes(guardrail.id)}
+                        onChange={() => toggleGuardrail(guardrail.id)}
+                      />{" "}
+                      {guardrail.label}
+                    </label>
+                  ))}
+                  {guardrails
+                    .filter(
+                      (value) => !PROMPT_GUARDRAILS.some((guardrail) => guardrail.id === value),
+                    )
+                    .map((value) => (
+                      <div className="field-row" key={value}>
+                        <div className="field-row-head">
+                          <span>{value}</span>
+                          <button
+                            type="button"
+                            className="btn danger ghost small"
+                            onClick={() => removeGuardrail(value)}
+                          >
+                            Retirer
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  <div className="grid-2">
+                    <label className="field">
+                      Ajouter un garde-fou personnalisé
+                      <input
+                        type="text"
+                        value={customGuardrail}
+                        onChange={(event) => setCustomGuardrail(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            addCustomGuardrail();
+                          }
+                        }}
+                        placeholder="Ex. : ne jamais parler de concurrence"
+                      />
+                    </label>
+                    <div className="field">
+                      <button
+                        type="button"
+                        className="btn ghost small"
+                        onClick={addCustomGuardrail}
+                        disabled={customGuardrail.trim() === ""}
+                      >
+                        + Ajouter
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <label className="field">
+                  Instructions supplémentaires
+                  <textarea
+                    rows={3}
+                    value={extraInstructions}
+                    onChange={(event) => setExtraInstructions(event.target.value)}
+                    placeholder="Ex. : proposer un rendez-vous après la qualification, ne jamais parler de concurrence…"
+                  />
+                </label>
+                <p className="hint">
+                  La clé technique et la mise en page sont générées automatiquement.
+                </p>
+              </fieldset>
+            </>
           ) : null
         ) : (
           <>
@@ -1082,10 +1301,7 @@ export function TemplateForm({
         </div>
       </div>
 
-      <TemplateLivePreview
-        definition={previewDefinition}
-        ready={label.trim() !== "" && preparedFields.length > 0}
-      />
+      <TemplateLivePreview definition={previewDefinition} ready={label.trim() !== ""} />
       {aiMergeOpen ? (
         <KnowledgeMergeDialog
           existingCount={aiGeneration?.existingAiKnowledgeCount ?? 0}

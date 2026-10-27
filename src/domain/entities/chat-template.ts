@@ -1,4 +1,5 @@
 import type { FileFieldConstraints } from "@/domain/entities/attachment";
+import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
 /**
  * Entités métier des modèles de raisonnement (A004) — pures, sans framework.
@@ -47,6 +48,8 @@ export type TemplateDefinition = {
   systemPrompt: string;
   fields: TemplateField[];
   renderTemplate: string;
+  /** Réglages du mode Simple (facultatif : anciens modèles sans ce bloc). */
+  simple?: TemplateSimpleSettings;
 };
 
 export type ChatTemplate = {

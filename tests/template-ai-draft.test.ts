@@ -35,7 +35,7 @@ describe("template-ai-draft (ADR-0038)", () => {
     if (!result.ok) return;
     expect(result.value.fields[0]?.name).toBe("type_de_projet");
     expect(result.value.fields[0]?.options).toEqual(["Salle de bain", "Cuisine"]);
-    expect(result.value.guardrails).toEqual(["professional", "no_promise"]);
+    expect(result.value.guardrails).toEqual(["professional", "no_promise", "inconnu"]);
     expect(result.value.knowledge).toHaveLength(1);
     expect(result.value.systemPrompt).toContain("Tu es l'assistant de qualification");
     expect(result.value.renderTemplate).toContain("## Type de projet");
@@ -55,8 +55,31 @@ describe("template-ai-draft (ADR-0038)", () => {
     expect(result.value.warnings.join(" ")).toContain("pas d'options");
   });
 
-  it("refuse une réponse sans champ exploitable", () => {
+  it("accepte un modèle sans champ (chat conversationnel)", () => {
     const result = parseTemplateAiDraft({ ...RAW, fields: [] }, { key: "modele" });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.fields).toEqual([]);
+    expect(result.value.systemPrompt).not.toContain("Informations à réunir");
+  });
+
+  it("conserve une langue fixe, un ton libre et un garde-fou personnalisé", () => {
+    const result = parseTemplateAiDraft(
+      {
+        ...RAW,
+        language: { mode: "fixed", value: "malgache" },
+        tone: "chaleureux et très direct",
+        guardrails: ["Ne jamais parler de concurrence."],
+        extraInstructions: "Propose un rendez-vous.",
+      },
+      { key: "modele" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.language).toEqual({ mode: "fixed", value: "malgache" });
+    expect(result.value.tone).toBe("chaleureux et très direct");
+    expect(result.value.guardrails).toEqual(["Ne jamais parler de concurrence."]);
+    expect(result.value.settings.extraInstructions).toBe("Propose un rendez-vous.");
+    expect(result.value.systemPrompt).toContain("Tu réponds en malgache.");
   });
 });
