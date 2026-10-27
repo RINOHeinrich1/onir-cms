@@ -322,13 +322,13 @@ export function TemplateForm({
   const [pending, setPending] = useState(false);
   const toast = useToast();
   useToastOnMessage(error);
+  const initialSimple =
+    seed === null ? null : normalizeTemplateSimpleSettings(seed.definition.simple);
   const [mode, setMode] = useState<TemplateFormMode>(
-    templateKey === null && seed === null ? "simple" : "expert",
+    templateKey === null && seed === null ? "simple" : initialSimple !== null ? "simple" : "expert",
   );
   const [key, setKey] = useState(templateKey ?? seed?.key ?? "");
   const [keyTouched, setKeyTouched] = useState(false);
-  const initialSimple =
-    seed === null ? null : normalizeTemplateSimpleSettings(seed.definition.simple);
   const [label, setLabel] = useState(seed?.label ?? "");
   const [description, setDescription] = useState(seed?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(() =>
@@ -382,6 +382,7 @@ export function TemplateForm({
         const simple = normalizeTemplateSimpleSettings(definition.simple);
         setHasSimpleSettings(simple !== null);
         if (simple !== null) {
+          setMode("simple");
           setRole(simple.role);
           setObjective(simple.objective);
           setLanguageMode(simple.language.mode);
