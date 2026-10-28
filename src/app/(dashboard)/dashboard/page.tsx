@@ -111,6 +111,48 @@ export default async function DashboardHomePage() {
           </Link>
         ))}
       </div>
+
+      <div className="dashboard-lower">
+        <section className="card dashboard-actions">
+          <h2>Actions rapides</h2>
+          <div className="dashboard-action-list">
+            <Link href="/liens">
+              <strong>Configurer un chatbot</strong>
+              <span>Créer un lien, choisir son modèle et ses quotas.</span>
+            </Link>
+            <Link href="/prospects">
+              <strong>Ajouter un prospect</strong>
+              <span>Compléter une fiche ou consulter la vue 360°.</span>
+            </Link>
+            <Link href="/conversations">
+              <strong>Traiter les conversations</strong>
+              <span>Répondre, prendre la main ou générer une fiche.</span>
+            </Link>
+            <Link href="/parametres/ia">
+              <strong>Régler l’IA</strong>
+              <span>Fournisseur par défaut, extraction et modèles.</span>
+            </Link>
+          </div>
+        </section>
+        <section className="card dashboard-context">
+          <h2>Votre espace</h2>
+          <p>
+            Organisation <strong>{context.organization?.name ?? "—"}</strong>
+          </p>
+          <p>
+            Rôle{" "}
+            <strong>
+              {context.actor.isSuperAdmin ? "super-admin" : ROLE_LABELS[context.role ?? "lecteur"]}
+            </strong>
+          </p>
+          <p className="hint">
+            Les indicateurs sont propres à votre organisation et à votre périmètre.
+          </p>
+          <Link className="btn ghost small" href="/configuration">
+            Ouvrir la configuration
+          </Link>
+        </section>
+      </div>
     </section>
   );
 }
