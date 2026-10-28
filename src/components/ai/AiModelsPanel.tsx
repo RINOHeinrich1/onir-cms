@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import type { AiProviderModel } from "@/domain/entities/ai-model";
@@ -181,8 +182,8 @@ export function AiModelsPanel({
       .finally(() => setTestingId(null));
   };
 
-  const remove = (model: AiProviderModel): void => {
-    if (!window.confirm(`Supprimer le modèle « ${model.label} » ?`)) return;
+  const remove = async (model: AiProviderModel): Promise<void> => {
+    if (!(await confirmDialog(`Supprimer le modèle « ${model.label} » ?`))) return;
     void run(async () => {
       const response = await fetch(`/api/ai/providers/${provider.id}/models/${model.id}`, {
         method: "DELETE",
@@ -355,7 +356,7 @@ export function AiModelsPanel({
                       type="button"
                       className="btn danger ghost small"
                       disabled={pending || defaultModel === model.modelId}
-                      onClick={() => remove(model)}
+                      onClick={() => void remove(model)}
                     >
                       Supprimer
                     </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 
 type Status = {
   configured: boolean;
@@ -35,9 +36,9 @@ export function DatabaseReaderAccount() {
 
   async function rotate(): Promise<void> {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         "Générer un nouveau mot de passe et l'appliquer immédiatement au rôle de lecture ?",
-      )
+      ))
     ) {
       return;
     }

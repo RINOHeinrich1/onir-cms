@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
@@ -95,11 +96,11 @@ export function AppSecretsPanel() {
 
   async function generate(secret: SecretStatus): Promise<void> {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         `Générer une nouvelle valeur pour « ${secret.label} » ?\n\n` +
           `Impact : ${impactText(secret)} sera ré-chiffré. ` +
           "L’ancienne valeur ne sera plus utilisable.",
-      )
+      ))
     ) {
       return;
     }
@@ -138,11 +139,11 @@ export function AppSecretsPanel() {
       return;
     }
     if (
-      !window.confirm(
+      !(await confirmDialog(
         `Remplacer « ${replaceSecret.label} » ?\n\n` +
           `Impact : ${impactText(replaceSecret)} sera ré-chiffré. ` +
           "L’ancienne valeur ne sera plus utilisable.",
-      )
+      ))
     ) {
       return;
     }

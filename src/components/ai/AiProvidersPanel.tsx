@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { AI_PROVIDER_PRESET_LABELS } from "@/domain/entities/ai-provider";
 import { AiDefaultSettings } from "./AiDefaultSettings";
@@ -80,7 +81,7 @@ export function AiProvidersPanel({
   };
 
   const archive = async (provider: AiProviderDto): Promise<void> => {
-    if (!window.confirm(`Archiver le fournisseur « ${provider.label} » ?`)) return;
+    if (!(await confirmDialog(`Archiver le fournisseur « ${provider.label} » ?`))) return;
     setError(null);
     setNotice(null);
     try {

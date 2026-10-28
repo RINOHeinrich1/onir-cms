@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
@@ -78,7 +79,7 @@ export function MembersTable({
   };
 
   const remove = async (member: MemberDto): Promise<void> => {
-    if (!window.confirm(`Retirer ${member.email} de cette organisation ?`)) return;
+    if (!(await confirmDialog(`Retirer ${member.email} de cette organisation ?`))) return;
     setError(null);
     try {
       const response = await fetch(
@@ -100,7 +101,7 @@ export function MembersTable({
     <div>
       {error !== null ? <p className="alert error">{error}</p> : null}
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Email</th>

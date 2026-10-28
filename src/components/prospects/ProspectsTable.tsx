@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -58,7 +59,7 @@ export function ProspectsTable({
 
   const remove = async (prospect: ProspectDto): Promise<void> => {
     setError(null);
-    if (!window.confirm(`Supprimer ${prospect.nom} ${prospect.prenom} ?`)) return;
+    if (!(await confirmDialog(`Supprimer ${prospect.nom} ${prospect.prenom} ?`))) return;
     try {
       const response = await fetch(`/api/prospects/${prospect.id}`, { method: "DELETE" });
       if (!response.ok) {

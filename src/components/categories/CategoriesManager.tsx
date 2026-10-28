@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -47,7 +48,7 @@ export function CategoriesManager({
   };
 
   const remove = async (category: CategoryListItem): Promise<void> => {
-    if (!window.confirm(`Supprimer la catégorie « ${category.label} » ?`)) return;
+    if (!(await confirmDialog(`Supprimer la catégorie « ${category.label} » ?`))) return;
     setError(null);
     try {
       const response = await fetch(`/api/categories/${category.id}`, { method: "DELETE" });

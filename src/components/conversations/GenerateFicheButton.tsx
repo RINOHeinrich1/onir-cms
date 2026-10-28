@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Génère la fiche d'une conversation existante (opérateur, US-CONVERS-002). */
@@ -20,9 +21,9 @@ export function GenerateFicheButton({
 
   const generate = async (): Promise<void> => {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         "Générer la fiche de prospection à partir de cette conversation ? L'IA analyse l'échange.",
-      )
+      ))
     ) {
       return;
     }

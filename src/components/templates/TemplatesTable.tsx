@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -104,7 +105,7 @@ export function TemplatesTable({
 
   const remove = async (template: TemplateSummary): Promise<void> => {
     setError(null);
-    if (!window.confirm(`Supprimer le modèle « ${template.label} » ?`)) return;
+    if (!(await confirmDialog(`Supprimer le modèle « ${template.label} » ?`))) return;
     try {
       const response = await fetch(`/api/templates/${template.key}`, { method: "DELETE" });
       if (!response.ok) {
