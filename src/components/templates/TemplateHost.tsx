@@ -41,17 +41,49 @@ type TemplateDataApi = {
   ): Promise<TemplateDataResult<T>>;
 };
 
-type HostApiMessage = TemplateMessage & { createdAt?: string };
+type ApiChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "operator";
+  content: string;
+  medias: TemplateMessage["medias"];
+  attachments?: TemplateAttachment[];
+  createdAt: string;
+  authorName?: string | null;
+};
 
 /** Les endpoints chat renvoient `createdAt` ; le contrat template attend `at`. */
-function withAt(message: HostApiMessage, allowAttachments: boolean): TemplateMessage {
-  const normalized = {
-    ...message,
-    at: message.at ?? message.createdAt ?? new Date().toISOString(),
-  };
-  if (allowAttachments) return normalized;
-  const { attachments: _attachments, ...withoutAttachments } = normalized;
+function withAt(message: TemplateMessage, allowAttachments: boolean): TemplateMessage {
+  if (allowAttachments) return message;
+  const { attachments: _attachments, ...withoutAttachments } = message;
   return withoutAttachments;
+}
+
+/** Convertit un message API en message de contrat template (ADR-0043). */
+function fromApiMessage(message: ApiChatMessage, allowAttachments: boolean): TemplateMessage {
+  const operator = message.role === "operator";
+  return withAt(
+    {
+      id: message.id,
+      role: message.role === "user" ? "user" : "assistant",
+      content: message.content,
+      medias: message.medias,
+      at: message.createdAt,
+      ...(operator ? { authorName: message.authorName ?? "Conseiller" } : {}),
+      ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
+    },
+    allowAttachments,
+  );
+}
+
+function mergeTemplateMessages(
+  current: TemplateMessage[],
+  incoming: TemplateMessage[],
+): TemplateMessage[] {
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort((a, b) =>
+    a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at),
+  );
 }
 
 type LiveContext = TemplateContextPayload & {
@@ -96,6 +128,7 @@ export function TemplateHost({
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
+  const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const surface = baseContext.surface;
 
   const conversationRef = useRef<string | null>(initialConversationId);
@@ -104,6 +137,79 @@ export function TemplateHost({
   const mountRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const elementRef = useRef<HTMLElement | null>(null);
+  const lastAtRef = useRef<string | null>(
+    initialMessages.length === 0 ? null : (initialMessages[initialMessages.length - 1]?.at ?? null),
+  );
+  const allowAttachments = template.capabilities.includes("attachments");
+
+  const receiveMessages = useCallback((incoming: TemplateMessage[]): void => {
+    if (incoming.length === 0) return;
+    setMessages((previous) => mergeTemplateMessages(previous, incoming));
+    const latest = incoming[incoming.length - 1];
+    if (latest !== undefined && (lastAtRef.current === null || latest.at > lastAtRef.current)) {
+      lastAtRef.current = latest.at;
+    }
+  }, []);
+
+  // Temps réel (ADR-0043) : SSE nominal, polling 4 s en secours.
+  useEffect(() => {
+    if (preview || conversationId === null) return;
+    if (typeof window === "undefined" || typeof EventSource === "undefined") {
+      setTransport("polling");
+      return;
+    }
+    const params = new URLSearchParams({ conversationId });
+    if (lastAtRef.current !== null) params.set("after", lastAtRef.current);
+    const source = new EventSource(`${platform}/stream?${params.toString()}`);
+    let closed = false;
+    const onMessage = (event: MessageEvent<string>): void => {
+      try {
+        receiveMessages([
+          fromApiMessage(JSON.parse(event.data) as ApiChatMessage, allowAttachments),
+        ]);
+      } catch {
+        // Trame illisible : le polling corrigera.
+      }
+    };
+    const onError = (): void => {
+      if (closed) return;
+      closed = true;
+      source.close();
+      setTransport("polling");
+    };
+    source.addEventListener("message", onMessage as EventListener);
+    source.addEventListener("error", onError);
+    return () => {
+      closed = true;
+      source.close();
+    };
+  }, [allowAttachments, conversationId, platform, preview, receiveMessages]);
+
+  useEffect(() => {
+    if (preview || conversationId === null || transport !== "polling") return;
+    let cancelled = false;
+    const poll = async (): Promise<void> => {
+      if (document.visibilityState === "hidden") return;
+      const params = new URLSearchParams({ conversationId });
+      if (lastAtRef.current !== null) params.set("after", lastAtRef.current);
+      try {
+        const response = await fetch(`${platform}/messages?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const json = (await response.json()) as { messages?: ApiChatMessage[] };
+        if (cancelled || !response.ok || json.messages === undefined) return;
+        receiveMessages(json.messages.map((message) => fromApiMessage(message, allowAttachments)));
+      } catch {
+        // Échec silencieux : le prochain tick réessaie.
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [allowAttachments, conversationId, platform, preview, receiveMessages, transport]);
 
   const postWidget = useCallback(
     (message: { type: "open"; width?: number; height?: number } | { type: "close" }): void => {
@@ -130,7 +236,7 @@ export function TemplateHost({
       }).catch(() => null);
       const json = (await response?.json().catch(() => null)) as {
         conversationId?: string;
-        messages?: TemplateMessage[];
+        messages?: ApiChatMessage[];
         error?: string;
       } | null;
       if (response?.ok !== true || typeof json?.conversationId !== "string") {
@@ -140,11 +246,10 @@ export function TemplateHost({
       conversationRef.current = json.conversationId;
       setConversationId(json.conversationId);
       if (json.messages !== undefined && json.messages.length > 0) {
-        setMessages(
-          json.messages.map((message) =>
-            withAt(message, template.capabilities.includes("attachments")),
-          ),
-        );
+        const converted = json.messages.map((message) => fromApiMessage(message, allowAttachments));
+        setMessages(converted);
+        const latest = converted[converted.length - 1];
+        if (latest !== undefined) lastAtRef.current = latest.at;
       }
       return json.conversationId;
     })();
@@ -154,7 +259,7 @@ export function TemplateHost({
     } finally {
       sessionPromiseRef.current = null;
     }
-  }, [anonymous, platform, surface, template, token]);
+  }, [allowAttachments, anonymous, platform, surface, token]);
 
   const uploadAttachment = useCallback(
     async (fieldName: string, file: File): Promise<void> => {
@@ -231,7 +336,7 @@ export function TemplateHost({
             });
             const json = (await response.json()) as {
               conversationId?: string;
-              messages?: HostApiMessage[];
+              messages?: ApiChatMessage[];
               error?: string;
             };
             if (!response.ok || typeof json.conversationId !== "string") {
@@ -240,11 +345,12 @@ export function TemplateHost({
             }
             conversationRef.current = json.conversationId;
             setConversationId(json.conversationId);
-            setMessages(
-              (json.messages ?? []).map((message) =>
-                withAt(message, template.capabilities.includes("attachments")),
-              ),
+            const converted = (json.messages ?? []).map((message) =>
+              fromApiMessage(message, allowAttachments),
             );
+            setMessages(converted);
+            const latest = converted[converted.length - 1];
+            if (latest !== undefined) lastAtRef.current = latest.at;
             setPhase("chat");
           } catch {
             setError("Erreur réseau, veuillez réessayer");
@@ -348,7 +454,8 @@ export function TemplateHost({
               }),
             });
             const json = (await response.json()) as {
-              message?: HostApiMessage | null;
+              userMessage?: ApiChatMessage;
+              message?: ApiChatMessage | null;
               mediaPending?: boolean;
               connaissances?: TemplateMessage["knowledge"];
               error?: string;
@@ -359,17 +466,21 @@ export function TemplateHost({
               return;
             }
             setPendingAttachments([]);
+            if (json.userMessage !== undefined) {
+              setMessages((prev) => prev.filter((message) => message.id !== userId));
+              receiveMessages([fromApiMessage(json.userMessage, allowAttachments)]);
+            }
             const answer =
               json.message === undefined || json.message === null
                 ? null
                 : template.capabilities.includes("knowledge") && json.connaissances !== undefined
                   ? {
-                      ...withAt(json.message, template.capabilities.includes("attachments")),
+                      ...fromApiMessage(json.message, allowAttachments),
                       knowledge: json.connaissances,
                     }
-                  : withAt(json.message, template.capabilities.includes("attachments"));
+                  : fromApiMessage(json.message, allowAttachments);
             if (answer !== null) {
-              setMessages((prev) => [...prev, answer]);
+              receiveMessages([answer]);
               if (json.mediaPending === true) {
                 const media = await fetch(`${platform}/media`, {
                   method: "POST",
@@ -467,6 +578,8 @@ export function TemplateHost({
       postWidget,
       token,
       surface,
+      allowAttachments,
+      receiveMessages,
     ],
   );
 

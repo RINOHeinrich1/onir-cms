@@ -260,6 +260,8 @@ const STYLE = `
     user-select: none;
   }
   .msg.user .avatar { background: var(--onir-accent); color: var(--onir-accent-ink); }
+  .msg.operator .avatar { background: #0f766e; color: #fff; }
+  .msg-author { padding: 0 3px; color: #0f766e; font-size: 9px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
   .msg-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; max-width: 84%; }
   .msg.user .msg-body { align-items: flex-end; }
   .bubble {
@@ -609,7 +611,7 @@ function renderMarkdown(target, content) {
 
 function messageSignature(message) {
   const media = (message.medias ?? []).map((entry) => `${entry.type}:${entry.url}`).join("|");
-  return `${message.id}|${message.role}|${message.content}|${media}|${message.at}`;
+  return `${message.id}|${message.role}|${message.authorName ?? ""}|${message.content}|${media}|${message.at}`;
 }
 
 class StarterWidget extends HTMLElement {
@@ -1005,6 +1007,7 @@ class StarterWidget extends HTMLElement {
 
   #messageNode(message) {
     const isUser = message.role === "user";
+    const author = typeof message.authorName === "string" ? message.authorName : null;
     const bubble = el("div", { class: "bubble" });
     if (isUser) {
       bubble.textContent = message.content;
@@ -1012,12 +1015,18 @@ class StarterWidget extends HTMLElement {
       renderMarkdown(bubble, message.content);
     }
     const body = el("div", { class: "msg-body" }, [
+      ...(author === null ? [] : [el("span", { class: "msg-author", text: author })]),
       bubble,
       ...(message.medias?.length ? [this.#mediaList(message.medias)] : []),
       el("span", { class: "msg-time", text: formatTime(message.at) }),
     ]);
-    const node = el("li", { class: `msg ${isUser ? "user" : "assistant"}` }, [
-      el("span", { class: "avatar", "aria-hidden": "true", text: isUser ? "Moi" : "IA" }),
+    const kind = isUser ? "user" : author === null ? "assistant" : "operator";
+    const node = el("li", { class: `msg ${kind}` }, [
+      el("span", {
+        class: "avatar",
+        "aria-hidden": "true",
+        text: isUser ? "Moi" : author === null ? "IA" : "Hum.",
+      }),
       body,
     ]);
     node.__onirSignature = messageSignature(message);

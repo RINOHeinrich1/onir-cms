@@ -75,6 +75,8 @@ class StarterTemplate extends HTMLElement {
         ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:.6rem; }
         li { padding:.6rem .8rem; border-radius:.6rem; background:#f1f5f9; }
         li.assistant { background:#e2e8f0; }
+        li.operator { background:#dcfce7; }
+        .msg-author { font-size:.72rem; font-weight:700; color:#0f766e; margin-bottom:.2rem; }
         li img { max-width:16rem; border-radius:.5rem; display:block; margin-top:.4rem; }
         .composer { display:flex; gap:.5rem; margin-top:1rem; }
         .composer input { flex:1; }
@@ -130,7 +132,15 @@ class StarterTemplate extends HTMLElement {
           ? el("img", { src: m.url, alt: m.libelle })
           : el("div", {}, [el("a", { href: m.url, target: "_blank", rel: "noopener", text: m.libelle })]),
       );
-      return el("li", { class: message.role }, [el("div", { text: message.content }), ...media]);
+      const author =
+        typeof message.authorName === "string"
+          ? el("div", { class: "msg-author", text: message.authorName })
+          : null;
+      return el(
+        "li",
+        { class: `${message.role}${author === null ? "" : " operator"}` },
+        [...(author === null ? [] : [author]), el("div", { text: message.content }), ...media],
+      );
     });
 
     const input = el("input", { type: "text", placeholder: "Votre message…" });

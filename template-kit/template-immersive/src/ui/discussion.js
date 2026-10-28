@@ -250,8 +250,9 @@ export function createDiscussionUI({ root, board, onDiscuss, onAlbum, onLibrary,
     clearAuto();
     if (typing) { typing.cancel(); typing = null; }
     auto = true;
-    role = message?.role === "assistant" ? "assistant" : "user";
-    bubble.className = `bubble ${role}`;
+    const operator = typeof message?.authorName === "string" && message.authorName.trim() !== "";
+    role = operator || message?.role === "assistant" ? "assistant" : "user";
+    bubble.className = `bubble ${role}${operator ? " operator" : ""}`;
     if (!message) {
       pages = [];
       showPage(0);

@@ -61,6 +61,13 @@ export type TemplateMessage = {
   attachments?: TemplateAttachment[];
   at: string;
   /**
+   * Auteur humain d'un message opérateur (ADR-0043). Les messages opérateur
+   * sont exposés avec `role: "assistant"` pour rester compatibles avec les
+   * templates existants ; `authorName` permet aux templates récents de les
+   * distinguer et de les signer.
+   */
+  authorName?: string;
+  /**
    * État du visiteur déduit de ce message (ADR-0020, capacité `userState`,
    * message **utilisateur**). Absent si la capacité n'est pas déclarée OU si
    * le flag du lien est inactif.
@@ -333,6 +340,7 @@ function sanitizeMessage(
     ...(allowAttachments && message.attachments !== undefined
       ? { attachments: message.attachments }
       : {}),
+    ...(message.authorName !== undefined ? { authorName: message.authorName } : {}),
   };
 }
 

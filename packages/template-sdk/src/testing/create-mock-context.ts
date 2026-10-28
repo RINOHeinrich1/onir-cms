@@ -104,6 +104,9 @@ function completeMessage(input: unknown, index: number): TemplateMessage {
     content: typeof source.content === "string" ? source.content : "",
     medias,
     at: typeof source.at === "string" ? source.at : DEFAULT_MESSAGE_AT,
+    ...(typeof source.authorName === "string" && source.authorName.trim() !== ""
+      ? { authorName: source.authorName }
+      : {}),
   };
   const userState = source.userState;
   if (isRecord(userState)) {

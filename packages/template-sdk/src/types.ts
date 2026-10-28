@@ -196,6 +196,8 @@ export type TemplateMessage = {
   /** Présent si la capacité `attachments` (ADR-0034). */
   attachments?: TemplateAttachment[];
   at: string;
+  /** Auteur humain d'un message opérateur (ADR-0043, additif). */
+  authorName?: string;
   /** Présent si la capacité `userState` ET le flag du lien sont actifs. */
   userState?: TemplateMessageUserState;
   /** Présent si la capacité `knowledge` ET la source sont actives. */
