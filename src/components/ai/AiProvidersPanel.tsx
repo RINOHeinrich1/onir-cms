@@ -35,6 +35,7 @@ export function AiProvidersPanel({
   const [managingModels, setManagingModels] = useState<AiProviderDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<"default" | "extraction" | "providers">("default");
   useToastOnMessage(error, notice);
 
   const reload = async (): Promise<void> => {
@@ -103,37 +104,74 @@ export function AiProvidersPanel({
       {error !== null ? <p className="alert error">{error}</p> : null}
       {notice !== null ? <p className="alert success">{notice}</p> : null}
 
-      <AiDefaultSettings
-        key={`${settings?.defaultProviderId ?? "none"}:${settings?.defaultModel ?? "none"}`}
-        providers={activeProviders}
-        settings={settings}
-        canManage={canManage}
-        onSaved={() => void reload()}
-      />
+      <nav className="subtabs" aria-label="Sections des paramètres IA">
+        <button
+          type="button"
+          className={`subtab ${tab === "default" ? "active" : ""}`}
+          aria-pressed={tab === "default"}
+          onClick={() => setTab("default")}
+        >
+          Défaut
+        </button>
+        <button
+          type="button"
+          className={`subtab ${tab === "extraction" ? "active" : ""}`}
+          aria-pressed={tab === "extraction"}
+          onClick={() => setTab("extraction")}
+        >
+          Extraction
+        </button>
+        <button
+          type="button"
+          className={`subtab ${tab === "providers" ? "active" : ""}`}
+          aria-pressed={tab === "providers"}
+          onClick={() => setTab("providers")}
+        >
+          Fournisseurs ({activeProviders.length})
+        </button>
+      </nav>
 
-      <AiExtractionSettings
-        key={`${settings?.extractionProviderId ?? "none"}:${settings?.extractionModel ?? "none"}:${settings?.extractionFallbackProviderId ?? "none"}`}
-        providers={activeProviders}
-        settings={settings}
-        canManage={canManage}
-        onSaved={() => void reload()}
-      />
+      {tab === "default" ? (
+        <AiDefaultSettings
+          key={`${settings?.defaultProviderId ?? "none"}:${settings?.defaultModel ?? "none"}`}
+          providers={activeProviders}
+          settings={settings}
+          canManage={canManage}
+          onSaved={() => void reload()}
+        />
+      ) : null}
 
-      {legacyAvailable && canManage ? <ImportLegacyPanel onImported={() => void reload()} /> : null}
+      {tab === "extraction" ? (
+        <AiExtractionSettings
+          key={`${settings?.extractionProviderId ?? "none"}:${settings?.extractionModel ?? "none"}:${settings?.extractionFallbackProviderId ?? "none"}`}
+          providers={activeProviders}
+          settings={settings}
+          canManage={canManage}
+          onSaved={() => void reload()}
+        />
+      ) : null}
 
-      {canManage ? (
-        <div className="tools" style={{ marginBottom: "1rem" }}>
-          <button
-            type="button"
-            className="btn small"
-            onClick={() => {
-              setEditing(null);
-              setFormMode("create");
-            }}
-          >
-            Ajouter un fournisseur
-          </button>
-        </div>
+      {tab === "providers" ? (
+        <>
+          {legacyAvailable && canManage ? (
+            <ImportLegacyPanel onImported={() => void reload()} />
+          ) : null}
+
+          {canManage ? (
+            <div className="tools" style={{ marginBottom: "1rem" }}>
+              <button
+                type="button"
+                className="btn small"
+                onClick={() => {
+                  setEditing(null);
+                  setFormMode("create");
+                }}
+              >
+                Ajouter un fournisseur
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {managingModels !== null ? (
@@ -160,104 +198,106 @@ export function AiProvidersPanel({
         />
       ) : null}
 
-      <div className="table-scroll">
-        <table className="table table-cards">
-          <thead>
-            <tr>
-              <th>Fournisseur</th>
-              <th>Type</th>
-              <th>URL</th>
-              <th>Clé</th>
-              <th>Modèle par défaut</th>
-              <th>Test</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {providers.map((provider) => {
-              const archived = provider.archivedAt !== null;
-              const isDefault = settings?.defaultProviderId === provider.id;
-              return (
-                <tr key={provider.id}>
-                  <td data-label="Fournisseur">
-                    <strong>{provider.label}</strong>
-                    {isDefault ? (
-                      <span className="badge" style={{ marginLeft: "0.5rem" }}>
-                        défaut
+      {tab === "providers" ? (
+        <div className="table-scroll">
+          <table className="table table-cards">
+            <thead>
+              <tr>
+                <th>Fournisseur</th>
+                <th>Type</th>
+                <th>URL</th>
+                <th>Clé</th>
+                <th>Modèle par défaut</th>
+                <th>Test</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {providers.map((provider) => {
+                const archived = provider.archivedAt !== null;
+                const isDefault = settings?.defaultProviderId === provider.id;
+                return (
+                  <tr key={provider.id}>
+                    <td data-label="Fournisseur">
+                      <strong>{provider.label}</strong>
+                      {isDefault ? (
+                        <span className="badge" style={{ marginLeft: "0.5rem" }}>
+                          défaut
+                        </span>
+                      ) : null}
+                      {archived ? (
+                        <span className="badge orange" style={{ marginLeft: "0.5rem" }}>
+                          archivé
+                        </span>
+                      ) : null}
+                    </td>
+                    <td data-label="Type">{AI_PROVIDER_PRESET_LABELS[provider.preset]}</td>
+                    <td data-label="URL">
+                      <span className="hint">{provider.baseUrl}</span>
+                    </td>
+                    <td data-label="Clé">{provider.apiKeyHint}</td>
+                    <td data-label="Modèle par défaut">
+                      {provider.defaultModel ?? <span className="hint">—</span>}
+                    </td>
+                    <td data-label="Test">
+                      <span className={`badge ${provider.lastTestOk === false ? "orange" : ""}`}>
+                        {testLabel(provider)}
                       </span>
-                    ) : null}
-                    {archived ? (
-                      <span className="badge orange" style={{ marginLeft: "0.5rem" }}>
-                        archivé
-                      </span>
-                    ) : null}
-                  </td>
-                  <td data-label="Type">{AI_PROVIDER_PRESET_LABELS[provider.preset]}</td>
-                  <td data-label="URL">
-                    <span className="hint">{provider.baseUrl}</span>
-                  </td>
-                  <td data-label="Clé">{provider.apiKeyHint}</td>
-                  <td data-label="Modèle par défaut">
-                    {provider.defaultModel ?? <span className="hint">—</span>}
-                  </td>
-                  <td data-label="Test">
-                    <span className={`badge ${provider.lastTestOk === false ? "orange" : ""}`}>
-                      {testLabel(provider)}
-                    </span>
-                    {provider.lastTestError !== "" ? (
-                      <div className="hint">{provider.lastTestError}</div>
-                    ) : null}
-                  </td>
-                  <td data-label="Actions" className="cell-actions">
-                    {canManage && !archived ? (
-                      <div className="tools">
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => void test(provider)}
-                        >
-                          Tester
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => setManagingModels(provider)}
-                        >
-                          Modèles
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => {
-                            setEditing(provider);
-                            setFormMode("edit");
-                          }}
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          className="btn danger ghost small"
-                          onClick={() => void archive(provider)}
-                        >
-                          Archiver
-                        </button>
-                      </div>
-                    ) : null}
+                      {provider.lastTestError !== "" ? (
+                        <div className="hint">{provider.lastTestError}</div>
+                      ) : null}
+                    </td>
+                    <td data-label="Actions" className="cell-actions">
+                      {canManage && !archived ? (
+                        <div className="tools">
+                          <button
+                            type="button"
+                            className="btn ghost small"
+                            onClick={() => void test(provider)}
+                          >
+                            Tester
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost small"
+                            onClick={() => setManagingModels(provider)}
+                          >
+                            Modèles
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost small"
+                            onClick={() => {
+                              setEditing(provider);
+                              setFormMode("edit");
+                            }}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            className="btn danger ghost small"
+                            onClick={() => void archive(provider)}
+                          >
+                            Archiver
+                          </button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+              {providers.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    Aucun fournisseur configuré. Les liens utilisent la configuration legacy.
                   </td>
                 </tr>
-              );
-            })}
-            {providers.length === 0 ? (
-              <tr>
-                <td colSpan={7}>
-                  Aucun fournisseur configuré. Les liens utilisent la configuration legacy.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </div>
   );
 }
