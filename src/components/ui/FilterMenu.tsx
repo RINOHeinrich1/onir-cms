@@ -148,7 +148,7 @@ export function FilterMenu({
             <div className="filter-sections">
               {sections.map((section) => {
                 const selected = draft[section.id] ?? [];
-                const searchable = section.options.length > 8;
+                const searchable = section.id === "lien" || section.options.length > 8;
                 const query = (queries[section.id] ?? "").trim().toLocaleLowerCase("fr");
                 const visibleOptions = section.options
                   .filter(
