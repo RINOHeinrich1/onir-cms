@@ -25,11 +25,15 @@ type FicheRow = {
   contraintes_techno: string;
   lien_doc_spec: string;
   archivee: boolean;
+  config_id: string | null;
+  fiche_key: string | null;
+  fiche_instance_key: string | null;
+  conversation_fiche_instance_id: string | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, conversation_id, prospect_id, created_by, template_key, template_version, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, created_at";
+  "id, organization_id, conversation_id, prospect_id, created_by, template_key, template_version, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, created_at";
 
 function toStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -107,6 +111,10 @@ function toEntity(row: FicheRow): Fiche {
     contraintesTechno: row.contraintes_techno,
     lienDocSpec: row.lien_doc_spec,
     archivee: row.archivee,
+    configId: row.config_id,
+    ficheKey: row.fiche_key,
+    ficheInstanceKey: row.fiche_instance_key,
+    conversationFicheInstanceId: row.conversation_fiche_instance_id,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -173,8 +181,8 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
       const legacy = legacyColumns(input.templateKey, input.data);
       const { rows } = await pool.query<FicheRow>(
         `INSERT INTO fiches
-           (organization_id, conversation_id, prospect_id, created_by, template_key, template_version, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+           (organization_id, conversation_id, prospect_id, created_by, template_key, template_version, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -192,11 +200,24 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
           legacy.statut,
           legacy.contraintesTechno,
           legacy.lienDocSpec,
+          input.configId ?? null,
+          input.ficheKey ?? null,
+          input.ficheInstanceKey ?? null,
+          input.conversationFicheInstanceId ?? null,
         ],
       );
       const row = rows[0];
       if (!row) throw new Error("Échec de création de la fiche");
       return toEntity(row);
+    },
+
+    async findByInstance(organizationId, conversationFicheInstanceId): Promise<Fiche | null> {
+      const { rows } = await pool.query<FicheRow>(
+        `SELECT ${COLUMNS} FROM fiches
+          WHERE organization_id = $1 AND conversation_fiche_instance_id = $2`,
+        [organizationId, conversationFicheInstanceId],
+      );
+      return rows[0] ? toEntity(rows[0]) : null;
     },
 
     async setArchivee(organizationId, id, archivee): Promise<Fiche | null> {

@@ -1,8 +1,9 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError } from "@/application/errors";
+import { NotFoundError, ValidationError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { LinkDataBindingRepository } from "@/application/ports/link-data-binding-repository";
 import type { TemplateDataBindingRepository } from "@/application/ports/template-data-binding-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
@@ -27,6 +28,7 @@ import {
   parseLinkSources,
   parseUserStateEnabled,
 } from "@/domain/entities/chat";
+import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { appUrl } from "@/lib/env";
 import { decryptLinkToken, encryptLinkToken } from "@/lib/link-crypto";
@@ -41,6 +43,8 @@ export type ManageChatLinksDependencies = ChatLinksDependencies & {
   linkDataBindings?: LinkDataBindingRepository;
   aiProviders?: AiProviderRepository;
   aiModels?: AiProviderModelRepository;
+  /** Configuration chatbot autonome (ADR-0049). */
+  configs?: ChatbotConfigRepository;
 };
 
 /** US-LIENS-001 — liste des liens (admin/marketeur). */
@@ -150,7 +154,8 @@ export async function updateChatLinkForOrganization(
     !("maxFiches" in source) &&
     !("maxTokens" in source) &&
     !("tokenResetMode" in source) &&
-    !("tokenResetDays" in source)
+    !("tokenResetDays" in source) &&
+    !("config" in source)
   ) {
     throw new NotFoundError("Rien à modifier");
   }
@@ -215,6 +220,23 @@ export async function updateChatLinkForOrganization(
       updated,
       dataBindings ?? {},
     );
+  }
+
+  if ("config" in source) {
+    const parsed = parseChatbotConfig(source.config);
+    if (!parsed.ok) {
+      throw new ValidationError(parsed.errors.join(" ; "));
+    }
+    if (deps.configs === undefined) {
+      throw new ValidationError("Configuration chatbot indisponible");
+    }
+    const config = await deps.configs.createVersion(
+      organizationId,
+      id,
+      parsed.value,
+      updated.createdBy,
+    );
+    return { ...updated, currentConfigId: config.id };
   }
   return updated;
 }

@@ -1,9 +1,13 @@
 import { NotFoundError, ValidationError } from "@/application/errors";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
+import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
+import { ensureMonoFicheInstance } from "@/application/use-cases/chat/fiche-instances";
 import {
   type ChatLinkSurface,
   type Conversation,
@@ -21,6 +25,9 @@ export type StartConversationDependencies = {
   links: ChatLinkRepository;
   conversations: ConversationRepository;
   prospects: ProspectRepository;
+  /** Configuration chatbot autonome (ADR-0049) ; absent = legacy. */
+  configs?: ChatbotConfigRepository;
+  ficheInstances?: ConversationFicheInstanceRepository;
 };
 
 export type VisitorIdentity = {
@@ -90,6 +97,36 @@ export type StartedConversation = {
 };
 
 /**
+ * Branche la conversation sur la configuration courante du lien (ADR-0049).
+ * Les configurations mono-fiche activent immédiatement leur première fiche.
+ */
+async function prepareChatbotConfig(
+  deps: StartConversationDependencies,
+  link: { organizationId: string; currentConfigId?: string | null; id: string },
+  conversation: Conversation,
+): Promise<void> {
+  if (deps.configs === undefined) return;
+  const config = await resolveCurrentConfig(deps.configs, link.organizationId, link);
+  if (config === null) return;
+  let activeInstanceId: string | null = null;
+  if (config.fiches.length === 1 && deps.ficheInstances !== undefined) {
+    const instance = await ensureMonoFicheInstance(
+      deps.ficheInstances,
+      config,
+      conversation.id,
+      link.organizationId,
+    );
+    activeInstanceId = instance?.id ?? null;
+  }
+  await deps.conversations.setConfig?.(
+    link.organizationId,
+    conversation.id,
+    config.id,
+    activeInstanceId,
+  );
+}
+
+/**
  * US-LIENS-001 / US-CONVERS-001 — démarrage d'une conversation depuis un
  * jeton de lien. Le token porte l'organisation (ADR-0025 §10) ; une
  * organisation suspendue renvoie 404.
@@ -145,6 +182,7 @@ export async function startConversation(
       confidentialiteId: consentementRequis ? channel.confidentialiteId : null,
       channel: channelKind,
     });
+    await prepareChatbotConfig(deps, link, conversation);
     return { conversation, prospect: null, resumed: false };
   }
 
@@ -186,6 +224,7 @@ export async function startConversation(
       channelKind,
     );
     if (existing !== null) {
+      await prepareChatbotConfig(deps, link, existing);
       return { conversation: existing, prospect, resumed: true };
     }
     const conversation = await deps.conversations.create(organizationId, {
@@ -198,6 +237,7 @@ export async function startConversation(
       confidentialiteId: consentementAt !== null ? channel.confidentialiteId : null,
       channel: channelKind,
     });
+    await prepareChatbotConfig(deps, link, conversation);
     return { conversation, prospect, resumed: false };
   }
 
@@ -213,6 +253,7 @@ export async function startConversation(
       channelKind,
     );
     if (existing !== null) {
+      await prepareChatbotConfig(deps, link, existing);
       return { conversation: existing, prospect, resumed: true };
     }
   }
@@ -226,5 +267,6 @@ export async function startConversation(
     confidentialiteId: null,
     channel: channelKind,
   });
+  await prepareChatbotConfig(deps, link, conversation);
   return { conversation, prospect, resumed: false };
 }

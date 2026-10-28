@@ -98,8 +98,12 @@ export interface ChatLinkRepository {
   resetTokenUsage?(organizationId: string, id: string): Promise<ChatLink | null>;
   /** Réserve atomiquement une fiche ; false si le quota est atteint. */
   reserveFiche?(organizationId: string, id: string): Promise<boolean>;
+  /** Réserve atomiquement N fiches ; false si le quota ne le permet pas. */
+  reserveFiches?(organizationId: string, id: string, count: number): Promise<boolean>;
   /** Rend une réservation si la création de fiche échoue. */
   releaseFiche?(organizationId: string, id: string): Promise<void>;
+  /** Rend N réservations si la création de fiches échoue. */
+  releaseFiches?(organizationId: string, id: string, count: number): Promise<void>;
   /** Enregistre l'usage tokens d'un appel IA et incrémente le compteur. */
   recordAiUsage?(
     organizationId: string,

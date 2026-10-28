@@ -11,6 +11,12 @@ import {
   DEFAULT_LINK_SOURCES,
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
+import { ChatbotConfigFields } from "./ChatbotConfigFields";
+import {
+  type ChatbotConfigDraft,
+  chatbotConfigPayload,
+  defaultChatbotConfigDraft,
+} from "./chatbot-config-draft";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { EMPTY_LINK_QUOTA_DRAFT, type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -20,7 +26,6 @@ import type {
   ConfidentialiteOption,
   CreatedLink,
   ProspectOption,
-  TemplateOption,
   VisualTemplateOption,
 } from "./types";
 import { UserStateField } from "./UserStateField";
@@ -31,7 +36,6 @@ import {
 
 type LinkFormProps = {
   prospects: ProspectOption[];
-  templates: TemplateOption[];
   confidentialites: ConfidentialiteOption[];
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
@@ -43,7 +47,6 @@ type LinkFormProps = {
 /** Formulaire de création d'un lien : modèle, type (+ prospect), expiration. */
 export function LinkForm({
   prospects,
-  templates,
   confidentialites,
   visualTemplates,
   aiProviders,
@@ -55,7 +58,7 @@ export function LinkForm({
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
-  const [templateKey, setTemplateKey] = useState("fiche-projet");
+  const [config, setConfig] = useState<ChatbotConfigDraft>(defaultChatbotConfigDraft());
   const [type, setType] = useState<ChatLinkType>("specifique");
   const [channels, setChannels] = useState<ChannelDrafts>({
     page: {
@@ -104,7 +107,7 @@ export function LinkForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          templateKey,
+          config: chatbotConfigPayload(config),
           type,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
@@ -145,16 +148,7 @@ export function LinkForm({
     <form className="form" onSubmit={onSubmit} noValidate>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <label className="field">
-        Modèle de raisonnement
-        <select value={templateKey} onChange={(event) => setTemplateKey(event.target.value)}>
-          {templates.map((template) => (
-            <option key={template.key} value={template.key}>
-              {template.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ChatbotConfigFields value={config} onChange={setConfig} />
 
       <label className="field">
         Type de lien
@@ -261,7 +255,7 @@ export function LinkForm({
 
       <div className="tools">
         <button type="submit" className="btn small" disabled={pending}>
-          {pending ? "Création…" : "Créer le lien"}
+          {pending ? "Création…" : "Créer le chatbot"}
         </button>
         <button type="button" className="btn ghost small" onClick={onCancel}>
           Annuler

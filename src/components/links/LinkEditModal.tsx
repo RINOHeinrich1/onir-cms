@@ -11,6 +11,12 @@ import {
   chatLinkQuota,
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
+import { ChatbotConfigFields } from "./ChatbotConfigFields";
+import {
+  type ChatbotConfigDraft,
+  chatbotConfigPayload,
+  draftFromConfig,
+} from "./chatbot-config-draft";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -90,6 +96,7 @@ export function LinkEditModal({
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
   });
+  const [config, setConfig] = useState<ChatbotConfigDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
@@ -115,6 +122,24 @@ export function LinkEditModal({
       cancelled = true;
     };
   }, [link.id]);
+
+  useEffect(() => {
+    if (link.currentConfigId === null || link.currentConfigId === undefined) return;
+    let cancelled = false;
+    void fetch(`/api/links/${link.id}/config`)
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as { config?: unknown }) : null,
+      )
+      .then((json) => {
+        if (cancelled || json === null) return;
+        const draft = draftFromConfig(json.config);
+        if (draft !== null) setConfig(draft);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [link.id, link.currentConfigId]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -156,6 +181,7 @@ export function LinkEditModal({
             widget: channelApiPayload(channels.widget),
           },
           ...(dataBindingsLoaded ? { dataBindings } : {}),
+          ...(config === null ? {} : { config: chatbotConfigPayload(config) }),
         }),
       });
       const json = (await response.json()) as { link?: ChatLinkRow; error?: string };
@@ -239,6 +265,8 @@ export function LinkEditModal({
             </label>
 
             <CategoryPicker contentType="link" contentId={link.id} />
+
+            {config !== null ? <ChatbotConfigFields value={config} onChange={setConfig} /> : null}
 
             <SourcesField value={sources} onChange={setSources} />
 

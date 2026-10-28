@@ -97,6 +97,17 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
       return rows.map(toEntity);
     },
 
+    async listActivesByTypeForChatLink(organizationId, type, chatLinkId): Promise<Media[]> {
+      const { rows } = await pool.query<MediaRow>(
+        `SELECT ${COLUMNS} FROM medias
+         WHERE organization_id = $1 AND actif AND type = $2
+           AND (cardinality(template_keys) = 0 OR chat_link_ids @> ARRAY[$3]::uuid[])
+         ORDER BY updated_at DESC`,
+        [organizationId, type, chatLinkId],
+      );
+      return rows.map(toEntity);
+    },
+
     async create(organizationId, input: CreateMediaInput): Promise<Media> {
       const { rows } = await pool.query<MediaRow>(
         `INSERT INTO medias (organization_id, type, libelle, description, template_keys, actif, fichier, mime, url, created_by)

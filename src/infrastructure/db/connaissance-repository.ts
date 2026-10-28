@@ -85,6 +85,17 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       return rows.map((row) => toEntity(row));
     },
 
+    async listActivesForChatLink(organizationId, chatLinkId): Promise<Connaissance[]> {
+      const { rows } = await pool.query<ConnaissanceRow>(
+        `SELECT ${COLUMNS} FROM base_connaissances
+         WHERE organization_id = $1 AND actif
+           AND (cardinality(template_keys) = 0 OR chat_link_ids @> ARRAY[$2]::uuid[])
+         ORDER BY updated_at DESC`,
+        [organizationId, chatLinkId],
+      );
+      return rows.map((row) => toEntity(row));
+    },
+
     async create(organizationId, input: CreateConnaissanceInput): Promise<Connaissance> {
       const { rows } = await pool.query<ConnaissanceRow>(
         `INSERT INTO base_connaissances

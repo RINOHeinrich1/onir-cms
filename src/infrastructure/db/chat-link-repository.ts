@@ -37,6 +37,7 @@ type ChatLinkRow = {
   expires_at: Date | null;
   template_key: string;
   template_version: number;
+  current_config_id: string | null;
   sources: unknown;
   confidentialite_id: string | null;
   user_state_enabled: boolean;
@@ -73,7 +74,7 @@ type ChannelRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, max_fiches, max_tokens, token_reset_mode, token_reset_days, tokens_used, token_period_started_at, fiches_generated, created_at";
+  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, current_config_id, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, max_fiches, max_tokens, token_reset_mode, token_reset_days, tokens_used, token_period_started_at, fiches_generated, created_at";
 
 const CHANNEL_COLUMNS =
   "link_id, channel, enabled, identification_mode, confidentialite_id, visual_template_id, visual_template_version, visual_template_config, visual_template_params, channel_config";
@@ -173,6 +174,7 @@ function toEntity(row: ChatLinkRow, channels: ChatLinkChannels): ChatLink {
     expiresAt: row.expires_at ? row.expires_at.toISOString() : null,
     templateKey: row.template_key,
     templateVersion: row.template_version,
+    currentConfigId: row.current_config_id,
     sources: parseLinkSources(row.sources),
     confidentialiteId: summary.confidentialiteId,
     userStateEnabled: row.user_state_enabled,
@@ -530,12 +532,34 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       return (result.rowCount ?? 0) > 0;
     },
 
+    async reserveFiches(organizationId, id, count): Promise<boolean> {
+      if (count <= 0) return true;
+      const result = await pool.query(
+        `UPDATE chat_links
+            SET fiches_generated = fiches_generated + $3
+          WHERE organization_id = $1 AND id = $2
+            AND (max_fiches IS NULL OR fiches_generated + $3 <= max_fiches)`,
+        [organizationId, id, count],
+      );
+      return (result.rowCount ?? 0) > 0;
+    },
+
     async releaseFiche(organizationId, id): Promise<void> {
       await pool.query(
         `UPDATE chat_links
             SET fiches_generated = GREATEST(fiches_generated - 1, 0)
           WHERE organization_id = $1 AND id = $2`,
         [organizationId, id],
+      );
+    },
+
+    async releaseFiches(organizationId, id, count): Promise<void> {
+      if (count <= 0) return;
+      await pool.query(
+        `UPDATE chat_links
+            SET fiches_generated = GREATEST(fiches_generated - $3, 0)
+          WHERE organization_id = $1 AND id = $2`,
+        [organizationId, id, count],
       );
     },
 

@@ -164,7 +164,6 @@ const ITEMS: readonly NavItem[] = [
     icon: "conversations",
   },
   { href: "/leads", label: "Leads", action: "project:read", icon: "leads" },
-  { href: "/modeles", label: "Modèle de prospection", action: "templates:list", icon: "modeles" },
   {
     href: "/connaissances",
     label: "Connaissances",

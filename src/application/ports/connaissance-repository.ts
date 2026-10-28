@@ -24,6 +24,8 @@ export interface ConnaissanceRepository {
   list(organizationId: string): Promise<Connaissance[]>;
   /** Entrées actives visibles par un modèle (globales + restreintes), récentes d'abord. */
   listActives(organizationId: string, templateKey: string): Promise<Connaissance[]>;
+  /** Entrées actives rattachées à un chatbot config-only (chat_link_ids + globales). */
+  listActivesForChatLink?(organizationId: string, chatLinkId: string): Promise<Connaissance[]>;
   create(organizationId: string, input: CreateConnaissanceInput): Promise<Connaissance>;
   /** Nombre de connaissances IA générées pour un modèle (provenance). */
   countAiByTemplate(organizationId: string, templateKey: string): Promise<number>;

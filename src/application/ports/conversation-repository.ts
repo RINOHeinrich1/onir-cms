@@ -21,6 +21,8 @@ export type CreateConversationInput = {
   /** Politique de confidentialité acceptée. */
   confidentialiteId: string | null;
   channel?: "page" | "widget";
+  /** Configuration chatbot utilisée (ADR-0049). */
+  configId?: string | null;
 };
 
 /** Compteurs de conversations actives (non archivées), par statut. */
@@ -129,4 +131,17 @@ export interface ConversationRepository {
     medias: ChatMessageMedia[],
   ): Promise<ChatMessage | null>;
   listByLink(organizationId: string, linkId: string): Promise<Conversation[]>;
+  /** Fixe la configuration courante de la conversation (ADR-0049). */
+  setConfig?(
+    organizationId: string,
+    id: string,
+    configId: string,
+    activeFicheInstanceId?: string | null,
+  ): Promise<void>;
+  /** Enregistre le résultat de la clôture (ADR-0049). */
+  setOutcome?(
+    organizationId: string,
+    id: string,
+    outcome: "fiches_creees" | "sans_fiche" | "abandonnee" | "erreur",
+  ): Promise<void>;
 }

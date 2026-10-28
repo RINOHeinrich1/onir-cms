@@ -253,6 +253,11 @@ export type ChatLink = {
   /** Modèle de raisonnement figé à la création (snapshot key+version). */
   templateKey: string;
   templateVersion: number;
+  /**
+   * Configuration chatbot autonome courante (ADR-0049). Null = le lien
+   * fonctionne avec le modèle legacy (`templateKey`/`templateVersion`).
+   */
+  currentConfigId?: string | null;
   /** Sources recherchées à la génération (connaissances / photothèque / liens). */
   sources: ChatLinkSources;
   /** Politique de confidentialité rattachée (une seule, optionnelle). */
@@ -376,6 +381,12 @@ export type Conversation = {
   lastOperatorMessageAt: string | null;
   /** Conversation archivée (masquée par défaut dans la liste). */
   archivee?: boolean;
+  /** Configuration chatbot utilisée (ADR-0049) ; null = fonctionnement legacy. */
+  configId?: string | null;
+  /** Instance de fiche active de la conversation (ADR-0049). */
+  activeFicheInstanceId?: string | null;
+  /** Résultat de la clôture (ADR-0049). */
+  outcome?: string | null;
   createdAt: string;
 };
 

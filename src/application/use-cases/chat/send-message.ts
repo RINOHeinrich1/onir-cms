@@ -4,7 +4,9 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -12,6 +14,18 @@ import type { ProspectRepository } from "@/application/ports/prospect-repository
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { buildAttachmentPromptContext } from "@/application/use-cases/attachments/attachment-prompt";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
+import {
+  ficheToDefinition,
+  findFiche,
+  resolveCurrentConfig,
+} from "@/application/use-cases/chat/chatbot-config-runtime";
+import {
+  applyFicheDetection,
+  detectFicheInstances,
+  ensureMonoFicheInstance,
+  fallbackToPrimaryFiche,
+  instanceForFiche,
+} from "@/application/use-cases/chat/fiche-instances";
 import {
   buildContexteInterne,
   selectConnaissancesUtiles,
@@ -23,7 +37,9 @@ import type {
   ChatMessageRole,
   ConversationInterventionMode,
 } from "@/domain/entities/chat";
+import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
+import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
 import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt";
@@ -38,6 +54,9 @@ export type SendMessageDependencies = {
   medias: MediaRepository;
   attachments: AttachmentRepository;
   ai: AiClientFactory;
+  /** Configuration chatbot autonome (ADR-0049) ; absent = legacy uniquement. */
+  configs?: ChatbotConfigRepository;
+  ficheInstances?: ConversationFicheInstanceRepository;
 };
 
 export type SendMessageResult = {
@@ -82,17 +101,20 @@ async function hasEligibleMedia(
   deps: SendMessageDependencies,
   organizationId: string,
   link: ChatLink,
+  configOnly: boolean,
 ): Promise<boolean> {
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
   if (!wantsPhotos && !wantsLiens) return false;
+  const load = async (type: "photo" | "lien") => {
+    if (configOnly && deps.medias.listActivesByTypeForChatLink !== undefined) {
+      return deps.medias.listActivesByTypeForChatLink(organizationId, type, link.id);
+    }
+    return deps.medias.listActivesByType(organizationId, type, link.templateKey);
+  };
   const [photos, liens] = await Promise.all([
-    wantsPhotos
-      ? deps.medias.listActivesByType(organizationId, "photo", link.templateKey)
-      : Promise.resolve([]),
-    wantsLiens
-      ? deps.medias.listActivesByType(organizationId, "lien", link.templateKey)
-      : Promise.resolve([]),
+    wantsPhotos ? load("photo") : Promise.resolve([]),
+    wantsLiens ? load("lien") : Promise.resolve([]),
   ]);
   return photos.length > 0 || liens.length > 0;
 }
@@ -178,22 +200,48 @@ export async function sendMessage(
     throw new NotFoundError("Lien invalide ou révoqué");
   }
   assertChatLinkAvailable(link);
-  const template = await deps.templates.findVersion(
-    organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
+  const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  const instancesRepo = deps.ficheInstances;
+  let activeInstance: ConversationFicheInstance | null = null;
+  let templateDefinition: TemplateDefinition | null = null;
+  let attachmentFields: TemplateField[] = [];
+  if (config !== null) {
+    if (deps.conversations.setConfig !== undefined) {
+      await deps.conversations.setConfig(organizationId, conversation.id, config.id);
+    }
+    if (instancesRepo !== undefined) {
+      if (config.fiches.length === 1) {
+        activeInstance = await ensureMonoFicheInstance(
+          instancesRepo,
+          config,
+          conversation.id,
+          organizationId,
+        );
+      } else {
+        const instances = await instancesRepo.listByConversation(organizationId, conversation.id);
+        activeInstance =
+          instances.find((instance) => instance.status === "active") ??
+          instanceForFiche(instances, config.fiches[0]?.key ?? "");
+      }
+    }
+    attachmentFields =
+      config.fiches.length === 1
+        ? (config.fiches[0]?.fields ?? [])
+        : config.fiches.flatMap((fiche) => fiche.fields);
+  } else {
+    const template = await deps.templates.findVersion(
+      organizationId,
+      link.templateKey,
+      link.templateVersion,
+    );
+    if (template === null) {
+      throw new NotFoundError("Modèle de raisonnement introuvable");
+    }
+    templateDefinition = template.definition;
+    attachmentFields = template.definition.fields;
   }
 
-  await validateAttachments(
-    deps,
-    organizationId,
-    conversation.id,
-    template.definition.fields,
-    attachmentIds,
-  );
+  await validateAttachments(deps, organizationId, conversation.id, attachmentFields, attachmentIds);
 
   const userMessage = await deps.conversations.appendMessage(
     organizationId,
@@ -241,13 +289,48 @@ export async function sendMessage(
     });
   };
 
+  if (config !== null) {
+    if (config.fiches.length > 1 && instancesRepo !== undefined) {
+      const detected = await detectFicheInstances({
+        ai: withAiUsage(ai, recordUsage, "fiche_detection"),
+        config,
+        messages: history.map((message) => ({
+          role: toAiRole(message.role),
+          content: message.content,
+        })),
+      });
+      activeInstance =
+        detected === null
+          ? await fallbackToPrimaryFiche({
+              repo: instancesRepo,
+              config,
+              conversationId: conversation.id,
+              organizationId,
+            })
+          : await applyFicheDetection({
+              repo: instancesRepo,
+              config,
+              conversationId: conversation.id,
+              organizationId,
+              detected,
+            });
+    }
+    const activeFiche = activeInstance === null ? null : findFiche(config, activeInstance.ficheKey);
+    const fiche = activeFiche ?? config.fiches[0] ?? null;
+    if (fiche !== null) templateDefinition = ficheToDefinition(config, fiche);
+  }
+  const definition = templateDefinition;
+  if (definition === null) {
+    throw new NotFoundError("Configuration du chatbot introuvable");
+  }
+
   let prospect = null;
   if (link.type === "specifique" && link.prospectId !== null) {
     prospect = await deps.prospects.findById(organizationId, link.prospectId);
   }
 
   const system = buildSystemPromptFromTemplate({
-    definition: template.definition,
+    definition,
     serverVars: buildServerVariables({ mode: link.type, prospect, conversation }),
   });
 
@@ -258,7 +341,7 @@ export async function sendMessage(
     conversation.id,
   );
   const attachmentContext = buildAttachmentPromptContext(
-    template.definition.fields,
+    definition.fields,
     conversationAttachments,
   );
   let systemEnrichi =
@@ -269,7 +352,10 @@ export async function sendMessage(
 ${attachmentContext}`;
   let connaissances: ConnaissanceRef[] = [];
   if (link.sources.connaissances) {
-    const actives = await deps.connaissances.listActives(organizationId, link.templateKey);
+    const actives =
+      config !== null && deps.connaissances.listActivesForChatLink !== undefined
+        ? await deps.connaissances.listActivesForChatLink(organizationId, link.id)
+        : await deps.connaissances.listActives(organizationId, link.templateKey);
     const utiles = await selectConnaissancesUtiles(
       { ai: withAiUsage(ai, recordUsage, "knowledge_selection") },
       actives,
@@ -285,8 +371,8 @@ ${attachmentContext}`;
 
   // Les contextes runtime (pièces jointes, RAG) sont en français : on rappelle
   // la politique de langue du modèle simple en dernier.
-  if (template.definition.simple !== undefined) {
-    systemEnrichi = `${systemEnrichi}\n\n${languageReminder(template.definition.simple.language)}`;
+  if (definition.simple !== undefined) {
+    systemEnrichi = `${systemEnrichi}\n\n${languageReminder(definition.simple.language)}`;
   }
 
   let answer: string;
@@ -324,7 +410,7 @@ ${attachmentContext}`;
     "assistant",
     answer,
   );
-  const mediaPending = await hasEligibleMedia(deps, organizationId, link);
+  const mediaPending = await hasEligibleMedia(deps, organizationId, link, config !== null);
   return {
     organizationId,
     userMessage,

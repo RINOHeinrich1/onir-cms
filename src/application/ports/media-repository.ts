@@ -32,6 +32,12 @@ export interface MediaRepository {
   list(organizationId: string): Promise<Media[]>;
   /** Médias actifs d'une nature visibles par un modèle (globaux + restreints). */
   listActivesByType(organizationId: string, type: TypeMedia, templateKey: string): Promise<Media[]>;
+  /** Médias actifs rattachés à un chatbot config-only (chat_link_ids + globaux). */
+  listActivesByTypeForChatLink?(
+    organizationId: string,
+    type: TypeMedia,
+    chatLinkId: string,
+  ): Promise<Media[]>;
   create(organizationId: string, input: CreateMediaInput): Promise<Media>;
   update(organizationId: string, id: string, patch: UpdateMediaInput): Promise<Media | null>;
   delete(organizationId: string, id: string): Promise<boolean>;

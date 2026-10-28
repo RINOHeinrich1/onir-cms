@@ -304,10 +304,12 @@ export function LinksTable({
 
               <dl className="chatbot-facts">
                 <div>
-                  <dt>Modèle</dt>
+                  <dt>Configuration</dt>
                   <dd>
-                    {templates.find((template) => template.key === link.templateKey)?.label ??
-                      link.templateKey}
+                    {link.currentConfigId !== null && link.currentConfigId !== undefined
+                      ? "Chatbot autonome"
+                      : (templates.find((template) => template.key === link.templateKey)?.label ??
+                        link.templateKey)}
                   </dd>
                 </div>
                 <div>
@@ -443,7 +445,6 @@ export function LinksTable({
         <Modal title="Nouveau chatbot" onClose={() => setCreating(false)}>
           <LinkForm
             prospects={prospects}
-            templates={templates}
             confidentialites={confidentialites}
             visualTemplates={visualTemplates}
             aiProviders={aiProviders}
