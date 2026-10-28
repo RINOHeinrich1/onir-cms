@@ -161,7 +161,7 @@ export function AiProvidersPanel({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Fournisseur</th>
@@ -179,7 +179,7 @@ export function AiProvidersPanel({
               const isDefault = settings?.defaultProviderId === provider.id;
               return (
                 <tr key={provider.id}>
-                  <td>
+                  <td data-label="Fournisseur">
                     <strong>{provider.label}</strong>
                     {isDefault ? (
                       <span className="badge" style={{ marginLeft: "0.5rem" }}>
@@ -192,13 +192,15 @@ export function AiProvidersPanel({
                       </span>
                     ) : null}
                   </td>
-                  <td>{AI_PROVIDER_PRESET_LABELS[provider.preset]}</td>
-                  <td>
+                  <td data-label="Type">{AI_PROVIDER_PRESET_LABELS[provider.preset]}</td>
+                  <td data-label="URL">
                     <span className="hint">{provider.baseUrl}</span>
                   </td>
-                  <td>{provider.apiKeyHint}</td>
-                  <td>{provider.defaultModel ?? <span className="hint">—</span>}</td>
-                  <td>
+                  <td data-label="Clé">{provider.apiKeyHint}</td>
+                  <td data-label="Modèle par défaut">
+                    {provider.defaultModel ?? <span className="hint">—</span>}
+                  </td>
+                  <td data-label="Test">
                     <span className={`badge ${provider.lastTestOk === false ? "orange" : ""}`}>
                       {testLabel(provider)}
                     </span>
@@ -206,7 +208,7 @@ export function AiProvidersPanel({
                       <div className="hint">{provider.lastTestError}</div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     {canManage && !archived ? (
                       <div className="tools">
                         <button

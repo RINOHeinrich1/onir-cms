@@ -93,7 +93,7 @@ export function ProspectsTable({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Nom</th>
@@ -106,13 +106,13 @@ export function ProspectsTable({
           <tbody>
             {visible.map((prospect) => (
               <tr key={prospect.id}>
-                <td>
+                <td data-label="Nom">
                   {prospect.nom} {prospect.prenom}
                 </td>
-                <td>
+                <td data-label="Nature">
                   <span className="badge">{prospect.nature}</span>
                 </td>
-                <td>
+                <td data-label="Origine">
                   {prospect.origine === "libre" ? (
                     <>
                       <span className="badge orange">Libre</span>
@@ -126,14 +126,14 @@ export function ProspectsTable({
                     <span className="badge muted">Saisie</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Email">
                   {prospect.email === "" ? (
                     <span className="badge warn">Contact non fourni</span>
                   ) : (
                     prospect.email
                   )}
                 </td>
-                <td>
+                <td data-label="Actions" className="cell-actions">
                   <div className="tools">
                     <button
                       type="button"

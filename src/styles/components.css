@@ -4604,3 +4604,89 @@ a.subtab {
     animation: none;
   }
 }
+
+@media (max-width: 700px) {
+  .subtabs {
+    width: 100%;
+    padding: 0.2rem;
+  }
+
+  .subtab {
+    padding: 0.38rem 0.62rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* Tableau transformé en cartes sur mobile (liste dense). */
+@media (max-width: 700px) {
+  .table-cards {
+    display: block;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .table-cards thead {
+    display: none;
+  }
+
+  .table-cards tbody {
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .table-cards tbody tr {
+    display: block;
+    padding: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    background: var(--surface-raised);
+    box-shadow: var(--sh-card);
+  }
+
+  .table-cards tbody tr:hover td {
+    background: transparent;
+  }
+
+  .table-cards td {
+    display: grid;
+    grid-template-columns: 6.4rem minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 0.22rem 0;
+    border: 0;
+    font-size: 0.82rem;
+  }
+
+  .table-cards td::before {
+    content: attr(data-label);
+    color: var(--fg-muted);
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    line-height: 1.45;
+    text-transform: uppercase;
+  }
+
+  .table-cards td:not([data-label])::before {
+    content: "";
+  }
+
+  .table-cards td.cell-actions {
+    display: block;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .table-cards td.cell-actions::before {
+    display: none;
+  }
+
+  .table-cards td[colspan] {
+    display: block;
+    padding: 0.5rem 0;
+  }
+
+  .table-cards td[colspan]::before {
+    display: none;
+  }
+}
