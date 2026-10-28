@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import type { TemplateDataContract } from "@/domain/data-contracts";
 import type { TemplateDataBinding } from "@/domain/template-data";
 import {
@@ -731,7 +732,7 @@ export function TemplateDataBindingsEditor({
         ? `Supprimer la dernière source « ${entry.name} » ? Ce contrat n'aura plus de source et les liens sans surcharge ne recevront plus de données.`
         : `Supprimer la source par défaut « ${entry.name} » ? Une autre source deviendra défaut.`
       : `Supprimer la source « ${entry.name} » ?`;
-    if (!window.confirm(warning)) return;
+    if (!(await confirmDialog(warning))) return;
     setBusy(true);
     try {
       const response = await fetch(
@@ -779,11 +780,11 @@ export function TemplateDataBindingsEditor({
     });
   }
 
-  function applyViewExample(view: SchemaView): void {
+  async function applyViewExample(view: SchemaView): Promise<void> {
     const next = `SELECT * FROM ${view.name} LIMIT 50`;
     if (
       draft.queryText.trim() !== "" &&
-      !window.confirm("Remplacer la requête actuelle par cet exemple ?")
+      !(await confirmDialog("Remplacer la requête actuelle par cet exemple ?"))
     ) {
       return;
     }
@@ -1464,7 +1465,7 @@ export function TemplateDataBindingsEditor({
                                       <button
                                         className="btn ghost small"
                                         type="button"
-                                        onClick={() => applyViewExample(schemaView)}
+                                        onClick={() => void applyViewExample(schemaView)}
                                       >
                                         Requête d'exemple
                                       </button>

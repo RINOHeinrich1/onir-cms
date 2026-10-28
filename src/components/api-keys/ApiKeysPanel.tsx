@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   API_KEY_SCOPE_LABELS,
@@ -86,7 +87,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
   }
 
   async function revokeKey(key: ApiKey): Promise<void> {
-    if (!window.confirm(`Révoquer définitivement la clé « ${key.name} » ?`)) return;
+    if (!(await confirmDialog(`Révoquer définitivement la clé « ${key.name} » ?`))) return;
     setError(null);
     try {
       const response = await fetch(`/api/api-keys/${key.id}`, { method: "DELETE" });

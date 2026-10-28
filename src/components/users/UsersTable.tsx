@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
@@ -116,7 +117,7 @@ export function UsersTable({
 
   const remove = async (user: UserDto): Promise<void> => {
     setError(null);
-    if (!window.confirm(`Supprimer ${user.email} ?`)) return;
+    if (!(await confirmDialog(`Supprimer ${user.email} ?`))) return;
     try {
       const response = await fetch(`/api/users/${user.userId}`, { method: "DELETE" });
       if (!response.ok) {

@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { InvitationStatus } from "@/domain/entities/invitation";
 import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
@@ -110,7 +111,7 @@ export function InvitationsManager({
   };
 
   const onRevoke = async (invitation: InvitationDto): Promise<void> => {
-    if (!window.confirm("Révoquer cette invitation ? Le lien ne fonctionnera plus.")) return;
+    if (!(await confirmDialog("Révoquer cette invitation ? Le lien ne fonctionnera plus."))) return;
     setError(null);
     try {
       const response = await fetch(`/api/invitations/${invitation.id}`, { method: "DELETE" });

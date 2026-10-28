@@ -4811,3 +4811,54 @@ a.subtab {
     width: 100%;
   }
 }
+
+@media (max-width: 700px) {
+  .table-cards td > .badge {
+    justify-self: start;
+    width: fit-content;
+  }
+}
+
+/* ---------- Confirmation globale ---------- */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgb(6 40 31 / 0.46);
+  backdrop-filter: blur(2px);
+}
+
+.confirm-card {
+  width: min(30rem, 100%);
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-lifted);
+  color: var(--fg);
+}
+
+.confirm-card h2 {
+  margin: 0 0 0.5rem;
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-style: normal;
+}
+
+.confirm-card p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}

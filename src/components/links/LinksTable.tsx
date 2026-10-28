@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -157,7 +158,7 @@ export function LinksTable({
 
   const remove = async (link: ChatLinkRow): Promise<void> => {
     setError(null);
-    if (!window.confirm("Supprimer ce lien et ses conversations ?")) return;
+    if (!(await confirmDialog("Supprimer ce lien et ses conversations ?"))) return;
     try {
       const response = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
       if (!response.ok) {

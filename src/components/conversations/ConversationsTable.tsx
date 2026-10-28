@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -76,9 +77,9 @@ export function ConversationsTable({
 
   const generate = async (conversation: ConversationRowDto): Promise<void> => {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         "Générer une fiche de prospection à partir de cette conversation ? L'IA analyse l'échange.",
-      )
+      ))
     ) {
       return;
     }
@@ -105,9 +106,9 @@ export function ConversationsTable({
     const archivee = !conversation.archivee;
     if (
       archivee &&
-      !window.confirm(
+      !(await confirmDialog(
         "Archiver cette conversation ? Elle sera masquée par défaut (filtre « Archivées »).",
-      )
+      ))
     ) {
       return;
     }

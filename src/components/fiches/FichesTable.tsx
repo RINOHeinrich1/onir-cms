@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { Modal } from "@/components/ui/Modal";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -65,9 +66,9 @@ export function FichesTable({
     const archivee = !fiche.archivee;
     if (
       archivee &&
-      !window.confirm(
+      !(await confirmDialog(
         "Archiver cette fiche ? Elle sera masquée par défaut (consultable via le filtre « Archivées »).",
-      )
+      ))
     ) {
       return;
     }

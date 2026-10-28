@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -54,7 +55,7 @@ export function ConnaissancesTable({
 
   const remove = async (connaissance: ConnaissanceDto): Promise<void> => {
     setError(null);
-    if (!window.confirm(`Supprimer « ${connaissance.titre} » ?`)) return;
+    if (!(await confirmDialog(`Supprimer « ${connaissance.titre} » ?`))) return;
     try {
       const response = await fetch(`/api/connaissances/${connaissance.id}`, {
         method: "DELETE",

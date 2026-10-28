@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatAttachmentDto } from "@/application/use-cases/attachments/attachment-dto";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatMessageMedia, ConversationInterventionMode } from "@/domain/entities/chat";
@@ -485,7 +486,8 @@ export function ChatWindow({
     if (anonymous || finishing || docs !== null) return;
     const activeId = activeConversationId;
     if (activeId === null) return;
-    if (!window.confirm("Terminer la discussion et générer la fiche de prospection ?")) return;
+    if (!(await confirmDialog("Terminer la discussion et générer la fiche de prospection ?")))
+      return;
     setFinishing(true);
     setError(null);
     try {

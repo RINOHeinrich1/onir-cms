@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { WebhookDeliveryDto, WebhookEndpointAdminDto, WebhookTemplateOption } from "./types";
@@ -48,7 +49,7 @@ export function WebhooksPanel({
   }
 
   async function removeWebhook(endpoint: WebhookEndpointAdminDto): Promise<void> {
-    if (!window.confirm(`Supprimer le webhook « ${endpoint.name} » ?`)) return;
+    if (!(await confirmDialog(`Supprimer le webhook « ${endpoint.name} » ?`))) return;
     setError(null);
     try {
       const response = await fetch(`/api/webhooks/${endpoint.id}`, { method: "DELETE" });
@@ -66,9 +67,9 @@ export function WebhooksPanel({
 
   async function testWebhook(endpoint: WebhookEndpointAdminDto): Promise<void> {
     if (
-      !window.confirm(
+      !(await confirmDialog(
         `Envoyer un test réel à « ${endpoint.name} » ?\nUne requête HTTP sera effectuée vers ${endpoint.url}.`,
-      )
+      ))
     ) {
       return;
     }

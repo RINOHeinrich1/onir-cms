@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -49,7 +50,7 @@ export function MediasManager({
 
   const remove = async (media: MediaDto): Promise<void> => {
     setError(null);
-    if (!window.confirm(`Supprimer « ${media.libelle} » ?`)) return;
+    if (!(await confirmDialog(`Supprimer « ${media.libelle} » ?`))) return;
     try {
       const response = await fetch(`/api/medias/${media.id}`, { method: "DELETE" });
       if (!response.ok) {

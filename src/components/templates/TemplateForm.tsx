@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   ATTACHMENT_MAX_BYTES,
@@ -543,14 +544,14 @@ export function TemplateForm({
     setGuardrails((previous) => previous.filter((entry) => entry !== value));
   };
 
-  const changeMode = (next: TemplateFormMode): void => {
+  const changeMode = async (next: TemplateFormMode): Promise<void> => {
     if (next === mode) return;
     if (next === "simple") {
       if (
         (templateKey !== null || seed !== null) &&
-        !window.confirm(
+        !(await confirmDialog(
           "Le mode simple régénère le prompt et la fiche à partir des réglages et des informations. Continuer ?",
-        )
+        ))
       ) {
         return;
       }
@@ -628,9 +629,9 @@ export function TemplateForm({
 
       if (
         templateKey !== null &&
-        !window.confirm(
+        !(await confirmDialog(
           "Cette modification crée une nouvelle version du modèle. Les liens déjà actifs conservent leur version figée et ne seront pas mis à jour automatiquement. Continuer ?",
-        )
+        ))
       ) {
         return;
       }
@@ -758,7 +759,7 @@ export function TemplateForm({
             type="button"
             className={mode === "simple" ? "btn small" : "btn ghost small"}
             aria-pressed={mode === "simple"}
-            onClick={() => changeMode("simple")}
+            onClick={() => void changeMode("simple")}
           >
             Simple
           </button>
@@ -766,7 +767,7 @@ export function TemplateForm({
             type="button"
             className={mode === "expert" ? "btn small" : "btn ghost small"}
             aria-pressed={mode === "expert"}
-            onClick={() => changeMode("expert")}
+            onClick={() => void changeMode("expert")}
           >
             Expert
           </button>
@@ -806,7 +807,7 @@ export function TemplateForm({
                 onAdjustSimple={() => setAiAssist(false)}
                 onExpert={() => {
                   setAiAssist(false);
-                  changeMode("expert");
+                  void changeMode("expert");
                 }}
               />
             ) : null}

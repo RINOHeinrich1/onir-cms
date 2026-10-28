@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
@@ -50,7 +51,9 @@ export function ConfidentialitesTable({
 
   const remove = async (item: ConfidentialiteDto): Promise<void> => {
     if (
-      !window.confirm(`Supprimer « ${item.titre} » ? Les liens rattachés perdront leur politique.`)
+      !(await confirmDialog(
+        `Supprimer « ${item.titre} » ? Les liens rattachés perdront leur politique.`,
+      ))
     ) {
       return;
     }
