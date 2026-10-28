@@ -221,13 +221,10 @@ export function LinkForm({
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    // La création est déclenchée uniquement par le bouton final : un clic sur
+    // « Suivant » ne doit jamais pouvoir soumettre le formulaire pendant la
+    // transition d'étape.
     event.preventDefault();
-    if (pending) return;
-    if (step < STEPS.length - 1) {
-      goNext();
-      return;
-    }
-    void createChatbot();
   };
 
   const changeType = (next: ChatLinkType): void => {
@@ -503,7 +500,12 @@ export function LinkForm({
               Suivant
             </button>
           ) : (
-            <button type="submit" className="btn small" disabled={pending}>
+            <button
+              type="button"
+              className="btn small"
+              disabled={pending}
+              onClick={() => void createChatbot()}
+            >
               {pending ? "Création…" : "Créer le chatbot"}
             </button>
           )}
