@@ -169,6 +169,7 @@ export default async function ConversationDetailPage({ params, searchParams }: P
         conversation={conversation}
         initialMessages={messages.map(toDashboardChatMessage)}
         canIntervene={canIntervene}
+        assistantLabel={link === null || link.label === "" ? "Chatbot sans nom" : link.label}
       />
     </section>
   );

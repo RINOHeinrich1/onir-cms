@@ -51,10 +51,12 @@ export function ConversationLive({
   conversation: initialConversation,
   initialMessages,
   canIntervene,
+  assistantLabel = "Assistant IA",
 }: {
   conversation: ConversationState;
   initialMessages: ChatMessageDto[];
   canIntervene: boolean;
+  assistantLabel?: string;
 }) {
   const toast = useToast();
   const [conversation, setConversation] = useState<ConversationState>(initialConversation);
@@ -337,7 +339,7 @@ export function ConversationLive({
           if (atBottom) setNewBelow(false);
         }}
       >
-        <ConversationTranscript messages={messages} />
+        <ConversationTranscript messages={messages} assistantLabel={assistantLabel} />
       </div>
 
       {newBelow ? (
