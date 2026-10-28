@@ -21,6 +21,14 @@ describe("aiCapabilitiesFor", () => {
   it("un fournisseur sans contrôle est marqué none", () => {
     expect(aiCapabilitiesFor("custom", "mon-modele").reasoningControl).toBe("none");
   });
+
+  it("un profil explicite rend un backend inconnu contrôlable", () => {
+    expect(aiCapabilitiesFor("custom", "mon-modele", "infomaniak_chat_template")).toMatchObject({
+      reasoningControl: "infomaniak_chat_template",
+      supportsReasoningToggle: true,
+    });
+    expect(aiCapabilitiesFor("custom", "mon-modele", "none").supportsReasoningToggle).toBe(false);
+  });
 });
 
 describe("supportsStructuredExtraction", () => {

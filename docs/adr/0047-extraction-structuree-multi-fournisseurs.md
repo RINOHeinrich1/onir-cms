@@ -67,6 +67,27 @@ Le mode `auto` conserve le comportement du fournisseur, sauf pour les modèles
 Infomaniak Gemma/Qwen où le raisonnement est désactivé par défaut (protection
 contre les boucles connues).
 
+### 2 bis. Profil configurable pour les fournisseurs inconnus
+
+Un fournisseur `custom` ou un backend non répertorié porte un
+`reasoning_profile` :
+
+```text
+auto | none | infomaniak_chat_template
+     | openai_reasoning_effort | openrouter_reasoning
+```
+
+- `auto` applique le profil du preset ;
+- `none` n'envoie aucun paramètre propriétaire ;
+- les autres profils activent le mapping correspondant.
+
+L'admin choisit ce profil dans le formulaire fournisseur, puis valide avec
+**Tester l'extraction**. Si le backend refuse le paramètre, le test échoue
+explicitement et il faut choisir un autre profil ou un autre modèle.
+
+Cela permet d'ajouter un fournisseur compatible OpenAI inconnu sans modification
+du code métier, tant que son backend accepte l'un des profils connus.
+
 ### 3. Réglage par modèle
 
 `ai_provider_models.reasoning_mode` stocke `auto`, `enabled` ou `disabled`.
@@ -111,6 +132,7 @@ Dans `/parametres/ia` :
 
 - carte **Moteur d'extraction** avec modèle principal, secours et bouton de
   test JSON ;
+- champ **Profil de raisonnement** dans le formulaire fournisseur ;
 - colonne **Raisonnement** dans les modèles (`Auto`, `Activé`, `Désactivé`) ou
   mention `Non supporté` ;
 - test d'extraction court, résultat lisible : latence, JSON valide ou erreur ;

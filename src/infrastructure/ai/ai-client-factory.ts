@@ -56,7 +56,7 @@ async function resolveProviderTarget(
     source,
     preset: provider.preset,
     reasoningMode: modelRow.reasoningMode ?? "auto",
-    capabilities: aiCapabilitiesFor(provider.preset, model),
+    capabilities: aiCapabilitiesFor(provider.preset, model, provider.reasoningProfile),
   };
 }
 

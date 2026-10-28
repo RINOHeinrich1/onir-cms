@@ -182,7 +182,10 @@ export async function setProviderModelReasoning(
   if (parsed === null) {
     throw new ValidationError("Mode de raisonnement invalide");
   }
-  if (!aiCapabilitiesFor(provider.preset, model.modelId).supportsReasoningToggle) {
+  if (
+    !aiCapabilitiesFor(provider.preset, model.modelId, provider.reasoningProfile)
+      .supportsReasoningToggle
+  ) {
     throw new ValidationError("Ce fournisseur ne permet pas de contrôler le raisonnement");
   }
   const updated = await deps.models.setReasoningMode(

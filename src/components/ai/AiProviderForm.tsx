@@ -4,6 +4,11 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
+  REASONING_PROFILE_LABELS,
+  REASONING_PROFILES,
+  type ReasoningProfile,
+} from "@/domain/ai-capabilities";
+import {
   AI_PROVIDER_PRESET_LABELS,
   AI_PROVIDER_PRESETS,
   type AiProviderPreset,
@@ -23,6 +28,9 @@ export function AiProviderForm({
 }) {
   const [label, setLabel] = useState(provider?.label ?? "");
   const [preset, setPreset] = useState<AiProviderPreset>(provider?.preset ?? "openai");
+  const [reasoningProfile, setReasoningProfile] = useState<ReasoningProfile>(
+    provider?.reasoningProfile ?? "auto",
+  );
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? presetBaseUrl("openai"));
   const [productId, setProductId] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -56,6 +64,7 @@ export function AiProviderForm({
           body: JSON.stringify({
             label,
             preset,
+            reasoningProfile,
             baseUrl,
             ...(preset === "infomaniak" && productId.trim() !== "" ? { productId } : {}),
             ...(apiKey.trim() === "" ? {} : { apiKey }),
@@ -110,6 +119,24 @@ export function AiProviderForm({
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="field">
+          Profil de raisonnement
+          <select
+            value={reasoningProfile}
+            onChange={(event) => setReasoningProfile(event.target.value as ReasoningProfile)}
+          >
+            {REASONING_PROFILES.map((value) => (
+              <option key={value} value={value}>
+                {REASONING_PROFILE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+          <span className="hint">
+            Pour un backend inconnu, choisissez le profil qui accepte le paramètre de désactivation.
+            Laissez Auto pour les fournisseurs reconnus.
+          </span>
         </label>
 
         {preset === "infomaniak" ? (

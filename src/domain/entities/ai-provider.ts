@@ -34,6 +34,8 @@ const PRESET_BASE_URLS: Record<Exclude<AiProviderPreset, "infomaniak" | "custom"
   deepinfra: "https://api.deepinfra.com/v1/openai",
 };
 
+import type { ReasoningProfile } from "@/domain/ai-capabilities";
+
 export type AiProvider = {
   id: string;
   organizationId: string;
@@ -43,6 +45,7 @@ export type AiProvider = {
   baseUrl: string;
   apiKeyHint: string;
   defaultModel: string | null;
+  reasoningProfile?: ReasoningProfile;
   archivedAt: string | null;
   lastTestAt: string | null;
   lastTestOk: boolean | null;

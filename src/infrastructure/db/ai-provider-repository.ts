@@ -5,6 +5,7 @@ import type {
   CreateAiProviderInput,
   UpdateAiProviderInput,
 } from "@/application/ports/ai-provider-repository";
+import { parseReasoningProfile } from "@/domain/ai-capabilities";
 import {
   type AiDialect,
   type AiProvider,
@@ -24,6 +25,7 @@ type Row = {
   base_url: string;
   api_key_hint: string;
   default_model: string | null;
+  reasoning_profile: string;
   archived_at: Date | null;
   last_test_at: Date | null;
   last_test_ok: boolean | null;
@@ -34,7 +36,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, preset, dialect, base_url, api_key_hint, default_model, archived_at, last_test_at, last_test_ok, last_test_error, created_by, created_at, updated_at";
+  "id, organization_id, label, preset, dialect, base_url, api_key_hint, default_model, reasoning_profile, archived_at, last_test_at, last_test_ok, last_test_error, created_by, created_at, updated_at";
 
 function toEntity(row: Row): AiProvider {
   const preset: AiProviderPreset | null = parseAiProviderPreset(row.preset);
@@ -51,6 +53,7 @@ function toEntity(row: Row): AiProvider {
     baseUrl: row.base_url,
     apiKeyHint: row.api_key_hint,
     defaultModel: row.default_model,
+    reasoningProfile: parseReasoningProfile(row.reasoning_profile) ?? "auto",
     archivedAt: row.archived_at === null ? null : row.archived_at.toISOString(),
     lastTestAt: row.last_test_at === null ? null : row.last_test_at.toISOString(),
     lastTestOk: row.last_test_ok,
@@ -110,8 +113,8 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
       const { rows } = await pool.query<Row>(
         `INSERT INTO ai_providers
           (organization_id, label, preset, dialect, base_url, api_key_ciphertext,
-           api_key_iv, api_key_tag, api_key_hint, default_model, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           api_key_iv, api_key_tag, api_key_hint, default_model, reasoning_profile, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -124,6 +127,7 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
           input.sealedKey.tag,
           input.apiKeyHint,
           input.defaultModel,
+          input.reasoningProfile ?? "auto",
           input.createdBy,
         ],
       );
@@ -145,6 +149,7 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
       if (patch.dialect !== undefined) push("dialect", patch.dialect);
       if (patch.baseUrl !== undefined) push("base_url", patch.baseUrl);
       if (patch.defaultModel !== undefined) push("default_model", patch.defaultModel);
+      if (patch.reasoningProfile !== undefined) push("reasoning_profile", patch.reasoningProfile);
       if (patch.apiKeyHint !== undefined) push("api_key_hint", patch.apiKeyHint);
       if (patch.sealedKey !== undefined) {
         push("api_key_ciphertext", patch.sealedKey.ciphertext);
