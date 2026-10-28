@@ -2,10 +2,12 @@ import { NotFoundError } from "@/application/errors";
 import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { type ChatMessageMedia, chatLinkBlockReason } from "@/domain/entities/chat";
 import type { Media } from "@/domain/entities/media";
 import { signedMediaUrl } from "@/lib/media-token";
@@ -21,6 +23,8 @@ export type SelectChatMediaDependencies = {
   conversations: ConversationRepository;
   medias: MediaRepository;
   ai: AiClientFactory;
+  /** Configuration chatbot autonome (ADR-0049) : active le scope chat_link_ids. */
+  configs?: ChatbotConfigRepository;
 };
 
 export type SelectChatMediaResult = {
@@ -112,13 +116,17 @@ export async function selectChatMedia(
   const trackedAi = withAiUsage(ai, recordUsage, "media_selection");
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
+  const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  const configOnly = config !== null && deps.medias.listActivesByTypeForChatLink !== undefined;
+  const load = async (type: "photo" | "lien"): Promise<Media[]> => {
+    if (configOnly) {
+      return deps.medias.listActivesByTypeForChatLink?.(organizationId, type, link.id) ?? [];
+    }
+    return deps.medias.listActivesByType(organizationId, type, link.templateKey);
+  };
   const [photos, liens] = await Promise.all([
-    wantsPhotos
-      ? deps.medias.listActivesByType(organizationId, "photo", link.templateKey)
-      : Promise.resolve([]),
-    wantsLiens
-      ? deps.medias.listActivesByType(organizationId, "lien", link.templateKey)
-      : Promise.resolve([]),
+    wantsPhotos ? load("photo") : Promise.resolve([]),
+    wantsLiens ? load("lien") : Promise.resolve([]),
   ]);
   if (photos.length === 0 && liens.length === 0) {
     await deps.conversations.setMessageMedias(organizationId, message.id, []);

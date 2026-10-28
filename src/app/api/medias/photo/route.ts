@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/medias/photo — import d'une photo (multipart, admin/marketeur).
- * Champs : `fichier` (image), `libelle`, `description` (longue), `templateKey` (portée), `actif`.
+ * Champs : `fichier` (image), `libelle`, `description` (longue), `chatLinkIds` (portée), `actif`.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         meta: {
           libelle: form.get("libelle"),
           description: form.get("description"),
-          templateKeys: form.getAll("templateKeys").filter((value) => typeof value === "string"),
+          chatLinkIds: form.getAll("chatLinkIds").filter((value) => typeof value === "string"),
           actif: form.get("actif") !== "false",
         },
         data: Buffer.from(await fichier.arrayBuffer()),

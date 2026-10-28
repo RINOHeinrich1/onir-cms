@@ -4,7 +4,7 @@ export type CreateMediaInput = {
   type: TypeMedia;
   libelle: string;
   description: string;
-  templateKeys: string[];
+  chatLinkIds: string[];
   actif: boolean;
   /** Photo : clé de stockage ; lien : null. */
   fichier: string | null;
@@ -13,14 +13,18 @@ export type CreateMediaInput = {
   /** Lien : URL externe ; photo : null. */
   url: string | null;
   createdBy: string | null;
+  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
+  legacyTemplateKeys?: string[];
 };
 
 export type UpdateMediaInput = {
   libelle?: string;
   description?: string;
-  templateKeys?: string[];
+  chatLinkIds?: string[];
   actif?: boolean;
   url?: string;
+  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
+  legacyTemplateKeys?: string[];
 };
 
 export interface MediaRepository {

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ChatLinkBadges } from "@/components/ui/ChatLinkBadges";
 import { CreatorFilterMenu } from "@/components/ui/CreatorFilterMenu";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
@@ -10,7 +11,6 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
-import { TemplateKeysBadges } from "@/components/ui/TemplateKeysBadges";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ConnaissanceForm } from "./ConnaissanceForm";
 import type { ConnaissanceDto } from "./types";
@@ -112,7 +112,7 @@ export function ConnaissancesTable({
                   {connaissance.contenu}
                 </td>
                 <td data-label="Portée">
-                  <TemplateKeysBadges keys={connaissance.templateKeys} />
+                  <ChatLinkBadges ids={connaissance.chatLinkIds} />
                 </td>
                 <td data-label="Statut">
                   <span className={`badge ${connaissance.actif ? "" : "muted"}`}>

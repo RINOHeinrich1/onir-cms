@@ -13,7 +13,7 @@ function entry(titre: string, contenu = "contenu"): Connaissance {
     organizationId: "org-1",
     titre,
     contenu,
-    templateKeys: [],
+    chatLinkIds: [],
     actif: true,
     createdBy: null,
     createdAt: new Date(0).toISOString(),

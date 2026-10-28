@@ -1,9 +1,9 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { ConflictError, NotFoundError, ValidationError } from "@/application/errors";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
+import { hasChatLinkIds, normalizeChatLinkIds } from "@/domain/entities/chat-link-scope";
 import type { Connaissance } from "@/domain/entities/connaissance";
 import { validateConnaissance } from "@/domain/entities/connaissance";
-import { hasTemplateKeys, normalizeTemplateKeys } from "@/domain/entities/template-keys";
 
 export type ManageConnaissancesDependencies = {
   connaissances: ConnaissanceRepository;
@@ -59,7 +59,7 @@ export async function updateConnaissance(
   const patch: {
     titre?: string;
     contenu?: string;
-    templateKeys?: string[];
+    chatLinkIds?: string[];
     actif?: boolean;
   } = {};
 
@@ -78,12 +78,10 @@ export async function updateConnaissance(
     if (contenu === "") throw new ValidationError("Le contenu est obligatoire");
     patch.contenu = contenu;
   }
-  if (hasTemplateKeys(source)) {
-    const keys = normalizeTemplateKeys(
-      "templateKeys" in source ? source.templateKeys : source.templateKey,
-    );
-    if (!keys.ok) throw new ValidationError(keys.message);
-    patch.templateKeys = keys.keys;
+  if (hasChatLinkIds(source)) {
+    const scope = normalizeChatLinkIds(source.chatLinkIds);
+    if (!scope.ok) throw new ValidationError(scope.message);
+    patch.chatLinkIds = scope.ids;
   }
   if ("actif" in source) {
     patch.actif = source.actif === true;

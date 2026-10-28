@@ -12,6 +12,7 @@ type ConnaissanceRow = {
   titre: string;
   contenu: string;
   template_keys: string[];
+  chat_link_ids: string[];
   origin: string;
   source_template_key: string | null;
   ai_generation_id: string | null;
@@ -22,7 +23,7 @@ type ConnaissanceRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, titre, contenu, template_keys, origin, source_template_key, ai_generation_id, actif, created_by, created_at, updated_at";
+  "id, organization_id, titre, contenu, template_keys, chat_link_ids, origin, source_template_key, ai_generation_id, actif, created_by, created_at, updated_at";
 
 function toEntity(row: ConnaissanceRow): Connaissance {
   return {
@@ -30,7 +31,7 @@ function toEntity(row: ConnaissanceRow): Connaissance {
     organizationId: row.organization_id,
     titre: row.titre,
     contenu: row.contenu,
-    templateKeys: row.template_keys,
+    chatLinkIds: row.chat_link_ids,
     origin: row.origin === "ai" ? "ai" : "manual",
     sourceTemplateKey: row.source_template_key,
     aiGenerationId: row.ai_generation_id,
@@ -89,7 +90,7 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       const { rows } = await pool.query<ConnaissanceRow>(
         `SELECT ${COLUMNS} FROM base_connaissances
          WHERE organization_id = $1 AND actif
-           AND (cardinality(template_keys) = 0 OR chat_link_ids @> ARRAY[$2]::uuid[])
+           AND (cardinality(chat_link_ids) = 0 OR chat_link_ids @> ARRAY[$2]::uuid[])
          ORDER BY updated_at DESC`,
         [organizationId, chatLinkId],
       );
@@ -99,14 +100,15 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
     async create(organizationId, input: CreateConnaissanceInput): Promise<Connaissance> {
       const { rows } = await pool.query<ConnaissanceRow>(
         `INSERT INTO base_connaissances
-           (organization_id, titre, contenu, template_keys, created_by, origin, source_template_key, ai_generation_id)
-         VALUES ($1, $2, $3, $4::text[], $5, $6, $7, $8)
+           (organization_id, titre, contenu, chat_link_ids, template_keys, created_by, origin, source_template_key, ai_generation_id)
+         VALUES ($1, $2, $3, $4::uuid[], $5::text[], $6, $7, $8, $9)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
           input.titre,
           input.contenu,
-          input.templateKeys,
+          input.chatLinkIds,
+          input.legacyTemplateKeys ?? [],
           input.createdBy,
           input.origin ?? "manual",
           input.sourceTemplateKey ?? null,
@@ -121,14 +123,17 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
     async update(organizationId, id, patch: UpdateConnaissanceInput): Promise<Connaissance | null> {
       const sets: string[] = [];
       const values: unknown[] = [];
-      const push = (column: string, value: unknown): void => {
+      const push = (column: string, value: unknown, cast = ""): void => {
         values.push(value);
-        sets.push(`${column} = $${values.length}`);
+        sets.push(`${column} = $${values.length}${cast === "" ? "" : `::${cast}`}`);
       };
 
       if (patch.titre !== undefined) push("titre", patch.titre);
       if (patch.contenu !== undefined) push("contenu", patch.contenu);
-      if (patch.templateKeys !== undefined) push("template_keys", patch.templateKeys);
+      if (patch.chatLinkIds !== undefined) push("chat_link_ids", patch.chatLinkIds, "uuid[]");
+      if (patch.legacyTemplateKeys !== undefined) {
+        push("template_keys", patch.legacyTemplateKeys, "text[]");
+      }
       if (patch.actif !== undefined) push("actif", patch.actif);
 
       if (sets.length === 0) {

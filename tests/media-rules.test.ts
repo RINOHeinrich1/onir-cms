@@ -3,9 +3,11 @@ import { validateMediaLien, validateMediaMeta } from "@/domain/entities/media";
 
 describe("validateMediaMeta — RM-MEDIA-001", () => {
   it("normalise libellé, portée et actif", () => {
+    const first = "11111111-1111-4111-8111-111111111111";
+    const second = "22222222-2222-4222-8222-222222222222";
     const result = validateMediaMeta({
       libelle: "  Logo produit  ",
-      templateKeys: ["  fiche-projet ", "photo-produit", "fiche-projet"],
+      chatLinkIds: [` ${first} `, second, first],
       actif: false,
     });
     expect(result).toEqual({
@@ -13,7 +15,7 @@ describe("validateMediaMeta — RM-MEDIA-001", () => {
       value: {
         libelle: "Logo produit",
         description: "",
-        templateKeys: ["fiche-projet", "photo-produit"],
+        chatLinkIds: [first, second],
         actif: false,
       },
     });
@@ -23,24 +25,33 @@ describe("validateMediaMeta — RM-MEDIA-001", () => {
     const result = validateMediaMeta({ libelle: "Contact" });
     expect(result).toEqual({
       ok: true,
-      value: { libelle: "Contact", description: "", templateKeys: [], actif: true },
+      value: { libelle: "Contact", description: "", chatLinkIds: [], actif: true },
     });
   });
 
-  it("accepte l'ancien champ mono-valeur et les chaînes vides", () => {
-    expect(validateMediaMeta({ libelle: "Contact", templateKey: " fiche-projet " })).toEqual({
+  it("accepte un scope global, un chatbot ou plusieurs chatbots", () => {
+    const first = "11111111-1111-4111-8111-111111111111";
+    const second = "22222222-2222-4222-8222-222222222222";
+    expect(validateMediaMeta({ libelle: "Contact", chatLinkIds: [first] })).toEqual({
       ok: true,
-      value: { libelle: "Contact", description: "", templateKeys: ["fiche-projet"], actif: true },
+      value: { libelle: "Contact", description: "", chatLinkIds: [first], actif: true },
     });
-    expect(validateMediaMeta({ libelle: "Contact", templateKey: "" })).toEqual({
+    expect(validateMediaMeta({ libelle: "Contact", chatLinkIds: [first, second] })).toEqual({
       ok: true,
-      value: { libelle: "Contact", description: "", templateKeys: [], actif: true },
+      value: { libelle: "Contact", description: "", chatLinkIds: [first, second], actif: true },
     });
   });
 
-  it("refuse plus de modèles que la borne", () => {
-    const many = Array.from({ length: 21 }, (_, index) => `modele-${index}`);
-    expect(validateMediaMeta({ libelle: "Contact", templateKeys: many }).ok).toBe(false);
+  it("refuse un identifiant de chatbot invalide", () => {
+    expect(validateMediaMeta({ libelle: "Contact", chatLinkIds: ["modele-a"] }).ok).toBe(false);
+  });
+
+  it("refuse plus de chatbots que la borne", () => {
+    const many = Array.from(
+      { length: 51 },
+      (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    );
+    expect(validateMediaMeta({ libelle: "Contact", chatLinkIds: many }).ok).toBe(false);
   });
 
   it("refuse sans libellé ou trop long", () => {
@@ -59,7 +70,7 @@ describe("validateMediaMeta — RM-MEDIA-001", () => {
       value: {
         libelle: "Contact",
         description: "Discussion\nLigne 2\n\nParagraphe",
-        templateKeys: [],
+        chatLinkIds: [],
         actif: true,
       },
     });

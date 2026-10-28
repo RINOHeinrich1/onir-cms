@@ -19,17 +19,19 @@ afterAll(async () => {
 describe("portée multi-modèles — connaissances", () => {
   it("ne retient que les entrées globales et celles du modèle demandé", async () => {
     const repo = pgConnaissanceRepository(pool);
-    await repo.create(orgId, { titre: "Globale", contenu: "A", templateKeys: [], createdBy: null });
+    await repo.create(orgId, { titre: "Globale", contenu: "A", chatLinkIds: [], createdBy: null });
     await repo.create(orgId, {
       titre: "Modele A",
       contenu: "B",
-      templateKeys: ["modele-a"],
+      chatLinkIds: [],
+      legacyTemplateKeys: ["modele-a"],
       createdBy: null,
     });
     await repo.create(orgId, {
       titre: "A et B",
       contenu: "C",
-      templateKeys: ["modele-a", "modele-b"],
+      chatLinkIds: [],
+      legacyTemplateKeys: ["modele-a", "modele-b"],
       createdBy: null,
     });
 
@@ -51,7 +53,7 @@ describe("portée multi-modèles — médias", () => {
         type,
         libelle: `${type} globale`,
         description: "",
-        templateKeys: [],
+        chatLinkIds: [],
         actif: true,
         fichier: type === "photo" ? `${type}.png` : null,
         mime: type === "photo" ? "image/png" : null,
@@ -62,7 +64,8 @@ describe("portée multi-modèles — médias", () => {
         type,
         libelle: `${type} modele-a`,
         description: "",
-        templateKeys: ["modele-a"],
+        chatLinkIds: [],
+        legacyTemplateKeys: ["modele-a"],
         actif: true,
         fichier: type === "photo" ? `${type}-a.png` : null,
         mime: type === "photo" ? "image/png" : null,

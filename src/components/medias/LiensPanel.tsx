@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ChatLinkBadges } from "@/components/ui/ChatLinkBadges";
 import { Modal } from "@/components/ui/Modal";
-import { TemplateKeysBadges } from "@/components/ui/TemplateKeysBadges";
 import { LienForm } from "./LienForm";
 import type { MediaDto } from "./types";
 
@@ -61,7 +61,7 @@ export function LiensPanel({
                   </a>
                 </td>
                 <td>
-                  <TemplateKeysBadges keys={lien.templateKeys} />
+                  <ChatLinkBadges ids={lien.chatLinkIds} />
                 </td>
                 <td>
                   <span className={`badge ${lien.actif ? "" : "muted"}`}>

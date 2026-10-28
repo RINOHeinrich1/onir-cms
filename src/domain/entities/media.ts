@@ -2,12 +2,12 @@
  * Entité métier `Media` — élément de la médiathèque du mini-RAG.
  * Deux natures : `photo` (fichier importé, libellé, stocké hors base) et
  * `lien` (URL externe). Libellé unique par nature (référencé tel quel par le
- * LLM), portée globale (liste vide) ou restreinte à 1..N modèles.
+ * LLM), portée globale (liste vide) ou restreinte à 1..N chatbots.
  *
  * Même principe que la base de connaissances (US-MEDIA-001).
  */
 
-import { readTemplateKeys } from "./template-keys";
+import { readChatLinkIds } from "./chat-link-scope";
 
 export const TYPES_MEDIA = ["photo", "lien"] as const;
 
@@ -42,8 +42,8 @@ export type Media = {
   libelle: string;
   /** Description longue / discussion libre ; le libellé reste court. */
   description: string;
-  /** Portée : vide = toutes les conversations, sinon clés des modèles. */
-  templateKeys: string[];
+  /** Portée : vide = tous les chatbots (global), sinon identifiants de chatbots. */
+  chatLinkIds: string[];
   actif: boolean;
   /** Photo : clé de stockage du fichier (hors base) ; lien : null. */
   fichier: string | null;
@@ -57,14 +57,14 @@ export type Media = {
 };
 
 export type MediaValidationError = {
-  field: "libelle" | "description" | "url" | "templateKeys";
+  field: "libelle" | "description" | "url" | "chatLinkIds";
   message: string;
 };
 
 export type MediaMeta = {
   libelle: string;
   description: string;
-  templateKeys: string[];
+  chatLinkIds: string[];
   actif: boolean;
 };
 
@@ -82,7 +82,7 @@ function normalizeMeta(source: Record<string, unknown>): {
   const libelle = text(source.libelle);
   // Texte brut multiligne : fins de ligne normalisées, contenu interne conservé.
   const description = text(source.description).replace(/\r\n?/g, "\n");
-  const keys = readTemplateKeys(source);
+  const scope = readChatLinkIds(source);
 
   if (libelle === "") {
     errors.push({ field: "libelle", message: "Le libellé est obligatoire" });
@@ -100,8 +100,8 @@ function normalizeMeta(source: Record<string, unknown>): {
     });
   }
 
-  if (!keys.ok) {
-    errors.push({ field: "templateKeys", message: keys.message });
+  if (!scope.ok) {
+    errors.push({ field: "chatLinkIds", message: scope.message });
   }
 
   return {
@@ -109,7 +109,7 @@ function normalizeMeta(source: Record<string, unknown>): {
     meta: {
       libelle,
       description,
-      templateKeys: keys.ok ? keys.keys : [],
+      chatLinkIds: scope.ok ? scope.ids : [],
       actif: source.actif !== false,
     },
   };

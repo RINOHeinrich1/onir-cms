@@ -3,18 +3,25 @@ import type { Connaissance } from "@/domain/entities/connaissance";
 export type CreateConnaissanceInput = {
   titre: string;
   contenu: string;
-  templateKeys: string[];
+  chatLinkIds: string[];
   createdBy: string | null;
   origin?: "manual" | "ai";
   sourceTemplateKey?: string | null;
   aiGenerationId?: string | null;
+  /**
+   * @deprecated Compatibilité legacy uniquement : la colonne `template_keys`
+   * reste alimentée pour les anciens chatbots. Ne pas exposer dans l'UI.
+   */
+  legacyTemplateKeys?: string[];
 };
 
 export type UpdateConnaissanceInput = {
   titre?: string;
   contenu?: string;
-  templateKeys?: string[];
+  chatLinkIds?: string[];
   actif?: boolean;
+  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
+  legacyTemplateKeys?: string[];
 };
 
 export interface ConnaissanceRepository {

@@ -12,6 +12,7 @@ import {
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
@@ -19,6 +20,12 @@ import {
   defaultChatbotConfigDraft,
   guidedPromptFromDraft,
 } from "./chatbot-config-draft";
+import {
+  type ChatbotDataDraft,
+  chatbotDataDraftCount,
+  EMPTY_CHATBOT_DATA_DRAFT,
+  submitChatbotDataDraft,
+} from "./chatbot-data-draft";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { EMPTY_LINK_QUOTA_DRAFT, type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -49,11 +56,12 @@ type LinkFormProps = {
 const STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
   { title: "Fiches de collecte", short: "Fiches" },
+  { title: "Données", short: "Données" },
   { title: "Diffusion", short: "Diffusion" },
   { title: "Récapitulatif & création", short: "Récapitulatif" },
 ] as const;
 
-/** Création d'un chatbot en 4 étapes dans la même modale. */
+/** Création d'un chatbot en 5 étapes dans la même modale. */
 export function LinkForm({
   prospects,
   confidentialites,
@@ -98,6 +106,12 @@ export function LinkForm({
   const [userStateEnabled, setUserStateEnabled] = useState(false);
   const [quota, setQuota] = useState<LinkQuotaDraft>(EMPTY_LINK_QUOTA_DRAFT);
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
+  const [dataDraft, setDataDraft] = useState<ChatbotDataDraft>(EMPTY_CHATBOT_DATA_DRAFT);
+  const [globalDataCounts, setGlobalDataCounts] = useState({
+    connaissances: 0,
+    photos: 0,
+    liens: 0,
+  });
   const [ai, setAi] = useState<LinkAiValue>({ aiProviderId: null, aiModel: null });
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
@@ -109,6 +123,7 @@ export function LinkForm({
     (channel) => channels[channel].enabled,
   );
   const guidedPrompt = guidedPromptFromDraft(config);
+  const pendingDataCount = chatbotDataDraftCount(dataDraft);
 
   const validateStep = (index: number): string | null => {
     if (index === 0) {
@@ -126,7 +141,7 @@ export function LinkForm({
       }
       return null;
     }
-    if (index === 2) {
+    if (index === 3) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -211,8 +226,27 @@ export function LinkForm({
         setError(json.error ?? "Création impossible");
         return;
       }
+      let failures: string[] = [];
+      if (pendingDataCount > 0) {
+        try {
+          const result = await submitChatbotDataDraft(dataDraft, json.link.id);
+          failures = result.failures;
+          if (result.created > 0) {
+            toast.success(`${result.created} donnée(s) rattachée(s) au chatbot.`);
+          }
+        } catch {
+          failures = ["Ajout des données impossible (erreur inattendue)."];
+        }
+      }
       toast.success("Chatbot créé.");
       onCreated(json);
+      if (failures.length > 0) {
+        const detail = failures.slice(0, 3).join(" · ");
+        const more = failures.length > 3 ? ` (+${failures.length - 3})` : "";
+        toast.warning(
+          `Chatbot créé, mais ${failures.length} ajout(s) de données ont échoué : ${detail}${more}`,
+        );
+      }
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -349,6 +383,16 @@ export function LinkForm({
 
         {step === 2 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[2].title}>
+            <ChatbotDataStep
+              value={dataDraft}
+              onChange={setDataDraft}
+              onGlobalCountsChange={setGlobalDataCounts}
+            />
+          </section>
+        ) : null}
+
+        {step === 3 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
             <div className="chatbot-step-head">
               <h4>Diffusion</h4>
               <p className="hint">
@@ -402,8 +446,8 @@ export function LinkForm({
           </section>
         ) : null}
 
-        {step === 3 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
+        {step === 4 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
             <div className="chatbot-step-head">
               <h4>Récapitulatif</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
@@ -431,6 +475,24 @@ export function LinkForm({
                   ? "— Aucune —"
                   : config.fiches.map((fiche) => fiche.label || fiche.key).join(", ")}
               </dd>
+              <dt>Données ajoutées</dt>
+              <dd>
+                {pendingDataCount === 0
+                  ? "Aucune"
+                  : [
+                      dataDraft.connaissances.length > 0
+                        ? `${dataDraft.connaissances.length} connaissance(s)`
+                        : "",
+                      dataDraft.liens.length > 0 ? `${dataDraft.liens.length} lien(s)` : "",
+                      dataDraft.photos.length > 0 ? `${dataDraft.photos.length} photo(s)` : "",
+                    ]
+                      .filter((entry) => entry !== "")
+                      .join(" · ")}
+              </dd>
+              <dt>Données globales</dt>
+              <dd>
+                {`${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s) (lecture seule)`}
+              </dd>
               <dt>Canaux</dt>
               <dd>
                 {enabledChannels.length === 0
@@ -450,6 +512,11 @@ export function LinkForm({
               </li>
               <li className={config.fiches.length > 0 ? "ok" : "warn"}>
                 Au moins une fiche de collecte
+              </li>
+              <li className="ok">
+                {pendingDataCount === 0
+                  ? "Données globales seules"
+                  : `${pendingDataCount} donnée(s) rattachée(s) au chatbot`}
               </li>
               <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
                 Au moins un canal de diffusion

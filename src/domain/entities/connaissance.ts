@@ -1,18 +1,18 @@
 /**
  * Entité métier `Connaissance` — entrée de la base de connaissances du mini-RAG.
  * Un titre unique (référencé par le LLM) + un contenu ; portée globale
- * (liste vide) ou restreinte à 1..N modèles de raisonnement.
+ * (liste vide) ou restreinte à 1..N chatbots.
  */
 
-import { readTemplateKeys } from "./template-keys";
+import { readChatLinkIds } from "./chat-link-scope";
 
 export type Connaissance = {
   id: string;
   organizationId: string;
   titre: string;
   contenu: string;
-  /** Portée : vide = toutes les conversations, sinon clés des modèles. */
-  templateKeys: string[];
+  /** Portée : vide = tous les chatbots (global), sinon identifiants de chatbots. */
+  chatLinkIds: string[];
   /** Provenance : saisie manuelle ou assistance IA (ADR-0038). */
   origin?: "manual" | "ai";
   /** Modèle à l'origine d'une connaissance IA (provenance, pas portée). */
@@ -42,11 +42,11 @@ export function toConnaissanceRef(connaissance: { id: string; titre: string }): 
 export type ConnaissanceInput = {
   titre: string;
   contenu: string;
-  templateKeys: string[];
+  chatLinkIds: string[];
 };
 
 export type ConnaissanceValidationError = {
-  field: "titre" | "contenu" | "templateKeys";
+  field: "titre" | "contenu" | "chatLinkIds";
   message: string;
 };
 
@@ -69,7 +69,7 @@ export function validateConnaissance(
   const errors: ConnaissanceValidationError[] = [];
   const titre = text(source.titre);
   const contenu = text(source.contenu);
-  const keys = readTemplateKeys(source);
+  const scope = readChatLinkIds(source);
 
   if (titre === "") {
     errors.push({ field: "titre", message: "Le titre est obligatoire" });
@@ -79,8 +79,8 @@ export function validateConnaissance(
   if (contenu === "") {
     errors.push({ field: "contenu", message: "Le contenu est obligatoire" });
   }
-  if (!keys.ok) {
-    errors.push({ field: "templateKeys", message: keys.message });
+  if (!scope.ok) {
+    errors.push({ field: "chatLinkIds", message: scope.message });
   }
 
   if (errors.length > 0) {
@@ -89,6 +89,6 @@ export function validateConnaissance(
 
   return {
     ok: true,
-    value: { titre, contenu, templateKeys: keys.ok ? keys.keys : [] },
+    value: { titre, contenu, chatLinkIds: scope.ok ? scope.ids : [] },
   };
 }

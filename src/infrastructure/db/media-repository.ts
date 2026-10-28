@@ -13,6 +13,7 @@ type MediaRow = {
   libelle: string;
   description: string;
   template_keys: string[];
+  chat_link_ids: string[];
   actif: boolean;
   fichier: string | null;
   mime: string | null;
@@ -23,7 +24,7 @@ type MediaRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, type, libelle, description, template_keys, actif, fichier, mime, url, created_by, created_at, updated_at";
+  "id, organization_id, type, libelle, description, template_keys, chat_link_ids, actif, fichier, mime, url, created_by, created_at, updated_at";
 
 function toEntity(row: MediaRow): Media {
   if (!isTypeMedia(row.type)) {
@@ -35,7 +36,7 @@ function toEntity(row: MediaRow): Media {
     type: row.type,
     libelle: row.libelle,
     description: row.description,
-    templateKeys: row.template_keys,
+    chatLinkIds: row.chat_link_ids,
     actif: row.actif,
     fichier: row.fichier,
     mime: row.mime,
@@ -101,7 +102,7 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
       const { rows } = await pool.query<MediaRow>(
         `SELECT ${COLUMNS} FROM medias
          WHERE organization_id = $1 AND actif AND type = $2
-           AND (cardinality(template_keys) = 0 OR chat_link_ids @> ARRAY[$3]::uuid[])
+           AND (cardinality(chat_link_ids) = 0 OR chat_link_ids @> ARRAY[$3]::uuid[])
          ORDER BY updated_at DESC`,
         [organizationId, type, chatLinkId],
       );
@@ -110,15 +111,16 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
 
     async create(organizationId, input: CreateMediaInput): Promise<Media> {
       const { rows } = await pool.query<MediaRow>(
-        `INSERT INTO medias (organization_id, type, libelle, description, template_keys, actif, fichier, mime, url, created_by)
-         VALUES ($1, $2, $3, $4, $5::text[], $6, $7, $8, $9, $10)
+        `INSERT INTO medias (organization_id, type, libelle, description, chat_link_ids, template_keys, actif, fichier, mime, url, created_by)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6::text[], $7, $8, $9, $10, $11)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
           input.type,
           input.libelle,
           input.description,
-          input.templateKeys,
+          input.chatLinkIds,
+          input.legacyTemplateKeys ?? [],
           input.actif,
           input.fichier,
           input.mime,
@@ -134,14 +136,17 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
     async update(organizationId, id, patch: UpdateMediaInput): Promise<Media | null> {
       const sets: string[] = [];
       const values: unknown[] = [];
-      const push = (column: string, value: unknown): void => {
+      const push = (column: string, value: unknown, cast = ""): void => {
         values.push(value);
-        sets.push(`${column} = $${values.length}`);
+        sets.push(`${column} = $${values.length}${cast === "" ? "" : `::${cast}`}`);
       };
 
       if (patch.libelle !== undefined) push("libelle", patch.libelle);
       if (patch.description !== undefined) push("description", patch.description);
-      if (patch.templateKeys !== undefined) push("template_keys", patch.templateKeys);
+      if (patch.chatLinkIds !== undefined) push("chat_link_ids", patch.chatLinkIds, "uuid[]");
+      if (patch.legacyTemplateKeys !== undefined) {
+        push("template_keys", patch.legacyTemplateKeys, "text[]");
+      }
       if (patch.actif !== undefined) push("actif", patch.actif);
       if (patch.url !== undefined) push("url", patch.url);
 

@@ -21,7 +21,7 @@ function row(overrides: Partial<Connaissance> = {}): Connaissance {
     organizationId: "org-1",
     titre: "contact de l'entreprise",
     contenu: "contact@example.com",
-    templateKeys: [],
+    chatLinkIds: [],
     actif: true,
     createdBy: "admin-1",
     createdAt: new Date(0).toISOString(),
@@ -56,28 +56,41 @@ describe("manage-connaissances (US-CONNAISS-001)", () => {
     const created = await createConnaissance({ connaissances: links }, ACTOR, {
       titre: "  Tarifs  ",
       contenu: "Sur devis.",
-      templateKeys: [],
+      chatLinkIds: [],
     });
     expect(created.titre).toBe("Tarifs");
-    expect(created.templateKeys).toEqual([]);
+    expect(created.chatLinkIds).toEqual([]);
   });
 
-  it("normalise la portée multi-modèles (doublons et vides supprimés)", async () => {
+  it("normalise la portée multi-chatbots (doublons et vides supprimés)", async () => {
     const links = repo(null);
+    const first = "11111111-1111-4111-8111-111111111111";
+    const second = "22222222-2222-4222-8222-222222222222";
     const created = await createConnaissance({ connaissances: links }, ACTOR, {
       titre: "Tarifs",
       contenu: "Sur devis.",
-      templateKeys: [" fiche-projet ", "demo", "fiche-projet", ""],
+      chatLinkIds: [` ${first} `, second, first, ""],
     });
-    expect(created.templateKeys).toEqual(["fiche-projet", "demo"]);
+    expect(created.chatLinkIds).toEqual([first, second]);
   });
 
   it("met à jour la portée (tableau vide = globale)", async () => {
-    const links = repo(row({ templateKeys: ["fiche-projet"] }));
+    const linkId = "33333333-3333-4333-8333-333333333333";
+    const links = repo(row({ chatLinkIds: [linkId] }));
     const updated = await updateConnaissance({ connaissances: links }, ACTOR, "c1", {
-      templateKeys: [],
+      chatLinkIds: [],
     });
-    expect(updated?.templateKeys).toEqual([]);
+    expect(updated?.chatLinkIds).toEqual([]);
+  });
+
+  it("refuse un identifiant de chatbot invalide", async () => {
+    await expect(
+      createConnaissance({ connaissances: repo(null) }, ACTOR, {
+        titre: "Tarifs",
+        contenu: "Sur devis.",
+        chatLinkIds: ["pas-un-uuid"],
+      }),
+    ).rejects.toThrow(/Portée invalide/);
   });
 
   it("refuse un titre vide ou trop long", async () => {

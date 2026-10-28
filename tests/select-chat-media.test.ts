@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiClient } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -55,7 +56,7 @@ function media(id: string, type: TypeMedia, libelle: string): Media {
     type,
     libelle,
     description: "",
-    templateKeys: [],
+    chatLinkIds: [],
     actif: true,
     fichier: type === "photo" ? `${id}.png` : null,
     mime: type === "photo" ? "image/png" : null,
@@ -100,6 +101,7 @@ function build(options: {
   liens?: Media[];
   aiAnswer?: string;
   aiThrows?: boolean;
+  configOnly?: boolean;
 }) {
   const message = options.message ?? assistant();
   const photos = options.photos ?? [media("p1", "photo", "Réalisation e-commerce")];
@@ -114,10 +116,19 @@ function build(options: {
   const listActivesByType = vi.fn(async (_organizationId: string, type: TypeMedia) =>
     type === "photo" ? photos : liens,
   );
+  const listActivesByTypeForChatLink = vi.fn(async (_organizationId: string, type: TypeMedia) =>
+    type === "photo" ? photos : liens,
+  );
 
   const links = {
-    findById: async () => link(options.linkSources),
+    findById: async () => ({
+      ...link(options.linkSources),
+      currentConfigId: options.configOnly === true ? "cfg-1" : null,
+    }),
   } as unknown as ChatLinkRepository;
+  const configs = options.configOnly
+    ? ({ findById: async () => ({ id: "cfg-1" }) } as unknown as ChatbotConfigRepository)
+    : undefined;
   const conversations = {
     findByIdPublic: async () => ({
       id: "c1",
@@ -133,7 +144,10 @@ function build(options: {
     listMessages: async () => [USER, message],
     setMessageMedias,
   } as unknown as ConversationRepository;
-  const mediasRepo = { listActivesByType } as unknown as MediaRepository;
+  const mediasRepo = {
+    listActivesByType,
+    listActivesByTypeForChatLink,
+  } as unknown as MediaRepository;
   const organizations = {
     findById: async () => ({
       id: "org-1",
@@ -157,9 +171,11 @@ function build(options: {
       conversations,
       medias: mediasRepo,
       ai: fixedAiClientFactory(ai),
+      ...(configs === undefined ? {} : { configs }),
     },
     setMessageMedias,
     listActivesByType,
+    listActivesByTypeForChatLink,
   };
 }
 
@@ -214,6 +230,16 @@ describe("selectChatMedia — mini-RAG médias asynchrone", () => {
     await selectChatMedia(deps, { conversationId: "c1", messageId: "m2" });
     expect(listActivesByType).toHaveBeenCalledTimes(1);
     expect(listActivesByType).toHaveBeenCalledWith("org-1", "lien", "fiche-projet");
+  });
+
+  it("runtime config-only : utilise chat_link_ids + globales, pas template_keys", async () => {
+    const { deps, listActivesByType, listActivesByTypeForChatLink } = build({
+      configOnly: true,
+    });
+    await selectChatMedia(deps, { conversationId: "c1", messageId: "m2" });
+    expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "photo", "l1");
+    expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "lien", "l1");
+    expect(listActivesByType).not.toHaveBeenCalled();
   });
 
   it("échec silencieux : panne IA => aucun média, mais résultat mémorisé", async () => {
