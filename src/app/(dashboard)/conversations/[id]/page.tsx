@@ -4,6 +4,8 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { getConversation } from "@/application/use-cases/conversations/list-conversations";
+import { ConversationIncidentBanner } from "@/components/conversations/ConversationIncidentBanner";
+import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
 import { GenerateFicheButton } from "@/components/conversations/GenerateFicheButton";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
@@ -88,11 +90,14 @@ export default async function ConversationDetailPage({ params }: PageProps) {
               Prospect
             </a>
           ) : null}
+          <ConversationInfoPanel conversationId={conversation.id} />
           {canGenerateFiche ? (
             <GenerateFicheButton conversationId={conversation.id} canViewLeads={canViewLeads} />
           ) : null}
         </div>
       </div>
+
+      <ConversationIncidentBanner conversationId={conversation.id} canIntervene={canIntervene} />
 
       {fiches.length > 0 ? (
         <section style={{ marginTop: "1.5rem" }}>

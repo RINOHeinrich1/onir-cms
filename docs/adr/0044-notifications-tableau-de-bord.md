@@ -105,6 +105,9 @@ rester exact. Le SSE reste réservé aux messages de conversation (ADR-0043).
 - Chaque ligne est un lien vers `/conversations/{id}` ou `/leads/{id}`.
 - Les nouveaux éléments détectés pendant la session déclenchent aussi un toast
   cliquable ; le menu reste la source d'historique.
+- Les alertes opérationnelles d'ADR-0046 sont exposées dans une section
+  « À traiter » séparée. Elles ne sont pas effacées par le filigrane de lecture :
+  elles restent comptées jusqu'à résolution humaine.
 - Les classes DOM sont préfixées `activity-` : les filtres cosmétiques de
   certains bloqueurs de publicité ciblent `.notification` et masquaient la
   cloche après hydratation.

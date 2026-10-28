@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent, KeyboardEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Conversation, ConversationInterventionMode } from "@/domain/entities/chat";
 import { ConversationTranscript } from "./ConversationTranscript";
@@ -72,6 +72,56 @@ export function ConversationLive({
       : (initialMessages[initialMessages.length - 1]?.createdAt ?? null),
   );
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const firstScrollRef = useRef(true);
+  const pageAnchoredRef = useRef(false);
+  const [newBelow, setNewBelow] = useState(false);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto"): void => {
+    const element = transcriptRef.current;
+    if (element === null) return;
+    if (behavior === "smooth") {
+      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+    } else {
+      element.scrollTop = element.scrollHeight;
+    }
+    stickToBottomRef.current = true;
+    setNewBelow(false);
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: déclenche l'ancrage à chaque nouveau message
+  useLayoutEffect(() => {
+    const element = transcriptRef.current;
+    if (element === null) return;
+    const first = firstScrollRef.current;
+    const scroll = (): void => {
+      if (first) {
+        firstScrollRef.current = false;
+        stickToBottomRef.current = true;
+        setNewBelow(false);
+        if (!pageAnchoredRef.current) {
+          pageAnchoredRef.current = true;
+          if (new URLSearchParams(window.location.search).get("alert") === null) {
+            const scrollPage = (): void => {
+              window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
+            };
+            window.requestAnimationFrame(() => window.requestAnimationFrame(scrollPage));
+            window.setTimeout(scrollPage, 350);
+          }
+        }
+      }
+      if (stickToBottomRef.current) {
+        element.scrollTop = element.scrollHeight;
+        setNewBelow(false);
+      } else {
+        setNewBelow(true);
+      }
+    };
+    scroll();
+    const frame = window.requestAnimationFrame(scroll);
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages]);
 
   const applyConversation = useCallback((next: ConversationState): void => {
     setConversation(next);
@@ -189,6 +239,7 @@ export function ConversationLive({
         setError(json.error ?? "Envoi impossible");
         return;
       }
+      stickToBottomRef.current = true;
       receiveMessages([json.message]);
       applyConversation(json.conversation);
       setDraft("");
@@ -254,9 +305,25 @@ export function ConversationLive({
         ) : null}
       </div>
 
-      <div className="transcript">
+      <div
+        className="transcript-scroll"
+        ref={transcriptRef}
+        onScroll={() => {
+          const element = transcriptRef.current;
+          if (element === null) return;
+          const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+          stickToBottomRef.current = atBottom;
+          if (atBottom) setNewBelow(false);
+        }}
+      >
         <ConversationTranscript messages={messages} />
       </div>
+
+      {newBelow ? (
+        <button type="button" className="chat-jump" onClick={() => scrollToBottom("smooth")}>
+          Nouveau message ↓
+        </button>
+      ) : null}
 
       {error !== null ? <p className="alert error">{error}</p> : null}
 

@@ -3,6 +3,7 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -25,6 +26,8 @@ export type FinishConversationDependencies = {
   templates: ChatTemplateRepository;
   attachments: AttachmentRepository;
   ai: AiClientFactory;
+  /** Valeurs collectées et éditées dans le panneau d'informations (ADR-0045). */
+  conversationFields?: ConversationFieldRepository;
 };
 
 export type FinishedConversation = {
@@ -135,12 +138,19 @@ export async function buildFicheFromConversation(
     aiModel: link.aiModel,
   });
 
-  const draft = await draftTemplateDataFromConversation(
+  const aiDraft = await draftTemplateDataFromConversation(
     { conversations: deps.conversations, ai },
     organizationId,
     conversation.id,
     definition,
   );
+  const draft: Record<string, unknown> = { ...aiDraft };
+  if (deps.conversationFields !== undefined) {
+    const collected = await deps.conversationFields.list(organizationId, conversation.id);
+    for (const entry of collected) {
+      draft[entry.fieldName] = entry.value;
+    }
+  }
 
   // Prospect : rattaché à la conversation, sinon celui du lien, sinon créé.
   let prospect: Prospect | null = null;

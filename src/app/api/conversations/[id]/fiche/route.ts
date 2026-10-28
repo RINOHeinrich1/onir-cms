@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { recordConversationIncident } from "@/application/use-cases/conversations/conversation-incidents";
 import { generateFicheFromConversation } from "@/application/use-cases/conversations/generate-fiche";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
+import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -22,9 +25,11 @@ type RouteContext = { params: Promise<{ id: string }> };
  * existante (US-CONVERS-002, admin/marketeur). Idempotent.
  */
 export async function POST(request: Request, context: RouteContext): Promise<NextResponse> {
+  let conversationId: string | null = null;
   try {
     const actor = await requireRole(request, "conversations:generate_fiche");
     const { id } = await context.params;
+    conversationId = id;
     const pool = getPool();
     const result = await generateFicheFromConversation(
       {
@@ -37,12 +42,28 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         templates: pgChatTemplateRepository(pool),
         attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
+        conversationFields: pgConversationFieldRepository(pool),
       },
       actor,
       id,
     );
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (conversationId !== null) {
+      const pool = getPool();
+      await recordConversationIncident(
+        {
+          conversations: pgConversationRepository(pool),
+          links: pgChatLinkRepository(pool),
+          incidents: pgConversationIncidentRepository(pool),
+        },
+        {
+          conversationId,
+          kind: "fiche_generation_failed",
+          detail: error instanceof Error ? error.message : "Erreur inconnue",
+        },
+      );
+    }
     return errorResponse(error);
   }
 }

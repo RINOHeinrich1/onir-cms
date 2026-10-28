@@ -45,3 +45,5 @@ ADR qui remplace la précédente.
 | [0042](./0042-api-publique-v1.md) | API publique v1 — contrat OpenAPI, scopes et architecture | Accepté |
 | [0043](./0043-intervention-humaine-operateur-chat.md) | Intervention humaine dans les conversations et rôle « Opérateur chat » | Accepté |
 | [0044](./0044-notifications-tableau-de-bord.md) | Notifications du tableau de bord — cloche, compteur non lu et historique | Accepté |
+| [0045](./0045-champs-conversation-collectes.md) | Champs de conversation collectés et édition humaine | Accepté |
+| [0046](./0046-incidents-conversation-alertes.md) | Incidents de conversation et alertes d’intervention | Accepté |
