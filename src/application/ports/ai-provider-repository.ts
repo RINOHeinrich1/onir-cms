@@ -1,3 +1,4 @@
+import type { ReasoningProfile } from "@/domain/ai-capabilities";
 import type { AiDialect, AiProvider, AiProviderPreset } from "@/domain/entities/ai-provider";
 import type { OrganizationAiSettings } from "@/domain/entities/ai-settings";
 import type { SealedAiKey } from "@/lib/ai-crypto";
@@ -10,6 +11,7 @@ export type CreateAiProviderInput = {
   sealedKey: SealedAiKey;
   apiKeyHint: string;
   defaultModel: string | null;
+  reasoningProfile?: ReasoningProfile;
   createdBy: string | null;
 };
 
@@ -21,6 +23,7 @@ export type UpdateAiProviderInput = {
   sealedKey?: SealedAiKey;
   apiKeyHint?: string;
   defaultModel?: string | null;
+  reasoningProfile?: ReasoningProfile;
 };
 
 export type AiProviderTestResult = {

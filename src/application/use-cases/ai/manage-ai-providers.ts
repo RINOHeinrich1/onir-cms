@@ -6,6 +6,7 @@ import {
   ValidationError,
 } from "@/application/errors";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import { parseReasoningProfile } from "@/domain/ai-capabilities";
 import {
   type AiProvider,
   normalizeAiModel,
@@ -109,6 +110,11 @@ export async function createAiProvider(
   if (apiKey === "") throw new ValidationError("Clé API requise");
   const baseUrl = resolveBaseUrl(source, preset);
   const defaultModel = validateModel(source.defaultModel);
+  const reasoningProfile =
+    source.reasoningProfile === undefined ? "auto" : parseReasoningProfile(source.reasoningProfile);
+  if (reasoningProfile === null) {
+    throw new ValidationError("Profil de raisonnement invalide");
+  }
   const sealed = sealKeyOrThrow(apiKey);
 
   try {
@@ -120,6 +126,7 @@ export async function createAiProvider(
       sealedKey: sealed,
       apiKeyHint: sealed.hint,
       defaultModel,
+      reasoningProfile,
       createdBy: actor.id,
     });
   } catch (error) {
@@ -156,6 +163,13 @@ export async function updateAiProvider(
   const label = source.label === undefined ? existing.label : validateLabel(source.label);
   const defaultModel =
     source.defaultModel === undefined ? existing.defaultModel : validateModel(source.defaultModel);
+  const reasoningProfile =
+    source.reasoningProfile === undefined
+      ? (existing.reasoningProfile ?? "auto")
+      : parseReasoningProfile(source.reasoningProfile);
+  if (reasoningProfile === null) {
+    throw new ValidationError("Profil de raisonnement invalide");
+  }
   const apiKey = text(source.apiKey);
   const sealed = apiKey === "" ? undefined : sealKeyOrThrow(apiKey);
 
@@ -167,6 +181,7 @@ export async function updateAiProvider(
       baseUrl,
       ...(sealed === undefined ? {} : { sealedKey: sealed, apiKeyHint: sealed.hint }),
       defaultModel,
+      reasoningProfile,
     });
     if (updated === null) throw new NotFoundError("Fournisseur introuvable");
     return updated;

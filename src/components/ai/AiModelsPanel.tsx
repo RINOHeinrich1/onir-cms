@@ -292,7 +292,8 @@ export function AiModelsPanel({
                   </span>
                 </td>
                 <td>
-                  {aiCapabilitiesFor(provider.preset, model.modelId).supportsReasoningToggle ? (
+                  {aiCapabilitiesFor(provider.preset, model.modelId, provider.reasoningProfile)
+                    .supportsReasoningToggle ? (
                     <select
                       value={model.reasoningMode ?? "auto"}
                       disabled={pending || !model.enabled}
