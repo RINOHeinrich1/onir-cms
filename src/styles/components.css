@@ -4749,3 +4749,65 @@ a.subtab {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Recherche de liste ---------- */
+.list-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(22rem, 100%);
+  min-height: 2.5rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface-raised);
+  color: var(--fg-muted);
+}
+
+.list-search:focus-within {
+  border-color: var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--focus) 38%, transparent);
+  outline-offset: 1px;
+}
+
+.list-search svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.list-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.list-search input::placeholder {
+  color: var(--fg-muted);
+}
+
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.list-filters .tag-filter,
+.list-filters .link-filter {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .list-filters,
+  .list-search {
+    width: 100%;
+  }
+}

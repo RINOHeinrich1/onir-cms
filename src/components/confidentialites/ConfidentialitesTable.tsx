@@ -88,7 +88,7 @@ export function ConfidentialitesTable({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Titre</th>
@@ -102,11 +102,13 @@ export function ConfidentialitesTable({
           <tbody>
             {visibleItems.map((item) => (
               <tr key={item.id}>
-                <td>
+                <td data-label="Titre">
                   <strong>{item.titre}</strong>
                 </td>
-                <td className="cell-contacts">{item.texte}</td>
-                <td>
+                <td data-label="Consentement" className="cell-contacts">
+                  {item.texte}
+                </td>
+                <td data-label="Lien">
                   {item.lien === "" ? (
                     <span className="muted-text">—</span>
                   ) : (
@@ -115,14 +117,16 @@ export function ConfidentialitesTable({
                     </span>
                   )}
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${item.actif ? "" : "muted"}`}>
                     {item.actif ? "active" : "inactive"}
                   </span>
                 </td>
-                <td>{item.createdByLabel ?? <span className="muted-text">—</span>}</td>
+                <td data-label="Créé par">
+                  {item.createdByLabel ?? <span className="muted-text">—</span>}
+                </td>
                 {canWrite ? (
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     <div className="tools">
                       <button
                         type="button"

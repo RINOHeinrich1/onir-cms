@@ -90,7 +90,7 @@ export function ConnaissancesTable({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Titre</th>
@@ -104,21 +104,25 @@ export function ConnaissancesTable({
           <tbody>
             {visibleConnaissances.map((connaissance) => (
               <tr key={connaissance.id}>
-                <td>
+                <td data-label="Titre">
                   <strong>{connaissance.titre}</strong>
                 </td>
-                <td className="cell-contacts">{connaissance.contenu}</td>
-                <td>
+                <td data-label="Contenu" className="cell-contacts">
+                  {connaissance.contenu}
+                </td>
+                <td data-label="Portée">
                   <TemplateKeysBadges keys={connaissance.templateKeys} />
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${connaissance.actif ? "" : "muted"}`}>
                     {connaissance.actif ? "active" : "inactive"}
                   </span>
                 </td>
-                <td>{connaissance.createdByLabel ?? <span className="muted-text">—</span>}</td>
+                <td data-label="Créé par">
+                  {connaissance.createdByLabel ?? <span className="muted-text">—</span>}
+                </td>
                 {canWrite ? (
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     <div className="tools">
                       <button
                         type="button"

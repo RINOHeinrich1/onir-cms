@@ -143,7 +143,7 @@ export function WebhooksPanel({
       </div>
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Nom</th>
@@ -164,29 +164,29 @@ export function WebhooksPanel({
             ) : (
               endpoints.map((endpoint) => (
                 <tr key={endpoint.id}>
-                  <td>
+                  <td data-label="Nom">
                     <strong>{endpoint.name}</strong>
                     {endpoint.description !== "" ? (
                       <div className="hint">{endpoint.description}</div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Modèle">
                     <code>{endpoint.templateKey}</code>
                   </td>
-                  <td>
+                  <td data-label="Requête">
                     <div>
                       <span className="badge muted">{endpoint.httpMethod}</span>{" "}
                       <span className="muted-text">{endpoint.url}</span>
                     </div>
                     <div className="hint">{endpoint.bodyMode}</div>
                   </td>
-                  <td>{endpoint.auth.type}</td>
-                  <td>
+                  <td data-label="Auth">{endpoint.auth.type}</td>
+                  <td data-label="État">
                     <span className={`badge ${endpoint.enabled ? "" : "muted"}`}>
                       {endpoint.enabled ? "actif" : "désactivé"}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     <div className="tools">
                       <button
                         type="button"
@@ -223,7 +223,7 @@ export function WebhooksPanel({
         Dernières livraisons
       </h2>
       <div className="table-scroll" style={{ marginTop: "1rem" }}>
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Date</th>
@@ -247,20 +247,20 @@ export function WebhooksPanel({
                 const endpoint = endpoints.find((item) => item.id === delivery.endpointId);
                 return (
                   <tr key={delivery.id}>
-                    <td>{formatDate(delivery.createdAt)}</td>
-                    <td>{endpoint?.name ?? delivery.endpointId}</td>
-                    <td>
+                    <td data-label="Date">{formatDate(delivery.createdAt)}</td>
+                    <td data-label="Webhook">{endpoint?.name ?? delivery.endpointId}</td>
+                    <td data-label="Fiche">
                       {delivery.ficheId === null ? (
                         <span className="muted-text">test / échantillon</span>
                       ) : (
                         delivery.ficheId
                       )}
                     </td>
-                    <td>
+                    <td data-label="Statut">
                       <span className={statusBadge(delivery.status)}>{delivery.status}</span>
                     </td>
-                    <td>{delivery.attempts}</td>
-                    <td>
+                    <td data-label="Tentatives">{delivery.attempts}</td>
+                    <td data-label="Réponse">
                       {delivery.responseStatus === null ? (
                         <span className="muted-text">{delivery.errorMessage ?? "—"}</span>
                       ) : (
@@ -270,7 +270,7 @@ export function WebhooksPanel({
                         </span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Actions" className="cell-actions">
                       {delivery.status === "failed" && !delivery.isTest ? (
                         <button
                           type="button"

@@ -9,6 +9,7 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
 import { LinkEditModal } from "./LinkEditModal";
@@ -96,9 +97,22 @@ export function LinksTable({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
   const creators = creatorOptions(links);
   const showUnassigned = hasUnassignedCreator(links);
-  const visibleLinks = links.filter((link) => matchesCreator(link, creatorFilter));
+  const query = search.trim().toLocaleLowerCase("fr");
+  const visibleLinks = links
+    .filter((link) => matchesCreator(link, creatorFilter))
+    .filter((link) => {
+      if (query === "") return true;
+      const template =
+        templates.find((entry) => entry.key === link.templateKey)?.label ?? link.templateKey;
+      const provider = aiProviders.find((entry) => entry.id === link.aiProviderId)?.label ?? "";
+      return [link.label, link.url ?? "", link.aiModel ?? "", template, provider]
+        .join(" ")
+        .toLocaleLowerCase("fr")
+        .includes(query);
+    });
 
   const refresh = async (): Promise<void> => {
     try {
@@ -195,12 +209,20 @@ export function LinksTable({
     <div className="links-admin">
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <CreatorFilter
-        options={creators}
-        showUnassigned={showUnassigned}
-        value={creatorFilter}
-        onChange={setCreatorFilter}
-      />
+      <div className="list-filters">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un chatbot…"
+          label="Rechercher un chatbot"
+        />
+        <CreatorFilter
+          options={creators}
+          showUnassigned={showUnassigned}
+          value={creatorFilter}
+          onChange={setCreatorFilter}
+        />
+      </div>
 
       <div className="tools" style={{ marginBottom: "1.5rem" }}>
         <button type="button" className="btn small" onClick={() => setCreating(true)}>

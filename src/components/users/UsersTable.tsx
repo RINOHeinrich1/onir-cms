@@ -178,7 +178,7 @@ export function UsersTable({
       </div>
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Email</th>
@@ -192,11 +192,11 @@ export function UsersTable({
           <tbody>
             {users.map((user) => (
               <tr key={user.userId}>
-                <td>{user.email}</td>
-                <td>
+                <td data-label="Email">{user.email}</td>
+                <td data-label="Rôle">
                   <span className="badge">{ROLE_LABELS[user.role]}</span>
                 </td>
-                <td>
+                <td data-label="Chatbots">
                   {user.role === "operateur" ? (
                     <div className="tools">
                       <span
@@ -218,19 +218,19 @@ export function UsersTable({
                     <span className="muted-text">—</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${user.actif ? "" : "muted"}`}>
                     {user.actif ? "actif" : "inactif"}
                   </span>
                 </td>
-                <td>
+                <td data-label="Mot de passe">
                   {user.mustChangePassword ? (
                     <span className="badge orange">à changer</span>
                   ) : (
                     <span className="badge muted">à jour</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Actions" className="cell-actions">
                   <div className="tools">
                     <button
                       type="button"
