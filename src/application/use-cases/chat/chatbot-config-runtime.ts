@@ -26,6 +26,36 @@ export function findFiche(config: ChatbotConfig, key: string): FicheDefinition |
   return config.fiches.find((fiche) => fiche.key === key) ?? null;
 }
 
+/** Normalise les valeurs d'une instance selon les types de champs de sa fiche. */
+export function normalizeFicheData(
+  fiche: FicheDefinition,
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  for (const field of fiche.fields) {
+    if (!Object.hasOwn(input, field.name)) continue;
+    const value = input[field.name];
+    if (value === null || value === undefined) continue;
+    if (field.type === "file") continue;
+    if (field.type === "multi") {
+      const list = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+      const normalized = list
+        .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry).trim()))
+        .filter((entry) => entry !== "");
+      if (normalized.length > 0) output[field.name] = normalized;
+      continue;
+    }
+    const normalized =
+      typeof value === "string"
+        ? value.trim()
+        : typeof value === "number" || typeof value === "boolean"
+          ? String(value)
+          : "";
+    if (normalized !== "") output[field.name] = normalized;
+  }
+  return output;
+}
+
 function simpleGuidance(simple: TemplateSimpleSettings): string {
   const lines: string[] = [];
   if (simple.role.trim() !== "") lines.push(`Rôle : ${simple.role.trim()}`);

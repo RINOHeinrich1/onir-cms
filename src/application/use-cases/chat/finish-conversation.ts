@@ -16,6 +16,7 @@ import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-
 import {
   ficheToDefinition,
   findFiche,
+  normalizeFicheData,
   resolveCurrentConfig,
 } from "@/application/use-cases/chat/chatbot-config-runtime";
 import {
@@ -196,7 +197,7 @@ async function buildFicheForDefinition(
     definition,
   );
   const draft: Record<string, unknown> = { ...aiDraft, ...(meta.instanceData ?? {}) };
-  if (deps.conversationFields !== undefined) {
+  if (meta.conversationFicheInstanceId === undefined && deps.conversationFields !== undefined) {
     const collected = await deps.conversationFields.list(organizationId, conversation.id);
     for (const entry of collected) {
       draft[entry.fieldName] = entry.value;
@@ -523,6 +524,27 @@ async function finishConfigConversation(
     }
   }
 
+  const prepared = targets.map((instance) => {
+    const ficheDefinition =
+      findFiche(config, instance.ficheKey) ?? (monoFiche ? (config.fiches[0] ?? null) : null);
+    if (ficheDefinition === null) return null;
+    const definition = ficheToDefinition(config, ficheDefinition);
+    const data = normalizeFicheData(ficheDefinition, instance.data);
+    const validation = validateTemplateData(
+      {
+        ...definition,
+        fields: definition.fields.filter(
+          (field) => field.type !== "file" && field.name !== "contact",
+        ),
+      },
+      data,
+    );
+    if (!validation.ok) {
+      throw new UnprocessableError(validation.errors.join(" ; "));
+    }
+    return { instance, ficheDefinition, definition, data };
+  });
+
   const reserved = await reserveFiches(deps, link, targets.length);
   if (!reserved) {
     throw new ChatbotBlockedError(
@@ -533,11 +555,9 @@ async function finishConfigConversation(
   const sharedProspect = await resolveSharedProspect(deps, conversation, link);
   const built: FinishedFiche[] = [];
   try {
-    for (const instance of targets) {
-      const ficheDefinition =
-        findFiche(config, instance.ficheKey) ?? (monoFiche ? (config.fiches[0] ?? null) : null);
-      if (ficheDefinition === null) continue;
-      const definition = ficheToDefinition(config, ficheDefinition);
+    for (const entry of prepared) {
+      if (entry === null) continue;
+      const { instance, ficheDefinition, definition, data } = entry;
       const result = await buildFicheForDefinition(
         deps,
         conversation,
@@ -550,7 +570,7 @@ async function finishConfigConversation(
           ficheKey: ficheDefinition.key,
           ficheInstanceKey: instance.instanceKey,
           conversationFicheInstanceId: instance.id,
-          instanceData: instance.data,
+          instanceData: data,
         },
         options.createdBy,
         sharedProspect,

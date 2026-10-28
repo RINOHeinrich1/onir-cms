@@ -11,6 +11,7 @@ import {
   isFicheInstanceStatus,
   normalizeMissingFields,
 } from "@/domain/entities/conversation-fiche-instance";
+import { normalizeFicheData } from "./chatbot-config-runtime";
 
 export type DetectedFicheInstance = {
   ficheKey: string;
@@ -206,13 +207,14 @@ export async function applyFicheDetection(input: {
   const upserted: ConversationFicheInstance[] = [];
   for (const entry of input.detected) {
     const status: FicheInstanceStatus = entry.status === "active" ? "detected" : entry.status;
+    const fiche = input.config.fiches.find((item) => item.key === entry.ficheKey);
     const writes: UpsertFicheInstanceInput = {
       organizationId: input.organizationId,
       conversationId: input.conversationId,
       configId: input.config.id,
       ficheKey: entry.ficheKey,
       status,
-      data: entry.data,
+      data: fiche === undefined ? entry.data : normalizeFicheData(fiche, entry.data),
       missingFields: entry.missingFields,
       abandonReason: entry.abandonReason,
     };
