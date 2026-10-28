@@ -155,8 +155,8 @@ type NavItem = {
 
 const ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Vue globale", action: "dashboard:view", icon: "dashboard" },
-  { href: "/prospects", label: "Prospects", action: "prospects:list", icon: "prospects" },
   { href: "/liens", label: "Chatbots", action: "links:list", icon: "links" },
+  { href: "/prospects", label: "Prospects", action: "prospects:list", icon: "prospects" },
   {
     href: "/conversations",
     label: "Conversations",
