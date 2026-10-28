@@ -202,7 +202,11 @@ modèles ou contenus n’est nécessaire.
 Une commande explicite permet de réinitialiser ces données :
 
 ```bash
+# Développement
 RESET_CHATBOT_TEST_DATA=yes npm run db:reset-chatbot-test-data -- --execute
+
+# Image de maintenance (préprod / production)
+RESET_CHATBOT_TEST_DATA=yes node dist/db-cli.mjs reset-chatbot-test-data --execute
 ```
 
 Cette commande :
