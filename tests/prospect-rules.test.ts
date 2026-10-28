@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Prospect } from "@/domain/entities/prospect";
-import { parseProspectOriginFilter, prospectOriginFilterValue } from "@/domain/entities/prospect";
+import {
+  parseProspectOriginFilter,
+  parseProspectOriginFilters,
+  prospectOriginFiltersValue,
+  prospectOriginFilterValue,
+} from "@/domain/entities/prospect";
 import { prospectContext, validateProspect } from "@/domain/prospect-rules";
 
 describe("validateProspect — RM-PROSPECT-001", () => {
@@ -83,6 +88,13 @@ describe("filtre d'origine des prospects", () => {
   it("sérialise le filtre pour l'URL", () => {
     expect(prospectOriginFilterValue(null)).toBeNull();
     expect(prospectOriginFilterValue({ kind: "manuel" })).toBe("manuel");
+    expect(parseProspectOriginFilters(["manuel", "lien:Campagne été"])).toEqual([
+      { kind: "manuel" },
+      { kind: "lien", label: "Campagne été" },
+    ]);
+    expect(
+      prospectOriginFiltersValue([{ kind: "manuel" }, { kind: "lien", label: "Campagne été" }]),
+    ).toEqual(["manuel", "lien:Campagne été"]);
     expect(prospectOriginFilterValue({ kind: "lien", label: "Campagne été" })).toBe(
       "lien:Campagne été",
     );

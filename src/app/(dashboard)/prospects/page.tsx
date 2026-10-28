@@ -6,7 +6,7 @@ import {
   listProspects,
 } from "@/application/use-cases/prospects/list-prospects";
 import { ProspectsTable } from "@/components/prospects/ProspectsTable";
-import { parseProspectOriginFilter, prospectOriginFilterValue } from "@/domain/entities/prospect";
+import { parseProspectOriginFilters, prospectOriginFiltersValue } from "@/domain/entities/prospect";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Prospects",
 };
 
-type PageProps = { searchParams: Promise<{ prospect?: string; origine?: string }> };
+type PageProps = { searchParams: Promise<{ prospect?: string; origine?: string | string[] }> };
 
 /**
  * US-PROSPECT-001 — liste des prospects (Server Component, lecture tous rôles).
@@ -34,7 +34,7 @@ export default async function ProspectsPage({ searchParams }: PageProps) {
   }
 
   const { prospect: filterId, origine: origineParam } = await searchParams;
-  const origine = parseProspectOriginFilter(origineParam);
+  const origine = parseProspectOriginFilters(origineParam);
   const pool = getPool();
   const [prospects, linkLabels] = await Promise.all([
     listProspects({ prospects: pgProspectRepository(pool) }, context.actor, origine),
@@ -52,7 +52,7 @@ export default async function ProspectsPage({ searchParams }: PageProps) {
       <ProspectsTable
         initialProspects={prospects}
         filterProspectId={filterId ?? null}
-        origine={prospectOriginFilterValue(origine)}
+        origine={prospectOriginFiltersValue(origine)}
         linkLabels={linkLabels}
         canWrite={actorCan(context.actor, "prospects:create")}
       />
