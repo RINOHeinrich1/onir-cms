@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
-import { ROLES, type Role } from "@/domain/entities/user";
+import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
 import { UserForm } from "./UserForm";
 
@@ -14,11 +14,13 @@ export function UsersTable({
   canSetActif,
   organizationId,
   canAttachExisting,
+  chatLinks,
 }: {
   initialUsers: UserDto[];
   canSetActif: boolean;
   organizationId: string | null;
   canAttachExisting: boolean;
+  chatLinks: { id: string; label: string }[];
 }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserDto[]>(initialUsers);
@@ -28,6 +30,10 @@ export function UsersTable({
   useToastOnMessage(error);
   const [attachEmail, setAttachEmail] = useState("");
   const [attachRole, setAttachRole] = useState<Role>("lecteur");
+  const [scopeUser, setScopeUser] = useState<UserDto | null>(null);
+  const [scopeAllLinks, setScopeAllLinks] = useState(true);
+  const [scopeLinkIds, setScopeLinkIds] = useState<string[]>([]);
+  const [scopePending, setScopePending] = useState(false);
 
   const refresh = async (): Promise<void> => {
     try {
@@ -66,6 +72,45 @@ export function UsersTable({
       await refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
+    }
+  };
+
+  const openScope = (user: UserDto): void => {
+    setScopeUser(user);
+    setScopeAllLinks(user.chatScope?.allLinks ?? true);
+    setScopeLinkIds(user.chatScope?.linkIds ?? []);
+  };
+
+  const toggleScopeLink = (linkId: string): void => {
+    setScopeLinkIds((current) =>
+      current.includes(linkId) ? current.filter((value) => value !== linkId) : [...current, linkId],
+    );
+  };
+
+  const saveScope = async (): Promise<void> => {
+    if (organizationId === null || scopeUser === null) return;
+    setScopePending(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/organizations/${organizationId}/members/${scopeUser.userId}/chat-scope`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ allLinks: scopeAllLinks, linkIds: scopeLinkIds }),
+        },
+      );
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(json.error ?? "Enregistrement de la portée impossible");
+        return;
+      }
+      setScopeUser(null);
+      await refresh();
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setScopePending(false);
     }
   };
 
@@ -109,7 +154,7 @@ export function UsersTable({
               >
                 {ROLES.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {ROLE_LABELS[value]}
                   </option>
                 ))}
               </select>
@@ -138,6 +183,7 @@ export function UsersTable({
             <tr>
               <th>Email</th>
               <th>Rôle</th>
+              <th>Chatbots</th>
               <th>Statut</th>
               <th>Mot de passe</th>
               <th aria-label="Actions" />
@@ -148,7 +194,29 @@ export function UsersTable({
               <tr key={user.userId}>
                 <td>{user.email}</td>
                 <td>
-                  <span className="badge">{user.role}</span>
+                  <span className="badge">{ROLE_LABELS[user.role]}</span>
+                </td>
+                <td>
+                  {user.role === "operateur" ? (
+                    <div className="tools">
+                      <span
+                        className={`badge ${user.chatScope?.allLinks === false ? "orange" : ""}`}
+                      >
+                        {user.chatScope?.allLinks === false
+                          ? `${user.chatScope.linkIds.length} lien(s)`
+                          : "Tous"}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn ghost small"
+                        onClick={() => openScope(user)}
+                      >
+                        Gérer
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="muted-text">—</span>
+                  )}
                 </td>
                 <td>
                   <span className={`badge ${user.actif ? "" : "muted"}`}>
@@ -184,12 +252,78 @@ export function UsersTable({
             ))}
             {users.length === 0 ? (
               <tr>
-                <td colSpan={5}>Aucun utilisateur.</td>
+                <td colSpan={6}>Aucun utilisateur.</td>
               </tr>
             ) : null}
           </tbody>
         </table>
       </div>
+
+      {scopeUser !== null ? (
+        <Modal
+          title={`Chatbots — ${scopeUser.email}`}
+          onClose={() => {
+            if (!scopePending) setScopeUser(null);
+          }}
+        >
+          <p className="hint" style={{ marginBottom: "1rem" }}>
+            Par défaut, l&apos;opérateur voit toutes les conversations de l&apos;organisation.
+            Restreignez-le à certains chatbots si nécessaire.
+          </p>
+          <label className="field">
+            <span>
+              <input
+                type="checkbox"
+                checked={scopeAllLinks}
+                onChange={(event) => setScopeAllLinks(event.target.checked)}
+              />{" "}
+              Tous les chatbots de l&apos;organisation
+            </span>
+          </label>
+          {!scopeAllLinks ? (
+            <div className="card" style={{ marginTop: "1rem" }}>
+              <h4>Chatbots autorisés</h4>
+              {chatLinks.length === 0 ? (
+                <p className="hint">Aucun chatbot dans cette organisation.</p>
+              ) : (
+                <div style={{ display: "grid", gap: "0.5rem" }}>
+                  {chatLinks.map((link) => (
+                    <label key={link.id} className="field">
+                      <span>
+                        <input
+                          type="checkbox"
+                          checked={scopeLinkIds.includes(link.id)}
+                          onChange={() => toggleScopeLink(link.id)}
+                        />{" "}
+                        {link.label.trim() === "" ? "Chatbot sans nom" : link.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="hint">Sans sélection, l&apos;opérateur ne voit aucune conversation.</p>
+            </div>
+          ) : null}
+          <div className="tools" style={{ marginTop: "1rem" }}>
+            <button
+              type="button"
+              className="btn small"
+              disabled={scopePending}
+              onClick={() => void saveScope()}
+            >
+              {scopePending ? "Enregistrement…" : "Enregistrer"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost small"
+              disabled={scopePending}
+              onClick={() => setScopeUser(null)}
+            >
+              Annuler
+            </button>
+          </div>
+        </Modal>
+      ) : null}
 
       {creating || editing !== null ? (
         <Modal

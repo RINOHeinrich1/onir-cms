@@ -157,6 +157,23 @@ body:has(.chat-page) {
   color: var(--on-orange);
 }
 
+.msg.operator .msg-avatar {
+  background: var(--accent, #0f766e);
+  color: #fff;
+}
+
+.msg-operator-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+}
+
+.msg.operator .bubble {
+  white-space: pre-wrap;
+}
+
 .msg-body {
   display: flex;
   flex-direction: column;
@@ -455,6 +472,16 @@ body:has(.chat-page) {
 }
 
 /* ---------- Bandeau d'introduction ---------- */
+.chat-human-notice {
+  margin: 0.5rem 1.25rem 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface-raised);
+  color: var(--fg-muted);
+  font-size: 0.86rem;
+}
+
 .chat-intro {
   margin: 0 0 1.25rem;
   padding: 0.85rem 1rem;
@@ -661,6 +688,49 @@ body:has(.chat-page) {
 /* ---------- Transcript de conversation (page de suivi) ---------- */
 .transcript {
   padding: 1.5rem 0.25rem;
+}
+
+.conversation-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.conversation-composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.conversation-composer textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  resize: vertical;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-raised);
+  color: var(--fg);
+  font: inherit;
+}
+
+.conversation-composer textarea:focus-visible {
+  outline: 2px solid var(--focus, var(--navy));
+  outline-offset: 2px;
+}
+
+.conversation-composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* ---------- Shell hôte de template visuel (ADR-0019) ---------- */

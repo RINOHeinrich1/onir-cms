@@ -12,6 +12,7 @@ import { pgOrganizationRepository } from "@/infrastructure/db/organization-repos
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { chatMessageLimiter } from "@/lib/chat-limiters";
+import { publishChatRealtime } from "@/lib/chat-realtime";
 import { errorResponse } from "../_lib/errors";
 import { clientIp, readJsonObject, stringField } from "../_lib/http";
 
@@ -58,12 +59,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );
+    publishChatRealtime(conversationId, { type: "message", message: result.userMessage });
+    if (result.message !== null) {
+      publishChatRealtime(conversationId, { type: "message", message: result.message });
+    }
+    if (result.mode === "human") {
+      publishChatRealtime(conversationId, { type: "state" });
+    }
     return NextResponse.json({
       userMessage: toPublicChatMessage(result.userMessage, result.organizationId),
       message:
         result.message === null ? null : toPublicChatMessage(result.message, result.organizationId),
       connaissances: result.connaissances,
       mediaPending: result.mediaPending,
+      mode: result.mode,
     });
   } catch (error) {
     return errorResponse(error);

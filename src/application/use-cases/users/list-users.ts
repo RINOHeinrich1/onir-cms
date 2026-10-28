@@ -1,4 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
+import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type { MembershipRepository } from "@/application/ports/membership-repository";
 import type { UserRepository } from "@/application/ports/user-repository";
 import { type MemberDto, toMember } from "@/application/use-cases/organizations/manage-members";
@@ -6,6 +7,7 @@ import { type MemberDto, toMember } from "@/application/use-cases/organizations/
 export type ListUsersDependencies = {
   users: UserRepository;
   memberships: MembershipRepository;
+  operatorScopes?: ChatOperatorScopeRepository;
 };
 
 /**
@@ -24,7 +26,15 @@ export async function listUsers(deps: ListUsersDependencies, actor: Actor): Prom
   const members: MemberDto[] = [];
   for (const membership of memberships) {
     const user = byId.get(membership.userId);
-    if (user !== undefined) members.push(toMember(user, membership.role));
+    if (user === undefined) continue;
+    const member = toMember(user, membership.role);
+    if (member.role === "operateur" && deps.operatorScopes !== undefined) {
+      member.chatScope = (await deps.operatorScopes.findForUser(organizationId, user.id)) ?? {
+        allLinks: true,
+        linkIds: [],
+      };
+    }
+    members.push(member);
   }
   return members.sort((a, b) => a.email.localeCompare(b.email));
 }

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { actorCan } from "@/application/actor";
 import { countConversations } from "@/application/use-cases/conversations/list-conversations";
 import { listFiches } from "@/application/use-cases/fiche/manage-fiches";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
 import { listProspects } from "@/application/use-cases/prospects/list-prospects";
+import { ROLE_LABELS } from "@/domain/entities/user";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
@@ -23,6 +25,9 @@ export default async function DashboardHomePage() {
   const context = await getSessionContext();
   if (context === null) {
     redirect("/login");
+  }
+  if (!actorCan(context.actor, "dashboard:view")) {
+    redirect("/conversations");
   }
 
   if (context.actor.organizationId === null) {
@@ -89,7 +94,7 @@ export default async function DashboardHomePage() {
         Connecté en tant que <strong>{context.user.email}</strong> — organisation{" "}
         <span className="badge">{context.organization?.name ?? "—"}</span> · rôle{" "}
         <span className="badge">
-          {context.actor.isSuperAdmin ? "super-admin" : (context.role ?? "lecteur")}
+          {context.actor.isSuperAdmin ? "super-admin" : ROLE_LABELS[context.role ?? "lecteur"]}
         </span>
         .
       </p>

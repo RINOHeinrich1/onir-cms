@@ -26,11 +26,14 @@ function recentHistory(history: DetectUserStateInput["history"]): AiMessage[] {
   return history
     .filter(
       (message): message is { role: "user" | "assistant"; content: string } =>
-        (message.role === "user" || message.role === "assistant") &&
+        (message.role === "user" || message.role === "assistant" || message.role === "operator") &&
         typeof message.content === "string",
     )
     .slice(-HISTORY_LIMIT)
-    .map((message) => ({ role: message.role, content: message.content }));
+    .map((message) => ({
+      role: message.role === "user" ? "user" : "assistant",
+      content: message.content,
+    }));
 }
 
 /**

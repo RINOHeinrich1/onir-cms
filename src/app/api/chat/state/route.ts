@@ -74,9 +74,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         aiModel: link.aiModel,
       };
       const messages = await conversations.listMessages(organizationId, conversationId);
-      history = messages
-        .slice(-HISTORY_LIMIT)
-        .map((message) => ({ role: message.role, content: message.content }));
+      history = messages.slice(-HISTORY_LIMIT).map((message) => ({
+        role: message.role === "user" ? "user" : "assistant",
+        content: message.content,
+      }));
     }
 
     const ai = await pgAiClientFactory(pool).optionalTarget(target);

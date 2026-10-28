@@ -28,6 +28,12 @@ export const chatAttachmentLimiter = createRateLimiter({
   windowMs: envInt("CHAT_ATTACHMENT_WINDOW_MS", 5 * 60 * 1000),
 });
 
+/** Polling/SSE de secours : par IP + conversation, défaut 120 / 1 min. */
+export const chatPollLimiter = createRateLimiter({
+  limit: envInt("CHAT_POLL_LIMIT", 120),
+  windowMs: envInt("CHAT_POLL_WINDOW_MS", 60 * 1000),
+});
+
 /** Recherche de médias : par conversation, défaut 30 / 5 min. */
 export const chatMediaLimiter = createRateLimiter({
   limit: envInt("CHAT_MEDIA_LIMIT", 30),

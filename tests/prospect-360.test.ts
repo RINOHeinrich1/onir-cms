@@ -47,6 +47,14 @@ function conversation(id: string, contacts: { type: string; valeur: string }[]):
     lastMessageAt: null,
     consentementAt: null,
     confidentialiteId: null,
+    interventionMode: "ai",
+    assignedUserId: null,
+    assignedOperatorName: null,
+    lastOperatorUserId: null,
+    lastOperatorName: null,
+    humanTakeoverAt: null,
+    lastVisitorMessageAt: null,
+    lastOperatorMessageAt: null,
     createdAt: new Date(0).toISOString(),
   };
 }
@@ -124,6 +132,10 @@ function deps() {
     appendMessage: async () => {
       throw new Error("non utilisé");
     },
+    appendOperatorMessage: async () => null,
+    takeOverConversation: async () => null,
+    releaseConversation: async () => null,
+    listMessagesAfter: async () => [],
     findMessage: async () => null,
     setMessageMedias: async () => null,
     findOpenByLinkAndProspect: async () => null,

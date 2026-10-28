@@ -1,12 +1,16 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
+import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import {
   buildFicheFromConversation,
   type FinishConversationDependencies,
   type FinishedConversation,
 } from "@/application/use-cases/chat/finish-conversation";
+import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 
-export type GenerateFicheDependencies = FinishConversationDependencies;
+export type GenerateFicheDependencies = FinishConversationDependencies & {
+  operatorScopes: ChatOperatorScopeRepository;
+};
 
 /**
  * US-CONVERS-002 — génère une fiche à partir d'une conversation existante
@@ -20,9 +24,14 @@ export async function generateFicheFromConversation(
   actor: Actor,
   conversationId: string,
 ): Promise<FinishedConversation> {
-  assertCan(actor, "project:write");
+  assertCan(actor, "conversations:generate_fiche");
 
-  const conversation = await deps.conversations.findById(organizationOf(actor), conversationId);
+  const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);
+  const conversation = await deps.conversations.findById(
+    organizationOf(actor),
+    conversationId,
+    allowedLinkIds,
+  );
   if (conversation === null) {
     throw new NotFoundError("Conversation introuvable");
   }

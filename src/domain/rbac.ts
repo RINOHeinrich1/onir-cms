@@ -26,6 +26,8 @@ export const ACTIONS = [
   "conversations:list",
   "conversations:read",
   "conversations:update",
+  "conversations:intervene",
+  "conversations:generate_fiche",
   "confidentialites:list",
   "confidentialites:read",
   "confidentialites:create",
@@ -124,6 +126,8 @@ const MARKETEUR: readonly Action[] = [
   "conversations:list",
   "conversations:read",
   "conversations:update",
+  "conversations:intervene",
+  "conversations:generate_fiche",
   "confidentialites:list",
   "confidentialites:read",
   "confidentialites:create",
@@ -164,10 +168,23 @@ const MARKETEUR: readonly Action[] = [
   "webhooks:trigger",
 ];
 
+/**
+ * Opérateur chat (ADR-0043) : accès strictement limité aux conversations de
+ * son périmètre. Aucun accès aux liens, prospects, fiches globales ou
+ * administration.
+ */
+const OPERATEUR: readonly Action[] = [
+  "conversations:list",
+  "conversations:read",
+  "conversations:intervene",
+  "conversations:generate_fiche",
+];
+
 const MATRIX: Record<Role, readonly Action[]> = {
   admin: ACTIONS,
   marketeur: MARKETEUR,
   lecteur: READ_ONLY,
+  operateur: OPERATEUR,
 };
 
 /** Le rôle `role` peut-il effectuer l'action `action` ? */

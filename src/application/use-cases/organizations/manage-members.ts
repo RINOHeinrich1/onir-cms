@@ -5,12 +5,13 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/application/errors";
+import type { ChatOperatorScope } from "@/application/ports/chat-operator-scope-repository";
 import type { MembershipRepository } from "@/application/ports/membership-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { SessionRepository } from "@/application/ports/session-repository";
 import type { UserRepository } from "@/application/ports/user-repository";
 import type { MembershipRole } from "@/domain/entities/organization";
-import { normalizeEmail, type Role, type User } from "@/domain/entities/user";
+import { isRole, normalizeEmail, type Role, type User } from "@/domain/entities/user";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/domain/password";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,6 +25,8 @@ export type MemberDto = {
   actif: boolean;
   mustChangePassword: boolean;
   createdAt: string;
+  /** Portée des conversations pour un opérateur chat (ADR-0043). */
+  chatScope?: ChatOperatorScope | null;
 };
 
 export type ManageMembersDependencies = {
@@ -274,8 +277,8 @@ export async function removeMember(
 
 function parseMembershipRole(value: unknown): Role {
   const role = typeof value === "string" ? value.trim() : "";
-  if (role !== "admin" && role !== "marketeur" && role !== "lecteur") {
-    throw new ValidationError("Rôle invalide (admin, marketeur ou lecteur)");
+  if (!isRole(role)) {
+    throw new ValidationError("Rôle invalide (admin, marketeur, lecteur ou operateur)");
   }
   return role;
 }

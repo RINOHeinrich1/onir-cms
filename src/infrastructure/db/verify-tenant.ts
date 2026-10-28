@@ -66,7 +66,7 @@ export async function verifyTenantIntegrity(pool: Pool): Promise<TenantIntegrity
   const invalidRoles = await pool.query<{ count: number }>(
     `SELECT count(*)::int AS count
        FROM organization_members
-      WHERE role NOT IN ('admin', 'marketeur', 'lecteur')`,
+      WHERE role NOT IN ('admin', 'marketeur', 'lecteur', 'operateur')`,
   );
   if ((invalidRoles.rows[0]?.count ?? 0) > 0) {
     errors.push(`organization_members: ${invalidRoles.rows[0]?.count} rôle(s) invalide(s)`);

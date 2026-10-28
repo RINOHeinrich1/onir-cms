@@ -4,7 +4,7 @@ import { resolveInvitation } from "@/application/use-cases/invitations/resolve-i
 import { AcceptInvitationForm } from "@/components/invitations/AcceptInvitationForm";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import type { Role } from "@/domain/entities/user";
+import { ROLE_LABELS } from "@/domain/entities/user";
 import { pgInvitationRepository } from "@/infrastructure/db/invitation-repository";
 import { getPool } from "@/infrastructure/db/pool";
 
@@ -16,12 +16,6 @@ export const metadata: Metadata = {
 };
 
 type PageProps = { params: Promise<{ token: string }> };
-
-const ROLE_LABELS: Record<Role, string> = {
-  admin: "Administrateur",
-  marketeur: "Marketeur",
-  lecteur: "Lecteur",
-};
 
 function ExpiredCard({ title, message }: { title: string; message: string }) {
   return (

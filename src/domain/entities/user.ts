@@ -7,9 +7,20 @@
  * `isSuperAdmin` est un flag plateforme, indépendant des organisations.
  */
 
-export const ROLES = ["admin", "marketeur", "lecteur"] as const;
+export const ROLES = ["admin", "marketeur", "lecteur", "operateur"] as const;
 
 export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABELS = {
+  admin: "Administrateur",
+  marketeur: "Marketeur",
+  lecteur: "Lecteur",
+  operateur: "Opérateur chat",
+} satisfies Record<Role, string>;
+
+export function roleLabel(role: Role): string {
+  return ROLE_LABELS[role];
+}
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);

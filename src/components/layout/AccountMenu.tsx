@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Role } from "@/domain/entities/user";
+import { ROLE_LABELS, type Role } from "@/domain/entities/user";
 import { LogoutButton } from "./LogoutButton";
 
 /**
@@ -56,7 +56,7 @@ export function AccountMenu({
             <p className="account-email">{email}</p>
             <p className="muted-text">
               {organizationName ?? "Aucune organisation"} ·{" "}
-              <span className="badge">{isSuperAdmin ? "super-admin" : role}</span>
+              <span className="badge">{isSuperAdmin ? "super-admin" : ROLE_LABELS[role]}</span>
             </p>
             <LogoutButton />
           </div>

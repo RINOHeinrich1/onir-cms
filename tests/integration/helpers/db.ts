@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+import type { Role } from "@/domain/entities/user";
 
 const MIGRATIONS_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -53,7 +54,7 @@ export async function makeOrganization(pool: Pool, name: string): Promise<string
 export async function makeUser(
   pool: Pool,
   email: string,
-  options: { superAdmin?: boolean; role?: "admin" | "marketeur" | "lecteur" } = {},
+  options: { superAdmin?: boolean; role?: Role } = {},
 ): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO users (email, password_hash, role, is_super_admin)
@@ -69,7 +70,7 @@ export async function addMembership(
   pool: Pool,
   organizationId: string,
   userId: string,
-  role: "admin" | "marketeur" | "lecteur" = "admin",
+  role: Role = "admin",
 ): Promise<void> {
   await pool.query(
     `INSERT INTO organization_members (organization_id, user_id, role, created_by)

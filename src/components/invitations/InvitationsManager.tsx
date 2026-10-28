@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { InvitationStatus } from "@/domain/entities/invitation";
-import type { Role } from "@/domain/entities/user";
+import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 
 export type InvitationDto = {
   id: string;
@@ -25,12 +25,6 @@ type OrganizationOption = { id: string; name: string };
 type CreateResponse = {
   invitation?: InvitationDto;
   error?: string;
-};
-
-const ROLE_LABELS: Record<Role, string> = {
-  admin: "Administrateur",
-  marketeur: "Marketeur",
-  lecteur: "Lecteur",
 };
 
 const STATUS_LABELS: Record<InvitationStatus, string> = {
@@ -172,9 +166,11 @@ export function InvitationsManager({
             onChange={(event) => setRole(event.target.value as Role)}
             disabled={organizationId === ""}
           >
-            <option value="lecteur">Lecteur</option>
-            <option value="marketeur">Marketeur</option>
-            <option value="admin">Administrateur</option>
+            {ROLES.map((value) => (
+              <option key={value} value={value}>
+                {ROLE_LABELS[value]}
+              </option>
+            ))}
           </select>
         </label>
 

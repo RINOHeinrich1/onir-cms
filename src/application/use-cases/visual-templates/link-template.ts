@@ -71,7 +71,7 @@ export function toContractMessages(
 ): TemplateMessage[] {
   return messages.map((message) => ({
     id: message.id,
-    role: message.role,
+    role: message.role === "user" ? "user" : "assistant",
     content: message.content,
     medias: message.medias.map((media) => ({
       type: media.type,

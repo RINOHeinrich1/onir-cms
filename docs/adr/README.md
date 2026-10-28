@@ -43,3 +43,4 @@ ADR qui remplace la précédente.
 | [0040](./0040-surface-widget-liens-chat.md) | Surface widget des liens de chat et intégration externe | Accepté |
 | [0041](./0041-canaux-diffusion-multiples-liens-chat.md) | Canaux de diffusion multiples des liens de chat | Accepté |
 | [0042](./0042-api-publique-v1.md) | API publique v1 — contrat OpenAPI, scopes et architecture | Accepté |
+| [0043](./0043-intervention-humaine-operateur-chat.md) | Intervention humaine dans les conversations et rôle « Opérateur chat » | Accepté |

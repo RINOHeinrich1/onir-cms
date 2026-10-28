@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
@@ -214,6 +215,100 @@ describe("isolation croisée SQL — liens et conversations", () => {
     await expect(
       conversations.appendMessage(orgA, convB.id, "user", "intrusion"),
     ).rejects.toThrow();
+  });
+
+  it("périmètre de liens : liste et détail filtrés (ADR-0043)", async () => {
+    const links = pgChatLinkRepository(pool);
+    const conversations = pgConversationRepository(pool);
+    const link1 = await links.create(orgA, linkInput("hash-scope-1"));
+    const link2 = await links.create(orgA, linkInput("hash-scope-2"));
+    const conv1 = await conversations.create(orgA, {
+      linkId: link1.id,
+      visitorNom: "",
+      visitorEmail: "",
+      visitorContacts: [],
+      prospectId: null,
+      consentementAt: null,
+      confidentialiteId: null,
+    });
+    const conv2 = await conversations.create(orgA, {
+      linkId: link2.id,
+      visitorNom: "",
+      visitorEmail: "",
+      visitorContacts: [],
+      prospectId: null,
+      consentementAt: null,
+      confidentialiteId: null,
+    });
+
+    expect(
+      (await conversations.listWithDetails(orgA, "toutes", null, [link1.id])).map((row) => row.id),
+    ).toEqual([conv1.id]);
+    expect(await conversations.findById(orgA, conv2.id, [link1.id])).toBeNull();
+    expect(await conversations.findById(orgA, conv2.id, [link1.id, link2.id])).not.toBeNull();
+    expect(await conversations.listWithDetails(orgA, "toutes", null, [])).toEqual([]);
+  });
+
+  it("intervention humaine : message opérateur, prise en main et retour IA", async () => {
+    const links = pgChatLinkRepository(pool);
+    const conversations = pgConversationRepository(pool);
+    const link = await links.create(orgA, linkInput("hash-intervention"));
+    const operator = await makeUser(pool, "intervention@example.com", { role: "operateur" });
+    await addMembership(pool, orgA, operator, "operateur");
+    const conv = await conversations.create(orgA, {
+      linkId: link.id,
+      visitorNom: "Jean",
+      visitorEmail: "jean@example.com",
+      visitorContacts: [],
+      prospectId: null,
+      consentementAt: null,
+      confidentialiteId: null,
+    });
+
+    const result = await conversations.appendOperatorMessage(
+      orgA,
+      conv.id,
+      "Je prends le relais.",
+      operator,
+    );
+    expect(result?.message.role).toBe("operator");
+    expect(result?.message.authorUserId).toBe(operator);
+    expect(result?.conversation.interventionMode).toBe("human");
+    expect(result?.conversation.assignedUserId).toBe(operator);
+
+    const after = result?.message.createdAt ?? null;
+    expect((await conversations.listMessagesAfter(orgA, conv.id, after)).length).toBe(1);
+    const later = after === null ? null : new Date(new Date(after).getTime() + 1000).toISOString();
+    expect(await conversations.listMessagesAfter(orgA, conv.id, later)).toEqual([]);
+    expect((await conversations.listMessagesAfter(orgA, conv.id, null)).length).toBe(1);
+
+    const released = await conversations.releaseConversation(orgA, conv.id);
+    expect(released?.interventionMode).toBe("ai");
+    expect(released?.assignedUserId).toBeNull();
+    expect(released?.lastOperatorUserId).toBe(operator);
+    expect(released?.lastOperatorName).toContain("intervention@example.com");
+  });
+
+  it("portée opérateur : défaut tous, puis restriction persistée", async () => {
+    const links = pgChatLinkRepository(pool);
+    const scopes = pgChatOperatorScopeRepository(pool);
+    const link = await links.create(orgA, linkInput("hash-operator-scope"));
+    const operator = await makeUser(pool, "operateur@example.com", { role: "operateur" });
+    await addMembership(pool, orgA, operator, "operateur");
+
+    expect(await scopes.findForUser(orgA, operator)).toBeNull();
+    expect(
+      await scopes.setForUser(orgA, operator, { allLinks: false, linkIds: [link.id] }),
+    ).toEqual({ allLinks: false, linkIds: [link.id] });
+    expect(await scopes.findForUser(orgA, operator)).toEqual({
+      allLinks: false,
+      linkIds: [link.id],
+    });
+    expect(await scopes.setForUser(orgA, operator, { allLinks: true, linkIds: [] })).toEqual({
+      allLinks: true,
+      linkIds: [],
+    });
+    expect(await scopes.findForUser(orgA, operator)).toEqual({ allLinks: true, linkIds: [] });
   });
 });
 

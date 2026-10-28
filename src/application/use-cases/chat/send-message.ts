@@ -14,7 +14,12 @@ import {
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
 import { type Attachment, DEFAULT_FILE_CONSTRAINTS } from "@/domain/entities/attachment";
-import type { ChatLink, ChatMessage } from "@/domain/entities/chat";
+import type {
+  ChatLink,
+  ChatMessage,
+  ChatMessageRole,
+  ConversationInterventionMode,
+} from "@/domain/entities/chat";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
@@ -40,7 +45,14 @@ export type SendMessageResult = {
   message: ChatMessage | null;
   connaissances: ConnaissanceRef[];
   mediaPending: boolean;
+  /** Mode après envoi : l'IA répond (`ai`) ou un opérateur a la main (`human`). */
+  mode: ConversationInterventionMode;
 };
+
+/** Rôle transmis à l'IA : un message opérateur est un tour « assistant ». */
+function toAiRole(role: ChatMessageRole): "user" | "assistant" {
+  return role === "user" ? "user" : "assistant";
+}
 
 const MAX_CONTENT_LENGTH = 4000;
 const MAX_ATTACHMENT_IDS = 25;
@@ -186,6 +198,16 @@ export async function sendMessage(
     content,
     attachmentIds,
   );
+  if (conversation.interventionMode === "human") {
+    return {
+      organizationId,
+      userMessage,
+      message: null,
+      connaissances: [],
+      mediaPending: false,
+      mode: "human",
+    };
+  }
   if (content === "") {
     return {
       organizationId,
@@ -193,6 +215,7 @@ export async function sendMessage(
       message: null,
       connaissances: [],
       mediaPending: false,
+      mode: conversation.interventionMode,
     };
   }
 
@@ -253,12 +276,29 @@ ${attachmentContext}`;
   try {
     answer = await ai.complete({
       system: systemEnrichi,
-      messages: history.map((message) => ({ role: message.role, content: message.content })),
+      messages: history.map((message) => ({
+        role: toAiRole(message.role),
+        content: message.content,
+      })),
       maxTokens: 400,
     });
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new BadGatewayError("Service IA momentanément indisponible, réessayez");
+  }
+
+  // Course IA/opérateur : si un humain a pris la main pendant la génération,
+  // la réponse IA ne doit jamais être écrite après la prise en main.
+  const latest = await deps.conversations.findByIdPublic(conversation.id);
+  if (latest === null || latest.interventionMode === "human") {
+    return {
+      organizationId,
+      userMessage,
+      message: null,
+      connaissances: [],
+      mediaPending: false,
+      mode: "human",
+    };
   }
 
   const message = await deps.conversations.appendMessage(
@@ -268,5 +308,12 @@ ${attachmentContext}`;
     answer,
   );
   const mediaPending = await hasEligibleMedia(deps, organizationId, link);
-  return { organizationId, userMessage, message, mediaPending, connaissances };
+  return {
+    organizationId,
+    userMessage,
+    message,
+    mediaPending,
+    connaissances,
+    mode: latest.interventionMode,
+  };
 }

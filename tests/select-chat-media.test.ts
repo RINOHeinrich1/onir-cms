@@ -73,6 +73,8 @@ const USER: ChatMessage = {
   content: "Montrez-moi des exemples de réalisations.",
   medias: [],
   mediasComputed: false,
+  authorUserId: null,
+  authorName: null,
   attachments: [],
   createdAt: new Date(0).toISOString(),
 };
@@ -84,6 +86,8 @@ const assistant = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   content: "Voici deux exemples concrets.",
   medias: [],
   mediasComputed: false,
+  authorUserId: null,
+  authorName: null,
   attachments: [],
   createdAt: new Date(1).toISOString(),
   ...overrides,

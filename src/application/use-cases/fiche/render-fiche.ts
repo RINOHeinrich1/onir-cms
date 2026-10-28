@@ -1,9 +1,12 @@
-import { type Actor, organizationOf } from "@/application/actor";
+import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
+import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import { getFiche } from "@/application/use-cases/fiche/manage-fiches";
 import type { FicheAttachment } from "@/domain/entities/attachment";
 import type { Fiche } from "@/domain/entities/fiche";
@@ -38,7 +41,15 @@ export async function renderFiche(
 ): Promise<RenderedFiche> {
   const organizationId = organizationOf(actor);
   const fiche = await getFiche({ fiches: deps.fiches }, actor, id);
+  return renderFicheDocument(deps, organizationId, fiche);
+}
 
+/** Rendu d'une fiche déjà autorisée (partagé téléchargement admin/opérateur). */
+export async function renderFicheDocument(
+  deps: RenderFicheDependencies,
+  organizationId: string,
+  fiche: Fiche,
+): Promise<RenderedFiche> {
   const template = await deps.templates.findVersion(
     organizationId,
     fiche.templateKey,
@@ -70,4 +81,35 @@ export async function renderFiche(
   });
 
   return { fiche, attachments, markdown };
+}
+
+export type RenderConversationFicheDependencies = RenderFicheDependencies & {
+  conversations: ConversationRepository;
+  operatorScopes: ChatOperatorScopeRepository;
+};
+
+/**
+ * Téléchargement d'une fiche depuis une conversation (opérateur, ADR-0043) :
+ * la fiche doit appartenir à la conversation, elle-même dans le périmètre.
+ */
+export async function renderConversationFiche(
+  deps: RenderConversationFicheDependencies,
+  actor: Actor,
+  conversationId: string,
+  ficheId: string,
+): Promise<RenderedFiche> {
+  assertCan(actor, "conversations:generate_fiche");
+  const organizationId = organizationOf(actor);
+  const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);
+  const conversation = await deps.conversations.findById(
+    organizationId,
+    conversationId,
+    allowedLinkIds,
+  );
+  if (conversation === null) throw new NotFoundError("Conversation introuvable");
+  const fiche = await deps.fiches.findById(organizationId, ficheId);
+  if (fiche === null || fiche.conversationId !== conversationId) {
+    throw new NotFoundError("Fiche introuvable");
+  }
+  return renderFicheDocument(deps, organizationId, fiche);
 }

@@ -6,7 +6,7 @@ export type ChatAttachmentDto = AttachmentView & { url: string };
 
 export type ChatMessageDto = Pick<
   ChatMessage,
-  "id" | "role" | "content" | "medias" | "createdAt"
+  "id" | "role" | "content" | "medias" | "authorName" | "createdAt"
 > & {
   attachments: ChatAttachmentDto[];
 };
@@ -18,6 +18,7 @@ export function toPublicChatMessage(message: ChatMessage, organizationId: string
     role: message.role,
     content: message.content,
     medias: message.medias,
+    authorName: null,
     createdAt: message.createdAt,
     attachments: message.attachments.map((attachment) => ({
       ...attachment,
@@ -33,6 +34,7 @@ export function toDashboardChatMessage(message: ChatMessage): ChatMessageDto {
     role: message.role,
     content: message.content,
     medias: message.medias,
+    authorName: message.authorName,
     createdAt: message.createdAt,
     attachments: message.attachments.map((attachment) => ({
       ...attachment,

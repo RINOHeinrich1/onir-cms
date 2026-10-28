@@ -3,6 +3,7 @@ import { ValidationError } from "@/application/errors";
 import { createUser } from "@/application/use-cases/users/create-user";
 import { listUsers } from "@/application/use-cases/users/list-users";
 import { isRole } from "@/domain/entities/user";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgMembershipRepository } from "@/infrastructure/db/membership-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgUserRepository } from "@/infrastructure/db/user-repository";
@@ -30,6 +31,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       {
         users: pgUserRepository(pool),
         memberships: pgMembershipRepository(pool),
+        operatorScopes: pgChatOperatorScopeRepository(pool),
       },
       actor,
     );

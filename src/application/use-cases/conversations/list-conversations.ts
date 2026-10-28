@@ -1,6 +1,7 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type {
   ConversationRepository,
   ConversationStatusCounts,
@@ -8,6 +9,7 @@ import type {
 } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import type {
   ChatLink,
   ChatMessage,
@@ -17,14 +19,18 @@ import type {
 import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
 
-export type ListConversationsDependencies = {
+export type ConversationsDependency = {
   conversations: ConversationRepository;
+};
+
+export type ListConversationsDependencies = ConversationsDependency & {
+  operatorScopes: ChatOperatorScopeRepository;
 };
 
 /** US-CONVERS-001 — liste des conversations filtrée par statut (serveur). */
 /** US-CONVERS-003 — archive / désarchive une conversation (admin/marketeur). */
 export async function archiveConversation(
-  deps: ListConversationsDependencies,
+  deps: ConversationsDependency,
   actor: Actor,
   id: string,
   archivee: boolean,
@@ -43,12 +49,18 @@ export async function listConversations(
   linkLabel: string | null = null,
 ): Promise<ConversationSummary[]> {
   assertCan(actor, "conversations:list");
-  return deps.conversations.listWithDetails(organizationOf(actor), filter, linkLabel);
+  const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);
+  return deps.conversations.listWithDetails(
+    organizationOf(actor),
+    filter,
+    linkLabel,
+    allowedLinkIds,
+  );
 }
 
 /** Vue globale — compteurs de conversations actives par statut. */
 export async function countConversations(
-  deps: ListConversationsDependencies,
+  deps: ConversationsDependency,
   actor: Actor,
 ): Promise<ConversationStatusCounts> {
   assertCan(actor, "conversations:list");
@@ -66,10 +78,43 @@ export type ConversationDetail = {
 
 export type GetConversationDependencies = {
   conversations: ConversationRepository;
+  operatorScopes: ChatOperatorScopeRepository;
   links: ChatLinkRepository;
   prospects: ProspectRepository;
   fiches: FicheRepository;
 };
+
+export type ConversationUpdatesDependencies = {
+  conversations: ConversationRepository;
+  operatorScopes: ChatOperatorScopeRepository;
+};
+
+export type ConversationUpdates = {
+  conversation: Conversation;
+  messages: ChatMessage[];
+};
+
+/** Polling/SSE : état courant + messages postérieurs à `after`, scopés. */
+export async function getConversationUpdates(
+  deps: ConversationUpdatesDependencies,
+  actor: Actor,
+  id: string,
+  after: string | null,
+): Promise<ConversationUpdates> {
+  assertCan(actor, "conversations:read");
+  const organizationId = organizationOf(actor);
+  const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);
+  const conversation = await deps.conversations.findById(organizationId, id, allowedLinkIds);
+  if (conversation === null) {
+    throw new NotFoundError("Conversation introuvable");
+  }
+  const normalizedAfter =
+    after !== null && !Number.isNaN(new Date(after).getTime())
+      ? new Date(after).toISOString()
+      : null;
+  const messages = await deps.conversations.listMessagesAfter(organizationId, id, normalizedAfter);
+  return { conversation, messages };
+}
 
 /** US-CONVERS-001 — détail d'une conversation : transcript + contexte. */
 export async function getConversation(
@@ -80,7 +125,8 @@ export async function getConversation(
   assertCan(actor, "conversations:read");
 
   const organizationId = organizationOf(actor);
-  const conversation = await deps.conversations.findById(organizationId, id);
+  const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);
+  const conversation = await deps.conversations.findById(organizationId, id, allowedLinkIds);
   if (conversation === null) {
     throw new NotFoundError("Conversation introuvable");
   }
