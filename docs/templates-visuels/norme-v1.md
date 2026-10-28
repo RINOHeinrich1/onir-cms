@@ -154,6 +154,7 @@ export type TemplateMessage = {
   attachments?: TemplateAttachment[];     // optionnel (ADR-0034)
   userState?: TemplateMessageUserState;   // optionnel (ADR-0020)
   knowledge?: ConnaissanceRef[];          // optionnel (ADR-0020)
+  authorName?: string;                    // optionnel (ADR-0043, opérateur)
 };
 
 export type TemplateMediaItem = { id: string; libelle: string; url: string };
@@ -396,6 +397,13 @@ gracieuse : personnage neutre, tableau vide).
   par défaut.
 - Un template qui ne déclare pas ces capacités se comporte **exactement** comme
   avant (champs optionnels non fournis).
+
+### Intervention humaine (ADR-0043)
+Un message envoyé par un opérateur du backoffice est exposé avec
+`role: "assistant"` et `authorName: "Conseiller"` (champ optionnel). Les templates
+existants continuent de l'afficher comme un message assistant ; les templates
+récents peuvent le distinguer et le signer (« Conseiller »). Ce champ est
+**additif** et ne change pas la version du protocole.
 
 ## 12. Variables paramétrables (ADR-0023)
 

@@ -82,7 +82,7 @@ describe("createMockContext", () => {
       params: { titre: "Album souvenirs" },
       state: {
         phase: "chat",
-        messages: [{ role: "assistant", content: "Bonjour" }],
+        messages: [{ role: "assistant", content: "Bonjour", authorName: "Conseiller" }],
       },
     });
 
@@ -103,6 +103,7 @@ describe("createMockContext", () => {
     expect(message?.medias).toEqual([]);
     expect(message?.id).toBeTruthy();
     expect(message?.at).toBeTruthy();
+    expect(message?.authorName).toBe("Conseiller");
   });
 
   it("remplace les tableaux au lieu de les fusionner index par index", () => {

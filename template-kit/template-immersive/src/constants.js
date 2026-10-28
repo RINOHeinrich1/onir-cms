@@ -1,7 +1,7 @@
 // Constantes partagées du template immersive.
 
 /** Version du template (miroir de `onirtech.template.json`). */
-export const TEMPLATE_VERSION = "4.45.1";
+export const TEMPLATE_VERSION = "4.45.2";
 // `ELEMENT` reste dans `src/index.js` (exigence du validateur du kit).
 
 /** URL absolue d'un asset embarqué, résolue relativement au module (aucun réseau). */

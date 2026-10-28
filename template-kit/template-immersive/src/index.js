@@ -1,4 +1,4 @@
-// Template « Immersive » v4.45.1 — SAS D'ENTRÉE 3D RÉALISTE (maison PBR + HDRI, porte qui
+// Template « Immersive » v4.45.2 — SAS D'ENTRÉE 3D RÉALISTE (maison PBR + HDRI, porte qui
 // s'ouvre) + SALLE 3D PBR + PERSONNAGE 3D RIGGÉ/ANIMÉ (FBX) + LIVRE 2D + DISCUSSION.
 //
 // • Assets 3D **embarqués CC0** (aucun réseau au runtime) :

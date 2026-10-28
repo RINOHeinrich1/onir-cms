@@ -218,6 +218,8 @@ export const STYLE = `
   .bubble.assistant { align-self:flex-start; background:#fbf6ea; color:#3f2f20; border-bottom-left-radius:.25rem; }
   .bubble.user { align-self:flex-end; background:#5b4632; color:#fbf6ea; border-bottom-right-radius:.25rem; }
   .bubble.assistant::before { content:"IA : "; font-weight:700; color:#8a5a1f; }
+  .bubble.operator { background:#e8f5ef; }
+  .bubble.operator::before { content:"Conseiller : "; font-weight:700; color:#0f766e; }
   .bubble.user::before { content:"Vous : "; font-weight:700; color:#e7d3a8; }
   .bubble a { color:#8a5a1f; text-decoration:underline; word-break:break-word; }
   .bubble.user a { color:#f0d9a8; }

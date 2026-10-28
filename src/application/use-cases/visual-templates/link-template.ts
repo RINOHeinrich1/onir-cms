@@ -73,6 +73,7 @@ export function toContractMessages(
     id: message.id,
     role: message.role === "user" ? "user" : "assistant",
     content: message.content,
+    ...(message.role === "operator" ? { authorName: "Conseiller" } : {}),
     medias: message.medias.map((media) => ({
       type: media.type,
       libelle: media.libelle,
