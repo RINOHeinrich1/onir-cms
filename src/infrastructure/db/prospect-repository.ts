@@ -85,14 +85,20 @@ export function pgProspectRepository(pool: Pool): ProspectRepository {
       return row ? toEntity(row) : null;
     },
 
-    async list(organizationId, filter: ProspectOriginFilter | null = null): Promise<Prospect[]> {
-      const clause =
-        filter === null
-          ? ""
-          : filter.kind === "manuel"
-            ? "AND p.origine = 'saisie'"
-            : "AND p.origine = 'libre' AND l.label = $2";
-      const params = filter?.kind === "lien" ? [organizationId, filter.label] : [organizationId];
+    async list(
+      organizationId: string,
+      filter: ProspectOriginFilter | ProspectOriginFilter[] | null = null,
+    ): Promise<Prospect[]> {
+      const filters = filter === null ? [] : Array.isArray(filter) ? filter : [filter];
+      const manual = filters.some((entry) => entry.kind === "manuel");
+      const labels = filters
+        .filter((entry): entry is { kind: "lien"; label: string } => entry.kind === "lien")
+        .map((entry) => entry.label);
+      const clauses: string[] = [];
+      if (manual) clauses.push("p.origine = 'saisie'");
+      if (labels.length > 0) clauses.push("p.origine = 'libre' AND l.label = ANY($2::text[])");
+      const clause = clauses.length === 0 ? "" : `AND (${clauses.join(" OR ")})`;
+      const params = labels.length > 0 ? [organizationId, labels] : [organizationId];
       const { rows } = await pool.query<ProspectRow>(
         `SELECT ${COLUMNS}, l.label AS lien_label
            FROM prospects p

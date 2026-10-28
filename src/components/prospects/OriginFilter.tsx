@@ -2,54 +2,105 @@
 
 import { useRouter } from "next/navigation";
 
-const ALL_ORIGINS = "__all__";
 const MANUEL = "manuel";
 const LINK_PREFIX = "lien:";
 
 /**
- * Filtre d'origine des prospects : tous, manuels, ou un lien de chat précis.
- * La valeur d'un lien reste son libellé exact, préfixé par `lien:`.
+ * Filtre multi-valeurs d'origine : manuels et/ou chatbots.
+ * La valeur d'un chatbot reste son libellé exact, préfixé par `lien:`.
  */
 export function OriginFilter({
   value,
   linkLabels,
 }: {
-  /** Valeur sérialisée (`manuel` / `lien:<libellé>`), null = toutes. */
-  value: string | null;
+  /** Valeurs sérialisées (`manuel` / `lien:<libellé>`), [] = toutes. */
+  value: readonly string[];
   linkLabels: string[];
 }) {
   const router = useRouter();
-  const activeLabel = value?.startsWith(LINK_PREFIX) ? value.slice(LINK_PREFIX.length) : null;
-  const labels =
-    activeLabel !== null && !linkLabels.includes(activeLabel)
-      ? [activeLabel, ...linkLabels]
-      : linkLabels;
+  const selected = new Set(value);
+  const options = [
+    MANUEL,
+    ...[
+      ...new Set([
+        ...value.filter((entry) => entry.startsWith(LINK_PREFIX)),
+        ...linkLabels.map((label) => `${LINK_PREFIX}${label}`),
+      ]),
+    ],
+  ];
 
-  const apply = (next: string): void => {
-    if (next === ALL_ORIGINS) {
-      router.push("/prospects", { scroll: false });
-      return;
-    }
-    const params = new URLSearchParams({ origine: next });
-    router.push(`/prospects?${params.toString()}`, { scroll: false });
+  const apply = (next: string[]): void => {
+    const params = new URLSearchParams();
+    for (const entry of next) params.append("origine", entry);
+    const query = params.toString();
+    router.push(query ? `/prospects?${query}` : "/prospects", { scroll: false });
+  };
+
+  const toggle = (entry: string): void => {
+    apply(selected.has(entry) ? value.filter((item) => item !== entry) : [...value, entry]);
   };
 
   return (
-    <label className="link-filter">
-      <span className="link-filter-label">Origine</span>
-      <select
-        aria-label="Filtrer les prospects par origine"
-        value={value ?? ALL_ORIGINS}
-        onChange={(event) => apply(event.target.value)}
-      >
-        <option value={ALL_ORIGINS}>Toutes les origines</option>
-        <option value={MANUEL}>Manuels</option>
-        {labels.map((label) => (
-          <option key={`${LINK_PREFIX}${label}`} value={`${LINK_PREFIX}${label}`}>
-            {label === "" ? "Chatbot sans nom" : label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="tag-filter">
+      <details className="tag-filter-details">
+        <summary className="tag-filter-trigger">
+          <span className="tag-filter-label">Origine</span>
+          <span className="tag-filter-value">
+            {value.length === 0
+              ? "Toutes les origines"
+              : `${value.length} origine${value.length > 1 ? "s" : ""}`}
+          </span>
+          <span className="tag-filter-chevron" aria-hidden>
+            ▾
+          </span>
+        </summary>
+        <fieldset className="tag-filter-panel">
+          <legend className="sr-only">Filtrer les prospects par origine</legend>
+          <button
+            type="button"
+            className="tag-filter-clear"
+            onClick={() => apply([])}
+            disabled={value.length === 0}
+          >
+            Toutes les origines
+          </button>
+          {options.map((entry) => (
+            <label key={entry} className="tag-filter-option">
+              <input type="checkbox" checked={selected.has(entry)} onChange={() => toggle(entry)} />
+              <span>
+                {entry === MANUEL
+                  ? "Manuels"
+                  : entry === LINK_PREFIX
+                    ? "Chatbot sans nom"
+                    : entry.slice(LINK_PREFIX.length)}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      </details>
+      {value.length > 0 ? (
+        <div className="tag-filter-chips">
+          {value.map((entry) => (
+            <span key={entry} className="tag-filter-chip">
+              {entry === MANUEL
+                ? "Manuels"
+                : entry === LINK_PREFIX
+                  ? "Chatbot sans nom"
+                  : entry.slice(LINK_PREFIX.length)}
+              <button
+                type="button"
+                aria-label={`Retirer le filtre origine`}
+                onClick={() => toggle(entry)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <button type="button" className="tag-filter-clear-inline" onClick={() => apply([])}>
+            Tout effacer
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

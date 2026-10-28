@@ -23,7 +23,7 @@ export function ProspectsTable({
 }: {
   initialProspects: ProspectDto[];
   filterProspectId?: string | null;
-  origine: string | null;
+  origine: readonly string[];
   linkLabels: string[];
   canWrite: boolean;
 }) {
@@ -48,7 +48,7 @@ export function ProspectsTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
-  const pagination = usePagination(visible, 9, `${search}|${origine ?? ""}`);
+  const pagination = usePagination(visible, 9, `${search}|${origine.join(",")}`);
 
   const refresh = (): void => {
     router.refresh();

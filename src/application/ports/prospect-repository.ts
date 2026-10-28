@@ -34,7 +34,10 @@ export interface ProspectRepository {
   findById(organizationId: string, id: string): Promise<Prospect | null>;
   /** Recherche par email (insensible à la casse) — identification chat. */
   findByEmail(organizationId: string, email: string): Promise<Prospect | null>;
-  list(organizationId: string, filter?: ProspectOriginFilter | null): Promise<Prospect[]>;
+  list(
+    organizationId: string,
+    filter?: ProspectOriginFilter | ProspectOriginFilter[] | null,
+  ): Promise<Prospect[]>;
   /** Libellés distincts des liens ayant au moins un prospect `libre`. */
   listLinkLabels(organizationId: string): Promise<string[]>;
   create(organizationId: string, input: CreateProspectInput): Promise<Prospect>;

@@ -48,6 +48,24 @@ export function parseProspectOriginFilter(value: unknown): ProspectOriginFilter 
   return null;
 }
 
+/** Parse des filtres d'origine multi-valeurs (`origine` répété). */
+export function parseProspectOriginFilters(value: unknown): ProspectOriginFilter[] {
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  const filters: ProspectOriginFilter[] = [];
+  for (const entry of raw) {
+    const filter = parseProspectOriginFilter(entry);
+    if (filter !== null) filters.push(filter);
+  }
+  return filters;
+}
+
+/** Sérialise des filtres d'origine pour l'URL. */
+export function prospectOriginFiltersValue(filters: readonly ProspectOriginFilter[]): string[] {
+  return filters
+    .map((filter) => prospectOriginFilterValue(filter))
+    .filter((value): value is string => value !== null);
+}
+
 /** Sérialise un filtre d'origine pour l'URL / le select. */
 export function prospectOriginFilterValue(filter: ProspectOriginFilter | null): string | null {
   if (filter === null) return null;

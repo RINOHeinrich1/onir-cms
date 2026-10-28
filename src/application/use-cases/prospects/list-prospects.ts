@@ -10,7 +10,7 @@ export type ListProspectsDependencies = {
 export async function listProspects(
   deps: ListProspectsDependencies,
   actor: Actor,
-  filter: ProspectOriginFilter | null = null,
+  filter: ProspectOriginFilter | ProspectOriginFilter[] | null = null,
 ): Promise<Prospect[]> {
   assertCan(actor, "prospects:list");
   return deps.prospects.list(organizationOf(actor), filter);
