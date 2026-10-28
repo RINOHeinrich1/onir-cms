@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
-const montserrat = Montserrat({
+const montserrat = localFont({
+  src: [
+    { path: "./fonts/montserrat-latin-normal.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/montserrat-latin-italic.woff2", weight: "100 900", style: "italic" },
+  ],
   variable: "--font-montserrat",
-  subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
-  style: ["normal", "italic"],
+  fallback: ["Segoe UI", "Arial", "sans-serif"],
 });
 
 /**
