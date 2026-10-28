@@ -5570,3 +5570,25 @@ a.subtab {
     top: auto;
   }
 }
+
+/* Contenu du fil : un seul conteneur flex, le transcript garde le scroll. */
+.inbox-thread > .conversation-thread-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.conversation-thread-content > .conversation-thread-head,
+.conversation-thread-content > .conversation-incidents,
+.conversation-thread-content > section,
+.conversation-thread-content > .conversation-status,
+.conversation-thread-content > .hint,
+.conversation-thread-content > .alert {
+  flex: none;
+}
+
+.conversation-thread-content > .transcript-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+}

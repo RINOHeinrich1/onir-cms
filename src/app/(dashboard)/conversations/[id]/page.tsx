@@ -85,7 +85,7 @@ export default async function ConversationDetailPage({ params, searchParams }: P
   const canViewLeads = actorCan(context.actor, "project:read");
 
   return (
-    <section>
+    <section className="conversation-thread-content">
       <header className="conversation-thread-head">
         <div className="conversation-thread-id">
           <a className="icon-btn inbox-back" href={backHref} aria-label="Retour aux conversations">
