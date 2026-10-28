@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -79,7 +80,9 @@ export function Modal({
     };
   }, []);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={
         overlayClassName === undefined ? "modal-overlay" : `modal-overlay ${overlayClassName}`
@@ -110,6 +113,7 @@ export function Modal({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
