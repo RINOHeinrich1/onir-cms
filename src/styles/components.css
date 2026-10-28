@@ -134,19 +134,123 @@
   color: var(--fg);
 }
 
-/* Bouton « plus d'options » : rendu uniquement en cas de débordement, et placé
-   HORS de la nav rognée (`overflow:hidden`) — sinon il disparaît quand la nav est
-   comprimée à zéro sur petit écran. */
-.bar-inner > .navtoggle {
-  display: grid;
-  flex: none;
-}
+/* Boîte à outils « greedy » : bouton placé après le profil, hors de la nav
+   rognée (`overflow:hidden`) pour rester visible quand la nav est comprimée. */
 
 .tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+
+/* Boîte à outils responsive (remplace l'ancien menu déroulant textuel). */
+.dash-toolbox {
+  position: relative;
+  flex: none;
+}
+
+.tools .dash-toolbox-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+}
+
+.tools .dash-toolbox-toggle:hover,
+.tools .dash-toolbox-toggle[aria-expanded="true"] {
+  background: var(--surface-raised);
+  color: var(--fg);
+}
+
+.tools .dash-toolbox-toggle svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.dash-toolbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.dash-toolbox-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 41;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: min(70vh, 36rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-lifted);
+  animation: modal-fade var(--dur-fast) var(--ease-out-expo) both;
+}
+
+.dash-toolbox-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-size: 0.92rem;
+}
+
+.dash-toolbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.35rem;
+  padding: 0.5rem;
+}
+
+.dash-toolbox-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.55rem 0.5rem;
+  border-radius: 0.6rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-toolbox-link:hover {
+  background: var(--surface);
+}
+
+.dash-toolbox-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.dash-toolbox-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.dash-toolbox-label {
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 /* Sélecteur d'organisation (ADR-0025) : compact, largeur bornée et rétrécissable.
@@ -1429,63 +1533,9 @@
   place-items: center;
 }
 
-.navtoggle .bars,
-.navtoggle .bars::before,
-.navtoggle .bars::after {
-  display: block;
-  width: 1.15rem;
-  height: 2px;
-  background: currentColor;
-  transition: transform var(--dur-fast) var(--ease-out-expo);
-}
-
-.navtoggle .bars {
-  position: relative;
-}
-
-.navtoggle .bars::before,
-.navtoggle .bars::after {
-  content: "";
-  position: absolute;
-  left: 0;
-}
-
-.navtoggle .bars::before {
-  top: -6px;
-}
-
-.navtoggle .bars::after {
-  top: 6px;
-}
-
-.mobilemenu {
-  display: none;
-}
-
-/* Panneau de débordement du menu greedy : affiché à toute largeur dès
-   qu'au moins un élément déborde (plus aucun breakpoint). */
-.mobilemenu.open {
-  display: block;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.mobilemenu nav {
-  display: flex;
-  flex-direction: column;
-}
-
-.mobilemenu a {
-  display: block;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border);
-  text-decoration: none;
-  color: var(--fg);
-  font-weight: 600;
-}
-
 @media (max-width: 64rem) {
-  .navlinks {
+  .navlinks,
+  .bar-inner .dash-nav {
     display: none;
   }
 
@@ -1498,9 +1548,8 @@
   }
 }
 
-/* Téléphone : la barre passe sur DEUX lignes — logo + menu, puis le sélecteur
-   d'organisation avec le thème et le compte. Une seule ligne ne peut pas contenir
-   logo + hamburger + combo + outils, d'où le débordement horizontal observé. */
+/* Téléphone : la barre passe sur DEUX lignes — logo, puis les outils (organisation,
+   thème, compte, boîte à outils). La navigation primaire est déjà masquée à 64rem. */
 @media (max-width: 40rem) {
   .bar-inner {
     flex-wrap: wrap;
@@ -1510,24 +1559,15 @@
     row-gap: 0.5rem;
   }
 
-  /* `flex-basis:0` : la nav reste sur la 1re ligne et se comprime (sinon elle
-     passe seule sur une 2e ligne et le menu « greedy » ne détecte plus rien). */
-  .bar-inner .dash-nav {
-    flex: 1 1 0;
-  }
-
-  .bar-inner > .navtoggle {
-    margin-left: auto;
-  }
-
   .bar-inner .tools {
     flex: 1 1 100%;
-    flex-wrap: wrap;
-    row-gap: 0.45rem;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
   }
 
   .org-switcher {
-    max-width: 12rem;
+    min-width: 5rem;
+    max-width: 10rem;
   }
 
   .org-switcher select {
@@ -1536,6 +1576,21 @@
 
   .brand-logo img {
     height: 1.7rem;
+  }
+
+  .dash-toolbox-panel {
+    position: fixed;
+    top: 6.5rem;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    max-height: calc(100vh - 8rem);
+  }
+}
+
+@media (max-width: 24rem) {
+  .dash-toolbox-grid {
+    grid-template-columns: 1fr;
   }
 }
 
