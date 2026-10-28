@@ -105,3 +105,15 @@ export function sortActivityNotifications<T extends { id: string; createdAt: str
     a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
   );
 }
+
+/** Alerte opérationnelle persistante (erreur IA / fiche) à traiter par un humain. */
+export type ActivityAlert = {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  href: string;
+  createdAt: string;
+  occurrences: number;
+  severity: "low" | "medium" | "high" | "critical";
+};

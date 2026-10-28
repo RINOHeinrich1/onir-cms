@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import type { ActivityNotification } from "@/domain/activity-notification";
+import type { ActivityAlert, ActivityNotification } from "@/domain/activity-notification";
 
 const DEFAULT_LIMIT = 6;
 const PAGE_SIZE = 10;
@@ -15,7 +15,9 @@ const SEEN_LIMIT = 200;
 
 type Feed = {
   items?: ActivityNotification[];
+  alerts?: ActivityAlert[];
   unreadCount?: number;
+  alertCount?: number;
   hasMore?: boolean;
   lastReadAt?: string;
 };
@@ -46,7 +48,9 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [items, setItems] = useState<ActivityNotification[]>([]);
+  const [alerts, setAlerts] = useState<ActivityAlert[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,9 +116,10 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
       if (readVersion !== readVersionRef.current) return;
 
       const nextItems = feed.items ?? [];
+      const nextAlerts = feed.alerts ?? [];
+      const firstLoad = !initializedRef.current;
       const newest = nextItems[0]?.createdAt ?? new Date().toISOString();
-      if (!initializedRef.current) {
-        initializedRef.current = true;
+      if (firstLoad) {
         baselineRef.current = newest;
         for (const item of nextItems) remember(item.id);
       } else {
@@ -128,9 +133,26 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
           baselineRef.current = newest;
         }
       }
+      for (const alert of nextAlerts) {
+        const key = `alert:${alert.id}`;
+        if (seenRef.current.has(key)) continue;
+        remember(key);
+        if (!firstLoad) {
+          toast.warning(`${alert.title} · ${alert.detail}`, {
+            durationMs: TOAST_MS,
+            action: {
+              label: "Ouvrir la conversation",
+              onClick: () => router.push(alert.href),
+            },
+          });
+        }
+      }
+      initializedRef.current = true;
 
       setItems(nextItems);
+      setAlerts(nextAlerts);
       setUnreadCount(feed.unreadCount ?? 0);
+      setAlertCount(feed.alertCount ?? 0);
       setHasMore(feed.hasMore === true);
       setError(null);
     } catch {
@@ -138,7 +160,7 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
     } finally {
       inFlightRef.current = false;
     }
-  }, [limit, remember, showToast]);
+  }, [limit, remember, router, showToast, toast]);
 
   useEffect(() => {
     if (organizationId === null) return;
@@ -150,7 +172,9 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
     setLimit(DEFAULT_LIMIT);
     setOpen(false);
     setItems([]);
+    setAlerts([]);
     setUnreadCount(0);
+    setAlertCount(0);
     setHasMore(false);
     setError(null);
   }, [organizationId]);
@@ -194,7 +218,8 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
     setLimit((value) => Math.min(MAX_LIMIT, value + PAGE_SIZE));
   };
 
-  const countLabel = unreadCount > 99 ? "99+" : String(unreadCount);
+  const totalCount = unreadCount + alertCount;
+  const countLabel = totalCount > 99 ? "99+" : String(totalCount);
 
   return (
     <div className="activity-bell">
@@ -202,7 +227,9 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
         type="button"
         className="activity-bell-trigger"
         aria-label={
-          unreadCount === 0 ? "Activité récente" : `Activité récente, ${unreadCount} non lues`
+          totalCount === 0
+            ? "Activité récente"
+            : `Activité récente, ${totalCount} non lue${totalCount > 1 ? "s" : ""}`
         }
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -217,7 +244,7 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
           />
           <path d="M13.7 21a2 2 0 0 1-3.4 0" strokeLinecap="round" />
         </svg>
-        {unreadCount > 0 ? (
+        {totalCount > 0 ? (
           <span className="activity-bell-badge" aria-hidden>
             {countLabel}
           </span>
@@ -240,31 +267,67 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
           >
             <div className="activity-popover-head">
               <strong>Notifications</strong>
-              {unreadCount > 0 ? (
-                <span className="badge orange">{unreadCount} nouvelles</span>
+              {totalCount > 0 ? (
+                <span className="badge orange">
+                  {totalCount} nouvelle{totalCount > 1 ? "s" : ""}
+                </span>
               ) : (
                 <span className="muted-text">À jour</span>
               )}
             </div>
 
-            {items.length === 0 ? (
+            {alerts.length === 0 && items.length === 0 ? (
               <p className="activity-empty">Aucune notification.</p>
-            ) : (
-              <ul className="activity-list">
-                {items.map((item) => (
-                  <li key={item.id} className={item.read ? undefined : "unread"}>
-                    <Link className="activity-item" href={item.href} onClick={closePanel}>
-                      <span className="activity-dot" aria-hidden />
-                      <span className="activity-content">
-                        <span className="activity-title">{item.title}</span>
-                        <span className="activity-detail">{item.detail}</span>
-                        <span className="activity-time">{relativeTime(item.createdAt)}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            ) : null}
+
+            {alerts.length > 0 ? (
+              <div className="activity-section">
+                <p className="activity-section-label">À traiter</p>
+                <ul className="activity-list">
+                  {alerts.map((alert) => (
+                    <li key={`alert-${alert.id}`}>
+                      <Link
+                        className="activity-item activity-alert"
+                        href={alert.href}
+                        onClick={closePanel}
+                      >
+                        <span className="activity-alert-icon" aria-hidden>
+                          !
+                        </span>
+                        <span className="activity-content">
+                          <span className="activity-title">{alert.title}</span>
+                          <span className="activity-detail">{alert.detail}</span>
+                          <span className="activity-time">
+                            {relativeTime(alert.createdAt)}
+                            {alert.occurrences > 1 ? ` · ${alert.occurrences} fois` : ""}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {items.length > 0 ? (
+              <div className="activity-section">
+                <p className="activity-section-label">Activité récente</p>
+                <ul className="activity-list">
+                  {items.map((item) => (
+                    <li key={item.id} className={item.read ? undefined : "unread"}>
+                      <Link className="activity-item" href={item.href} onClick={closePanel}>
+                        <span className="activity-dot" aria-hidden />
+                        <span className="activity-content">
+                          <span className="activity-title">{item.title}</span>
+                          <span className="activity-detail">{item.detail}</span>
+                          <span className="activity-time">{relativeTime(item.createdAt)}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {hasMore && limit < MAX_LIMIT ? (
               <button type="button" className="activity-more" onClick={seeMore}>

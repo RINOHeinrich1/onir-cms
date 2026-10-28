@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
+import {
+  AiNotConfiguredError,
+  AiProviderUnavailableError,
+  BadGatewayError,
+} from "@/application/errors";
 import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { sendMessage } from "@/application/use-cases/chat/send-message";
+import { recordConversationIncident } from "@/application/use-cases/conversations/conversation-incidents";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
+import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -25,16 +32,18 @@ export const dynamic = "force-dynamic";
  * Rate limiting 20/5 min par IP+conversation (429 + Retry-After).
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  let conversationId: string | null = null;
   try {
     const body = await readJsonObject(request);
     if (body === null) {
       return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     }
 
-    const conversationId = stringField(body, "conversationId");
-    if (conversationId === undefined) {
+    const parsedConversationId = stringField(body, "conversationId");
+    if (parsedConversationId === undefined) {
       return NextResponse.json({ error: "Conversation manquante" }, { status: 400 });
     }
+    conversationId = parsedConversationId;
 
     const limit = chatMessageLimiter(`${clientIp(request)}:${conversationId}`);
     if (limit.limited) {
@@ -75,6 +84,22 @@ export async function POST(request: Request): Promise<NextResponse> {
       mode: result.mode,
     });
   } catch (error) {
+    if (
+      conversationId !== null &&
+      (error instanceof BadGatewayError ||
+        error instanceof AiNotConfiguredError ||
+        error instanceof AiProviderUnavailableError)
+    ) {
+      const pool = getPool();
+      await recordConversationIncident(
+        {
+          conversations: pgConversationRepository(pool),
+          links: pgChatLinkRepository(pool),
+          incidents: pgConversationIncidentRepository(pool),
+        },
+        { conversationId, kind: "ai_reply_failed", detail: error.message },
+      );
+    }
     return errorResponse(error);
   }
 }

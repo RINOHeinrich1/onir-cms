@@ -5,6 +5,7 @@ import {
 } from "@/application/use-cases/notifications/list-activity-notifications";
 import { pgActivityRepository } from "@/infrastructure/db/activity-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
+import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../_lib/errors";
 import { requireUser } from "../_lib/require-user";
@@ -26,6 +27,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       {
         activity: pgActivityRepository(pool),
         operatorScopes: pgChatOperatorScopeRepository(pool),
+        incidents: pgConversationIncidentRepository(pool),
       },
       actor,
       limit,

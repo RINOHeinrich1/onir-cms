@@ -1,8 +1,10 @@
 import { type Actor, actorCan, organizationOf } from "@/application/actor";
 import type { ActivityRepository } from "@/application/ports/activity-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
+import type { ConversationIncidentRepository } from "@/application/ports/conversation-incident-repository";
 import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import {
+  type ActivityAlert,
   type ActivityNotification,
   conversationNotification,
   leadNotification,
@@ -15,11 +17,14 @@ export const MAX_NOTIFICATION_LIMIT = 50;
 export type ListActivityNotificationsDependencies = {
   activity: ActivityRepository;
   operatorScopes: ChatOperatorScopeRepository;
+  incidents: ConversationIncidentRepository;
 };
 
 export type ActivityNotificationFeed = {
   items: ActivityNotification[];
+  alerts: ActivityAlert[];
   unreadCount: number;
+  alertCount: number;
   hasMore: boolean;
   /** Filigrane de lecture courant (ISO 8601). */
   lastReadAt: string;
@@ -42,13 +47,27 @@ export async function listActivityNotifications(
 ): Promise<ActivityNotificationFeed> {
   const now = new Date().toISOString();
   if (actor.organizationId === null) {
-    return { items: [], unreadCount: 0, hasMore: false, lastReadAt: now };
+    return {
+      items: [],
+      alerts: [],
+      unreadCount: 0,
+      alertCount: 0,
+      hasMore: false,
+      lastReadAt: now,
+    };
   }
 
   const canConversations = actorCan(actor, "conversations:list");
   const canLeads = actorCan(actor, "project:read");
   if (!canConversations && !canLeads) {
-    return { items: [], unreadCount: 0, hasMore: false, lastReadAt: now };
+    return {
+      items: [],
+      alerts: [],
+      unreadCount: 0,
+      alertCount: 0,
+      hasMore: false,
+      lastReadAt: now,
+    };
   }
 
   const organizationId = organizationOf(actor);
@@ -59,16 +78,20 @@ export async function listActivityNotifications(
   const pageLimit = normalizeLimit(limit);
   const fetchLimit = pageLimit + 1;
 
-  const [conversations, leads, unreadConversations, unreadLeads] = await Promise.all([
-    canConversations
-      ? deps.activity.listLatestConversations(organizationId, allowedLinkIds, fetchLimit)
-      : Promise.resolve([]),
-    canLeads ? deps.activity.listLatestLeads(organizationId, fetchLimit) : Promise.resolve([]),
-    canConversations
-      ? deps.activity.countConversationsSince(organizationId, lastReadAt, allowedLinkIds)
-      : Promise.resolve(0),
-    canLeads ? deps.activity.countLeadsSince(organizationId, lastReadAt) : Promise.resolve(0),
-  ]);
+  const canIntervene = actorCan(actor, "conversations:intervene");
+  const [conversations, leads, unreadConversations, unreadLeads, incidents, alertCount] =
+    await Promise.all([
+      canConversations
+        ? deps.activity.listLatestConversations(organizationId, allowedLinkIds, fetchLimit)
+        : Promise.resolve([]),
+      canLeads ? deps.activity.listLatestLeads(organizationId, fetchLimit) : Promise.resolve([]),
+      canConversations
+        ? deps.activity.countConversationsSince(organizationId, lastReadAt, allowedLinkIds)
+        : Promise.resolve(0),
+      canLeads ? deps.activity.countLeadsSince(organizationId, lastReadAt) : Promise.resolve(0),
+      canIntervene ? deps.incidents.listOpen(organizationId, allowedLinkIds) : Promise.resolve([]),
+      canIntervene ? deps.incidents.countOpen(organizationId, allowedLinkIds) : Promise.resolve(0),
+    ]);
 
   const ordered = sortActivityNotifications([
     ...conversations.map(conversationNotification),
@@ -79,9 +102,25 @@ export async function listActivityNotifications(
     read: item.createdAt <= lastReadAt,
   }));
 
+  const alerts: ActivityAlert[] = incidents.map((incident) => ({
+    id: incident.id,
+    kind: incident.kind,
+    title: incident.title,
+    detail: incident.detail,
+    href:
+      incident.kind === "fiche_generation_failed"
+        ? `/conversations/${incident.conversationId}?panel=info&alert=${incident.id}`
+        : `/conversations/${incident.conversationId}?alert=${incident.id}`,
+    createdAt: incident.lastSeenAt,
+    occurrences: incident.occurrences,
+    severity: incident.severity,
+  }));
+
   return {
     items,
+    alerts,
     unreadCount: unreadConversations + unreadLeads,
+    alertCount,
     hasMore: ordered.length > pageLimit,
     lastReadAt,
   };

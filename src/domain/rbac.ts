@@ -27,6 +27,7 @@ export const ACTIONS = [
   "conversations:read",
   "conversations:update",
   "conversations:intervene",
+  "conversations:update_fields",
   "conversations:generate_fiche",
   "confidentialites:list",
   "confidentialites:read",
@@ -127,6 +128,7 @@ const MARKETEUR: readonly Action[] = [
   "conversations:read",
   "conversations:update",
   "conversations:intervene",
+  "conversations:update_fields",
   "conversations:generate_fiche",
   "confidentialites:list",
   "confidentialites:read",
@@ -177,6 +179,7 @@ const OPERATEUR: readonly Action[] = [
   "conversations:list",
   "conversations:read",
   "conversations:intervene",
+  "conversations:update_fields",
   "conversations:generate_fiche",
 ];
 

@@ -137,3 +137,42 @@ export function validateTemplateData(
   }
   return { ok: true, value: normalized };
 }
+
+/**
+ * Validation d'une mise à jour partielle des champs collectés (ADR-0045).
+ * Les champs absents sont ignorés ; un champ fourni mais vide est normalisé
+ * comme une valeur vide (chaîne vide ou tableau vide), ce qui permet à un
+ * humain d'effacer explicitement une valeur.
+ */
+export function validatePartialTemplateData(
+  definition: TemplateDefinition,
+  data: unknown,
+): { ok: true; value: Record<string, unknown> } | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  const source =
+    data !== null && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  const normalized: Record<string, unknown> = {};
+
+  for (const field of definition.fields) {
+    if (!Object.hasOwn(source, field.name)) continue;
+    const value = source[field.name];
+    if (field.type === "file") continue;
+
+    if (isEmpty(field, value)) {
+      normalized[field.name] = field.type === "multi" ? [] : "";
+      continue;
+    }
+
+    const typeError = checkType(field, value);
+    if (typeError !== null) {
+      errors.push(typeError);
+      continue;
+    }
+    normalized[field.name] = normalize(field, value);
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value: normalized };
+}

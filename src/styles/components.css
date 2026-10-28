@@ -525,6 +525,41 @@
   list-style: none;
 }
 
+.activity-section + .activity-section {
+  border-top: 1px solid var(--border);
+}
+
+.activity-section-label {
+  margin: 0.35rem 0.9rem 0.2rem;
+  color: var(--fg-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.activity-alert {
+  background: color-mix(in srgb, #d92d20 7%, transparent);
+}
+
+.activity-alert:hover {
+  background: color-mix(in srgb, #d92d20 12%, transparent);
+}
+
+.activity-alert-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.15rem;
+  border-radius: 50%;
+  background: #d92d20;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .activity-list li.unread .activity-item {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }

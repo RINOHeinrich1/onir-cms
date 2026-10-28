@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
-import { validateTemplateData } from "@/domain/validate-template-data";
+import { validatePartialTemplateData, validateTemplateData } from "@/domain/validate-template-data";
 
 const DEFINITION: TemplateDefinition = {
   key: "fiche-projet",
@@ -87,5 +87,24 @@ describe("validateTemplateData — règles fiche-projet reproduites", () => {
     expect(validateTemplateData(DEFINITION, { ...BASE, site: "pas-un-lien" }).ok).toBe(false);
     expect(validateTemplateData(DEFINITION, { ...BASE, site: "https://exemple.mg" }).ok).toBe(true);
     expect(validateTemplateData(DEFINITION, { ...BASE, courriel: "pas-un-email" }).ok).toBe(false);
+  });
+});
+
+describe("validatePartialTemplateData — édition des champs collectés", () => {
+  it("ignore les champs absents et valide seulement les champs fournis", () => {
+    const result = validatePartialTemplateData(DEFINITION, { site: "https://exemple.mg" });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual({ site: "https://exemple.mg" });
+  });
+
+  it("normalise un effacement manuel", () => {
+    const result = validatePartialTemplateData(DEFINITION, { site: "", plateformes: [] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual({ site: "", plateformes: [] });
+  });
+
+  it("refuse une valeur invalide fournie", () => {
+    const result = validatePartialTemplateData(DEFINITION, { site: "pas-un-lien" });
+    expect(result.ok).toBe(false);
   });
 });
