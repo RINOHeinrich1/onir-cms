@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx --env-file-if-exists=.env src/infrastructure/db/migrate.cli.ts",
+    "db:reset-chatbot-test-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/infrastructure/db/seed-admin.cli.ts",
     "demo:seed": "node --env-file-if-exists=.env scripts/seed-demo-links.mjs",
     "test:integration": "vitest run --config vitest.integration.config.mts",

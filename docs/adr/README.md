@@ -49,3 +49,4 @@ ADR qui remplace la précédente.
 | [0046](./0046-incidents-conversation-alertes.md) | Incidents de conversation et alertes d’intervention | Accepté |
 | [0047](./0047-extraction-structuree-multi-fournisseurs.md) | Extraction structurée multi-fournisseurs — capacités, raisonnement et fallback | Accepté |
 | [0048](./0048-quotas-chatbot.md) | Quotas par chatbot — fiches à vie et budget de tokens | Accepté |
+| [0049](./0049-configuration-chatbot-fiches-collecte.md) | Configuration du chatbot, fiches de collecte et conversations 0..N fiches | Accepté |
