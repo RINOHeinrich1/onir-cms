@@ -102,7 +102,8 @@ export function ConversationLive({
         setNewBelow(false);
         if (!pageAnchoredRef.current) {
           pageAnchoredRef.current = true;
-          if (new URLSearchParams(window.location.search).get("alert") === null) {
+          const inInbox = element.closest(".inbox-thread") !== null;
+          if (!inInbox && new URLSearchParams(window.location.search).get("alert") === null) {
             const scrollPage = (): void => {
               window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
             };
