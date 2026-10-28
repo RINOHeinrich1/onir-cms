@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { AI_PROVIDER_PRESET_LABELS } from "@/domain/entities/ai-provider";
 import { AiDefaultSettings } from "./AiDefaultSettings";
+import { AiExtractionSettings } from "./AiExtractionSettings";
 import { AiModelsPanel } from "./AiModelsPanel";
 import { AiProviderForm } from "./AiProviderForm";
 import { ImportLegacyPanel } from "./ImportLegacyPanel";
@@ -104,6 +105,14 @@ export function AiProvidersPanel({
 
       <AiDefaultSettings
         key={`${settings?.defaultProviderId ?? "none"}:${settings?.defaultModel ?? "none"}`}
+        providers={activeProviders}
+        settings={settings}
+        canManage={canManage}
+        onSaved={() => void reload()}
+      />
+
+      <AiExtractionSettings
+        key={`${settings?.extractionProviderId ?? "none"}:${settings?.extractionModel ?? "none"}:${settings?.extractionFallbackProviderId ?? "none"}`}
         providers={activeProviders}
         settings={settings}
         canManage={canManage}

@@ -46,8 +46,8 @@ export default async function AiSettingsPage() {
           <span className="eyebrow">Paramètres</span>
           <h1 className="text-title">Fournisseurs IA</h1>
           <p className="muted-text">
-            Connectez des fournisseurs OpenAI-compatible, testez leurs modèles et choisissez le
-            défaut de l&apos;organisation.
+            Connectez des fournisseurs OpenAI-compatible, testez leurs modèles, choisissez le défaut
+            de l&apos;organisation et le moteur d&apos;extraction structurée.
           </p>
         </div>
         <a className="btn ghost small" href="/parametres/ia/test">

@@ -53,6 +53,7 @@ export function memoryAiModelRepository() {
         label: input.label ?? input.modelId,
         source: input.source,
         enabled: input.enabled ?? true,
+        reasoningMode: "auto",
         lastSeenAt: input.source === "catalog" ? timestamp : null,
         createdBy: input.createdBy,
         createdAt: timestamp,
@@ -83,6 +84,18 @@ export function memoryAiModelRepository() {
       const model = await this.findById(organizationId, providerId, id);
       if (model === null) return null;
       model.enabled = enabled;
+      model.updatedAt = now();
+      return model;
+    },
+    async setReasoningMode(organizationId, providerId, id, reasoningMode) {
+      const model = models.find(
+        (entry) =>
+          entry.organizationId === organizationId &&
+          entry.providerId === providerId &&
+          entry.id === id,
+      );
+      if (model === undefined) return null;
+      model.reasoningMode = reasoningMode;
       model.updatedAt = now();
       return model;
     },

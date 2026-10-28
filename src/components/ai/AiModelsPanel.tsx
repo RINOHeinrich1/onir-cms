@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import type { AiProviderModel } from "@/domain/entities/ai-model";
 import type { AiProviderDto } from "./types";
 
@@ -115,6 +116,23 @@ export function AiModelsPanel({
     });
   };
 
+  const setReasoning = (model: AiProviderModel, reasoningMode: string): void => {
+    void run(async () => {
+      const response = await fetch(`/api/ai/providers/${provider.id}/models/${model.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reasoningMode }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(json.error ?? "Réglage du raisonnement impossible");
+        return false;
+      }
+      setNotice("Réglage du raisonnement enregistré.");
+      return true;
+    });
+  };
+
   const makeDefault = (model: AiProviderModel): void => {
     void run(async () => {
       const response = await fetch(`/api/ai/providers/${provider.id}/default-model`, {
@@ -188,7 +206,8 @@ export function AiModelsPanel({
           </h2>
           <p className="hint">
             Un modèle désactivé ou supprimé n&apos;est plus proposé. Les modèles absents du
-            catalogue distant ne sont jamais supprimés automatiquement.
+            catalogue distant ne sont jamais supprimés automatiquement. Le mode Auto désactive le
+            raisonnement des modèles Gemma/Qwen Infomaniak pour éviter les boucles JSON.
           </p>
         </div>
         <button type="button" className="btn ghost small" onClick={onClose}>
@@ -249,6 +268,7 @@ export function AiModelsPanel({
               <th>Modèle</th>
               <th>Source</th>
               <th>État</th>
+              <th>Raisonnement</th>
               <th>Défaut</th>
               <th aria-label="Actions" />
             </tr>
@@ -270,6 +290,22 @@ export function AiModelsPanel({
                   <span className={`badge ${model.enabled ? "" : "orange"}`}>
                     {model.enabled ? "actif" : "désactivé"}
                   </span>
+                </td>
+                <td>
+                  {aiCapabilitiesFor(provider.preset, model.modelId).supportsReasoningToggle ? (
+                    <select
+                      value={model.reasoningMode ?? "auto"}
+                      disabled={pending || !model.enabled}
+                      onChange={(event) => setReasoning(model, event.target.value)}
+                      aria-label={`Raisonnement de ${model.label}`}
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="enabled">Activé</option>
+                      <option value="disabled">Désactivé</option>
+                    </select>
+                  ) : (
+                    <span className="hint">Non supporté</span>
+                  )}
                 </td>
                 <td>
                   {defaultModel === model.modelId ? (
@@ -328,7 +364,7 @@ export function AiModelsPanel({
             ))}
             {models.length === 0 ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   Aucun modèle. Synchronisez le catalogue ou ajoutez un identifiant manuellement.
                 </td>
               </tr>

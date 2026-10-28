@@ -49,4 +49,14 @@ export interface AiProviderRepository {
     organizationId: string,
     input: { providerId: string | null; model: string | null; updatedBy: string | null },
   ): Promise<OrganizationAiSettings | null>;
+  setOrganizationExtraction(
+    organizationId: string,
+    input: {
+      providerId: string | null;
+      model: string | null;
+      fallbackProviderId: string | null;
+      fallbackModel: string | null;
+      updatedBy: string | null;
+    },
+  ): Promise<OrganizationAiSettings | null>;
 }

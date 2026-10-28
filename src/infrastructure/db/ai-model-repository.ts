@@ -3,6 +3,7 @@ import type {
   AiProviderModelRepository,
   CreateAiProviderModelInput,
 } from "@/application/ports/ai-model-repository";
+import type { ReasoningMode } from "@/domain/ai-capabilities";
 import {
   type AiModelSource,
   type AiProviderModel,
@@ -17,6 +18,7 @@ type Row = {
   label: string;
   source: string;
   enabled: boolean;
+  reasoning_mode: string;
   last_seen_at: Date | null;
   created_by: string | null;
   created_at: Date;
@@ -24,7 +26,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "id, organization_id, provider_id, model_id, label, source, enabled, last_seen_at, created_by, created_at, updated_at";
+  "id, organization_id, provider_id, model_id, label, source, enabled, reasoning_mode, last_seen_at, created_by, created_at, updated_at";
 
 function toEntity(row: Row): AiProviderModel {
   const source: AiModelSource | null = parseAiModelSource(row.source);
@@ -37,6 +39,10 @@ function toEntity(row: Row): AiProviderModel {
     label: row.label,
     source,
     enabled: row.enabled,
+    reasoningMode:
+      row.reasoning_mode === "enabled" || row.reasoning_mode === "disabled"
+        ? row.reasoning_mode
+        : "auto",
     lastSeenAt: row.last_seen_at === null ? null : row.last_seen_at.toISOString(),
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
@@ -121,6 +127,17 @@ export function pgAiProviderModelRepository(pool: Pool): AiProviderModelReposito
           WHERE organization_id = $1 AND provider_id = $2 AND id = $3
           RETURNING ${COLUMNS}`,
         [organizationId, providerId, id, enabled],
+      );
+      return rows[0] ? toEntity(rows[0]) : null;
+    },
+
+    async setReasoningMode(organizationId, providerId, id, reasoningMode: ReasoningMode) {
+      const { rows } = await pool.query<Row>(
+        `UPDATE ai_provider_models
+            SET reasoning_mode = $4, updated_at = now()
+          WHERE organization_id = $1 AND provider_id = $2 AND id = $3
+          RETURNING ${COLUMNS}`,
+        [organizationId, providerId, id, reasoningMode],
       );
       return rows[0] ? toEntity(rows[0]) : null;
     },

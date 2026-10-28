@@ -1,3 +1,4 @@
+import type { ReasoningMode } from "@/domain/ai-capabilities";
 import type { AiModelSource, AiProviderModel } from "@/domain/entities/ai-model";
 
 export type CreateAiProviderModelInput = {
@@ -36,6 +37,12 @@ export interface AiProviderModelRepository {
     providerId: string,
     id: string,
     enabled: boolean,
+  ): Promise<AiProviderModel | null>;
+  setReasoningMode(
+    organizationId: string,
+    providerId: string,
+    id: string,
+    reasoningMode: ReasoningMode,
   ): Promise<AiProviderModel | null>;
   remove(organizationId: string, providerId: string, id: string): Promise<boolean>;
   countLinksUsing(organizationId: string, providerId: string, modelId: string): Promise<number>;

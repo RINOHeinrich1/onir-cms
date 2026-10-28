@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { draftTemplateDataFromConversation } from "@/application/use-cases/fiche/draft-fiche";
+import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
@@ -44,16 +44,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (template === null) {
       return NextResponse.json({ error: "Modèle introuvable" }, { status: 404 });
     }
-    const ai = await pgAiClientFactory(pool).forTarget({
+    const target = {
       organizationId,
       aiProviderId: link.aiProviderId,
       aiModel: link.aiModel,
-    });
-    const draft = await draftTemplateDataFromConversation(
-      {
-        conversations: pgConversationRepository(pool),
-        ai,
-      },
+    };
+    const factory = pgAiClientFactory(pool);
+    const clients = factory.forExtraction
+      ? await factory.forExtraction(target)
+      : [{ label: "lien", client: await factory.forTarget(target) }];
+    const draft = await draftTemplateDataWithClients(
+      { conversations: pgConversationRepository(pool) },
+      clients,
       organizationId,
       conversationId,
       template.definition,

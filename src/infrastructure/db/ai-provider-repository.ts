@@ -65,12 +65,20 @@ function settingsFromRow(row: {
   organization_id: string;
   default_provider_id: string | null;
   default_model: string | null;
+  extraction_provider_id: string | null;
+  extraction_model: string | null;
+  extraction_fallback_provider_id: string | null;
+  extraction_fallback_model: string | null;
   updated_at: Date;
 }): OrganizationAiSettings {
   return {
     organizationId: row.organization_id,
     defaultProviderId: row.default_provider_id,
     defaultModel: row.default_model,
+    extractionProviderId: row.extraction_provider_id,
+    extractionModel: row.extraction_model,
+    extractionFallbackProviderId: row.extraction_fallback_provider_id,
+    extractionFallbackModel: row.extraction_fallback_model,
     updatedAt: row.updated_at.toISOString(),
   };
 }
@@ -210,9 +218,15 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
         organization_id: string;
         default_provider_id: string | null;
         default_model: string | null;
+        extraction_provider_id: string | null;
+        extraction_model: string | null;
+        extraction_fallback_provider_id: string | null;
+        extraction_fallback_model: string | null;
         updated_at: Date;
       }>(
-        `SELECT organization_id, default_provider_id, default_model, updated_at
+        `SELECT organization_id, default_provider_id, default_model,
+                extraction_provider_id, extraction_model,
+                extraction_fallback_provider_id, extraction_fallback_model, updated_at
            FROM organization_ai_settings WHERE organization_id = $1`,
         [organizationId],
       );
@@ -221,15 +235,26 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
 
     async setOrganizationDefault(organizationId, input) {
       if (input.providerId === null || input.model === null) {
-        await pool.query("DELETE FROM organization_ai_settings WHERE organization_id = $1", [
-          organizationId,
-        ]);
-        return null;
+        const { rows: extraction } = await pool.query<{ has_extraction: boolean }>(
+          `SELECT (extraction_provider_id IS NOT NULL OR extraction_fallback_provider_id IS NOT NULL) AS has_extraction
+             FROM organization_ai_settings WHERE organization_id = $1`,
+          [organizationId],
+        );
+        if (extraction[0]?.has_extraction !== true) {
+          await pool.query("DELETE FROM organization_ai_settings WHERE organization_id = $1", [
+            organizationId,
+          ]);
+          return null;
+        }
       }
       const { rows } = await pool.query<{
         organization_id: string;
         default_provider_id: string | null;
         default_model: string | null;
+        extraction_provider_id: string | null;
+        extraction_model: string | null;
+        extraction_fallback_provider_id: string | null;
+        extraction_fallback_model: string | null;
         updated_at: Date;
       }>(
         `INSERT INTO organization_ai_settings
@@ -240,8 +265,48 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
            default_model = EXCLUDED.default_model,
            updated_by = EXCLUDED.updated_by,
            updated_at = now()
-         RETURNING organization_id, default_provider_id, default_model, updated_at`,
+         RETURNING organization_id, default_provider_id, default_model,
+                   extraction_provider_id, extraction_model,
+                   extraction_fallback_provider_id, extraction_fallback_model, updated_at`,
         [organizationId, input.providerId, input.model, input.updatedBy],
+      );
+      const row = rows[0];
+      return row ? settingsFromRow(row) : null;
+    },
+
+    async setOrganizationExtraction(organizationId, input) {
+      const { rows } = await pool.query<{
+        organization_id: string;
+        default_provider_id: string | null;
+        default_model: string | null;
+        extraction_provider_id: string | null;
+        extraction_model: string | null;
+        extraction_fallback_provider_id: string | null;
+        extraction_fallback_model: string | null;
+        updated_at: Date;
+      }>(
+        `INSERT INTO organization_ai_settings
+           (organization_id, extraction_provider_id, extraction_model,
+            extraction_fallback_provider_id, extraction_fallback_model, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (organization_id) DO UPDATE SET
+           extraction_provider_id = EXCLUDED.extraction_provider_id,
+           extraction_model = EXCLUDED.extraction_model,
+           extraction_fallback_provider_id = EXCLUDED.extraction_fallback_provider_id,
+           extraction_fallback_model = EXCLUDED.extraction_fallback_model,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()
+         RETURNING organization_id, default_provider_id, default_model,
+                   extraction_provider_id, extraction_model,
+                   extraction_fallback_provider_id, extraction_fallback_model, updated_at`,
+        [
+          organizationId,
+          input.providerId,
+          input.model,
+          input.fallbackProviderId,
+          input.fallbackModel,
+          input.updatedBy,
+        ],
       );
       const row = rows[0];
       return row ? settingsFromRow(row) : null;

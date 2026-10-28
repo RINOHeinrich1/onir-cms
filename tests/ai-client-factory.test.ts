@@ -90,3 +90,49 @@ describe("ai-client-factory — client construit", () => {
     expect(String(call?.[0])).toContain("/2/ai/42/openai/v1/chat/completions");
   });
 });
+
+describe("ai-client-factory — raisonnement", () => {
+  it("désactive le raisonnement Gemma lors d'une extraction", async () => {
+    const providers = memoryAiProviderRepository();
+    const models = memoryAiModelRepository();
+    const deps = { providers: providers.repo, models: models.repo };
+    const provider = await createAiProvider(deps, testActor, {
+      label: "Infomaniak",
+      preset: "infomaniak",
+      productId: "42",
+      apiKey: "secret-key-1234",
+    });
+    await models.repo.create("org-1", provider.id, {
+      modelId: "google/gemma-4-31B-it",
+      source: "manual",
+      createdBy: null,
+    });
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"nom":"Acme"}' } }],
+            usage: { completion_tokens: 4 },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+
+    const client = await createAiClientFactory(deps).forTarget({
+      organizationId: "org-1",
+      aiProviderId: provider.id,
+      aiModel: "google/gemma-4-31B-it",
+    });
+    await client.complete({
+      system: "extrait",
+      messages: [{ role: "user", content: "Acme" }],
+      reasoning: "disabled",
+      structured: true,
+    });
+    const call = fetchMock.mock.calls[0] as [string, RequestInit] | undefined;
+    const body = JSON.parse(String(call?.[1]?.body)) as Record<string, unknown>;
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
+});

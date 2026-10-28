@@ -9,6 +9,7 @@ import {
   getOrganizationAiSettings,
   importLegacyAiProvider,
   setOrganizationDefault,
+  setOrganizationExtraction,
 } from "@/application/use-cases/ai/manage-ai-settings";
 import { memoryAiModelRepository } from "./helpers/ai-model-memory";
 import { memoryAiProviderRepository, testActor } from "./helpers/ai-provider-memory";
@@ -50,6 +51,41 @@ describe("manage-ai-settings", () => {
     });
     await clearOrganizationDefault(d, testActor);
     expect(await getOrganizationAiSettings(d, testActor)).toBeNull();
+  });
+
+  it("enregistre un modèle d'extraction et son secours", async () => {
+    const providers = memoryAiProviderRepository();
+    const models = memoryAiModelRepository();
+    const d = { providers: providers.repo, models: models.repo };
+    const primary = await createAiProvider(d, testActor, {
+      label: "Infomaniak",
+      preset: "infomaniak",
+      productId: "42",
+      apiKey: "k".repeat(64),
+    });
+    const fallback = await createAiProvider(d, testActor, {
+      label: "OpenAI",
+      preset: "openai",
+      apiKey: "sk-123456",
+    });
+    await models.repo.create("org-1", primary.id, {
+      modelId: "google/gemma-4-31B-it",
+      source: "manual",
+      createdBy: null,
+    });
+    await models.repo.create("org-1", fallback.id, {
+      modelId: "gpt-4o-mini",
+      source: "manual",
+      createdBy: null,
+    });
+    const settings = await setOrganizationExtraction(d, testActor, {
+      providerId: primary.id,
+      model: "google/gemma-4-31B-it",
+      fallbackProviderId: fallback.id,
+      fallbackModel: "gpt-4o-mini",
+    });
+    expect(settings.extractionProviderId).toBe(primary.id);
+    expect(settings.extractionFallbackModel).toBe("gpt-4o-mini");
   });
 
   it("refuse un fournisseur archivé", async () => {

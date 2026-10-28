@@ -119,7 +119,9 @@ export function memoryAiProviderRepository() {
       return settings?.organizationId === organizationId ? settings : null;
     },
     async setOrganizationDefault(organizationId, input) {
-      if (input.providerId === null || input.model === null) {
+      const hasExtraction =
+        settings?.extractionProviderId != null || settings?.extractionFallbackProviderId != null;
+      if ((input.providerId === null || input.model === null) && !hasExtraction) {
         settings = null;
         return null;
       }
@@ -127,6 +129,23 @@ export function memoryAiProviderRepository() {
         organizationId,
         defaultProviderId: input.providerId,
         defaultModel: input.model,
+        extractionProviderId: settings?.extractionProviderId ?? null,
+        extractionModel: settings?.extractionModel ?? null,
+        extractionFallbackProviderId: settings?.extractionFallbackProviderId ?? null,
+        extractionFallbackModel: settings?.extractionFallbackModel ?? null,
+        updatedAt: new Date().toISOString(),
+      };
+      return settings;
+    },
+    async setOrganizationExtraction(organizationId, input) {
+      settings = {
+        organizationId,
+        defaultProviderId: settings?.defaultProviderId ?? null,
+        defaultModel: settings?.defaultModel ?? null,
+        extractionProviderId: input.providerId,
+        extractionModel: input.model,
+        extractionFallbackProviderId: input.fallbackProviderId,
+        extractionFallbackModel: input.fallbackModel,
         updatedAt: new Date().toISOString(),
       };
       return settings;

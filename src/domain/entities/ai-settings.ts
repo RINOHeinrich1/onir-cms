@@ -7,6 +7,11 @@ export type OrganizationAiSettings = {
   organizationId: string;
   defaultProviderId: string | null;
   defaultModel: string | null;
+  /** Modèle dédié de l'extraction structurée (ADR-0047). */
+  extractionProviderId?: string | null;
+  extractionModel?: string | null;
+  extractionFallbackProviderId?: string | null;
+  extractionFallbackModel?: string | null;
   updatedAt: string;
 };
 
