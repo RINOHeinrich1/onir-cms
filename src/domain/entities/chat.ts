@@ -374,6 +374,8 @@ export type Conversation = {
   lastVisitorMessageAt: string | null;
   /** Dernier message opérateur. */
   lastOperatorMessageAt: string | null;
+  /** Conversation archivée (masquée par défaut dans la liste). */
+  archivee?: boolean;
   createdAt: string;
 };
 

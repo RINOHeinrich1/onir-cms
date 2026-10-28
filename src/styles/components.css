@@ -4887,3 +4887,240 @@ a.subtab {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ---------- Workspace de conversations (inbox) ---------- */
+.conversations-workspace {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  height: calc(100dvh - 10rem);
+  min-height: 38rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-card);
+}
+
+.inbox-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 55%, var(--surface-raised));
+}
+
+.inbox-sidebar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.inbox-title {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.45rem;
+  font-style: normal;
+  line-height: 1.15;
+}
+
+.inbox-count {
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.inbox-tabs {
+  width: 100%;
+  margin-bottom: 0.7rem;
+}
+
+.inbox-filters {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.7rem;
+}
+
+.inbox-filters .list-search,
+.inbox-filters .tag-filter {
+  width: 100%;
+  margin: 0;
+}
+
+.inbox-filters .tag-filter-trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.inbox-list {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+.inbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out-expo),
+    border-color var(--dur-fast) var(--ease-out-expo);
+}
+
+.inbox-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+
+.inbox-row.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: var(--accent-soft);
+}
+
+.inbox-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--accent-soft-ink);
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.inbox-row-body {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.1rem;
+}
+
+.inbox-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.inbox-row-top strong {
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-top time {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.inbox-row-preview {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-status {
+  flex: none;
+}
+
+.inbox-thread {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  scrollbar-gutter: stable;
+}
+
+.inbox-thread-empty {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.inbox-thread-icon {
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-size: 2rem;
+}
+
+.inbox-thread-empty h2 {
+  margin: 0 0 0.25rem;
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-style: normal;
+}
+
+.inbox-thread-empty p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.inbox-skeleton {
+  height: 3.6rem;
+}
+
+.inbox-back {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .conversations-workspace {
+    grid-template-columns: 1fr;
+    height: calc(100dvh - 8rem);
+    min-height: 0;
+  }
+
+  .inbox-sidebar {
+    border-right: 0;
+  }
+
+  .inbox-thread {
+    display: none;
+  }
+
+  .conversations-workspace.is-detail .inbox-sidebar {
+    display: none;
+  }
+
+  .conversations-workspace.is-detail .inbox-thread {
+    display: block;
+  }
+
+  .inbox-back {
+    display: inline-flex;
+  }
+}
+
+.inbox-workspace-skeleton {
+  height: calc(100dvh - 10rem);
+  min-height: 38rem;
+}

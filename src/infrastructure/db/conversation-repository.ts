@@ -41,11 +41,12 @@ type ConversationRow = {
   human_takeover_at: Date | null;
   last_visitor_message_at: Date | null;
   last_operator_message_at: Date | null;
+  archivee: boolean;
   created_at: Date;
 };
 
 const CONVERSATION_COLUMNS =
-  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, channel, intervention_mode, assigned_user_id, last_operator_user_id, human_takeover_at, last_visitor_message_at, last_operator_message_at, created_at";
+  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, channel, intervention_mode, assigned_user_id, last_operator_user_id, human_takeover_at, last_visitor_message_at, last_operator_message_at, archivee, created_at";
 
 type MessageRow = {
   id: string;
@@ -112,6 +113,7 @@ function toConversation(
     lastOperatorMessageAt: row.last_operator_message_at
       ? row.last_operator_message_at.toISOString()
       : null,
+    archivee: row.archivee,
     createdAt: row.created_at.toISOString(),
   };
 }

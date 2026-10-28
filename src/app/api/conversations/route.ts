@@ -15,7 +15,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     const actor = await requireRole(request, "conversations:list");
     const params = new URL(request.url).searchParams;
     const filtre = parseConversationFilter(params.get("filtre"));
-    const lien = params.has("lien") ? (params.get("lien") ?? "") : null;
+    const liens = params.getAll("lien");
     const conversations = await listConversations(
       {
         conversations: pgConversationRepository(getPool()),
@@ -23,7 +23,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       },
       actor,
       filtre,
-      lien,
+      liens.length > 0 ? liens : null,
     );
     return NextResponse.json({ conversations });
   } catch (error) {

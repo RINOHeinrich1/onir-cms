@@ -4,6 +4,7 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { getConversation } from "@/application/use-cases/conversations/list-conversations";
+import { ConversationArchiveButton } from "@/components/conversations/ConversationArchiveButton";
 import { ConversationIncidentBanner } from "@/components/conversations/ConversationIncidentBanner";
 import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
@@ -22,13 +23,16 @@ export const metadata: Metadata = {
   title: "Conversation",
 };
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ filtre?: string; lien?: string | string[] }>;
+};
 
 /**
  * US-CONVERS-001/002 — détail d'une conversation : transcript en lecture,
  * contexte (visiteur, lien, prospect) et génération de la fiche (admin/marketeur).
  */
-export default async function ConversationDetailPage({ params }: PageProps) {
+export default async function ConversationDetailPage({ params, searchParams }: PageProps) {
   const context = await getSessionContext();
   if (context === null) {
     redirect("/login");
@@ -38,6 +42,17 @@ export default async function ConversationDetailPage({ params }: PageProps) {
   }
 
   const { id } = await params;
+  const query = await searchParams;
+  const backParams = new URLSearchParams();
+  if (query.filtre !== undefined) backParams.set("filtre", query.filtre);
+  const liens = Array.isArray(query.lien)
+    ? query.lien
+    : query.lien === undefined
+      ? []
+      : [query.lien];
+  for (const lien of liens) backParams.append("lien", lien);
+  const backQuery = backParams.toString();
+  const backHref = backQuery === "" ? "/conversations" : `/conversations?${backQuery}`;
   const pool = getPool();
 
   let detail: Awaited<ReturnType<typeof getConversation>>;
@@ -62,6 +77,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
 
   const { conversation, messages, link, prospect, fiches } = detail;
   const canIntervene = actorCan(context.actor, "conversations:intervene");
+  const canWrite = actorCan(context.actor, "conversations:update");
   const canGenerateFiche = actorCan(context.actor, "conversations:generate_fiche");
   const canViewLeads = actorCan(context.actor, "project:read");
 
@@ -82,8 +98,8 @@ export default async function ConversationDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div className="tools">
-          <a className="btn ghost small" href="/conversations">
-            ← Toutes
+          <a className="btn ghost small inbox-back" href={backHref}>
+            ← Conversations
           </a>
           {prospect !== null && actorCan(context.actor, "prospects:read") ? (
             <a className="btn ghost small" href={`/prospects?prospect=${prospect.id}`}>
@@ -91,6 +107,12 @@ export default async function ConversationDetailPage({ params }: PageProps) {
             </a>
           ) : null}
           <ConversationInfoPanel conversationId={conversation.id} />
+          {canWrite ? (
+            <ConversationArchiveButton
+              conversationId={conversation.id}
+              archivee={conversation.archivee === true}
+            />
+          ) : null}
           {canGenerateFiche ? (
             <GenerateFicheButton conversationId={conversation.id} canViewLeads={canViewLeads} />
           ) : null}
