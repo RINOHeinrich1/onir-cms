@@ -71,7 +71,7 @@ export function OrganizationsTable({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Organisation</th>
@@ -83,7 +83,7 @@ export function OrganizationsTable({
           <tbody>
             {organizations.map((organization) => (
               <tr key={organization.id}>
-                <td>
+                <td data-label="Organisation">
                   <strong>{organization.name}</strong>
                   {organization.id === activeOrganizationId ? (
                     <span className="badge" style={{ marginLeft: "0.5rem" }}>
@@ -91,13 +91,13 @@ export function OrganizationsTable({
                     </span>
                   ) : null}
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${organization.suspendedAt === null ? "" : "orange"}`}>
                     {organization.suspendedAt === null ? "active" : "suspendue"}
                   </span>
                 </td>
-                <td>{organization.members.length}</td>
-                <td>
+                <td data-label="Membres">{organization.members.length}</td>
+                <td data-label="Actions" className="cell-actions">
                   <div className="tools">
                     <button
                       type="button"

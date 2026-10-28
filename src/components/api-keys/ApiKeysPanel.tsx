@@ -127,7 +127,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
       </div>
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Nom</th>
@@ -151,11 +151,11 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
                 const status = apiKeyStatus(key);
                 return (
                   <tr key={key.id}>
-                    <td>{key.name}</td>
-                    <td>
+                    <td data-label="Nom">{key.name}</td>
+                    <td data-label="Préfixe">
                       <code>{key.keyPrefix}…</code>
                     </td>
-                    <td>
+                    <td data-label="Portée">
                       <span
                         className="badge muted"
                         title={key.scopes.map((scope) => API_KEY_SCOPE_LABELS[scope]).join(" · ")}
@@ -163,14 +163,16 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKey[] }) {
                         {key.scopes.length} scope{key.scopes.length > 1 ? "s" : ""}
                       </span>
                     </td>
-                    <td>{formatDate(key.lastUsedAt)}</td>
-                    <td>{key.expiresAt === null ? "Jamais" : formatDate(key.expiresAt)}</td>
-                    <td>
+                    <td data-label="Dernière utilisation">{formatDate(key.lastUsedAt)}</td>
+                    <td data-label="Expiration">
+                      {key.expiresAt === null ? "Jamais" : formatDate(key.expiresAt)}
+                    </td>
+                    <td data-label="Statut">
                       <span className={`badge ${status === "active" ? "" : "muted"}`}>
                         {statusLabel(key)}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Actions" className="cell-actions">
                       {status === "active" ? (
                         <button
                           type="button"

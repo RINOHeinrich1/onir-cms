@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { Modal } from "@/components/ui/Modal";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { FicheArchiveFilter } from "@/domain/entities/fiche";
 import { FicheForm } from "./FicheForm";
@@ -42,6 +43,16 @@ export function FichesTable({
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLocaleLowerCase("fr");
+  const visibleFiches = initialFiches.filter((fiche) => {
+    if (query === "") return true;
+    const prospect = fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
+    return [prospect?.nom ?? "", fiche.templateKey]
+      .join(" ")
+      .toLocaleLowerCase("fr")
+      .includes(query);
+  });
   const toast = useToast();
   useToastOnMessage(error);
 
@@ -99,7 +110,15 @@ export function FichesTable({
         })}
       </nav>
 
-      <LinkFilter basePath="/leads" value={lien} labels={linkLabels} preserve={{ filtre }} />
+      <div className="list-filters">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un prospect, un modèle…"
+          label="Rechercher une fiche"
+        />
+        <LinkFilter basePath="/leads" value={lien} labels={linkLabels} preserve={{ filtre }} />
+      </div>
 
       {canWrite ? (
         <div className="tools" style={{ marginBottom: "1.5rem" }}>
@@ -110,7 +129,7 @@ export function FichesTable({
       ) : null}
 
       <div className="lead-grid">
-        {initialFiches.map((fiche) => {
+        {visibleFiches.map((fiche) => {
           const prospect =
             fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
           return (
@@ -160,10 +179,14 @@ export function FichesTable({
             </article>
           );
         })}
-        {initialFiches.length === 0 ? (
+        {visibleFiches.length === 0 ? (
           <div className="empty-state">
-            <strong>Aucune fiche.</strong>
-            <span>Les fiches générées depuis une conversation apparaîtront ici.</span>
+            <strong>{initialFiches.length === 0 ? "Aucune fiche." : "Aucun résultat."}</strong>
+            <span>
+              {initialFiches.length === 0
+                ? "Les fiches générées depuis une conversation apparaîtront ici."
+                : "Modifiez la recherche ou les filtres."}
+            </span>
           </div>
         ) : null}
       </div>

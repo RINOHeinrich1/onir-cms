@@ -78,64 +78,68 @@ export function CategoriesManager({
           </button>
         </div>
       ) : null}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Libellé</th>
-            <th>Slug</th>
-            <th>Position</th>
-            <th>État</th>
-            <th>Créé par</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {visibleCategories.map((category) => (
-            <tr key={category.id}>
-              <td>{category.label}</td>
-              <td>
-                <code>{category.slug}</code>
-              </td>
-              <td>{category.position}</td>
-              <td>
-                <span className={`badge ${category.actif ? "" : "muted"}`}>
-                  {category.actif ? "active" : "inactive"}
-                </span>
-              </td>
-              <td>{category.createdByLabel ?? <span className="muted-text">—</span>}</td>
-              <td>
-                {canWrite ? (
-                  <div className="tools">
-                    <button
-                      className="btn ghost small"
-                      type="button"
-                      onClick={() => setEditing(category)}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      className="btn ghost small"
-                      type="button"
-                      onClick={() => void remove(category)}
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                ) : null}
-              </td>
-            </tr>
-          ))}
-          {visibleCategories.length === 0 ? (
+      <div className="table-scroll">
+        <table className="table table-cards">
+          <thead>
             <tr>
-              <td colSpan={6}>
-                {categories.length === 0
-                  ? "Aucune catégorie."
-                  : "Aucune catégorie pour ce créateur."}
-              </td>
+              <th>Libellé</th>
+              <th>Slug</th>
+              <th>Position</th>
+              <th>État</th>
+              <th>Créé par</th>
+              <th />
             </tr>
-          ) : null}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visibleCategories.map((category) => (
+              <tr key={category.id}>
+                <td data-label="Libellé">{category.label}</td>
+                <td data-label="Slug">
+                  <code>{category.slug}</code>
+                </td>
+                <td data-label="Position">{category.position}</td>
+                <td data-label="État">
+                  <span className={`badge ${category.actif ? "" : "muted"}`}>
+                    {category.actif ? "active" : "inactive"}
+                  </span>
+                </td>
+                <td data-label="Créé par">
+                  {category.createdByLabel ?? <span className="muted-text">—</span>}
+                </td>
+                <td data-label="Actions" className="cell-actions">
+                  {canWrite ? (
+                    <div className="tools">
+                      <button
+                        className="btn ghost small"
+                        type="button"
+                        onClick={() => setEditing(category)}
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        className="btn ghost small"
+                        type="button"
+                        onClick={() => void remove(category)}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+            {visibleCategories.length === 0 ? (
+              <tr>
+                <td colSpan={6}>
+                  {categories.length === 0
+                    ? "Aucune catégorie."
+                    : "Aucune catégorie pour ce créateur."}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
       <p className="hint">
         Les catégories servent à classer médias, connaissances et liens. Supprimer une catégorie
         retire ses associations, sans supprimer les contenus.

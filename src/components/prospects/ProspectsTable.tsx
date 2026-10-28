@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { OriginFilter } from "./OriginFilter";
 import { Prospect360Modal } from "./Prospect360Modal";
@@ -28,6 +29,8 @@ export function ProspectsTable({
   const [creating, setCreating] = useState(false);
   const [fiche360Id, setFiche360Id] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLocaleLowerCase("fr");
   useToastOnMessage(error);
 
   // Filtre « ?prospect=<id> » : n'affiche que le prospect ciblé.
@@ -35,7 +38,13 @@ export function ProspectsTable({
     filterProspectId === undefined || filterProspectId === null
       ? null
       : (initialProspects.find((prospect) => prospect.id === filterProspectId) ?? null);
-  const visible = focused === null ? initialProspects : [focused];
+  const visible = (focused === null ? initialProspects : [focused]).filter((prospect) => {
+    if (query === "") return true;
+    return [prospect.nom, prospect.prenom, prospect.email]
+      .join(" ")
+      .toLocaleLowerCase("fr")
+      .includes(query);
+  });
 
   const refresh = (): void => {
     router.refresh();
@@ -82,7 +91,15 @@ export function ProspectsTable({
         </p>
       ) : null}
 
-      <OriginFilter value={origine} linkLabels={linkLabels} />
+      <div className="list-filters">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un nom, un email…"
+          label="Rechercher un prospect"
+        />
+        <OriginFilter value={origine} linkLabels={linkLabels} />
+      </div>
 
       {canWrite ? (
         <div className="tools" style={{ marginBottom: "1.5rem" }}>
@@ -166,7 +183,9 @@ export function ProspectsTable({
             ))}
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={5}>Aucun prospect.</td>
+                <td colSpan={5}>
+                  {initialProspects.length === 0 ? "Aucun prospect." : "Aucun résultat."}
+                </td>
               </tr>
             ) : null}
           </tbody>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LinkFilter } from "@/components/ui/LinkFilter";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConversationFilter } from "@/domain/entities/chat";
 import type { ConversationRowDto } from "./types";
@@ -49,6 +50,21 @@ export function ConversationsTable({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLocaleLowerCase("fr");
+  const visibleConversations = initialConversations.filter((conversation) => {
+    if (query === "") return true;
+    return [
+      conversation.visitorNom,
+      conversation.visitorEmail,
+      conversation.linkLabel,
+      conversation.assignedOperatorName ?? "",
+      conversation.lastOperatorName ?? "",
+    ]
+      .join(" ")
+      .toLocaleLowerCase("fr")
+      .includes(query);
+  });
 
   // Le badge « À répondre » doit rester frais sans action manuelle.
   useEffect(() => {
@@ -137,15 +153,23 @@ export function ConversationsTable({
         })}
       </nav>
 
-      <LinkFilter
-        basePath="/conversations"
-        value={lien}
-        labels={linkLabels}
-        preserve={{ filtre }}
-      />
+      <div className="list-filters">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un visiteur, un email…"
+          label="Rechercher une conversation"
+        />
+        <LinkFilter
+          basePath="/conversations"
+          value={lien}
+          labels={linkLabels}
+          preserve={{ filtre }}
+        />
+      </div>
 
       <div className="conversation-list">
-        {initialConversations.map((conversation) => {
+        {visibleConversations.map((conversation) => {
           const reference = conversation.lastMessageAt ?? conversation.createdAt;
           const busy = pending === conversation.id;
           const displayName =
@@ -234,10 +258,16 @@ export function ConversationsTable({
             </article>
           );
         })}
-        {initialConversations.length === 0 ? (
+        {visibleConversations.length === 0 ? (
           <div className="empty-state">
-            <strong>Aucune conversation.</strong>
-            <span>Les nouvelles discussions apparaîtront ici.</span>
+            <strong>
+              {initialConversations.length === 0 ? "Aucune conversation." : "Aucun résultat."}
+            </strong>
+            <span>
+              {initialConversations.length === 0
+                ? "Les nouvelles discussions apparaîtront ici."
+                : "Modifiez la recherche ou les filtres."}
+            </span>
           </div>
         ) : null}
       </div>

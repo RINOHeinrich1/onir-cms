@@ -182,7 +182,7 @@ export function InvitationsManager({
       </form>
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Organisation</th>
@@ -204,16 +204,18 @@ export function InvitationsManager({
             ) : (
               invitations.map((invitation) => (
                 <tr key={invitation.id}>
-                  <td>{invitation.organizationName ?? "Organisation personnelle"}</td>
-                  <td>{ROLE_LABELS[invitation.role]}</td>
-                  <td>
+                  <td data-label="Organisation">
+                    {invitation.organizationName ?? "Organisation personnelle"}
+                  </td>
+                  <td data-label="Rôle">{ROLE_LABELS[invitation.role]}</td>
+                  <td data-label="Statut">
                     <span className={STATUS_CLASS[invitation.status]}>
                       {STATUS_LABELS[invitation.status]}
                     </span>
                   </td>
-                  <td>{formatDate(invitation.expiresAt)}</td>
-                  <td>{invitation.invitedByEmail}</td>
-                  <td>
+                  <td data-label="Expire le">{formatDate(invitation.expiresAt)}</td>
+                  <td data-label="Invité par">{invitation.invitedByEmail}</td>
+                  <td data-label="Lien">
                     {invitation.status === "pending" && invitation.url !== null ? (
                       <button
                         type="button"
@@ -226,7 +228,7 @@ export function InvitationsManager({
                       <span className="hint">—</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     {invitation.status === "pending" ? (
                       <button
                         type="button"
