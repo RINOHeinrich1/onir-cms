@@ -1,4 +1,5 @@
 import { AppError, BadGatewayError, NotFoundError, ValidationError } from "@/application/errors";
+import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -8,7 +9,9 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { buildAttachmentPromptContext } from "@/application/use-cases/attachments/attachment-prompt";
+import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import {
   buildContexteInterne,
   selectConnaissancesUtiles,
@@ -174,6 +177,7 @@ export async function sendMessage(
   if (link === null || !link.actif) {
     throw new NotFoundError("Lien invalide ou révoqué");
   }
+  assertChatLinkAvailable(link);
   const template = await deps.templates.findVersion(
     organizationId,
     link.templateKey,
@@ -229,6 +233,13 @@ export async function sendMessage(
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
   });
+  const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
+    await deps.links.recordAiUsage?.(organizationId, link.id, {
+      conversationId: conversation.id,
+      operation,
+      ...usage,
+    });
+  };
 
   let prospect = null;
   if (link.type === "specifique" && link.prospectId !== null) {
@@ -259,11 +270,17 @@ ${attachmentContext}`;
   let connaissances: ConnaissanceRef[] = [];
   if (link.sources.connaissances) {
     const actives = await deps.connaissances.listActives(organizationId, link.templateKey);
-    const utiles = await selectConnaissancesUtiles({ ai }, actives, content);
+    const utiles = await selectConnaissancesUtiles(
+      { ai: withAiUsage(ai, recordUsage, "knowledge_selection") },
+      actives,
+      content,
+    );
     if (utiles.length > 0) {
       systemEnrichi = `${systemEnrichi}\n\n${buildContexteInterne(utiles)}`;
       connaissances = utiles.map(toConnaissanceRef);
     }
+    const refreshed = await deps.links.findById(organizationId, link.id);
+    if (refreshed !== null) assertChatLinkAvailable(refreshed);
   }
 
   // Les contextes runtime (pièces jointes, RAG) sont en français : on rappelle
@@ -274,7 +291,7 @@ ${attachmentContext}`;
 
   let answer: string;
   try {
-    answer = await ai.complete({
+    answer = await withAiUsage(ai, recordUsage, "chat_reply").complete({
       system: systemEnrichi,
       messages: history.map((message) => ({
         role: toAiRole(message.role),

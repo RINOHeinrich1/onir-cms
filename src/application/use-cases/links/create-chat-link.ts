@@ -18,7 +18,11 @@ import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
+import {
+  parseExpiresAt,
+  parseLabel,
+  parseLinkQuotas,
+} from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
   type ChatLinkType,
@@ -95,6 +99,7 @@ export async function createChatLinkForOrganization(
 
   const sources = parseLinkSources(source.sources);
   const userStateEnabled = parseUserStateEnabled(source.userStateEnabled);
+  const quotas = parseLinkQuotas(source);
   const dataBindings = parseDataBindingSelections(source.dataBindings);
   const activeConfidentialites = await deps.confidentialites.listActives(organizationId);
   const channels = await resolveLinkChannels({
@@ -147,6 +152,7 @@ export async function createChatLinkForOrganization(
     channels,
     aiProviderId: aiAssignment?.aiProviderId ?? null,
     aiModel: aiAssignment?.aiModel ?? null,
+    ...quotas,
   });
   const link: ChatLink = { ...created, channels };
   if (dataBindings !== null) {

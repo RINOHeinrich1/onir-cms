@@ -7,6 +7,13 @@ export type AiMessage = {
   content: string;
 };
 
+/** Usage facturé par le fournisseur (tokens d'entrée et de sortie). */
+export type AiTokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
 export type AiCompletionInput = {
   system: string;
   messages: AiMessage[];
@@ -16,6 +23,8 @@ export type AiCompletionInput = {
   reasoning?: "auto" | "enabled" | "disabled";
   /** Demande une sortie JSON structurée quand le fournisseur le supporte. */
   structured?: boolean;
+  /** Remonte l'usage réel (ADR-0048) ; jamais exposé au client. */
+  onUsage?: (usage: AiTokenUsage) => void | Promise<void>;
 };
 
 export interface AiClient {

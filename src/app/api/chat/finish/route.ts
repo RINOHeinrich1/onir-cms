@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ChatbotBlockedError } from "@/application/errors";
 import { finishConversation } from "@/application/use-cases/chat/finish-conversation";
 import { recordConversationIncident } from "@/application/use-cases/conversations/conversation-incidents";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
@@ -55,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ ...finished, pdfBase64: pdf.toString("base64") }, { status: 201 });
   } catch (error) {
-    if (conversationId !== null) {
+    if (conversationId !== null && !(error instanceof ChatbotBlockedError)) {
       const pool = getPool();
       await recordConversationIncident(
         {

@@ -7,9 +7,10 @@ import {
   loadTemplateSpec,
   toContractMessages,
 } from "@/application/use-cases/visual-templates/link-template";
+import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { WidgetReadySignal } from "@/components/templates/WidgetReadySignal";
-import { channelsForLink } from "@/domain/entities/chat";
+import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
@@ -53,6 +54,10 @@ export default async function WidgetPage({ params }: PageProps) {
   }
   if (link.expiresAt !== null && new Date(link.expiresAt).getTime() <= Date.now()) {
     notFound();
+  }
+  const blockReason = chatLinkBlockReason(link);
+  if (blockReason !== null) {
+    return <ChatbotUnavailable reason={blockReason} surface="widget" />;
   }
 
   const deps: LinkTemplateDependencies = {

@@ -15,7 +15,11 @@ import {
   applyDataBindings,
   parseDataBindingSelections,
 } from "@/application/use-cases/links/link-data-bindings";
-import { parseExpiresAt, parseLabel } from "@/application/use-cases/links/link-fields";
+import {
+  parseExpiresAt,
+  parseLabel,
+  parseLinkQuotas,
+} from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
   channelsForLink,
@@ -142,7 +146,11 @@ export async function updateChatLinkForOrganization(
     !("channels" in source) &&
     !("dataBindings" in source) &&
     !("aiProviderId" in source) &&
-    !("aiModel" in source)
+    !("aiModel" in source) &&
+    !("maxFiches" in source) &&
+    !("maxTokens" in source) &&
+    !("tokenResetMode" in source) &&
+    !("tokenResetDays" in source)
   ) {
     throw new NotFoundError("Rien à modifier");
   }
@@ -152,6 +160,7 @@ export async function updateChatLinkForOrganization(
     throw new NotFoundError("Lien introuvable");
   }
   const existingChannels = channelsForLink(existing);
+  const quotas = parseLinkQuotas(source, existing.quotas);
   const dataBindings = parseDataBindingSelections(source.dataBindings);
   const aiAssignment = parseAiAssignmentInput(source, {
     aiProviderId: existing.aiProviderId,
@@ -183,6 +192,7 @@ export async function updateChatLinkForOrganization(
     channels,
     aiProviderId: aiAssignment === null ? existing.aiProviderId : aiAssignment.aiProviderId,
     aiModel: aiAssignment === null ? existing.aiModel : aiAssignment.aiModel,
+    ...quotas,
   });
   if (updatedRaw === null) {
     throw new NotFoundError("Lien introuvable");
@@ -214,6 +224,23 @@ export async function updateChatLinkForOrganization(
  * en cascade). Remplace la révocation : l'utilisateur attend une vraie
  * suppression, pas une ligne conservée.
  */
+/** Réinitialise le budget tokens courant d'un chatbot (ADR-0048). */
+export async function resetChatLinkTokens(
+  deps: ChatLinksDependencies,
+  actor: Actor,
+  id: string,
+): Promise<ChatLink> {
+  assertCan(actor, "links:update");
+  if (deps.links.resetTokenUsage === undefined) {
+    throw new NotFoundError("Lien introuvable");
+  }
+  const link = await deps.links.resetTokenUsage(organizationOf(actor), id);
+  if (link === null) {
+    throw new NotFoundError("Lien introuvable");
+  }
+  return link;
+}
+
 export async function deleteChatLink(
   deps: ChatLinksDependencies,
   actor: Actor,

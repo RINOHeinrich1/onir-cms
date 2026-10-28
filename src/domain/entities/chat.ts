@@ -167,6 +167,76 @@ export function parseLinkSources(value: unknown): ChatLinkSources {
   };
 }
 
+/** Mode de réinitialisation du budget de tokens d'un chatbot (ADR-0048). */
+export const TOKEN_RESET_MODES = ["manual", "duration"] as const;
+export type TokenResetMode = (typeof TOKEN_RESET_MODES)[number];
+
+export function isTokenResetMode(value: unknown): value is TokenResetMode {
+  return typeof value === "string" && (TOKEN_RESET_MODES as readonly string[]).includes(value);
+}
+
+export function parseTokenResetMode(value: unknown): TokenResetMode {
+  return isTokenResetMode(value) ? value : "manual";
+}
+
+/** Quotas et consommation courante d'un chatbot. */
+export type ChatLinkQuota = {
+  maxFiches: number | null;
+  fichesGenerated: number;
+  maxTokens: number | null;
+  tokensUsed: number;
+  tokenResetMode: TokenResetMode;
+  tokenResetDays: number | null;
+  tokenPeriodStartedAt: string;
+};
+
+export const DEFAULT_CHAT_LINK_QUOTA: ChatLinkQuota = {
+  maxFiches: null,
+  fichesGenerated: 0,
+  maxTokens: null,
+  tokensUsed: 0,
+  tokenResetMode: "manual",
+  tokenResetDays: null,
+  tokenPeriodStartedAt: new Date(0).toISOString(),
+};
+
+export type ChatLinkBlockReason = "fiches" | "tokens";
+
+/** Quotas d'un lien, avec des valeurs neutres pour les fixtures/legacy. */
+export function chatLinkQuota(link: Pick<ChatLink, "quotas">): ChatLinkQuota {
+  return link.quotas ?? DEFAULT_CHAT_LINK_QUOTA;
+}
+
+/** Tokens effectivement consommés : une période échue est considérée à zéro. */
+export function effectiveTokensUsed(quota: ChatLinkQuota, now: Date = new Date()): number {
+  if (quota.tokenResetMode !== "duration" || quota.tokenResetDays === null) {
+    return quota.tokensUsed;
+  }
+  const started = new Date(quota.tokenPeriodStartedAt).getTime();
+  if (Number.isNaN(started)) return quota.tokensUsed;
+  const expires = started + quota.tokenResetDays * 24 * 60 * 60 * 1000;
+  return expires <= now.getTime() ? 0 : quota.tokensUsed;
+}
+
+/**
+ * Raison du blocage public du chatbot (ADR-0048).
+ * Les fiches sont prioritaires : une limite à vie atteinte ne se rouvre pas
+ * au reset des tokens.
+ */
+export function chatLinkBlockReason(
+  link: Pick<ChatLink, "quotas">,
+  now: Date = new Date(),
+): ChatLinkBlockReason | null {
+  const quota = chatLinkQuota(link);
+  if (quota.maxFiches !== null && quota.fichesGenerated >= quota.maxFiches) {
+    return "fiches";
+  }
+  if (quota.maxTokens !== null && effectiveTokensUsed(quota, now) >= quota.maxTokens) {
+    return "tokens";
+  }
+  return null;
+}
+
 export type ChatLink = {
   id: string;
   organizationId: string;
@@ -207,6 +277,8 @@ export type ChatLink = {
   visitCount: number;
   /** Dernière ouverture publique comptée ; null si aucune visite. */
   lastVisitAt: string | null;
+  /** Quotas et consommation IA ; optionnel pour les fixtures/legacy. */
+  quotas?: ChatLinkQuota;
   createdAt: string;
 };
 

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { NotFoundError } from "@/application/errors";
+import type { AiTokenUsage } from "@/application/ports/ai-client";
+import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { detectUserState } from "@/application/use-cases/chat/detect-user-state";
+import { type ChatLink, chatLinkQuota, effectiveTokensUsed } from "@/domain/entities/chat";
 import { NEUTRAL_DETECTION } from "@/domain/entities/user-state";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
@@ -48,6 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const pool = getPool();
     let history: { role: string; content: string }[] = [];
+    let usageLink: ChatLink | null = null;
     let target: {
       organizationId: string;
       aiProviderId: string | null;
@@ -68,6 +72,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (link === null || !link.actif) {
         throw new NotFoundError("Lien invalide ou révoqué");
       }
+      const quota = chatLinkQuota(link);
+      if (quota.maxTokens !== null && effectiveTokensUsed(quota) >= quota.maxTokens) {
+        return NextResponse.json({ ...NEUTRAL_DETECTION });
+      }
+      usageLink = link;
       target = {
         organizationId,
         aiProviderId: link.aiProviderId,
@@ -84,7 +93,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (ai === null) {
       return NextResponse.json({ ...NEUTRAL_DETECTION });
     }
-    const detection = await detectUserState({ ai }, { content, history });
+    const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
+      if (usageLink === null || conversationId === undefined) return;
+      await pgChatLinkRepository(pool).recordAiUsage?.(usageLink.organizationId, usageLink.id, {
+        conversationId,
+        operation,
+        ...usage,
+      });
+    };
+    const trackedAi = usageLink === null ? ai : withAiUsage(ai, recordUsage, "state_detection");
+    const detection = await detectUserState({ ai: trackedAi }, { content, history });
     return NextResponse.json(detection);
   } catch (error) {
     return errorResponse(error);

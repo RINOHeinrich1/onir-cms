@@ -3913,3 +3913,24 @@ a.subtab {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Quotas de chatbot (ADR-0048). */
+.quota-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.quota-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}

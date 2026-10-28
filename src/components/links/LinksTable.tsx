@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
-import { channelsForLink } from "@/domain/entities/chat";
+import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
 import { LinkEditModal } from "./LinkEditModal";
 import { LinkForm } from "./LinkForm";
 import type {
@@ -237,6 +237,7 @@ export function LinksTable({
             <tr>
               <th>Type</th>
               <th>Statut</th>
+              <th>Quotas</th>
               <th>Visites</th>
               <th>Label</th>
               <th>Modèle</th>
@@ -253,6 +254,8 @@ export function LinksTable({
               const expired =
                 link.expiresAt !== null &&
                 new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
+              const blockReason = chatLinkBlockReason(link);
+              const quota = chatLinkQuota(link);
               const channels = channelsForLink(link);
               const pageEnabled = channels.page.enabled;
               const widgetEnabled = channels.widget.enabled;
@@ -276,11 +279,34 @@ export function LinksTable({
                         <WarningIcon />
                         expiré
                       </span>
+                    ) : blockReason !== null ? (
+                      <span
+                        className="badge warn"
+                        title={
+                          blockReason === "fiches"
+                            ? "Limite de fiches atteinte"
+                            : "Budget de tokens atteint"
+                        }
+                      >
+                        bloqué
+                      </span>
                     ) : (
                       <span className={`badge ${link.actif ? "" : "muted"}`}>
                         {link.actif ? "actif" : "révoqué"}
                       </span>
                     )}
+                  </td>
+                  <td>
+                    <div className="quota-cell">
+                      <span>
+                        Fiches : {quota.fichesGenerated}
+                        {quota.maxFiches === null ? " / ∞" : ` / ${quota.maxFiches}`}
+                      </span>
+                      <span>
+                        Tokens : {quota.tokensUsed}
+                        {quota.maxTokens === null ? " / ∞" : ` / ${quota.maxTokens}`}
+                      </span>
+                    </div>
                   </td>
                   <td
                     title={
@@ -391,7 +417,7 @@ export function LinksTable({
             })}
             {visibleLinks.length === 0 ? (
               <tr>
-                <td colSpan={11}>
+                <td colSpan={12}>
                   {links.length === 0 ? "Aucun lien." : "Aucun lien pour ce créateur."}
                 </td>
               </tr>

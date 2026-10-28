@@ -130,6 +130,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             reasoning: input.reasoning ?? resolved.reasoningMode,
             structured: input.structured === true,
             capabilities: resolved.capabilities,
+            onUsage: input.onUsage,
           });
         },
       };

@@ -3,6 +3,7 @@ import type { ChatLinkRepository } from "@/application/ports/chat-link-repositor
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import {
   type ChatLinkSurface,
   type Conversation,
@@ -124,6 +125,7 @@ export async function startConversation(
   if (organization === null || organization.suspendedAt !== null) {
     throw new NotFoundError("Lien invalide ou révoqué");
   }
+  assertChatLinkAvailable(link);
 
   if (link.type === "standard" && channel.identificationMode === "anonymous") {
     const consentementRequis = channel.confidentialiteId !== null;

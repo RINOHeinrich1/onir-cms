@@ -69,6 +69,13 @@ export class AiProviderUnavailableError extends AppError {
   }
 }
 
+/** Le chatbot a atteint un quota (fiches ou tokens) — ADR-0048. */
+export class ChatbotBlockedError extends AppError {
+  constructor(message = "Ce chatbot est temporairement indisponible") {
+    super(message, 423);
+  }
+}
+
 /** Aucune organisation active : état « aucune organisation » (ADR-0025 §4). */
 export class NoOrganizationError extends AppError {
   constructor(message = "Aucune organisation active") {

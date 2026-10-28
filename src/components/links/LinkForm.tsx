@@ -13,6 +13,7 @@ import {
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
+import { EMPTY_LINK_QUOTA_DRAFT, type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
 import { SourcesField } from "./SourcesField";
 import type {
   AiProviderOption,
@@ -80,6 +81,7 @@ export function LinkForm({
   const [expiresAt, setExpiresAt] = useState("");
   const [sources, setSources] = useState<ChatLinkSources>({ ...DEFAULT_LINK_SOURCES });
   const [userStateEnabled, setUserStateEnabled] = useState(false);
+  const [quota, setQuota] = useState<LinkQuotaDraft>(EMPTY_LINK_QUOTA_DRAFT);
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
   const [ai, setAi] = useState<LinkAiValue>({ aiProviderId: null, aiModel: null });
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
@@ -109,6 +111,13 @@ export function LinkForm({
           ...(expiresAt === "" ? {} : { expiresAt }),
           sources,
           userStateEnabled,
+          maxFiches: quota.maxFiches === "" ? null : Number(quota.maxFiches),
+          maxTokens: quota.maxTokens === "" ? null : Number(quota.maxTokens),
+          tokenResetMode: quota.tokenResetMode,
+          tokenResetDays:
+            quota.tokenResetMode === "duration" && quota.tokenResetDays !== ""
+              ? Number(quota.tokenResetDays)
+              : null,
           aiProviderId: ai.aiProviderId,
           aiModel: ai.aiModel,
           channels: {
@@ -219,6 +228,8 @@ export function LinkForm({
       </label>
 
       <SourcesField value={sources} onChange={setSources} />
+
+      <LinkQuotaFields value={quota} onChange={setQuota} />
 
       <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
 
