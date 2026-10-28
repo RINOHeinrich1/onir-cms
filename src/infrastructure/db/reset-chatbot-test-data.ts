@@ -15,6 +15,9 @@ const TABLES = [
   "conversations",
   "prospects",
   "chat_links",
+  "base_connaissances",
+  "medias",
+  "webhook_endpoints",
   "chat_templates",
 ] as const;
 
