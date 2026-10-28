@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { OrganizationSwitcher } from "@/components/organizations/OrganizationSwitcher";
 import type { Role } from "@/domain/entities/user";
 import { type Action, can } from "@/domain/rbac";
@@ -139,6 +140,7 @@ export function DashboardHeader({
             organizations={organizations}
             activeOrganizationId={activeOrganizationId}
           />
+          <NotificationBell organizationId={activeOrganizationId} />
           <ThemeToggle />
           <AccountMenu
             email={email}
