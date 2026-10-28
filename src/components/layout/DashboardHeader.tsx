@@ -209,8 +209,16 @@ const ITEMS: readonly NavItem[] = [
   },
 ];
 
-/** Liens toujours visibles dans la barre ; le reste vit dans la boîte à outils. */
+/** Liens toujours visibles dans la barre. */
 const PRIMARY_HREFS = new Set(["/dashboard", "/prospects", "/liens", "/conversations", "/leads"]);
+
+/** Entrées déplacées dans le menu du profil (pas de doublon dans la boîte à outils). */
+const ACCOUNT_HREFS = new Set([
+  "/organisations",
+  "/utilisateurs",
+  "/invitations",
+  "/parametres/api-keys",
+]);
 
 /**
  * En-tête : navigation primaire fixe + boîte à outils responsive (tous les
@@ -234,6 +242,7 @@ export function DashboardHeader({
   // Le super-admin voit tout (son rôle effectif peut être `admin` sans ces actions).
   const links = ITEMS.filter((item) => isSuperAdmin || can(role, item.action));
   const primaryLinks = links.filter((item) => PRIMARY_HREFS.has(item.href));
+  const toolboxLinks = links.filter((item) => !ACCOUNT_HREFS.has(item.href));
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -320,10 +329,10 @@ export function DashboardHeader({
                 >
                   <div className="dash-toolbox-head">
                     <strong>Outils</strong>
-                    <span className="muted-text">{links.length} options</span>
+                    <span className="muted-text">{toolboxLinks.length} options</span>
                   </div>
                   <nav className="dash-toolbox-grid" aria-label="Navigation">
-                    {links.map((item) => (
+                    {toolboxLinks.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
