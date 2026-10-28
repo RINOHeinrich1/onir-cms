@@ -442,7 +442,14 @@ export function LinksTable({
       />
 
       {creating ? (
-        <Modal title="Nouveau chatbot" onClose={() => setCreating(false)}>
+        <Modal
+          title="Nouveau chatbot"
+          wide
+          dialogClassName="chatbot-wizard-modal"
+          bodyClassName="chatbot-wizard-host"
+          overlayClassName="chatbot-wizard-overlay"
+          onClose={() => setCreating(false)}
+        >
           <LinkForm
             prospects={prospects}
             confidentialites={confidentialites}

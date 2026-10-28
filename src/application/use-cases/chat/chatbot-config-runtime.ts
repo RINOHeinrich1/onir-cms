@@ -1,9 +1,11 @@
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ChatLink } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
-import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
-import { resolveGuardrailInstruction } from "@/domain/template-defaults";
-import type { TemplateSimpleSettings } from "@/domain/template-settings";
+import {
+  buildGuidedChatbotPrompt,
+  type ChatbotConfig,
+  type FicheDefinition,
+} from "@/domain/entities/chatbot-config";
 
 /** Configuration courante d'un lien (ADR-0049), lue via `current_config_id`. */
 export async function resolveCurrentConfig(
@@ -56,19 +58,6 @@ export function normalizeFicheData(
   return output;
 }
 
-function simpleGuidance(simple: TemplateSimpleSettings): string {
-  const lines: string[] = [];
-  if (simple.role.trim() !== "") lines.push(`Rôle : ${simple.role.trim()}`);
-  if (simple.objective.trim() !== "") lines.push(`Objectif : ${simple.objective.trim()}`);
-  if (simple.tone.trim() !== "") lines.push(`Ton : ${simple.tone.trim()}`);
-  for (const guardrail of simple.guardrails) {
-    const instruction = resolveGuardrailInstruction(guardrail).trim();
-    if (instruction !== "") lines.push(`Garde-fou : ${instruction}`);
-  }
-  if (simple.extraInstructions.trim() !== "") lines.push(simple.extraInstructions.trim());
-  return lines.join("\n");
-}
-
 function fieldsGuide(fiche: FicheDefinition): string {
   const fields = fiche.fields.filter((field) => field.type !== "file");
   if (fields.length === 0) return "";
@@ -84,17 +73,20 @@ function fieldsGuide(fiche: FicheDefinition): string {
 }
 
 /**
- * Construit la définition runtime d'une fiche de collecte : prompt système de
- * la configuration + réglages simples + instructions de la fiche. Réutilise
- * ainsi le moteur de champs/rendu existant sans modèle de raisonnement.
+ * Construit la définition runtime d'une fiche de collecte. En mode guidé, le
+ * prompt est généré depuis les réglages simples ; en mode expert, le prompt
+ * saisi est la seule source. Les instructions de la fiche sont toujours
+ * ajoutées séparément. Réutilise le moteur de champs/rendu existant.
  */
 export function ficheToDefinition(
   config: ChatbotConfig,
   fiche: FicheDefinition,
 ): TemplateDefinition {
-  const blocks: string[] = [config.systemPrompt.trim()];
-  const guidance = simpleGuidance(config.simple);
-  if (guidance !== "") blocks.push(guidance);
+  const basePrompt =
+    config.behaviorMode === "expert"
+      ? config.systemPrompt.trim()
+      : buildGuidedChatbotPrompt(config.simple);
+  const blocks: string[] = basePrompt === "" ? [] : [basePrompt];
 
   const ficheBlock: string[] = [`Fiche de collecte : ${fiche.label} (${fiche.key}).`];
   if (fiche.description.trim() !== "") ficheBlock.push(fiche.description.trim());

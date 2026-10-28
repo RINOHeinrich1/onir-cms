@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TEMPLATE_FIELD_TYPES, type TemplateField } from "@/domain/entities/chat-template";
+import { TEMPLATE_FIELD_TYPES } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
+import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import type { FicheCollecteOption } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
   draftFromFicheCollecte,
@@ -11,18 +13,6 @@ import {
   type FicheDraft,
   type FicheFieldDraft,
 } from "./chatbot-config-draft";
-
-type FicheCollecteOption = {
-  id: string;
-  key: string;
-  label: string;
-  description: string;
-  intent: string;
-  instructions: string;
-  renderTemplate: string;
-  version: number;
-  fields: TemplateField[];
-};
 
 type Props = {
   value: ChatbotConfigDraft;
@@ -60,7 +50,6 @@ function updateField(
  * 1..N fiches de collecte (ADR-0049). Aucune notion de modèle de raisonnement.
  */
 export function ChatbotConfigFields({ value, onChange }: Props) {
-  const simple = value.simple;
   const [fichesCollecte, setFichesCollecte] = useState<FicheCollecteOption[]>([]);
   const [selectedFiche, setSelectedFiche] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -128,103 +117,7 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
         </span>
         {importError !== null ? <p className="alert error">{importError}</p> : null}
       </fieldset>
-      <label className="field">
-        Prompt système *
-        <textarea
-          rows={5}
-          value={value.systemPrompt}
-          onChange={(event) => onChange({ ...value, systemPrompt: event.target.value })}
-          placeholder="Rôle, ton, règles de conversation, informations à ne pas divulguer…"
-        />
-      </label>
-
-      <fieldset className="fieldset">
-        <legend>Réglages simples</legend>
-        <label className="field">
-          Rôle
-          <input
-            type="text"
-            value={simple.role}
-            maxLength={200}
-            onChange={(event) =>
-              onChange({ ...value, simple: { ...simple, role: event.target.value } })
-            }
-          />
-        </label>
-        <label className="field">
-          Objectif
-          <textarea
-            rows={2}
-            value={simple.objective}
-            maxLength={2000}
-            onChange={(event) =>
-              onChange({ ...value, simple: { ...simple, objective: event.target.value } })
-            }
-          />
-        </label>
-        <label className="field">
-          Langue
-          <select
-            value={simple.languageMode}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                simple: {
-                  ...simple,
-                  languageMode: event.target.value === "fixed" ? "fixed" : "auto",
-                },
-              })
-            }
-          >
-            <option value="auto">Automatique (langue du visiteur)</option>
-            <option value="fixed">Langue fixe</option>
-          </select>
-        </label>
-        {simple.languageMode === "fixed" ? (
-          <label className="field">
-            Langue imposée
-            <input
-              type="text"
-              value={simple.languageValue}
-              placeholder="Ex. français"
-              onChange={(event) =>
-                onChange({ ...value, simple: { ...simple, languageValue: event.target.value } })
-              }
-            />
-          </label>
-        ) : null}
-        <label className="field">
-          Ton
-          <input
-            type="text"
-            value={simple.tone}
-            maxLength={200}
-            onChange={(event) =>
-              onChange({ ...value, simple: { ...simple, tone: event.target.value } })
-            }
-          />
-        </label>
-        <label className="field">
-          Garde-fous (un par ligne)
-          <textarea
-            rows={3}
-            value={simple.guardrails}
-            onChange={(event) =>
-              onChange({ ...value, simple: { ...simple, guardrails: event.target.value } })
-            }
-          />
-        </label>
-        <label className="field">
-          Instructions complémentaires
-          <textarea
-            rows={2}
-            value={simple.extraInstructions}
-            onChange={(event) =>
-              onChange({ ...value, simple: { ...simple, extraInstructions: event.target.value } })
-            }
-          />
-        </label>
-      </fieldset>
+      <ChatbotBehaviorFields value={value} onChange={onChange} />
 
       <div className="chatbot-fiches-head">
         <strong>Fiches de collecte ({value.fiches.length})</strong>

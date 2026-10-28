@@ -1,4 +1,5 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import { buildDefaultSystemPrompt } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 import {
   normalizeTemplateSimpleSettings,
@@ -7,6 +8,31 @@ import {
 
 export const MAX_FICHES_PER_CHATBOT = 8;
 const FICHE_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Source du comportement du chatbot : réglages guidés ou prompt expert. */
+export type ChatbotBehaviorMode = "guided" | "expert";
+
+export const DEFAULT_CHATBOT_BEHAVIOR_MODE: ChatbotBehaviorMode = "guided";
+
+/**
+ * Prompt effectif du mode guidé : généré uniquement depuis les réglages simples.
+ * Les instructions de la fiche de collecte restent ajoutées séparément au runtime.
+ */
+export function buildGuidedChatbotPrompt(simple: TemplateSimpleSettings): string {
+  return buildDefaultSystemPrompt({
+    role: simple.role,
+    objective: simple.objective,
+    language: simple.language,
+    tone: simple.tone,
+    guardrails: simple.guardrails,
+    extraInstructions: simple.extraInstructions,
+    fields: [],
+  });
+}
+
+export function isChatbotBehaviorMode(value: unknown): value is ChatbotBehaviorMode {
+  return value === "guided" || value === "expert";
+}
 
 export type FicheDefinition = {
   key: string;
@@ -22,6 +48,9 @@ export type FicheDefinition = {
 };
 
 export type ChatbotConfigInput = {
+  /** Mode guidé (réglages simples) ou expert (prompt libre). */
+  behaviorMode: ChatbotBehaviorMode;
+  /** Prompt effectif stocké en snapshot (généré en guidé, saisi en expert). */
   systemPrompt: string;
   simple: TemplateSimpleSettings;
   fiches: FicheDefinition[];
@@ -99,10 +128,22 @@ export function parseChatbotConfig(
   }
   const raw = input as Record<string, unknown>;
   const errors: string[] = [];
-  const systemPrompt = text(raw.systemPrompt);
-  if (systemPrompt === "") errors.push("Prompt système obligatoire");
+  const rawBehaviorMode = raw.behaviorMode;
+  if (rawBehaviorMode !== undefined && !isChatbotBehaviorMode(rawBehaviorMode)) {
+    errors.push("Mode de comportement invalide (guided ou expert)");
+  }
+  const behaviorMode: ChatbotBehaviorMode = isChatbotBehaviorMode(rawBehaviorMode)
+    ? rawBehaviorMode
+    : DEFAULT_CHATBOT_BEHAVIOR_MODE;
   const simple = normalizeTemplateSimpleSettings(raw.simple);
   if (simple === null) errors.push("Réglages simples invalides");
+  let systemPrompt = text(raw.systemPrompt);
+  if (behaviorMode === "guided") {
+    // En guidé, les réglages simples sont la seule source : le prompt est un snapshot.
+    if (simple !== null) systemPrompt = buildGuidedChatbotPrompt(simple);
+  } else if (systemPrompt === "") {
+    errors.push("Prompt système obligatoire en mode expert");
+  }
   if (!Array.isArray(raw.fiches) || raw.fiches.length === 0) {
     errors.push("Au moins une fiche de collecte est obligatoire");
   }
@@ -130,6 +171,7 @@ export function parseChatbotConfig(
   return {
     ok: true,
     value: {
+      behaviorMode,
       systemPrompt,
       simple: simple as TemplateSimpleSettings,
       fiches,

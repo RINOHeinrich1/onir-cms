@@ -1,6 +1,12 @@
 import type { Pool } from "pg";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
-import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
+import {
+  type ChatbotBehaviorMode,
+  type ChatbotConfig,
+  DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  type FicheDefinition,
+  isChatbotBehaviorMode,
+} from "@/domain/entities/chatbot-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
 
@@ -19,6 +25,14 @@ type Row = {
 const COLUMNS =
   "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, created_by, created_at";
 
+function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const mode = (value as Record<string, unknown>).behaviorMode;
+    if (isChatbotBehaviorMode(mode)) return mode;
+  }
+  return DEFAULT_CHATBOT_BEHAVIOR_MODE;
+}
+
 function toConfig(row: Row): ChatbotConfig {
   const simple = normalizeTemplateSimpleSettings(row.simple_settings);
   if (simple === null) {
@@ -32,6 +46,7 @@ function toConfig(row: Row): ChatbotConfig {
     organizationId: row.organization_id,
     chatLinkId: row.chat_link_id,
     version: row.version,
+    behaviorMode: behaviorModeFromSettings(row.simple_settings),
     systemPrompt: row.system_prompt,
     simple: simple satisfies TemplateSimpleSettings,
     fiches: row.fiche_definitions as FicheDefinition[],
@@ -97,7 +112,7 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             chatLinkId,
             version,
             input.systemPrompt,
-            JSON.stringify(input.simple),
+            JSON.stringify({ ...input.simple, behaviorMode: input.behaviorMode }),
             JSON.stringify(input.fiches),
             createdBy,
           ],

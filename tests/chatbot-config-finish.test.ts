@@ -28,6 +28,7 @@ const CONFIG: ChatbotConfig = {
   organizationId: "org-1",
   chatLinkId: "link-1",
   version: 1,
+  behaviorMode: "guided",
   systemPrompt: "Tu collectes les demandes.",
   simple: {
     role: "assistant",

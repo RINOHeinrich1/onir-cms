@@ -4,6 +4,13 @@ import type {
   TemplateFieldType,
   TemplateRequiredIf,
 } from "@/domain/entities/chat-template";
+import {
+  buildGuidedChatbotPrompt,
+  type ChatbotBehaviorMode,
+  DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  isChatbotBehaviorMode,
+} from "@/domain/entities/chatbot-config";
+import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
 export type FicheFieldDraft = {
   /** Identifiant d'édition stable (jamais envoyé au serveur). */
@@ -36,6 +43,7 @@ export type FicheDraft = {
 };
 
 export type ChatbotConfigDraft = {
+  behaviorMode: ChatbotBehaviorMode;
   systemPrompt: string;
   simple: {
     role: string;
@@ -43,7 +51,7 @@ export type ChatbotConfigDraft = {
     languageMode: "auto" | "fixed";
     languageValue: string;
     tone: string;
-    guardrails: string;
+    guardrails: string[];
     extraInstructions: string;
   };
   fiches: FicheDraft[];
@@ -93,19 +101,44 @@ export function emptyFiche(index: number): FicheDraft {
 
 export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
   return {
-    systemPrompt:
-      "Tu es un assistant commercial. Tu accueilles le visiteur, réponds à ses questions et collectes les informations utiles pour préparer une fiche.",
+    behaviorMode: DEFAULT_CHATBOT_BEHAVIOR_MODE,
+    systemPrompt: "",
     simple: {
       role: "assistant commercial",
       objective: "Comprendre le besoin du visiteur et collecter les informations nécessaires.",
       languageMode: "auto",
       languageValue: "",
       tone: "professionnel et chaleureux",
-      guardrails: "",
+      guardrails: [],
       extraInstructions: "",
     },
-    fiches: [emptyFiche(0)],
+    fiches: [],
   };
+}
+
+/** Réglages du brouillon → bloc simple du domaine. */
+export function draftSimpleSettings(simple: ChatbotConfigDraft["simple"]): TemplateSimpleSettings {
+  return {
+    role: simple.role.trim(),
+    objective: simple.objective.trim(),
+    language:
+      simple.languageMode === "fixed"
+        ? { mode: "fixed", value: simple.languageValue.trim() }
+        : { mode: "auto" },
+    tone: simple.tone.trim(),
+    guardrails: simple.guardrails.map((entry) => entry.trim()).filter((entry) => entry !== ""),
+    extraInstructions: simple.extraInstructions.trim(),
+  };
+}
+
+/** Prompt généré en mode guidé (aperçu en lecture seule). */
+export function guidedPromptFromDraft(draft: ChatbotConfigDraft): string {
+  return buildGuidedChatbotPrompt(draftSimpleSettings(draft.simple));
+}
+
+/** Prompt effectif envoyé au serveur : généré en guidé, saisi en expert. */
+export function effectiveSystemPrompt(draft: ChatbotConfigDraft): string {
+  return draft.behaviorMode === "expert" ? draft.systemPrompt.trim() : guidedPromptFromDraft(draft);
 }
 
 function fieldPayload(field: FicheFieldDraft): Record<string, unknown> {
@@ -128,21 +161,9 @@ function fieldPayload(field: FicheFieldDraft): Record<string, unknown> {
 /** Convertit le brouillon d'éditeur en payload API `config`. */
 export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, unknown> {
   return {
-    systemPrompt: draft.systemPrompt.trim(),
-    simple: {
-      role: draft.simple.role.trim(),
-      objective: draft.simple.objective.trim(),
-      language:
-        draft.simple.languageMode === "fixed"
-          ? { mode: "fixed", value: draft.simple.languageValue.trim() }
-          : { mode: "auto" },
-      tone: draft.simple.tone.trim(),
-      guardrails: draft.simple.guardrails
-        .split("\n")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry !== ""),
-      extraInstructions: draft.simple.extraInstructions.trim(),
-    },
+    behaviorMode: draft.behaviorMode,
+    systemPrompt: effectiveSystemPrompt(draft),
+    simple: draftSimpleSettings(draft.simple),
     fiches: draft.fiches.map((fiche) => ({
       key: fiche.key.trim(),
       label: fiche.label.trim(),
@@ -236,9 +257,20 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     };
   });
   const guardrails = Array.isArray(simpleRaw.guardrails)
-    ? simpleRaw.guardrails.filter((entry): entry is string => typeof entry === "string").join("\n")
-    : "";
+    ? simpleRaw.guardrails
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== "")
+    : typeof simpleRaw.guardrails === "string"
+      ? simpleRaw.guardrails
+          .split("\n")
+          .map((entry) => entry.trim())
+          .filter((entry) => entry !== "")
+      : [];
   return {
+    behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
+      ? raw.behaviorMode
+      : DEFAULT_CHATBOT_BEHAVIOR_MODE,
     systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
     simple: {
       role: typeof simpleRaw.role === "string" ? simpleRaw.role : "",
