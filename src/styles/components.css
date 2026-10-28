@@ -5657,3 +5657,64 @@ a.subtab {
 .inbox-row-wrap:has(.inbox-row-menu[open]) .inbox-row {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
+
+/* L'inbox occupe toute la surface sous le header. */
+.dash:has(.conversations-workspace) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.dashboard-main:has(.conversations-workspace) {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dashboard-main:has(.conversations-workspace) .conversations-workspace {
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .dashboard-main:has(.conversations-workspace) .conversations-workspace {
+    height: 100%;
+  }
+}
+
+.filter-panel {
+  max-height: min(38rem, calc(100dvh - 5rem));
+}
+
+.floating-action-panel {
+  position: fixed;
+  z-index: 100;
+}
+
+.inbox-row-menu-trigger {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  z-index: 2;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 0.9rem;
+  transform: translateY(-50%);
+}
+
+.inbox-row-menu-panel {
+  min-width: 12rem;
+}
+
+.filter-panel {
+  max-height: min(38rem, 62dvh);
+}

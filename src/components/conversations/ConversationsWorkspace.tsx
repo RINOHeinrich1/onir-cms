@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, useSelectedLayoutSegment } from "next/navig
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -356,32 +357,31 @@ export function ConversationsWorkspace({
                       )}
                     </span>
                   </Link>
-                  <details className="action-menu inbox-row-menu">
-                    <summary className="icon-btn" aria-label="Actions de la conversation">
-                      ⋮
-                    </summary>
-                    <div className="action-menu-panel">
-                      <Link href={detailHref(conversation.id)}>Ouvrir</Link>
-                      {canGenerateFiche ? (
-                        <button
-                          type="button"
-                          disabled={pendingId === conversation.id}
-                          onClick={() => void generate(conversation)}
-                        >
-                          Générer la fiche
-                        </button>
-                      ) : null}
-                      {canWrite ? (
-                        <button
-                          type="button"
-                          disabled={pendingId === conversation.id}
-                          onClick={() => void archive(conversation)}
-                        >
-                          {conversation.archivee ? "Désarchiver" : "Archiver"}
-                        </button>
-                      ) : null}
-                    </div>
-                  </details>
+                  <FloatingMenu
+                    label="Actions de la conversation"
+                    triggerClassName="icon-btn inbox-row-menu-trigger"
+                    panelClassName="inbox-row-menu-panel"
+                  >
+                    <Link href={detailHref(conversation.id)}>Ouvrir</Link>
+                    {canGenerateFiche ? (
+                      <button
+                        type="button"
+                        disabled={pendingId === conversation.id}
+                        onClick={() => void generate(conversation)}
+                      >
+                        Générer la fiche
+                      </button>
+                    ) : null}
+                    {canWrite ? (
+                      <button
+                        type="button"
+                        disabled={pendingId === conversation.id}
+                        onClick={() => void archive(conversation)}
+                      >
+                        {conversation.archivee ? "Désarchiver" : "Archiver"}
+                      </button>
+                    ) : null}
+                  </FloatingMenu>
                 </div>
               );
             })

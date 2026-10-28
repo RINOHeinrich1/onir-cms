@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { OPEN_CONVERSATION_INFO_EVENT } from "./ConversationInfoPanel";
 
@@ -29,11 +30,7 @@ export function ConversationActionsMenu({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
 
-  const close = (element: HTMLElement): void => {
-    element.closest("details")?.removeAttribute("open");
-  };
-
-  const archive = async (element: HTMLElement): Promise<void> => {
+  const archive = async (): Promise<void> => {
     const next = !archivee;
     if (
       next &&
@@ -56,7 +53,6 @@ export function ConversationActionsMenu({
         setError(json.error ?? "Action impossible");
         return;
       }
-      close(element);
       toast.success(next ? "Conversation archivée." : "Conversation désarchivée.");
       router.refresh();
     } catch {
@@ -66,7 +62,7 @@ export function ConversationActionsMenu({
     }
   };
 
-  const generate = async (element: HTMLElement): Promise<void> => {
+  const generate = async (): Promise<void> => {
     if (
       !(await confirmDialog(
         "Générer la fiche de prospection à partir de cette conversation ? L'IA analyse l'échange.",
@@ -85,7 +81,6 @@ export function ConversationActionsMenu({
         setError(json.error ?? "Génération impossible");
         return;
       }
-      close(element);
       toast.success("Fiche de prospection générée.");
       if (canViewLeads) {
         router.push(`/leads/${json.fiche.id}`);
@@ -100,40 +95,27 @@ export function ConversationActionsMenu({
   };
 
   return (
-    <details className="action-menu conversation-actions-menu">
-      <summary className="icon-btn" aria-label="Actions de la conversation">
-        ⋮
-      </summary>
-      <div className="action-menu-panel">
-        {prospectHref !== null ? <Link href={prospectHref}>Voir le prospect</Link> : null}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.currentTarget.closest("details")?.removeAttribute("open");
-            window.dispatchEvent(new Event(OPEN_CONVERSATION_INFO_EVENT));
-          }}
-        >
-          Informations
+    <FloatingMenu
+      label="Actions de la conversation"
+      panelClassName="conversation-actions-menu-panel"
+    >
+      {prospectHref !== null ? <Link href={prospectHref}>Voir le prospect</Link> : null}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_CONVERSATION_INFO_EVENT))}
+      >
+        Informations
+      </button>
+      {canWrite ? (
+        <button type="button" disabled={pending !== null} onClick={() => void archive()}>
+          {archivee ? "Désarchiver" : "Archiver"}
         </button>
-        {canWrite ? (
-          <button
-            type="button"
-            disabled={pending !== null}
-            onClick={(event) => void archive(event.currentTarget)}
-          >
-            {archivee ? "Désarchiver" : "Archiver"}
-          </button>
-        ) : null}
-        {canGenerateFiche ? (
-          <button
-            type="button"
-            disabled={pending !== null}
-            onClick={(event) => void generate(event.currentTarget)}
-          >
-            {pending === "generate" ? "Génération…" : "Générer la fiche"}
-          </button>
-        ) : null}
-      </div>
-    </details>
+      ) : null}
+      {canGenerateFiche ? (
+        <button type="button" disabled={pending !== null} onClick={() => void generate()}>
+          {pending === "generate" ? "Génération…" : "Générer la fiche"}
+        </button>
+      ) : null}
+    </FloatingMenu>
   );
 }
