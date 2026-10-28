@@ -16,6 +16,12 @@ Each package keeps its own licence. Common dependencies include Next.js, React, 
 `pdfkit`, `react-markdown`, `remark-gfm`, `fflate`, `officeparser`, `cheerio`, `undici`,
 `swagger-ui-dist`, Three.js, and their transitive dependencies.
 
+## Fonts
+
+- **Montserrat** — SIL Open Font License 1.1
+  (`src/app/fonts/montserrat-latin-normal.woff2`,
+  `src/app/fonts/montserrat-latin-italic.woff2`)
+
 ## API documentation
 
 - **Swagger UI** (`swagger-ui-dist`) — Apache License 2.0
