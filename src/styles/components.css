@@ -5188,3 +5188,11 @@ a.subtab {
     display: none;
   }
 }
+
+.inbox-list {
+  flex: 1 1 auto;
+}
+
+.inbox-sidebar > .pagination {
+  flex: none;
+}
