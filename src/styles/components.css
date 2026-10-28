@@ -4690,3 +4690,62 @@ a.subtab {
     display: none;
   }
 }
+
+/* ---------- Bas de la vue globale ---------- */
+.dashboard-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 0.8fr);
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.dashboard-actions h2,
+.dashboard-context h2 {
+  margin: 0 0 0.85rem;
+  color: var(--fg);
+  font-size: 1rem;
+  font-style: normal;
+}
+
+.dashboard-action-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dashboard-action-list a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.dashboard-action-list a:hover {
+  background: var(--accent-soft);
+}
+
+.dashboard-action-list strong {
+  font-size: 0.86rem;
+}
+
+.dashboard-action-list span {
+  color: var(--fg-muted);
+  font-size: 0.76rem;
+}
+
+.dashboard-context p {
+  margin: 0 0 0.45rem;
+  font-size: 0.83rem;
+}
+
+.dashboard-context .btn {
+  margin-top: 0.7rem;
+}
+
+@media (max-width: 850px) {
+  .dashboard-lower {
+    grid-template-columns: 1fr;
+  }
+}
