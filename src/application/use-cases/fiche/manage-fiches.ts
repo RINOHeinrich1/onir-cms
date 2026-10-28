@@ -78,7 +78,7 @@ export async function listFiches(
   deps: ReadFichesDependencies,
   actor: Actor,
   filter: FicheArchiveFilter = "actives",
-  linkLabel: string | null = null,
+  linkLabel: string | string[] | null = null,
 ): Promise<Fiche[]> {
   assertCan(actor, "project:read");
   return deps.fiches.list(organizationOf(actor), filter, linkLabel);

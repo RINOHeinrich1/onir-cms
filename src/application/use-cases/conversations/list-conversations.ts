@@ -46,7 +46,7 @@ export async function listConversations(
   deps: ListConversationsDependencies,
   actor: Actor,
   filter: ConversationFilter = "en_cours",
-  linkLabel: string | null = null,
+  linkLabel: string | string[] | null = null,
 ): Promise<ConversationSummary[]> {
   assertCan(actor, "conversations:list");
   const allowedLinkIds = await resolveConversationLinkScope(deps.operatorScopes, actor);

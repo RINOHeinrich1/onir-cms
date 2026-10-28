@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { LinkFilter } from "@/components/ui/LinkFilter";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { usePagination } from "@/components/ui/use-pagination";
 import type { ConversationFilter } from "@/domain/entities/chat";
 import type { ConversationRowDto } from "./types";
 
@@ -44,7 +46,7 @@ export function ConversationsTable({
   filtre: ConversationFilter;
   nowIso: string;
   canWrite: boolean;
-  lien: string | null;
+  lien: readonly string[];
   linkLabels: string[];
 }) {
   const router = useRouter();
@@ -66,6 +68,11 @@ export function ConversationsTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
+  const pagination = usePagination(
+    visibleConversations,
+    10,
+    `${search}|${filtre}|${lien.join(",")}`,
+  );
 
   // Le badge « À répondre » doit rester frais sans action manuelle.
   useEffect(() => {
@@ -140,7 +147,7 @@ export function ConversationsTable({
       <nav className="subtabs" aria-label="Filtrer les conversations">
         {FILTRES.map((item) => {
           const params = new URLSearchParams({ filtre: item.key });
-          if (lien !== null) params.set("lien", lien);
+          for (const label of lien) params.append("lien", label);
           return (
             <a
               key={item.key}
@@ -170,7 +177,7 @@ export function ConversationsTable({
       </div>
 
       <div className="conversation-list">
-        {visibleConversations.map((conversation) => {
+        {pagination.pageItems.map((conversation) => {
           const reference = conversation.lastMessageAt ?? conversation.createdAt;
           const busy = pending === conversation.id;
           const displayName =
@@ -272,6 +279,13 @@ export function ConversationsTable({
           </div>
         ) : null}
       </div>
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+        label="Pagination des conversations"
+      />
     </div>
   );
 }

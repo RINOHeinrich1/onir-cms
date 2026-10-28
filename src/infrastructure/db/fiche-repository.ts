@@ -136,7 +136,7 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
     async list(
       organizationId,
       filter: FicheArchiveFilter,
-      linkLabel: string | null = null,
+      linkLabel: string | string[] | null = null,
     ): Promise<Fiche[]> {
       const clause =
         filter === "actives"
@@ -144,17 +144,22 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
           : filter === "archivees"
             ? "AND archivee = true"
             : "";
+      const linkLabels =
+        linkLabel === null ? null : Array.isArray(linkLabel) ? linkLabel : [linkLabel];
       const linkClause =
-        linkLabel === null
+        linkLabels === null || linkLabels.length === 0
           ? ""
           : `AND EXISTS (
                SELECT 1 FROM conversations cv
                JOIN chat_links l ON l.id = cv.link_id AND l.organization_id = cv.organization_id
                WHERE cv.id = fiches.conversation_id
                  AND cv.organization_id = fiches.organization_id
-                 AND l.label = $2
+                 AND l.label = ANY($2::text[])
              )`;
-      const params = linkLabel === null ? [organizationId] : [organizationId, linkLabel];
+      const params =
+        linkLabels === null || linkLabels.length === 0
+          ? [organizationId]
+          : [organizationId, linkLabels];
       const { rows } = await pool.query<FicheRow>(
         `SELECT ${COLUMNS} FROM fiches
           WHERE organization_id = $1 ${clause} ${linkClause}

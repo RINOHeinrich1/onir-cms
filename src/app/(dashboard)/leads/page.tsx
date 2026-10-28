@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 type LeadsTab = "fiches" | "fichiers";
 type PageProps = {
-  searchParams: Promise<{ onglet?: string; filtre?: string; lien?: string }>;
+  searchParams: Promise<{ onglet?: string; filtre?: string; lien?: string | string[] }>;
 };
 
 function parseTab(value: string | undefined): LeadsTab {
@@ -39,13 +39,22 @@ export default async function LeadsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const tab = parseTab(params.onglet);
   const filtre = parseFicheArchiveFilter(params.filtre);
-  const lien = typeof params.lien === "string" ? params.lien : null;
+  const liens = Array.isArray(params.lien)
+    ? params.lien
+    : typeof params.lien === "string"
+      ? [params.lien]
+      : [];
   const pool = getPool();
 
   const fichesData =
     tab === "fiches"
       ? await Promise.all([
-          listFiches({ fiches: pgFicheRepository(pool) }, context.actor, filtre, lien),
+          listFiches(
+            { fiches: pgFicheRepository(pool) },
+            context.actor,
+            filtre,
+            liens.length > 0 ? liens : null,
+          ),
           listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
           listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
         ])
@@ -99,7 +108,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
               prospectsById={prospectsById}
               canWrite={actorCan(context.actor, "project:write")}
               filtre={filtre}
-              lien={lien}
+              lien={liens}
               linkLabels={distinctChatLinkLabels(links)}
             />
           );

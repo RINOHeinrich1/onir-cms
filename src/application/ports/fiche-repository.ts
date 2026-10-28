@@ -18,7 +18,7 @@ export interface FicheRepository {
   list(
     organizationId: string,
     filter: FicheArchiveFilter,
-    linkLabel?: string | null,
+    linkLabel?: string | string[] | null,
   ): Promise<Fiche[]>;
   create(organizationId: string, input: CreateFicheInput): Promise<Fiche>;
   /** Archive / désarchive une fiche ; null si introuvable. */

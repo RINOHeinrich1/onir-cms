@@ -46,7 +46,7 @@ export function OriginFilter({
         <option value={MANUEL}>Manuels</option>
         {labels.map((label) => (
           <option key={`${LINK_PREFIX}${label}`} value={`${LINK_PREFIX}${label}`}>
-            {label === "" ? "Lien sans nom" : label}
+            {label === "" ? "Chatbot sans nom" : label}
           </option>
         ))}
       </select>

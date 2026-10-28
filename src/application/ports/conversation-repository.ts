@@ -78,7 +78,7 @@ export interface ConversationRepository {
   listWithDetails(
     organizationId: string,
     filter: ConversationFilter,
-    linkLabel?: string | null,
+    linkLabel?: string | string[] | null,
     /** Périmètre de liens (ADR-0043) ; null/absent = tous les liens. */
     allowedLinkIds?: string[] | null,
   ): Promise<ConversationSummary[]>;

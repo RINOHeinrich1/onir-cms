@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Conversations",
 };
 
-type PageProps = { searchParams: Promise<{ filtre?: string; lien?: string }> };
+type PageProps = { searchParams: Promise<{ filtre?: string; lien?: string | string[] }> };
 
 /**
  * US-CONVERS-001 — suivi des conversations (Server Component).
@@ -35,7 +35,11 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
 
   const { filtre: filtreParam, lien: lienParam } = await searchParams;
   const filtre = parseConversationFilter(filtreParam);
-  const lien = typeof lienParam === "string" ? lienParam : null;
+  const liens = Array.isArray(lienParam)
+    ? lienParam
+    : typeof lienParam === "string"
+      ? [lienParam]
+      : [];
   const pool = getPool();
   const [conversations, links] = await Promise.all([
     listConversations(
@@ -45,7 +49,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
       },
       context.actor,
       filtre,
-      lien,
+      liens.length > 0 ? liens : null,
     ),
     actorCan(context.actor, "links:list")
       ? listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor)
@@ -69,7 +73,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
         filtre={filtre}
         nowIso={new Date().toISOString()}
         canWrite={actorCan(context.actor, "conversations:update")}
-        lien={lien}
+        lien={liens}
         linkLabels={distinctChatLinkLabels(links)}
       />
     </section>
