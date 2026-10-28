@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
-import { OriginFilter } from "./OriginFilter";
+
 import { Prospect360Modal } from "./Prospect360Modal";
 import { ProspectForm } from "./ProspectForm";
 import type { ProspectDto } from "./types";
@@ -102,7 +103,32 @@ export function ProspectsTable({
           placeholder="Rechercher un nom, un email…"
           label="Rechercher un prospect"
         />
-        <OriginFilter value={origine} linkLabels={linkLabels} />
+        <FilterMenu
+          sections={
+            [
+              {
+                id: "origine",
+                label: "Origine",
+                options: [
+                  { value: "manuel", label: "Manuels" },
+                  ...[...new Set([...linkLabels, ...origine.map((value) => value.slice(5))])].map(
+                    (label) => ({
+                      value: `lien:${label}`,
+                      label: label === "" ? "Chatbot sans nom" : label,
+                    }),
+                  ),
+                ],
+                value: origine,
+              },
+            ] satisfies FilterMenuSection[]
+          }
+          onApply={(values) => {
+            const params = new URLSearchParams();
+            for (const value of values.origine ?? []) params.append("origine", value);
+            const query = params.toString();
+            router.push(query === "" ? "/prospects" : `/prospects?${query}`);
+          }}
+        />
       </div>
 
       {canWrite ? (

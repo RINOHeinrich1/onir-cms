@@ -31,7 +31,11 @@ export default async function ConversationsLayout({ children }: { children: Reac
 
   return (
     <Suspense fallback={<div className="skeleton inbox-workspace-skeleton" />}>
-      <ConversationsWorkspace linkLabels={distinctChatLinkLabels(links)}>
+      <ConversationsWorkspace
+        linkLabels={distinctChatLinkLabels(links)}
+        canWrite={actorCan(context.actor, "conversations:update")}
+        canGenerateFiche={actorCan(context.actor, "conversations:generate_fiche")}
+      >
         {children}
       </ConversationsWorkspace>
     </Suspense>

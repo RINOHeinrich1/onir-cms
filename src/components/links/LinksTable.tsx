@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CreatorFilter } from "@/components/ui/CreatorFilter";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
   hasUnassignedCreator,
   matchesCreator,
+  NO_CREATOR,
 } from "@/components/ui/creator-options";
+import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -117,6 +118,10 @@ export function LinksTable({
         .includes(query);
     });
   const pagination = usePagination(visibleLinks, 9, `${search}|${creatorFilter.join(",")}`);
+  const creatorFilterOptions = [
+    ...creators.map((creator) => ({ value: creator.id, label: creator.label })),
+    ...(showUnassigned ? [{ value: NO_CREATOR, label: "Non renseigné" }] : []),
+  ];
 
   const refresh = async (): Promise<void> => {
     try {
@@ -220,11 +225,18 @@ export function LinksTable({
           placeholder="Rechercher un chatbot…"
           label="Rechercher un chatbot"
         />
-        <CreatorFilter
-          options={creators}
-          showUnassigned={showUnassigned}
-          value={creatorFilter}
-          onChange={setCreatorFilter}
+        <FilterMenu
+          sections={
+            [
+              {
+                id: "createur",
+                label: "Créateur",
+                options: creatorFilterOptions,
+                value: creatorFilter,
+              },
+            ] satisfies FilterMenuSection[]
+          }
+          onApply={(values) => setCreatorFilter(values.createur ?? [])}
         />
       </div>
 

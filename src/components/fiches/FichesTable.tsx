@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
-import { LinkFilter } from "@/components/ui/LinkFilter";
+import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
-import type { FicheArchiveFilter } from "@/domain/entities/fiche";
+
 import { FicheForm } from "./FicheForm";
 import type { FicheDto } from "./types";
 
@@ -17,12 +17,6 @@ import type { FicheDto } from "./types";
 export type ProspectSummary = {
   nom: string;
 };
-
-const FILTRES: readonly { key: FicheArchiveFilter; label: string }[] = [
-  { key: "actives", label: "Actives" },
-  { key: "archivees", label: "Archivées" },
-  { key: "toutes", label: "Toutes" },
-];
 
 /**
  * Table des fiches de prospection : filtre d'archivage (serveur), création,
@@ -32,14 +26,14 @@ export function FichesTable({
   initialFiches,
   prospectsById,
   canWrite,
-  filtre,
+  archive,
   lien,
   linkLabels,
 }: {
   initialFiches: FicheDto[];
   prospectsById: Record<string, ProspectSummary>;
   canWrite: boolean;
-  filtre: FicheArchiveFilter;
+  archive: readonly string[];
   lien: readonly string[];
   linkLabels: string[];
 }) {
@@ -56,7 +50,11 @@ export function FichesTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
-  const pagination = usePagination(visibleFiches, 9, `${search}|${filtre}|${lien.join(",")}`);
+  const pagination = usePagination(
+    visibleFiches,
+    9,
+    `${search}|${archive.join(",")}|${lien.join(",")}`,
+  );
   const toast = useToast();
   useToastOnMessage(error);
 
@@ -97,23 +95,6 @@ export function FichesTable({
     <div className="fiches-admin">
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <nav className="subtabs" aria-label="Filtrer les fiches">
-        {FILTRES.map((item) => {
-          const params = new URLSearchParams({ filtre: item.key });
-          for (const label of lien) params.append("lien", label);
-          return (
-            <a
-              key={item.key}
-              href={`/leads?${params.toString()}`}
-              className={`subtab ${filtre === item.key ? "active" : ""}`}
-              aria-current={filtre === item.key ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          );
-        })}
-      </nav>
-
       <div className="list-filters">
         <SearchInput
           value={search}
@@ -121,7 +102,37 @@ export function FichesTable({
           placeholder="Rechercher un prospect, un modèle…"
           label="Rechercher une fiche"
         />
-        <LinkFilter basePath="/leads" value={lien} labels={linkLabels} preserve={{ filtre }} />
+        <FilterMenu
+          sections={
+            [
+              {
+                id: "archive",
+                label: "Archivage",
+                options: [
+                  { value: "actives", label: "Actives" },
+                  { value: "archivees", label: "Archivées" },
+                ],
+                value: archive,
+              },
+              {
+                id: "lien",
+                label: "Chatbot",
+                options: [...new Set([...linkLabels, ...lien])].map((label) => ({
+                  value: label,
+                  label: label === "" ? "Chatbot sans nom" : label,
+                })),
+                value: lien,
+              },
+            ] satisfies FilterMenuSection[]
+          }
+          onApply={(values) => {
+            const params = new URLSearchParams({ onglet: "fiches" });
+            if ((values.archive ?? []).length === 0) params.append("archive", "");
+            for (const value of values.archive ?? []) params.append("archive", value);
+            for (const value of values.lien ?? []) params.append("lien", value);
+            router.push(`/leads?${params.toString()}`);
+          }}
+        />
       </div>
 
       {canWrite ? (

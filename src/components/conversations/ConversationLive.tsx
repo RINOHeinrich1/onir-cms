@@ -140,6 +140,26 @@ export function ConversationLive({
     }
   }, []);
 
+  // Après le calcul de hauteur du flex, on force l'ancrage bas à l'ouverture.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: l'ancrage doit être refait à chaque conversation
+  useEffect(() => {
+    const element = transcriptRef.current;
+    if (element === null) return;
+    stickToBottomRef.current = true;
+    const scroll = (): void => {
+      if (stickToBottomRef.current) element.scrollTop = element.scrollHeight;
+    };
+    const frame = window.requestAnimationFrame(scroll);
+    const timer = window.setTimeout(scroll, 120);
+    const observer = new ResizeObserver(scroll);
+    observer.observe(element);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [initialConversation.id]);
+
   // SSE nominal : dès qu'il échoue, on ferme et on bascule en polling.
   useEffect(() => {
     if (typeof window === "undefined" || typeof EventSource === "undefined") {

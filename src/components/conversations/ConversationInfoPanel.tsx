@@ -197,7 +197,13 @@ function FieldEditor({
  * Panneau responsive des informations à collecter (ADR-0045).
  * Édition manuelle, compteur d'obligatoires manquants et analyse IA à la demande.
  */
-export function ConversationInfoPanel({ conversationId }: { conversationId: string }) {
+export function ConversationInfoPanel({
+  conversationId,
+  showTrigger = true,
+}: {
+  conversationId: string;
+  showTrigger?: boolean;
+}) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<ConversationFieldsView | null>(null);
@@ -318,16 +324,18 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
 
   return (
     <>
-      <button
-        type="button"
-        className="btn ghost small conversation-info-toggle"
-        aria-expanded={open}
-        aria-controls="conversation-info-panel"
-        onClick={() => setOpen((value) => !value)}
-      >
-        Informations
-        {missing > 0 ? <span className="badge orange">{missing}</span> : null}
-      </button>
+      {showTrigger ? (
+        <button
+          type="button"
+          className="btn ghost small conversation-info-toggle"
+          aria-expanded={open}
+          aria-controls="conversation-info-panel"
+          onClick={() => setOpen((value) => !value)}
+        >
+          Informations
+          {missing > 0 ? <span className="badge orange">{missing}</span> : null}
+        </button>
+      ) : null}
 
       {open ? (
         <>
