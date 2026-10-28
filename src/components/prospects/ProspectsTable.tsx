@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { usePagination } from "@/components/ui/use-pagination";
 import { OriginFilter } from "./OriginFilter";
 import { Prospect360Modal } from "./Prospect360Modal";
 import { ProspectForm } from "./ProspectForm";
@@ -46,6 +48,7 @@ export function ProspectsTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
+  const pagination = usePagination(visible, 9, `${search}|${origine ?? ""}`);
 
   const refresh = (): void => {
     router.refresh();
@@ -122,7 +125,7 @@ export function ProspectsTable({
             </tr>
           </thead>
           <tbody>
-            {visible.map((prospect) => (
+            {pagination.pageItems.map((prospect) => (
               <tr key={prospect.id}>
                 <td data-label="Nom">
                   {prospect.nom} {prospect.prenom}
@@ -192,6 +195,13 @@ export function ProspectsTable({
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+        label="Pagination des prospects"
+      />
 
       {creating || editing !== null ? (
         <Modal

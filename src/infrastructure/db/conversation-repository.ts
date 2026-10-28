@@ -269,7 +269,7 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
     async listWithDetails(
       organizationId,
       filter,
-      linkLabel: string | null = null,
+      linkLabel: string | string[] | null = null,
       allowedLinkIds: string[] | null = null,
     ): Promise<ConversationSummary[]> {
       const clause =
@@ -282,9 +282,11 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
               : "WHERE cv.organization_id = $1 AND cv.archivee = false";
       const params: unknown[] = [organizationId];
       let linkClause = "";
-      if (linkLabel !== null) {
-        params.push(linkLabel);
-        linkClause = `AND l.label = $${params.length}`;
+      const linkLabels =
+        linkLabel === null ? null : Array.isArray(linkLabel) ? linkLabel : [linkLabel];
+      if (linkLabels !== null && linkLabels.length > 0) {
+        params.push(linkLabels);
+        linkClause = `AND l.label = ANY($${params.length}::text[])`;
       }
       let scopeClause = "";
       if (allowedLinkIds !== null) {

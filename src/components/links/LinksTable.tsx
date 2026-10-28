@@ -10,8 +10,10 @@ import {
   matchesCreator,
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
 import { LinkEditModal } from "./LinkEditModal";
 import { LinkForm } from "./LinkForm";
@@ -114,6 +116,7 @@ export function LinksTable({
         .toLocaleLowerCase("fr")
         .includes(query);
     });
+  const pagination = usePagination(visibleLinks, 9, `${search}|${creatorFilter.join(",")}`);
 
   const refresh = async (): Promise<void> => {
     try {
@@ -232,7 +235,7 @@ export function LinksTable({
       </div>
 
       <div className="chatbot-grid">
-        {visibleLinks.map((link) => {
+        {pagination.pageItems.map((link) => {
           const expired =
             link.expiresAt !== null &&
             new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
@@ -416,6 +419,13 @@ export function LinksTable({
           </div>
         ) : null}
       </div>
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+        label="Pagination des chatbots"
+      />
 
       {creating ? (
         <Modal title="Nouveau chatbot" onClose={() => setCreating(false)}>

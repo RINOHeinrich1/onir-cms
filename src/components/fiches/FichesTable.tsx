@@ -5,8 +5,10 @@ import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import { usePagination } from "@/components/ui/use-pagination";
 import type { FicheArchiveFilter } from "@/domain/entities/fiche";
 import { FicheForm } from "./FicheForm";
 import type { FicheDto } from "./types";
@@ -38,7 +40,7 @@ export function FichesTable({
   prospectsById: Record<string, ProspectSummary>;
   canWrite: boolean;
   filtre: FicheArchiveFilter;
-  lien: string | null;
+  lien: readonly string[];
   linkLabels: string[];
 }) {
   const router = useRouter();
@@ -54,6 +56,7 @@ export function FichesTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
+  const pagination = usePagination(visibleFiches, 9, `${search}|${filtre}|${lien.join(",")}`);
   const toast = useToast();
   useToastOnMessage(error);
 
@@ -97,7 +100,7 @@ export function FichesTable({
       <nav className="subtabs" aria-label="Filtrer les fiches">
         {FILTRES.map((item) => {
           const params = new URLSearchParams({ filtre: item.key });
-          if (lien !== null) params.set("lien", lien);
+          for (const label of lien) params.append("lien", label);
           return (
             <a
               key={item.key}
@@ -130,7 +133,7 @@ export function FichesTable({
       ) : null}
 
       <div className="lead-grid">
-        {visibleFiches.map((fiche) => {
+        {pagination.pageItems.map((fiche) => {
           const prospect =
             fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
           return (
@@ -191,6 +194,13 @@ export function FichesTable({
           </div>
         ) : null}
       </div>
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+        label="Pagination des fiches"
+      />
 
       {creating ? (
         <Modal title="Nouvelle fiche de prospection" onClose={() => setCreating(false)}>
