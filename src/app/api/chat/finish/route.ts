@@ -85,6 +85,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     if (conversationId !== null && !(error instanceof ChatbotBlockedError)) {
       const pool = getPool();
+      const conversations = pgConversationRepository(pool);
+      const conversation = await conversations.findByIdPublic(conversationId).catch(() => null);
+      if (conversation !== null) {
+        await conversations
+          .setOutcome?.(conversation.organizationId, conversation.id, "erreur")
+          .catch(() => undefined);
+      }
       await recordConversationIncident(
         {
           conversations: pgConversationRepository(pool),

@@ -458,6 +458,17 @@ describe("finishConversation — mode configuration autonome", () => {
     expect(base.instances.items.get("inst-voiture")?.status).toBe("abandoned");
   });
 
+  it("enregistre l'outcome abandonnee quand toutes les instances sont abandonnées", async () => {
+    const base = makeDeps({
+      config: MULTI_CONFIG,
+      instances: [seededInstance("voiture", "active", { modele: "SUV" })],
+    });
+    const result = await finishConversation(base.deps, "conv-1", { abandonPending: true });
+    expect(result.fiches).toHaveLength(0);
+    expect(result.outcome).toBe("abandonnee");
+    expect(base.getOutcome()).toBe("abandonnee");
+  });
+
   it("peut produire 0 fiche", async () => {
     const base = makeDeps({ config: MULTI_CONFIG, instances: [] });
     const result = await finishConversation(base.deps, "conv-1");

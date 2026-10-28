@@ -458,6 +458,7 @@ async function finishConfigConversation(
       ? []
       : await instancesRepo.listByConversation(organizationId, conversation.id);
   const monoFiche = config.fiches.length === 1;
+  let abandonedAny = false;
 
   if (monoFiche) {
     const primary = config.fiches[0];
@@ -490,6 +491,7 @@ async function finishConfigConversation(
           `Des fiches sont encore en cours (${labels}). Abandonnez-les explicitement avant de terminer.`,
         );
       }
+      abandonedAny = true;
       if (instancesRepo !== undefined) {
         for (const instance of pending) {
           await instancesRepo.update(organizationId, instance.id, {
@@ -506,11 +508,12 @@ async function finishConfigConversation(
   const targets = instances.filter((instance) => instance.status === "complete");
 
   if (targets.length === 0) {
+    const outcome: ConversationOutcome = abandonedAny ? "abandonnee" : "sans_fiche";
     if (options.finalize) {
-      await deps.conversations.setOutcome?.(organizationId, conversation.id, "sans_fiche");
+      await deps.conversations.setOutcome?.(organizationId, conversation.id, outcome);
       await deps.conversations.markFinalisee(organizationId, conversation.id);
     }
-    return { fiches: [], outcome: "sans_fiche", fiche: null, markdown: "" };
+    return { fiches: [], outcome, fiche: null, markdown: "" };
   }
 
   for (const instance of targets) {
@@ -565,11 +568,12 @@ async function finishConfigConversation(
 
   if (built.length === 0) {
     await releaseReserved(deps, link, targets.length);
+    const outcome: ConversationOutcome = abandonedAny ? "abandonnee" : "sans_fiche";
     if (options.finalize) {
-      await deps.conversations.setOutcome?.(organizationId, conversation.id, "sans_fiche");
+      await deps.conversations.setOutcome?.(organizationId, conversation.id, outcome);
       await deps.conversations.markFinalisee(organizationId, conversation.id);
     }
-    return { fiches: [], outcome: "sans_fiche", fiche: null, markdown: "" };
+    return { fiches: [], outcome, fiche: null, markdown: "" };
   }
 
   if (options.finalize) {
