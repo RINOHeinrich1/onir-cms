@@ -109,3 +109,74 @@ export async function importLegacyAiProvider(
   }
   return provider;
 }
+
+/** Définit le modèle d'extraction et son secours (ADR-0047). */
+export async function setOrganizationExtraction(
+  deps: OrganizationAiSettingsDependencies,
+  actor: Actor,
+  input: unknown,
+): Promise<OrganizationAiSettings> {
+  assertCan(actor, "ai:manage");
+  const organizationId = organizationOf(actor);
+  const source =
+    input !== null && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {};
+  const providerId = typeof source.providerId === "string" ? source.providerId.trim() : "";
+  const model = typeof source.model === "string" ? source.model.trim() : "";
+  const fallbackProviderId =
+    typeof source.fallbackProviderId === "string" ? source.fallbackProviderId.trim() : "";
+  const fallbackModel = typeof source.fallbackModel === "string" ? source.fallbackModel.trim() : "";
+
+  if ((providerId === "") !== (model === "")) {
+    throw new ValidationError(
+      "Fournisseur et modèle d'extraction doivent être renseignés ensemble",
+    );
+  }
+  if ((fallbackProviderId === "") !== (fallbackModel === "")) {
+    throw new ValidationError("Fournisseur et modèle de secours doivent être renseignés ensemble");
+  }
+  if (fallbackProviderId !== "" && providerId === "") {
+    throw new ValidationError("Définissez d'abord un modèle d'extraction principal");
+  }
+
+  if (providerId !== "") {
+    const provider = await deps.providers.findById(organizationId, providerId);
+    if (provider === null || provider.archivedAt !== null) {
+      throw new NotFoundError("Fournisseur d'extraction introuvable");
+    }
+    if (deps.models !== undefined) {
+      const modelRow = await deps.models.findByModelId(organizationId, providerId, model);
+      if (modelRow === null || !modelRow.enabled) {
+        throw new ValidationError("Le modèle d'extraction doit être actif");
+      }
+    }
+  }
+
+  if (fallbackProviderId !== "") {
+    const fallbackProvider = await deps.providers.findById(organizationId, fallbackProviderId);
+    if (fallbackProvider === null || fallbackProvider.archivedAt !== null) {
+      throw new NotFoundError("Fournisseur de secours introuvable");
+    }
+    if (deps.models !== undefined) {
+      const fallbackModelRow = await deps.models.findByModelId(
+        organizationId,
+        fallbackProviderId,
+        fallbackModel,
+      );
+      if (fallbackModelRow === null || !fallbackModelRow.enabled) {
+        throw new ValidationError("Le modèle de secours doit être actif");
+      }
+    }
+  }
+
+  const settings = await deps.providers.setOrganizationExtraction(organizationId, {
+    providerId: providerId === "" ? null : providerId,
+    model: model === "" ? null : model,
+    fallbackProviderId: fallbackProviderId === "" ? null : fallbackProviderId,
+    fallbackModel: fallbackModel === "" ? null : fallbackModel,
+    updatedBy: actor.id,
+  });
+  if (settings === null) throw new Error("Paramètres d'extraction non enregistrés");
+  return settings;
+}

@@ -47,3 +47,4 @@ ADR qui remplace la précédente.
 | [0044](./0044-notifications-tableau-de-bord.md) | Notifications du tableau de bord — cloche, compteur non lu et historique | Accepté |
 | [0045](./0045-champs-conversation-collectes.md) | Champs de conversation collectés et édition humaine | Accepté |
 | [0046](./0046-incidents-conversation-alertes.md) | Incidents de conversation et alertes d’intervention | Accepté |
+| [0047](./0047-extraction-structuree-multi-fournisseurs.md) | Extraction structurée multi-fournisseurs — capacités, raisonnement et fallback | Accepté |

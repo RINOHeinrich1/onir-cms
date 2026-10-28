@@ -8,6 +8,8 @@ export const AI_MODEL_SOURCES = ["catalog", "manual"] as const;
 
 export type AiModelSource = (typeof AI_MODEL_SOURCES)[number];
 
+import type { ReasoningMode } from "@/domain/ai-capabilities";
+
 export type AiProviderModel = {
   id: string;
   organizationId: string;
@@ -16,6 +18,8 @@ export type AiProviderModel = {
   label: string;
   source: AiModelSource;
   enabled: boolean;
+  /** Réglage admin du raisonnement ; absent = auto (compat tests). */
+  reasoningMode?: ReasoningMode;
   lastSeenAt: string | null;
   createdBy: string | null;
   createdAt: string;

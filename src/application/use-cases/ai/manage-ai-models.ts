@@ -10,6 +10,7 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AiModelCatalog, AiModelCatalogResult } from "@/application/ports/ai-model-catalog";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import { aiCapabilitiesFor, parseReasoningMode } from "@/domain/ai-capabilities";
 import { type AiProviderModel, aiModelLabel, normalizeAiModelId } from "@/domain/entities/ai-model";
 import type { AiProvider } from "@/domain/entities/ai-provider";
 import { openAiKey } from "@/lib/ai-crypto";
@@ -161,6 +162,35 @@ export async function setProviderModelEnabled(
     }
   }
   const updated = await deps.models.setEnabled(organizationId, providerId, modelRowId, enabled);
+  if (updated === null) throw new NotFoundError("Modèle introuvable");
+  return updated;
+}
+
+export async function setProviderModelReasoning(
+  deps: AiModelDependencies,
+  actor: Actor,
+  providerId: string,
+  modelRowId: string,
+  reasoningMode: unknown,
+): Promise<AiProviderModel> {
+  assertCan(actor, "ai:manage");
+  const organizationId = organizationOf(actor);
+  const provider = await requireProvider(deps, organizationId, providerId);
+  const model = await deps.models.findById(organizationId, providerId, modelRowId);
+  if (model === null) throw new NotFoundError("Modèle introuvable");
+  const parsed = parseReasoningMode(reasoningMode);
+  if (parsed === null) {
+    throw new ValidationError("Mode de raisonnement invalide");
+  }
+  if (!aiCapabilitiesFor(provider.preset, model.modelId).supportsReasoningToggle) {
+    throw new ValidationError("Ce fournisseur ne permet pas de contrôler le raisonnement");
+  }
+  const updated = await deps.models.setReasoningMode(
+    organizationId,
+    providerId,
+    modelRowId,
+    parsed,
+  );
   if (updated === null) throw new NotFoundError("Modèle introuvable");
   return updated;
 }

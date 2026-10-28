@@ -12,6 +12,10 @@ export type AiCompletionInput = {
   messages: AiMessage[];
   /** Plafond de tokens générés (borne la latence). Défaut : 700. */
   maxTokens?: number;
+  /** Intention normalisée (ADR-0047) ; le client fournisseur la traduit. */
+  reasoning?: "auto" | "enabled" | "disabled";
+  /** Demande une sortie JSON structurée quand le fournisseur le supporte. */
+  structured?: boolean;
 };
 
 export interface AiClient {

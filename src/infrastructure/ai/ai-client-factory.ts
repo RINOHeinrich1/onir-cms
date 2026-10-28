@@ -8,6 +8,7 @@ import type {
 } from "@/application/ports/ai-client-factory";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import { infomaniakBaseUrl } from "@/domain/entities/ai-provider";
 import { chatCompletionForProvider } from "@/infrastructure/ai/openai-client";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
@@ -53,6 +54,9 @@ async function resolveProviderTarget(
     providerLabel: provider.label,
     model,
     source,
+    preset: provider.preset,
+    reasoningMode: modelRow.reasoningMode ?? "auto",
+    capabilities: aiCapabilitiesFor(provider.preset, model),
   };
 }
 
@@ -99,6 +103,9 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         providerLabel: "Infomaniak (legacy)",
         model: legacy.model,
         source: "legacy",
+        preset: "infomaniak",
+        reasoningMode: "auto",
+        capabilities: aiCapabilitiesFor("infomaniak", legacy.model),
       };
     }
     throw new AiNotConfiguredError(
@@ -120,6 +127,9 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             label: resolved.providerLabel,
             messages: [{ role: "system", content: input.system }, ...input.messages],
             ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+            reasoning: input.reasoning ?? resolved.reasoningMode,
+            structured: input.structured === true,
+            capabilities: resolved.capabilities,
           });
         },
       };
@@ -150,6 +160,9 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           label: provider.label,
           messages: [{ role: "system", content: input.system }, ...input.messages],
           ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+          reasoning: input.reasoning ?? resolved.reasoningMode,
+          structured: input.structured === true,
+          capabilities: resolved.capabilities,
         });
       },
     };
@@ -160,6 +173,60 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     async forTarget(target) {
       return buildClient(await resolve(target));
     },
+    async forExtraction(target) {
+      const settings =
+        target === null
+          ? null
+          : await deps.providers.getOrganizationSettings(target.organizationId);
+      const candidates: { target: AiTargetRef | null; label: string }[] = [];
+      if (settings?.extractionProviderId != null && settings.extractionModel != null) {
+        candidates.push({
+          target: {
+            organizationId: settings.organizationId,
+            aiProviderId: settings.extractionProviderId,
+            aiModel: settings.extractionModel,
+          },
+          label: "extraction",
+        });
+      }
+      if (
+        settings?.extractionFallbackProviderId != null &&
+        settings.extractionFallbackModel != null
+      ) {
+        candidates.push({
+          target: {
+            organizationId: settings.organizationId,
+            aiProviderId: settings.extractionFallbackProviderId,
+            aiModel: settings.extractionFallbackModel,
+          },
+          label: "secours",
+        });
+      }
+      candidates.push({ target, label: "lien" });
+
+      const clients: { label: string; client: AiClient }[] = [];
+      const seen = new Set<string>();
+      let lastError: unknown = null;
+      for (const candidate of candidates) {
+        try {
+          const resolved = await resolve(candidate.target);
+          const key = `${resolved.providerId ?? "legacy"}:${resolved.model}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          clients.push({
+            label: `${candidate.label} · ${resolved.providerLabel} · ${resolved.model}`,
+            client: await buildClient(resolved),
+          });
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (clients.length === 0) {
+        throw lastError instanceof Error ? lastError : new AiNotConfiguredError();
+      }
+      return clients;
+    },
+
     async optionalTarget(target) {
       try {
         return await buildClient(await resolve(target));

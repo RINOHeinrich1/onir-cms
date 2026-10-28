@@ -8,7 +8,7 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
-import { draftTemplateDataFromConversation } from "@/application/use-cases/fiche/draft-fiche";
+import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { type Conversation, channelsForLink } from "@/domain/entities/chat";
 import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
@@ -132,14 +132,17 @@ export async function buildFicheFromConversation(
     throw new NotFoundError("Modèle de raisonnement introuvable");
   }
   const definition = template.definition;
-  const ai = await deps.ai.forTarget({
+  const target = {
     organizationId,
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
-  });
-
-  const aiDraft = await draftTemplateDataFromConversation(
-    { conversations: deps.conversations, ai },
+  };
+  const clients = deps.ai.forExtraction
+    ? await deps.ai.forExtraction(target)
+    : [{ label: "lien", client: await deps.ai.forTarget(target) }];
+  const aiDraft = await draftTemplateDataWithClients(
+    { conversations: deps.conversations },
+    clients,
     organizationId,
     conversation.id,
     definition,

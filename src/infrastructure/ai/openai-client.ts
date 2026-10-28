@@ -4,6 +4,11 @@
  */
 
 import type { AiMessage } from "@/application/ports/ai-client";
+import {
+  type AiCapabilities,
+  aiCapabilitiesFor,
+  type ReasoningMode,
+} from "@/domain/ai-capabilities";
 import type { AiDialect } from "@/domain/entities/ai-provider";
 
 const DEFAULT_MAX_TOKENS = 700;
@@ -16,6 +21,9 @@ export type ProviderChatInput = {
   label?: string;
   messages: AiMessage[];
   maxTokens?: number;
+  reasoning?: ReasoningMode | undefined;
+  structured?: boolean | undefined;
+  capabilities?: AiCapabilities | undefined;
 };
 
 function endpoint(baseUrl: string): string {
@@ -32,10 +40,33 @@ function requestBody(
     messages: input.messages,
     [tokenField]: maxTokens,
   };
-  // Paramètre non standard : uniquement le dialecte Infomaniak + un modèle Qwen.
-  if (input.dialect === "infomaniak" && input.model.toLowerCase().startsWith("qwen/")) {
-    body.chat_template_kwargs = { enable_thinking: false };
+  const reasoning = input.reasoning ?? "auto";
+  const capabilities =
+    input.capabilities ??
+    (input.dialect === "infomaniak" ? aiCapabilitiesFor("infomaniak", input.model) : undefined);
+  const control = capabilities?.reasoningControl ?? "none";
+
+  // Paramètre non standard vLLM/Infomaniak. Gemma et Qwen sont connus pour
+  // boucler en raisonnement sur les prompts d'extraction : on les désactive
+  // par défaut en mode auto.
+  if (control === "infomaniak_chat_template") {
+    const model = input.model.toLowerCase();
+    const thinkingByDefault = model.startsWith("qwen/") || model.startsWith("google/gemma");
+    if (reasoning === "enabled") {
+      body.chat_template_kwargs = { enable_thinking: true };
+    } else if (reasoning === "disabled" || (reasoning === "auto" && thinkingByDefault)) {
+      body.chat_template_kwargs = { enable_thinking: false };
+    }
+  } else if (control === "openai_reasoning_effort" && reasoning !== "auto") {
+    body.reasoning_effort = reasoning === "disabled" ? "minimal" : "high";
+  } else if (control === "openrouter_reasoning" && reasoning !== "auto") {
+    body.reasoning = { effort: reasoning === "disabled" ? "low" : "high", exclude: true };
   }
+
+  if (input.structured === true && capabilities?.structuredOutput === "json_object") {
+    body.response_format = { type: "json_object" };
+  }
+
   return body;
 }
 

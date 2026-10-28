@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   removeProviderModel,
   setProviderModelEnabled,
+  setProviderModelReasoning,
 } from "@/application/use-cases/ai/manage-ai-models";
 import { openAiModelCatalog } from "@/infrastructure/ai/model-catalog";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
@@ -30,8 +31,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Ne
     const actor = await requireRole(request, "ai:manage");
     const { id, modelId } = await context.params;
     const body = await readJsonObject(request);
-    if (body === null || typeof body.enabled !== "boolean") {
-      return NextResponse.json({ error: "Champ enabled requis" }, { status: 400 });
+    if (body === null) {
+      return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+    }
+    if (body.reasoningMode !== undefined) {
+      const model = await setProviderModelReasoning(deps(), actor, id, modelId, body.reasoningMode);
+      return NextResponse.json({ model });
+    }
+    if (typeof body.enabled !== "boolean") {
+      return NextResponse.json({ error: "Champ enabled ou reasoningMode requis" }, { status: 400 });
     }
     const model = await setProviderModelEnabled(deps(), actor, id, modelId, body.enabled);
     return NextResponse.json({ model });

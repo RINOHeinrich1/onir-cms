@@ -8,7 +8,7 @@ import type { ChatTemplateRepository } from "@/application/ports/chat-template-r
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
-import { draftTemplateDataFromConversation } from "@/application/use-cases/fiche/draft-fiche";
+import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import type { Conversation } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import {
@@ -211,13 +211,17 @@ export async function refreshConversationFields(
   try {
     const link = await deps.links.findById(organizationId, context.conversation.linkId);
     if (link === null) throw new NotFoundError("Lien introuvable");
-    const ai = await deps.ai.forTarget({
+    const target = {
       organizationId,
       aiProviderId: link.aiProviderId,
       aiModel: link.aiModel,
-    });
-    const draft = await draftTemplateDataFromConversation(
-      { conversations: deps.conversations, ai },
+    };
+    const clients = deps.ai.forExtraction
+      ? await deps.ai.forExtraction(target)
+      : [{ label: "lien", client: await deps.ai.forTarget(target) }];
+    const draft = await draftTemplateDataWithClients(
+      { conversations: deps.conversations },
+      clients,
       organizationId,
       conversationId,
       context.definition,
