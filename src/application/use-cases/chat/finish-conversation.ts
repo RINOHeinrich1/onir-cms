@@ -1,4 +1,5 @@
-import { NotFoundError, UnprocessableError } from "@/application/errors";
+import { ChatbotBlockedError, NotFoundError, UnprocessableError } from "@/application/errors";
+import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -8,6 +9,8 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
+import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { type Conversation, channelsForLink } from "@/domain/entities/chat";
 import type { Fiche } from "@/domain/entities/fiche";
@@ -111,6 +114,7 @@ export async function buildFicheFromConversation(
   if (link === null) {
     throw new NotFoundError("Lien introuvable");
   }
+  assertChatLinkAvailable(link);
   const channelKind = conversation.channel ?? link.surface;
   const channel = channelsForLink(link)[channelKind];
   const anonymousConversation =
@@ -140,9 +144,20 @@ export async function buildFicheFromConversation(
   const clients = deps.ai.forExtraction
     ? await deps.ai.forExtraction(target)
     : [{ label: "lien", client: await deps.ai.forTarget(target) }];
+  const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
+    await deps.links.recordAiUsage?.(organizationId, link.id, {
+      conversationId: conversation.id,
+      operation,
+      ...usage,
+    });
+  };
+  const trackedClients = clients.map((entry) => ({
+    ...entry,
+    client: withAiUsage(entry.client, recordUsage, "fiche_extraction"),
+  }));
   const aiDraft = await draftTemplateDataWithClients(
     { conversations: deps.conversations },
-    clients,
+    trackedClients,
     organizationId,
     conversation.id,
     definition,
@@ -222,14 +237,30 @@ export async function buildFicheFromConversation(
     throw new UnprocessableError(validated.errors.join(" ; "));
   }
 
-  const fiche = await deps.fiches.create(organizationId, {
-    conversationId: conversation.id,
-    prospectId: prospect?.id ?? null,
-    createdBy,
-    templateKey: link.templateKey,
-    templateVersion: link.templateVersion,
-    data: validated.value,
-  });
+  const reserved =
+    deps.links.reserveFiche === undefined
+      ? true
+      : await deps.links.reserveFiche(organizationId, link.id);
+  if (!reserved) {
+    throw new ChatbotBlockedError(
+      "Ce chatbot a atteint sa limite de fiches. Contactez l'équipe pour l'augmenter.",
+    );
+  }
+
+  let fiche: Fiche;
+  try {
+    fiche = await deps.fiches.create(organizationId, {
+      conversationId: conversation.id,
+      prospectId: prospect?.id ?? null,
+      createdBy,
+      templateKey: link.templateKey,
+      templateVersion: link.templateVersion,
+      data: validated.value,
+    });
+  } catch (error) {
+    await deps.links.releaseFiche?.(organizationId, link.id);
+    throw error;
+  }
   await deps.attachments.attachToFiche(organizationId, fiche.id, conversationAttachments);
 
   const serverVars = buildServerVariables({ mode: link.type, prospect, conversation });

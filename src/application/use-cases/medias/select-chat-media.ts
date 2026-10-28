@@ -1,10 +1,12 @@
 import { NotFoundError } from "@/application/errors";
+import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
-import type { ChatMessageMedia } from "@/domain/entities/chat";
+import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { type ChatMessageMedia, chatLinkBlockReason } from "@/domain/entities/chat";
 import type { Media } from "@/domain/entities/media";
 import { signedMediaUrl } from "@/lib/media-token";
 
@@ -86,6 +88,10 @@ export async function selectChatMedia(
   if (link === null || !link.actif) {
     return { computed: true, medias: [] };
   }
+  if (chatLinkBlockReason(link) !== null) {
+    await deps.conversations.setMessageMedias(organizationId, message.id, []);
+    return { computed: true, medias: [] };
+  }
   const ai = await deps.ai.optionalTarget({
     organizationId,
     aiProviderId: link.aiProviderId,
@@ -96,6 +102,14 @@ export async function selectChatMedia(
     return { computed: true, medias: [] };
   }
 
+  const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
+    await deps.links.recordAiUsage?.(organizationId, link.id, {
+      conversationId: conversation.id,
+      operation,
+      ...usage,
+    });
+  };
+  const trackedAi = withAiUsage(ai, recordUsage, "media_selection");
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
   const [photos, liens] = await Promise.all([
@@ -131,7 +145,7 @@ export async function selectChatMedia(
 
   let selection: { photos: Set<string>; liens: Set<string> };
   try {
-    const raw = await ai.complete({
+    const raw = await trackedAi.complete({
       system: [
         "Tu sélectionnes, parmi des médias internes (photos et liens), ceux qui aident",
         "concrètement à illustrer la réponse au visiteur.",

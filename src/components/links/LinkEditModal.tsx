@@ -8,10 +8,12 @@ import {
   type ChatLinkSources,
   type ChatLinkSurface,
   channelsForLink,
+  chatLinkQuota,
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
+import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
 import { SourcesField } from "./SourcesField";
 import type {
   AiProviderOption,
@@ -61,6 +63,7 @@ export function LinkEditModal({
   onClose: () => void;
 }) {
   const initialChannels = channelsForLink(link);
+  const initialQuota = chatLinkQuota(link);
   const [label, setLabel] = useState(link.label);
   const [channels, setChannels] = useState<ChannelDrafts>({
     page: channelDraft(initialChannels.page),
@@ -74,6 +77,13 @@ export function LinkEditModal({
   );
   const [sources, setSources] = useState<ChatLinkSources>({ ...link.sources });
   const [userStateEnabled, setUserStateEnabled] = useState<boolean>(link.userStateEnabled);
+  const [quota, setQuota] = useState<LinkQuotaDraft>({
+    maxFiches: initialQuota.maxFiches === null ? "" : String(initialQuota.maxFiches),
+    maxTokens: initialQuota.maxTokens === null ? "" : String(initialQuota.maxTokens),
+    tokenResetMode: initialQuota.tokenResetMode,
+    tokenResetDays: initialQuota.tokenResetDays === null ? "" : String(initialQuota.tokenResetDays),
+  });
+  const [resetting, setResetting] = useState(false);
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
   const [dataBindingsLoaded, setDataBindingsLoaded] = useState(false);
   const [ai, setAi] = useState<LinkAiValue>({
@@ -132,6 +142,13 @@ export function LinkEditModal({
           expiresAt,
           sources,
           userStateEnabled,
+          maxFiches: quota.maxFiches === "" ? null : Number(quota.maxFiches),
+          maxTokens: quota.maxTokens === "" ? null : Number(quota.maxTokens),
+          tokenResetMode: quota.tokenResetMode,
+          tokenResetDays:
+            quota.tokenResetMode === "duration" && quota.tokenResetDays !== ""
+              ? Number(quota.tokenResetDays)
+              : null,
           aiProviderId: ai.aiProviderId,
           aiModel: ai.aiModel,
           channels: {
@@ -152,6 +169,25 @@ export function LinkEditModal({
       setError("Erreur réseau, veuillez réessayer");
     } finally {
       setPending(false);
+    }
+  };
+
+  const resetTokens = async (): Promise<void> => {
+    setResetting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/links/${link.id}/tokens/reset`, { method: "POST" });
+      const json = (await response.json()) as { link?: ChatLinkRow; error?: string };
+      if (!response.ok || json.link === undefined) {
+        setError(json.error ?? "Réinitialisation impossible");
+        return;
+      }
+      toast.success("Budget tokens réinitialisé.");
+      onSaved(json.link);
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -205,6 +241,25 @@ export function LinkEditModal({
             <CategoryPicker contentType="link" contentId={link.id} />
 
             <SourcesField value={sources} onChange={setSources} />
+
+            <LinkQuotaFields value={quota} onChange={setQuota} />
+
+            <div className="quota-summary">
+              <p className="hint">
+                Consommé : {initialQuota.fichesGenerated} fiche(s)
+                {initialQuota.maxFiches === null ? "" : ` / ${initialQuota.maxFiches}`} ·{" "}
+                {initialQuota.tokensUsed} token(s)
+                {initialQuota.maxTokens === null ? "" : ` / ${initialQuota.maxTokens}`}
+              </p>
+              <button
+                type="button"
+                className="btn ghost small"
+                disabled={resetting}
+                onClick={() => void resetTokens()}
+              >
+                {resetting ? "Réinitialisation…" : "Réinitialiser les tokens"}
+              </button>
+            </div>
 
             <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
 

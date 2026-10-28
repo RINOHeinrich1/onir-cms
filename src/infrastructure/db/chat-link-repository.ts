@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type {
+  AiTokenUsageInput,
   ChatLinkRepository,
   CreateChatLinkInput,
 } from "@/application/ports/chat-link-repository";
@@ -8,6 +9,7 @@ import {
   type ChatLink,
   type ChatLinkChannel,
   type ChatLinkChannels,
+  type ChatLinkQuota,
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
@@ -15,9 +17,11 @@ import {
   isChatLinkType,
   legacyChannelFields,
   parseLinkSources,
+  parseTokenResetMode,
   parseVisualTemplateConfig,
   parseVisualTemplateParams,
   parseWidgetConfig,
+  type TokenResetMode,
 } from "@/domain/entities/chat";
 
 type ChatLinkRow = {
@@ -45,6 +49,13 @@ type ChatLinkRow = {
   ai_model: string | null;
   visit_count: number;
   last_visit_at: Date | null;
+  max_fiches: number | null;
+  max_tokens: string | null;
+  token_reset_mode: string;
+  token_reset_days: number | null;
+  tokens_used: string;
+  token_period_started_at: Date;
+  fiches_generated: number;
   created_at: Date;
 };
 
@@ -62,7 +73,7 @@ type ChannelRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, created_at";
+  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, max_fiches, max_tokens, token_reset_mode, token_reset_days, tokens_used, token_period_started_at, fiches_generated, created_at";
 
 const CHANNEL_COLUMNS =
   "link_id, channel, enabled, identification_mode, confidentialite_id, visual_template_id, visual_template_version, visual_template_config, visual_template_params, channel_config";
@@ -111,6 +122,38 @@ function toChannel(row: ChannelRow): ChatLinkChannel {
   };
 }
 
+function toQuota(row: ChatLinkRow): ChatLinkQuota {
+  return {
+    maxFiches: row.max_fiches,
+    fichesGenerated: row.fiches_generated,
+    maxTokens: row.max_tokens === null ? null : Number(row.max_tokens),
+    tokensUsed: Number(row.tokens_used),
+    tokenResetMode: parseTokenResetMode(row.token_reset_mode),
+    tokenResetDays: row.token_reset_days,
+    tokenPeriodStartedAt: row.token_period_started_at.toISOString(),
+  };
+}
+
+/**
+ * Remet à zéro une période tokens échue avant toute lecture ou écriture.
+ * La condition est idempotente et ne touche pas les autres liens.
+ */
+async function resetExpiredTokenPeriod(
+  pool: Pool,
+  where: string,
+  params: unknown[],
+): Promise<void> {
+  await pool.query(
+    `UPDATE chat_links
+        SET tokens_used = 0, token_period_started_at = now()
+      WHERE token_reset_mode = 'duration'
+        AND token_reset_days IS NOT NULL
+        AND token_period_started_at + make_interval(days => token_reset_days) <= now()
+        AND ${where}`,
+    params,
+  );
+}
+
 function toEntity(row: ChatLinkRow, channels: ChatLinkChannels): ChatLink {
   if (!isChatLinkType(row.type)) {
     throw new Error(`Type de lien inconnu : ${row.type}`);
@@ -143,6 +186,7 @@ function toEntity(row: ChatLinkRow, channels: ChatLinkChannels): ChatLink {
     aiModel: row.ai_model,
     visitCount: row.visit_count,
     lastVisitAt: row.last_visit_at ? row.last_visit_at.toISOString() : null,
+    quotas: toQuota(row),
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -249,6 +293,7 @@ async function upsertChannels(
 export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
   return {
     async findById(organizationId, id): Promise<ChatLink | null> {
+      await resetExpiredTokenPeriod(pool, "organization_id = $1 AND id = $2", [organizationId, id]);
       const { rows } = await pool.query<ChatLinkRow>(
         `SELECT ${COLUMNS} FROM chat_links WHERE organization_id = $1 AND id = $2`,
         [organizationId, id],
@@ -259,6 +304,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
     },
 
     async findByTokenHash(tokenHash): Promise<ChatLink | null> {
+      await resetExpiredTokenPeriod(pool, "token_hash = $1", [tokenHash]);
       const { rows } = await pool.query<ChatLinkRow>(
         `SELECT ${COLUMNS} FROM chat_links WHERE token_hash = $1`,
         [tokenHash],
@@ -269,6 +315,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
     },
 
     async list(organizationId): Promise<ChatLink[]> {
+      await resetExpiredTokenPeriod(pool, "organization_id = $1", [organizationId]);
       const { rows } = await pool.query<ChatLinkRow>(
         `SELECT ${COLUMNS} FROM chat_links
           WHERE organization_id = $1
@@ -295,8 +342,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       try {
         await client.query("BEGIN");
         const { rows } = await client.query<ChatLinkRow>(
-          `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+          `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, max_fiches, max_tokens, token_reset_mode, token_reset_days)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -321,6 +368,10 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
             JSON.stringify(summary.widgetConfig),
             input.aiProviderId ?? null,
             input.aiModel ?? null,
+            input.maxFiches ?? null,
+            input.maxTokens ?? null,
+            input.tokenResetMode ?? "manual",
+            input.tokenResetMode === "duration" ? (input.tokenResetDays ?? null) : null,
           ],
         );
         const row = rows[0];
@@ -380,6 +431,10 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         channels?: ChatLinkChannels;
         aiProviderId?: string | null;
         aiModel?: string | null;
+        maxFiches?: number | null;
+        maxTokens?: number | null;
+        tokenResetMode?: TokenResetMode;
+        tokenResetDays?: number | null;
       },
     ): Promise<ChatLink | null> {
       const existing = await pool.query<ChatLinkRow>(
@@ -388,6 +443,16 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       );
       const existingRow = existing.rows[0];
       if (!existingRow) return null;
+      const existingQuota = toQuota(existingRow);
+      const maxFiches = patch.maxFiches === undefined ? existingQuota.maxFiches : patch.maxFiches;
+      const maxTokens = patch.maxTokens === undefined ? existingQuota.maxTokens : patch.maxTokens;
+      const tokenResetMode = patch.tokenResetMode ?? existingQuota.tokenResetMode;
+      const tokenResetDays =
+        tokenResetMode === "duration"
+          ? patch.tokenResetDays === undefined
+            ? existingQuota.tokenResetDays
+            : patch.tokenResetDays
+          : null;
       const channels =
         patch.channels ??
         (() => {
@@ -399,8 +464,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       try {
         await client.query("BEGIN");
         const { rows } = await client.query<ChatLinkRow>(
-          `UPDATE chat_links SET label = $1, surface = $2, identification_mode = $3, expires_at = $4, sources = $5, confidentialite_id = $6, user_state_enabled = $7, visual_template_id = $8, visual_template_version = $9, visual_template_config = $10, visual_template_params = $11, widget_config = $12, ai_provider_id = $13, ai_model = $14
-            WHERE organization_id = $15 AND id = $16
+          `UPDATE chat_links SET label = $1, surface = $2, identification_mode = $3, expires_at = $4, sources = $5, confidentialite_id = $6, user_state_enabled = $7, visual_template_id = $8, visual_template_version = $9, visual_template_config = $10, visual_template_params = $11, widget_config = $12, ai_provider_id = $13, ai_model = $14, max_fiches = $15, max_tokens = $16, token_reset_mode = $17, token_reset_days = $18
+            WHERE organization_id = $19 AND id = $20
             RETURNING ${COLUMNS}`,
           [
             patch.label,
@@ -417,6 +482,10 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
             JSON.stringify(summary.widgetConfig),
             patch.aiProviderId ?? null,
             patch.aiModel ?? null,
+            maxFiches,
+            maxTokens,
+            tokenResetMode,
+            tokenResetDays,
             organizationId,
             id,
           ],
@@ -429,6 +498,84 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         await upsertChannels(client, row.id, channels);
         await client.query("COMMIT");
         return toEntity(row, channels);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async resetTokenUsage(organizationId, id): Promise<ChatLink | null> {
+      const { rows } = await pool.query<ChatLinkRow>(
+        `UPDATE chat_links
+            SET tokens_used = 0, token_period_started_at = now()
+          WHERE organization_id = $1 AND id = $2
+          RETURNING ${COLUMNS}`,
+        [organizationId, id],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      return toEntity(row, (await loadChannels(pool, [row])).get(row.id) ?? fallbackChannels(row));
+    },
+
+    async reserveFiche(organizationId, id): Promise<boolean> {
+      const result = await pool.query(
+        `UPDATE chat_links
+            SET fiches_generated = fiches_generated + 1
+          WHERE organization_id = $1 AND id = $2
+            AND (max_fiches IS NULL OR fiches_generated < max_fiches)`,
+        [organizationId, id],
+      );
+      return (result.rowCount ?? 0) > 0;
+    },
+
+    async releaseFiche(organizationId, id): Promise<void> {
+      await pool.query(
+        `UPDATE chat_links
+            SET fiches_generated = GREATEST(fiches_generated - 1, 0)
+          WHERE organization_id = $1 AND id = $2`,
+        [organizationId, id],
+      );
+    },
+
+    async recordAiUsage(organizationId, id, input: AiTokenUsageInput) {
+      await resetExpiredTokenPeriod(pool, "organization_id = $1 AND id = $2", [organizationId, id]);
+      const promptTokens = Math.max(0, Math.trunc(input.promptTokens));
+      const completionTokens = Math.max(0, Math.trunc(input.completionTokens));
+      const totalTokens = Math.max(0, Math.trunc(input.totalTokens));
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query<ChatLinkRow>(
+          `UPDATE chat_links
+              SET tokens_used = tokens_used + $3
+            WHERE organization_id = $1 AND id = $2
+            RETURNING ${COLUMNS}`,
+          [organizationId, id, totalTokens],
+        );
+        const row = rows[0];
+        if (!row) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        await client.query(
+          `INSERT INTO chat_link_ai_usage
+             (organization_id, link_id, conversation_id, operation,
+              prompt_tokens, completion_tokens, total_tokens)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            organizationId,
+            id,
+            input.conversationId,
+            input.operation,
+            promptTokens,
+            completionTokens,
+            totalTokens,
+          ],
+        );
+        await client.query("COMMIT");
+        return toQuota(row);
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;

@@ -2,9 +2,11 @@ import type {
   ActiveLinkIdentificationMode,
   ChatLink,
   ChatLinkChannels,
+  ChatLinkQuota,
   ChatLinkSources,
   ChatLinkSurface,
   ChatLinkType,
+  TokenResetMode,
 } from "@/domain/entities/chat";
 
 export type CreateChatLinkInput = {
@@ -41,6 +43,19 @@ export type CreateChatLinkInput = {
   /** Affectation IA explicite (ADR-0029) ; absent/null = hériter. */
   aiProviderId?: string | null;
   aiModel?: string | null;
+  /** Quotas (ADR-0048) ; absent = aucun quota. */
+  maxFiches?: number | null;
+  maxTokens?: number | null;
+  tokenResetMode?: TokenResetMode;
+  tokenResetDays?: number | null;
+};
+
+export type AiTokenUsageInput = {
+  conversationId: string | null;
+  operation: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 };
 
 export interface ChatLinkRepository {
@@ -73,8 +88,24 @@ export interface ChatLinkRepository {
       channels?: ChatLinkChannels;
       aiProviderId?: string | null;
       aiModel?: string | null;
+      maxFiches?: number | null;
+      maxTokens?: number | null;
+      tokenResetMode?: TokenResetMode;
+      tokenResetDays?: number | null;
     },
   ): Promise<ChatLink | null>;
+  /** Réinitialise la consommation tokens de la période courante (ADR-0048). */
+  resetTokenUsage?(organizationId: string, id: string): Promise<ChatLink | null>;
+  /** Réserve atomiquement une fiche ; false si le quota est atteint. */
+  reserveFiche?(organizationId: string, id: string): Promise<boolean>;
+  /** Rend une réservation si la création de fiche échoue. */
+  releaseFiche?(organizationId: string, id: string): Promise<void>;
+  /** Enregistre l'usage tokens d'un appel IA et incrémente le compteur. */
+  recordAiUsage?(
+    organizationId: string,
+    id: string,
+    input: AiTokenUsageInput,
+  ): Promise<ChatLinkQuota | null>;
   /** Remplace hash + chiffré (régénération) ; null si lien introuvable. */
   setLinkToken(
     organizationId: string,

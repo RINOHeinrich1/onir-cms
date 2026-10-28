@@ -1,5 +1,6 @@
 import { type Actor, actorCan, assertCan, organizationOf } from "@/application/actor";
 import { AppError, BadGatewayError, NotFoundError, UnprocessableError } from "@/application/errors";
+import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -7,6 +8,8 @@ import type { ChatOperatorScopeRepository } from "@/application/ports/chat-opera
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
+import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { assertTokenBudgetAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import type { Conversation } from "@/domain/entities/chat";
@@ -211,6 +214,7 @@ export async function refreshConversationFields(
   try {
     const link = await deps.links.findById(organizationId, context.conversation.linkId);
     if (link === null) throw new NotFoundError("Lien introuvable");
+    assertTokenBudgetAvailable(link);
     const target = {
       organizationId,
       aiProviderId: link.aiProviderId,
@@ -219,9 +223,20 @@ export async function refreshConversationFields(
     const clients = deps.ai.forExtraction
       ? await deps.ai.forExtraction(target)
       : [{ label: "lien", client: await deps.ai.forTarget(target) }];
+    const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
+      await deps.links.recordAiUsage?.(organizationId, link.id, {
+        conversationId,
+        operation,
+        ...usage,
+      });
+    };
+    const trackedClients = clients.map((entry) => ({
+      ...entry,
+      client: withAiUsage(entry.client, recordUsage, "field_extraction"),
+    }));
     const draft = await draftTemplateDataWithClients(
       { conversations: deps.conversations },
-      clients,
+      trackedClients,
       organizationId,
       conversationId,
       context.definition,

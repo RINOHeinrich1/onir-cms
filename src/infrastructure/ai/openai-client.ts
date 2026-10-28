@@ -3,7 +3,7 @@
  * Un seul point d'envoi ; les différences sont isolées par dialecte.
  */
 
-import type { AiMessage } from "@/application/ports/ai-client";
+import type { AiMessage, AiTokenUsage } from "@/application/ports/ai-client";
 import {
   type AiCapabilities,
   aiCapabilitiesFor,
@@ -24,6 +24,7 @@ export type ProviderChatInput = {
   reasoning?: ReasoningMode | undefined;
   structured?: boolean | undefined;
   capabilities?: AiCapabilities | undefined;
+  onUsage?: ((usage: AiTokenUsage) => void | Promise<void>) | undefined;
 };
 
 function endpoint(baseUrl: string): string {
@@ -139,17 +140,28 @@ export async function chatCompletionForProvider(input: ProviderChatInput): Promi
     const json = (await response.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
       usage?: {
+        prompt_tokens?: number;
         completion_tokens?: number;
+        total_tokens?: number;
         completion_tokens_details?: { reasoning_tokens?: number };
       };
     };
     const durationMs = Date.now() - startedAt;
+    const content = json.choices?.[0]?.message?.content;
+    const promptText = input.messages.map((message) => message.content).join("\n");
+    const completionText = typeof content === "string" ? content : "";
+    const promptTokens =
+      json.usage?.prompt_tokens ?? (promptText === "" ? 0 : Math.ceil(promptText.length / 4));
+    const completionTokens =
+      json.usage?.completion_tokens ??
+      (completionText === "" ? 0 : Math.ceil(completionText.length / 4));
+    const totalTokens = json.usage?.total_tokens ?? promptTokens + completionTokens;
+    await input.onUsage?.({ promptTokens, completionTokens, totalTokens });
     const reasoningTokens = json.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     console.info(
-      `[ia] ${input.label ?? "provider"} · ${input.model} · ${durationMs} ms · tokens=${json.usage?.completion_tokens ?? "?"} (raisonnement=${reasoningTokens})`,
+      `[ia] ${input.label ?? "provider"} · ${input.model} · ${durationMs} ms · tokens=${completionTokens} (raisonnement=${reasoningTokens})`,
     );
 
-    const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.trim() === "") {
       throw new Error("Réponse IA vide");
     }

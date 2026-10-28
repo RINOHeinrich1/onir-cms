@@ -9,13 +9,14 @@ import {
   loadTemplateSpec,
   toContractMessages,
 } from "@/application/use-cases/visual-templates/link-template";
+import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
 import { ChatPortal } from "@/components/chat/ChatPortal";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { AnonymousTemplatePortal } from "@/components/templates/AnonymousTemplatePortal";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { TemplateLoader } from "@/components/templates/TemplateLoader";
-import { channelsForLink } from "@/domain/entities/chat";
+import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import type { TemplateFormField } from "@/domain/template-contract";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
@@ -94,6 +95,10 @@ export default async function ChatPortalPage({ params }: PageProps) {
         </div>
       </main>
     );
+  }
+  const blockReason = chatLinkBlockReason(link);
+  if (blockReason !== null) {
+    return <ChatbotUnavailable reason={blockReason} />;
   }
 
   const reasoning = await pgChatTemplateRepository(pool).findVersion(
