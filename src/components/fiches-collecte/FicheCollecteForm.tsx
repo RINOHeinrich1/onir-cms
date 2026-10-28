@@ -102,7 +102,15 @@ function payload(draft: Draft): Record<string, unknown> {
 }
 
 /** Création / édition d'une fiche de collecte réutilisable (ADR-0049). */
-export function FicheCollecteForm({ fiche }: { fiche: FicheCollecteDto | null }) {
+export function FicheCollecteForm({
+  fiche,
+  onSaved,
+  onCancel,
+}: {
+  fiche: FicheCollecteDto | null;
+  onSaved?: (fiche: FicheCollecteDto) => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => draftFromFiche(fiche));
@@ -132,12 +140,16 @@ export function FicheCollecteForm({ fiche }: { fiche: FicheCollecteDto | null })
           body: JSON.stringify(payload(draft)),
         },
       );
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) {
+      const json = (await response.json()) as { fiche?: FicheCollecteDto; error?: string };
+      if (!response.ok || json.fiche === undefined) {
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
       toast.success(fiche === null ? "Fiche créée." : "Nouvelle version créée.");
+      if (onSaved !== undefined) {
+        onSaved(json.fiche);
+        return;
+      }
       router.push("/fiches-collecte");
       router.refresh();
     } catch {
@@ -326,7 +338,7 @@ export function FicheCollecteForm({ fiche }: { fiche: FicheCollecteDto | null })
           type="button"
           className="btn ghost"
           disabled={pending}
-          onClick={() => router.push("/fiches-collecte")}
+          onClick={() => (onCancel === undefined ? router.push("/fiches-collecte") : onCancel())}
         >
           Annuler
         </button>

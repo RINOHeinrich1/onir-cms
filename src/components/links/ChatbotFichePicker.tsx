@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { FicheCollecteForm } from "@/components/fiches-collecte/FicheCollecteForm";
+import type { FicheCollecteDto } from "@/components/fiches-collecte/types";
+import { Modal } from "@/components/ui/Modal";
 import type { TemplateField } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
 import { draftFromFicheCollecte, type FicheDraft } from "./chatbot-config-draft";
@@ -28,6 +31,7 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +117,9 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
             aria-label="Rechercher une fiche de collecte"
             onChange={(event) => setQuery(event.target.value)}
           />
+          <button type="button" className="btn small" onClick={() => setCreating(true)}>
+            + Créer une fiche
+          </button>
           <a href="/fiches-collecte" target="_blank" rel="noreferrer" className="btn ghost small">
             Gérer les fiches
           </a>
@@ -156,6 +163,20 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
           </div>
         ) : null}
       </fieldset>
+
+      {creating ? (
+        <Modal title="Nouvelle fiche de collecte" onClose={() => setCreating(false)} wide>
+          <FicheCollecteForm
+            fiche={null}
+            onCancel={() => setCreating(false)}
+            onSaved={(fiche: FicheCollecteDto) => {
+              setOptions((current) => [...current, fiche]);
+              onChange([...value, draftFromFicheCollecte(fiche)]);
+              setCreating(false);
+            }}
+          />
+        </Modal>
+      ) : null}
 
       <div className="chatbot-fiche-selected">
         <strong>
