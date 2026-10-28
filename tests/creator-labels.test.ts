@@ -98,7 +98,8 @@ describe("creatorOptions", () => {
 
   it("filtre par créateur ou par absence de créateur", () => {
     expect(items.filter((item) => matchesCreator(item, null))).toHaveLength(4);
-    expect(items.filter((item) => matchesCreator(item, "user-1"))).toHaveLength(2);
-    expect(items.filter((item) => matchesCreator(item, NO_CREATOR))).toHaveLength(1);
+    expect(items.filter((item) => matchesCreator(item, ["user-1"]))).toHaveLength(2);
+    expect(items.filter((item) => matchesCreator(item, [NO_CREATOR]))).toHaveLength(1);
+    expect(items.filter((item) => matchesCreator(item, ["user-1", "user-2"]))).toHaveLength(3);
   });
 });

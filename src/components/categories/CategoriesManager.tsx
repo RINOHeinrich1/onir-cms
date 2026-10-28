@@ -26,7 +26,7 @@ export function CategoriesManager({
   const [editing, setEditing] = useState<CategoryListItem | null | "new">(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const creators = creatorOptions(categories);
   const showUnassigned = hasUnassignedCreator(categories);
   const visibleCategories = categories.filter((category) =>

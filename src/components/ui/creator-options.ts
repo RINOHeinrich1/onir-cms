@@ -26,8 +26,11 @@ export function hasUnassignedCreator(items: readonly CreatorFilterable[]): boole
   return items.some((item) => item.createdBy === null || item.createdBy.trim() === "");
 }
 
-export function matchesCreator(item: CreatorFilterable, filter: string | null): boolean {
-  if (filter === null) return true;
-  if (filter === NO_CREATOR) return item.createdBy === null || item.createdBy.trim() === "";
-  return item.createdBy === filter;
+export function matchesCreator(item: CreatorFilterable, filter: readonly string[] | null): boolean {
+  if (filter === null || filter.length === 0) return true;
+  return filter.some((value) =>
+    value === NO_CREATOR
+      ? item.createdBy === null || item.createdBy.trim() === ""
+      : item.createdBy === value,
+  );
 }

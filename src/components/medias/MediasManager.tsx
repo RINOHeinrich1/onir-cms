@@ -29,7 +29,7 @@ export function MediasManager({
   const [editing, setEditing] = useState<MediaDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const creators = creatorOptions(medias);
   const showUnassigned = hasUnassignedCreator(medias);
   const visibleMedias = medias.filter((media) => matchesCreator(media, creatorFilter));

@@ -28,7 +28,7 @@ export function ConnaissancesTable({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const creators = creatorOptions(connaissances);
   const showUnassigned = hasUnassignedCreator(connaissances);
   const visibleConnaissances = connaissances.filter((item) => matchesCreator(item, creatorFilter));

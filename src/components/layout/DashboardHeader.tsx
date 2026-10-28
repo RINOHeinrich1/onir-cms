@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { OrganizationSwitcher } from "@/components/organizations/OrganizationSwitcher";
@@ -240,9 +241,14 @@ export function DashboardHeader({
   isSuperAdmin: boolean;
 }) {
   // Le super-admin voit tout (son rôle effectif peut être `admin` sans ces actions).
+  const pathname = usePathname();
   const links = ITEMS.filter((item) => isSuperAdmin || can(role, item.action));
   const primaryLinks = links.filter((item) => PRIMARY_HREFS.has(item.href));
   const toolboxLinks = links.filter((item) => !ACCOUNT_HREFS.has(item.href));
+  const isActive = (href: string): boolean =>
+    href === "/dashboard"
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -267,7 +273,11 @@ export function DashboardHeader({
 
         <nav aria-label="Navigation principale" className="dash-nav">
           {primaryLinks.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
+            >
               {item.label}
             </Link>
           ))}
@@ -337,6 +347,7 @@ export function DashboardHeader({
                         key={item.href}
                         href={item.href}
                         className="dash-toolbox-link"
+                        aria-current={isActive(item.href) ? "page" : undefined}
                         onClick={() => setOpen(false)}
                       >
                         <span className="dash-toolbox-icon">

@@ -109,79 +109,63 @@ export function FichesTable({
         </div>
       ) : null}
 
-      <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Prospect</th>
-              <th>Modèle</th>
-              <th>État</th>
-              <th>Créée le</th>
-              <th>Rapport</th>
-            </tr>
-          </thead>
-          <tbody>
-            {initialFiches.map((fiche) => {
-              const prospect =
-                fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
-
-              return (
-                <tr key={fiche.id} className={fiche.archivee ? "row-archivee" : undefined}>
-                  <td>
+      <div className="lead-grid">
+        {initialFiches.map((fiche) => {
+          const prospect =
+            fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
+          return (
+            <article key={fiche.id} className={`lead-card ${fiche.archivee ? "is-archived" : ""}`}>
+              <header className="lead-card-head">
+                <div>
+                  <h2>
                     {prospect === null ? (
-                      <span className="muted-text">Prospect libre</span>
+                      "Prospect libre"
                     ) : (
                       <a className="link" href={`/prospects?prospect=${fiche.prospectId}`}>
                         {prospect.nom}
                       </a>
                     )}
-                  </td>
-                  <td>
-                    <span className="badge muted" title={fiche.templateKey}>
-                      {fiche.templateKey}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge ${fiche.archivee ? "muted" : ""}`}>
-                      {fiche.archivee ? "archivée" : "active"}
-                    </span>
-                  </td>
-                  <td>{new Date(fiche.createdAt).toLocaleDateString("fr-FR")}</td>
-                  <td>
-                    <div className="tools">
-                      <a className="btn small" href={`/leads/${fiche.id}`}>
-                        Regarder
-                      </a>
-                      <a
-                        className="btn ghost small"
-                        href={`/api/fiche/${fiche.id}/download?format=pdf`}
-                      >
-                        PDF
-                      </a>
-                      <a className="btn ghost small" href={`/api/fiche/${fiche.id}/download`}>
-                        Markdown
-                      </a>
-                      {canWrite ? (
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => void toggleArchive(fiche)}
-                        >
-                          {fiche.archivee ? "Désarchiver" : "Archiver"}
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {initialFiches.length === 0 ? (
-              <tr>
-                <td colSpan={5}>Aucune fiche.</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                  </h2>
+                  <p>Créée le {new Date(fiche.createdAt).toLocaleDateString("fr-FR")}</p>
+                </div>
+                <span className={`badge ${fiche.archivee ? "muted" : "success"}`}>
+                  {fiche.archivee ? "archivée" : "active"}
+                </span>
+              </header>
+              <div className="lead-card-model">
+                <span className="muted-text">Modèle</span>
+                <span className="badge muted" title={fiche.templateKey}>
+                  {fiche.templateKey}
+                </span>
+              </div>
+              <footer className="lead-card-actions">
+                <a className="btn small" href={`/leads/${fiche.id}`}>
+                  Ouvrir
+                </a>
+                <details className="action-menu">
+                  <summary className="btn ghost small" aria-label="Autres actions">
+                    ⋯
+                  </summary>
+                  <div className="action-menu-panel">
+                    <a href={`/api/fiche/${fiche.id}/download?format=pdf`}>Télécharger en PDF</a>
+                    <a href={`/api/fiche/${fiche.id}/download`}>Télécharger en Markdown</a>
+                    {canWrite ? (
+                      <button type="button" onClick={() => void toggleArchive(fiche)}>
+                        {fiche.archivee ? "Désarchiver" : "Archiver"}
+                      </button>
+                    ) : null}
+                  </div>
+                </details>
+              </footer>
+            </article>
+          );
+        })}
+        {initialFiches.length === 0 ? (
+          <div className="empty-state">
+            <strong>Aucune fiche.</strong>
+            <span>Les fiches générées depuis une conversation apparaîtront ici.</span>
+          </div>
+        ) : null}
       </div>
 
       {creating ? (

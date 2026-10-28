@@ -30,7 +30,7 @@ export function ConfidentialitesTable({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const creators = creatorOptions(items);
   const showUnassigned = hasUnassignedCreator(items);
   const visibleItems = items.filter((item) => matchesCreator(item, creatorFilter));
