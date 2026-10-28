@@ -16,7 +16,9 @@
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "db:verify-tenant": "tsx --env-file-if-exists=.env src/infrastructure/db/verify-tenant.ts",
     "test:e2e": "playwright test",
-    "build:db-cli": "node scripts/build-db-cli.mjs"
+    "build:db-cli": "node scripts/build-db-cli.mjs",
+    "check:fast": "npm run typecheck && npm run lint && npm run build",
+    "check:full": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
