@@ -5174,3 +5174,17 @@ a.subtab {
   bottom: 0;
   padding-bottom: 0.25rem;
 }
+
+@media (max-width: 900px) {
+  .conversations-workspace .inbox-thread {
+    display: none;
+  }
+
+  .conversations-workspace.is-detail .inbox-thread {
+    display: flex;
+  }
+
+  .conversations-workspace.is-detail .inbox-sidebar {
+    display: none;
+  }
+}
