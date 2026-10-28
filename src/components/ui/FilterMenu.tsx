@@ -25,6 +25,7 @@ export function FilterMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string[]>>(() => valuesBySection(sections));
+  const [queries, setQueries] = useState<Record<string, string>>({});
   const panelId = useId();
   const signature = JSON.stringify(sections.map((section) => [section.id, section.value]));
 
@@ -62,12 +63,14 @@ export function FilterMenu({
 
   const apply = (): void => {
     onApply(draft);
+    setQueries({});
     setOpen(false);
   };
 
   const clearAll = (): void => {
     const empty = Object.fromEntries(sections.map((section) => [section.id, []]));
     setDraft(empty);
+    setQueries({});
     onApply(empty);
     setOpen(false);
   };
@@ -143,34 +146,79 @@ export function FilterMenu({
               </button>
             </div>
             <div className="filter-sections">
-              {sections.map((section) => (
-                <fieldset className="filter-section" key={section.id}>
-                  <legend>
-                    <span>{section.label}</span>
-                    {(draft[section.id] ?? []).length > 0 ? (
-                      <button
-                        type="button"
-                        className="filter-section-clear"
-                        onClick={() => clearSection(section.id)}
-                      >
-                        Effacer
-                      </button>
-                    ) : null}
-                  </legend>
-                  <div className="filter-options">
-                    {section.options.map((option) => (
-                      <label className="filter-option" key={option.value}>
+              {sections.map((section) => {
+                const selected = draft[section.id] ?? [];
+                const searchable = section.options.length > 8;
+                const query = (queries[section.id] ?? "").trim().toLocaleLowerCase("fr");
+                const visibleOptions = section.options
+                  .filter(
+                    (option) =>
+                      query === "" || option.label.toLocaleLowerCase("fr").includes(query),
+                  )
+                  .sort(
+                    (left, right) =>
+                      Number(selected.includes(right.value)) -
+                      Number(selected.includes(left.value)),
+                  );
+
+                return (
+                  <fieldset className="filter-section" key={section.id}>
+                    <legend>
+                      <span>{section.label}</span>
+                      {selected.length > 0 ? (
+                        <button
+                          type="button"
+                          className="filter-section-clear"
+                          onClick={() => clearSection(section.id)}
+                        >
+                          Effacer
+                        </button>
+                      ) : null}
+                    </legend>
+                    {searchable ? (
+                      <label className="filter-section-search">
+                        <span className="sr-only">Rechercher dans {section.label}</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          aria-hidden
+                        >
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+                        </svg>
                         <input
-                          type="checkbox"
-                          checked={(draft[section.id] ?? []).includes(option.value)}
-                          onChange={() => toggle(section.id, option.value)}
+                          type="search"
+                          value={queries[section.id] ?? ""}
+                          placeholder={`Rechercher dans ${section.label}…`}
+                          onChange={(event) =>
+                            setQueries((current) => ({
+                              ...current,
+                              [section.id]: event.target.value,
+                            }))
+                          }
                         />
-                        <span>{option.label}</span>
                       </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
+                    ) : null}
+                    <div className={`filter-options ${searchable ? "filter-options-scroll" : ""}`}>
+                      {visibleOptions.map((option) => (
+                        <label className="filter-option" key={option.value}>
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(option.value)}
+                            onChange={() => toggle(section.id, option.value)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                      {visibleOptions.length === 0 ? (
+                        <span className="filter-option-empty">Aucun résultat.</span>
+                      ) : null}
+                    </div>
+                  </fieldset>
+                );
+              })}
             </div>
             <div className="filter-panel-actions">
               <button type="button" className="btn ghost small" onClick={clearAll}>
