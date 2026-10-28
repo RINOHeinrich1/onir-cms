@@ -59,6 +59,8 @@ function deps() {
       content,
       medias: [],
       mediasComputed: false,
+      authorUserId: null,
+      authorName: null,
       attachments:
         role === "user"
           ? [

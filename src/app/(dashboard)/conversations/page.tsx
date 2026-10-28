@@ -6,6 +6,7 @@ import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
 import { ConversationsTable } from "@/components/conversations/ConversationsTable";
 import { distinctChatLinkLabels, parseConversationFilter } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -38,12 +39,17 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
   const pool = getPool();
   const [conversations, links] = await Promise.all([
     listConversations(
-      { conversations: pgConversationRepository(pool) },
+      {
+        conversations: pgConversationRepository(pool),
+        operatorScopes: pgChatOperatorScopeRepository(pool),
+      },
       context.actor,
       filtre,
       lien,
     ),
-    listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
+    actorCan(context.actor, "links:list")
+      ? listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor)
+      : Promise.resolve([]),
   ]);
 
   return (

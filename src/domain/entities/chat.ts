@@ -286,8 +286,34 @@ export type Conversation = {
   confidentialiteId: string | null;
   /** Canal d'origine de la conversation (ADR-0041). */
   channel?: ChatLinkSurface;
+  /** Mode courant : IA ou intervention humaine (ADR-0043). */
+  interventionMode: ConversationInterventionMode;
+  /** Opérateur actuellement en charge (null en mode IA). */
+  assignedUserId: string | null;
+  /** Nom lisible de l'opérateur en charge (dérivé, null si aucun). */
+  assignedOperatorName: string | null;
+  /** Dernier opérateur intervenu, conservé après retour à l'IA. */
+  lastOperatorUserId: string | null;
+  /** Nom lisible du dernier opérateur (dérivé). */
+  lastOperatorName: string | null;
+  /** Dernière prise en main humaine. */
+  humanTakeoverAt: string | null;
+  /** Dernier message visiteur. */
+  lastVisitorMessageAt: string | null;
+  /** Dernier message opérateur. */
+  lastOperatorMessageAt: string | null;
   createdAt: string;
 };
+
+export const CONVERSATION_INTERVENTION_MODES = ["ai", "human"] as const;
+
+export type ConversationInterventionMode = (typeof CONVERSATION_INTERVENTION_MODES)[number];
+
+export function isConversationInterventionMode(
+  value: string,
+): value is ConversationInterventionMode {
+  return (CONVERSATION_INTERVENTION_MODES as readonly string[]).includes(value);
+}
 
 /** Moyen de contact complémentaire (lien standard : collecté par ContactGate). */
 export const CONTACT_TYPES = ["téléphone", "whatsapp", "site web", "autre"] as const;
@@ -303,9 +329,13 @@ export function isContactType(value: string): value is ContactType {
   return (CONTACT_TYPES as readonly string[]).includes(value);
 }
 
-export const CHAT_MESSAGE_ROLES = ["user", "assistant"] as const;
+export const CHAT_MESSAGE_ROLES = ["user", "assistant", "operator"] as const;
 
 export type ChatMessageRole = (typeof CHAT_MESSAGE_ROLES)[number];
+
+export function isChatMessageRole(value: string): value is ChatMessageRole {
+  return (CHAT_MESSAGE_ROLES as readonly string[]).includes(value);
+}
 
 /** Média proposé par l'assistant, prêt à rendre (instantané). */
 export type ChatMessageMedia = {
@@ -329,5 +359,9 @@ export type ChatMessage = {
   mediasComputed: boolean;
   /** Pièces jointes du message (champs fichier, ADR-0034). */
   attachments: AttachmentView[];
+  /** Auteur humain d'un message opérateur (ADR-0043). */
+  authorUserId: string | null;
+  /** Nom lisible de l'auteur opérateur (dérivé). */
+  authorName: string | null;
   createdAt: string;
 };

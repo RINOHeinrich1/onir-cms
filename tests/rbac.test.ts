@@ -18,6 +18,40 @@ describe("RBAC — matrice des rôles (RM-ROLE-*)", () => {
     expect(can("marketeur", "chat:use")).toBe(true);
   });
 
+  it("opérateur chat : conversations uniquement, aucun droit sur les liens", () => {
+    for (const action of [
+      "conversations:list",
+      "conversations:read",
+      "conversations:intervene",
+      "conversations:generate_fiche",
+    ] as const) {
+      expect(can("operateur", action)).toBe(true);
+    }
+    for (const action of [
+      "dashboard:view",
+      "links:list",
+      "links:create",
+      "links:update",
+      "links:revoke",
+      "project:read",
+      "project:write",
+      "users:list",
+      "members:list",
+      "organizations:list",
+    ] as const) {
+      expect(can("operateur", action)).toBe(false);
+    }
+  });
+
+  it("admin et marketeur interviennent ; lecteur reste en lecture seule", () => {
+    expect(can("admin", "conversations:intervene")).toBe(true);
+    expect(can("marketeur", "conversations:intervene")).toBe(true);
+    expect(can("lecteur", "conversations:intervene")).toBe(false);
+    expect(can("admin", "conversations:generate_fiche")).toBe(true);
+    expect(can("marketeur", "conversations:generate_fiche")).toBe(true);
+    expect(can("lecteur", "conversations:generate_fiche")).toBe(false);
+  });
+
   it("lecteur est en lecture seule", () => {
     expect(can("lecteur", "dashboard:view")).toBe(true);
     expect(can("lecteur", "prospects:list")).toBe(true);
@@ -78,7 +112,7 @@ describe("RBAC — matrice des rôles (RM-ROLE-*)", () => {
   });
 
   it("conversations : lecture pour tous, écriture pour admin/marketeur (conversations:*)", () => {
-    for (const role of ["admin", "marketeur", "lecteur"] as const) {
+    for (const role of ["admin", "marketeur", "lecteur", "operateur"] as const) {
       expect(can(role, "conversations:list")).toBe(true);
       expect(can(role, "conversations:read")).toBe(true);
     }

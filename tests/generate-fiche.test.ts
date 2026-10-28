@@ -3,6 +3,7 @@ import type { AiClient } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
@@ -38,6 +39,14 @@ const CONVERSATION: Conversation = {
   lastMessageAt: null,
   consentementAt: null,
   confidentialiteId: null,
+  interventionMode: "ai",
+  assignedUserId: null,
+  assignedOperatorName: null,
+  lastOperatorUserId: null,
+  lastOperatorName: null,
+  humanTakeoverAt: null,
+  lastVisitorMessageAt: null,
+  lastOperatorMessageAt: null,
   createdAt: new Date(0).toISOString(),
 };
 
@@ -135,6 +144,10 @@ function deps() {
         }),
       } as unknown as OrganizationRepository,
       links: { findById: async () => LINK } as unknown as ChatLinkRepository,
+      operatorScopes: {
+        findForUser: async () => null,
+        setForUser: async (_organizationId, _userId, scope) => scope,
+      } as ChatOperatorScopeRepository,
       conversations: {
         findById: async () => CONVERSATION,
         listMessages: async () => [
@@ -145,6 +158,8 @@ function deps() {
             content: "Je veux un site.",
             medias: [],
             mediasComputed: false,
+            authorUserId: null,
+            authorName: null,
             attachments: [],
             createdAt: new Date(0).toISOString(),
           },
@@ -175,7 +190,7 @@ function deps() {
 }
 
 describe("generateFicheFromConversation — opérateur (US-CONVERS-002)", () => {
-  it("refuse un lecteur (RBAC project:write)", async () => {
+  it("refuse un lecteur (RBAC conversations:generate_fiche)", async () => {
     const base = deps();
     await expect(generateFicheFromConversation(base.deps, LECTEUR, "c1")).rejects.toThrow(
       /non autoris/i,

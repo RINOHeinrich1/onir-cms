@@ -10,6 +10,7 @@ import { pgOrganizationRepository } from "@/infrastructure/db/organization-repos
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { renderMarkdownPdf } from "@/infrastructure/pdf/markdown-pdf";
+import { publishChatRealtime } from "@/lib/chat-realtime";
 import { errorResponse } from "../../_lib/errors";
 import { readJsonObject, stringField } from "../../_lib/http";
 
@@ -44,6 +45,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
 
     const pdf = await renderMarkdownPdf(finished.markdown, "Fiche — ONIR CMS");
+    publishChatRealtime(conversationId, { type: "state" });
 
     return NextResponse.json({ ...finished, pdfBase64: pdf.toString("base64") }, { status: 201 });
   } catch (error) {

@@ -4,6 +4,7 @@ import type {
   ChatMessageRole,
   Conversation,
   ConversationFilter,
+  ConversationInterventionMode,
   StatutConversation,
   VisitorContact,
 } from "@/domain/entities/chat";
@@ -42,10 +43,24 @@ export type ConversationSummary = {
   lastMessageAt: string | null;
   archivee: boolean;
   createdAt: string;
+  /** Mode IA/humain (ADR-0043). */
+  interventionMode: ConversationInterventionMode;
+  /** Opérateur en charge (null en mode IA). */
+  assignedOperatorId: string | null;
+  assignedOperatorName: string | null;
+  /** Dernier opérateur intervenu (conservé après retour à l'IA). */
+  lastOperatorName: string | null;
+  /** Vrai si un visiteur attend une réponse humaine. */
+  awaitingOperator: boolean;
 };
 
 export interface ConversationRepository {
-  findById(organizationId: string, id: string): Promise<Conversation | null>;
+  findById(
+    organizationId: string,
+    id: string,
+    /** Périmètre de liens (ADR-0043) ; null/absent = tous les liens. */
+    allowedLinkIds?: string[] | null,
+  ): Promise<Conversation | null>;
   /**
    * Résolution par identifiant seul — **parcours public uniquement**.
    * L'UUID de conversation est la capability ; l'organisation est ensuite
@@ -64,6 +79,8 @@ export interface ConversationRepository {
     organizationId: string,
     filter: ConversationFilter,
     linkLabel?: string | null,
+    /** Périmètre de liens (ADR-0043) ; null/absent = tous les liens. */
+    allowedLinkIds?: string[] | null,
   ): Promise<ConversationSummary[]>;
   /** Compte les conversations non archivées par statut, scopé organisation. */
   countByStatut(organizationId: string): Promise<ConversationStatusCounts>;
@@ -79,7 +96,30 @@ export interface ConversationRepository {
     content: string,
     /** Pièces à rattacher atomiquement au message (ADR-0034). */
     attachmentIds?: string[],
+    /** Auteur humain (messages opérateur uniquement). */
+    authorUserId?: string | null,
   ): Promise<ChatMessage>;
+  /** Message opérateur + prise en main atomiques (ADR-0043). */
+  appendOperatorMessage(
+    organizationId: string,
+    conversationId: string,
+    content: string,
+    authorUserId: string,
+  ): Promise<{ message: ChatMessage; conversation: Conversation } | null>;
+  /** Prend la main sans envoyer de message ; null si introuvable/finalisée. */
+  takeOverConversation(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+  ): Promise<Conversation | null>;
+  /** Rend la main à l'IA ; null si introuvable. */
+  releaseConversation(organizationId: string, conversationId: string): Promise<Conversation | null>;
+  /** Messages strictement postérieurs à `after` (SSE/polling). */
+  listMessagesAfter(
+    organizationId: string,
+    conversationId: string,
+    after: string | null,
+  ): Promise<ChatMessage[]>;
   findMessage(organizationId: string, id: string): Promise<ChatMessage | null>;
   listMessages(organizationId: string, conversationId: string): Promise<ChatMessage[]>;
   /** Renseigne les médias d'un message (NULL = non calculé côté base). */

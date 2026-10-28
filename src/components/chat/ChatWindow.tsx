@@ -1,17 +1,27 @@
 "use client";
 
 import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatAttachmentDto } from "@/application/use-cases/attachments/attachment-dto";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
-import type { ChatMessageMedia } from "@/domain/entities/chat";
+import type { ChatMessageMedia, ConversationInterventionMode } from "@/domain/entities/chat";
 import type { TemplateFormField } from "@/domain/template-contract";
 import type { ChatMessageDto } from "./types";
 
 type Message = ChatMessageDto;
+
+const POLL_MS = 4000;
+
+function mergeMessages(current: Message[], incoming: Message[]): Message[] {
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort((a, b) =>
+    a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+  );
+}
 
 type ChatWindowProps = {
   /** Null en mode anonyme : la session est créée au premier message. */
@@ -100,6 +110,10 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
+  const [mode, setMode] = useState<ConversationInterventionMode>(
+    initialMessages?.some((message) => message.role === "operator") === true ? "human" : "ai",
+  );
+  const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -118,6 +132,11 @@ export function ChatWindow({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const conversationRef = useRef<string | null>(conversationId);
   const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
+  const lastAtRef = useRef<string | null>(
+    initialMessages === undefined || initialMessages.length === 0
+      ? null
+      : (initialMessages[initialMessages.length - 1]?.createdAt ?? null),
+  );
 
   /**
    * Descend au dernier message. Le défilement est marqué « programmatique »
@@ -146,6 +165,97 @@ export function ChatWindow({
     if (el === null) return;
     stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
+
+  const receiveMessages = useCallback((incoming: Message[]): void => {
+    if (incoming.length === 0) return;
+    setMessages((previous) => mergeMessages(previous, incoming));
+    const latest = incoming[incoming.length - 1];
+    if (
+      latest !== undefined &&
+      (lastAtRef.current === null || latest.createdAt > lastAtRef.current)
+    ) {
+      lastAtRef.current = latest.createdAt;
+    }
+  }, []);
+
+  // Temps réel visiteur (ADR-0043) : SSE nominal, polling 4 s en secours.
+  useEffect(() => {
+    if (activeConversationId === null) return;
+    if (typeof window === "undefined" || typeof EventSource === "undefined") {
+      setTransport("polling");
+      return;
+    }
+    const params = new URLSearchParams({ conversationId: activeConversationId });
+    if (lastAtRef.current !== null) params.set("after", lastAtRef.current);
+    const source = new EventSource(`/api/chat/stream?${params.toString()}`);
+    let closed = false;
+
+    const onMessage = (event: MessageEvent<string>): void => {
+      try {
+        receiveMessages([JSON.parse(event.data) as Message]);
+      } catch {
+        // Trame illisible : le polling corrigera l'état.
+      }
+    };
+    const onState = (event: MessageEvent<string>): void => {
+      try {
+        const payload = JSON.parse(event.data) as {
+          mode?: ConversationInterventionMode;
+        };
+        if (payload.mode === "ai" || payload.mode === "human") setMode(payload.mode);
+      } catch {
+        // Trame illisible.
+      }
+    };
+    const onError = (): void => {
+      if (closed) return;
+      closed = true;
+      source.close();
+      setTransport("polling");
+    };
+
+    source.addEventListener("message", onMessage as EventListener);
+    source.addEventListener("state", onState as EventListener);
+    source.addEventListener("error", onError);
+
+    return () => {
+      closed = true;
+      source.close();
+    };
+  }, [activeConversationId, receiveMessages]);
+
+  // Repli polling : utilisé si SSE échoue ou si EventSource est indisponible.
+  useEffect(() => {
+    if (activeConversationId === null || transport !== "polling") return;
+    let cancelled = false;
+
+    const poll = async (): Promise<void> => {
+      if (document.visibilityState === "hidden") return;
+      const params = new URLSearchParams({ conversationId: activeConversationId });
+      if (lastAtRef.current !== null) params.set("after", lastAtRef.current);
+      try {
+        const response = await fetch(`/api/chat/messages?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const json = (await response.json()) as {
+          mode?: ConversationInterventionMode;
+          messages?: Message[];
+        };
+        if (cancelled || !response.ok) return;
+        if (json.mode === "ai" || json.mode === "human") setMode(json.mode);
+        if (json.messages !== undefined) receiveMessages(json.messages);
+      } catch {
+        // Échec silencieux : le prochain tick réessaie.
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeConversationId, transport, receiveMessages]);
 
   // Ancrage à chaque changement (message envoyé, réponse IA, indicateur de frappe).
   // biome-ignore lint/correctness/useExhaustiveDependencies: relance le défilement sur nouveaux messages
@@ -299,6 +409,7 @@ export function ChatWindow({
       content,
       medias: [],
       attachments,
+      authorName: null,
       createdAt: new Date().toISOString(),
     };
     setMessages((previous) => [...previous, local]);
@@ -326,8 +437,10 @@ export function ChatWindow({
         }),
       });
       const json = (await response.json()) as {
+        userMessage?: Message;
         message?: Message | null;
         mediaPending?: boolean;
+        mode?: ConversationInterventionMode;
         error?: string;
       };
       if (!response.ok) {
@@ -336,9 +449,17 @@ export function ChatWindow({
         return;
       }
       setPendingAttachments([]);
+      if (json.mode === "ai" || json.mode === "human") setMode(json.mode);
+      if (json.userMessage !== undefined) {
+        const serverUser = json.userMessage;
+        setMessages((previous) => {
+          const withoutLocal = previous.filter((message) => message.id !== local.id);
+          return mergeMessages(withoutLocal, [serverUser]);
+        });
+      }
       const answer = json.message ?? null;
       if (answer !== null) {
-        setMessages((previous) => [...previous, answer]);
+        receiveMessages([answer]);
         if (json.mediaPending === true) {
           void loadMedia(answer, activeId);
         }
@@ -421,9 +542,12 @@ export function ChatWindow({
           {messages.map((message) => (
             <li key={message.id} className={`msg ${message.role}`}>
               <span className="msg-avatar" aria-hidden="true">
-                {message.role === "user" ? "Moi" : "IA"}
+                {message.role === "user" ? "Moi" : message.role === "operator" ? "Hum." : "IA"}
               </span>
               <div className="msg-body">
+                {message.role === "operator" ? (
+                  <span className="msg-operator-label">Conseiller</span>
+                ) : null}
                 {message.role === "assistant" ? (
                   <div className="bubble">
                     <div className="md">
@@ -479,7 +603,7 @@ export function ChatWindow({
             </li>
           ))}
 
-          {pending ? (
+          {pending && mode === "ai" ? (
             <li className="msg assistant">
               <span className="msg-avatar" aria-hidden="true">
                 IA
@@ -514,6 +638,12 @@ export function ChatWindow({
       ) : null}
 
       {lightbox !== null ? <Lightbox image={lightbox} onClose={() => setLightbox(null)} /> : null}
+
+      {mode === "human" ? (
+        <p className="chat-human-notice" role="status">
+          Un conseiller a rejoint la conversation. Vos messages lui sont transmis.
+        </p>
+      ) : null}
 
       <form className="chat-composer" ref={formRef} onSubmit={send}>
         {attachmentFields.length > 0 ? (

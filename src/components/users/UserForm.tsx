@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import { ROLES, type Role } from "@/domain/entities/user";
+import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
 
 type UserFormProps = {
@@ -95,7 +95,7 @@ export function UserForm({ editing, canSetActif, onSaved, onCancel }: UserFormPr
         <select value={role} onChange={(event) => setRole(event.target.value as Role)}>
           {ROLES.map((value) => (
             <option key={value} value={value}>
-              {value}
+              {ROLE_LABELS[value]}
             </option>
           ))}
         </select>

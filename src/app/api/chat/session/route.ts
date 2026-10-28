@@ -71,6 +71,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json(
       {
         conversationId: conversation.id,
+        mode: conversation.interventionMode,
         messages: history.map((message) =>
           toPublicChatMessage(message, conversation.organizationId),
         ),

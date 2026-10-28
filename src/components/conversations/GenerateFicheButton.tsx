@@ -5,7 +5,13 @@ import { useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Génère la fiche d'une conversation existante (opérateur, US-CONVERS-002). */
-export function GenerateFicheButton({ conversationId }: { conversationId: string }) {
+export function GenerateFicheButton({
+  conversationId,
+  canViewLeads,
+}: {
+  conversationId: string;
+  canViewLeads: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +38,11 @@ export function GenerateFicheButton({ conversationId }: { conversationId: string
         return;
       }
       toast.success("Fiche de prospection générée.");
-      router.push(`/leads/${json.fiche.id}`);
+      if (canViewLeads) {
+        router.push(`/leads/${json.fiche.id}`);
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {

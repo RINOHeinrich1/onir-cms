@@ -44,6 +44,14 @@ const CONVERSATION: Conversation = {
   lastMessageAt: null,
   consentementAt: null,
   confidentialiteId: null,
+  interventionMode: "ai",
+  assignedUserId: null,
+  assignedOperatorName: null,
+  lastOperatorUserId: null,
+  lastOperatorName: null,
+  humanTakeoverAt: null,
+  lastVisitorMessageAt: null,
+  lastOperatorMessageAt: null,
   createdAt: new Date(0).toISOString(),
 };
 

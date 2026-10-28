@@ -90,7 +90,10 @@ export async function draftTemplateDataFromConversation(
 
   const raw = await deps.ai.complete({
     system: buildExtractionGuide(definition),
-    messages: messages.map((message) => ({ role: message.role, content: message.content })),
+    messages: messages.map((message) => ({
+      role: message.role === "user" ? "user" : "assistant",
+      content: message.content,
+    })),
   });
 
   const parsed = parseExtractionJson(raw);

@@ -5,6 +5,7 @@ import {
   getConversation,
 } from "@/application/use-cases/conversations/list-conversations";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -47,6 +48,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     const detail = await getConversation(
       {
         conversations: pgConversationRepository(pool),
+        operatorScopes: pgChatOperatorScopeRepository(pool),
         links: pgChatLinkRepository(pool),
         prospects: pgProspectRepository(pool),
         fiches: pgFicheRepository(pool),

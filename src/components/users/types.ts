@@ -10,6 +10,8 @@ export type UserDto = {
   mustChangePassword: boolean;
   actif: boolean;
   createdAt: string;
+  /** Portée des conversations d'un opérateur chat (ADR-0043). */
+  chatScope?: { allLinks: boolean; linkIds: string[] } | null;
 };
 
 export type MembershipDto = {

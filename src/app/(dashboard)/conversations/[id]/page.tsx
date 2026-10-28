@@ -4,9 +4,10 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { getConversation } from "@/application/use-cases/conversations/list-conversations";
-import { ConversationTranscript } from "@/components/conversations/ConversationTranscript";
+import { ConversationLive } from "@/components/conversations/ConversationLive";
 import { GenerateFicheButton } from "@/components/conversations/GenerateFicheButton";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -42,6 +43,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
     detail = await getConversation(
       {
         conversations: pgConversationRepository(pool),
+        operatorScopes: pgChatOperatorScopeRepository(pool),
         links: pgChatLinkRepository(pool),
         prospects: pgProspectRepository(pool),
         fiches: pgFicheRepository(pool),
@@ -57,7 +59,9 @@ export default async function ConversationDetailPage({ params }: PageProps) {
   }
 
   const { conversation, messages, link, prospect, fiches } = detail;
-  const canWrite = actorCan(context.actor, "project:write");
+  const canIntervene = actorCan(context.actor, "conversations:intervene");
+  const canGenerateFiche = actorCan(context.actor, "conversations:generate_fiche");
+  const canViewLeads = actorCan(context.actor, "project:read");
 
   return (
     <section>
@@ -79,12 +83,14 @@ export default async function ConversationDetailPage({ params }: PageProps) {
           <a className="btn ghost small" href="/conversations">
             ← Toutes
           </a>
-          {prospect !== null ? (
+          {prospect !== null && actorCan(context.actor, "prospects:read") ? (
             <a className="btn ghost small" href={`/prospects?prospect=${prospect.id}`}>
               Prospect
             </a>
           ) : null}
-          {canWrite ? <GenerateFicheButton conversationId={conversation.id} /> : null}
+          {canGenerateFiche ? (
+            <GenerateFicheButton conversationId={conversation.id} canViewLeads={canViewLeads} />
+          ) : null}
         </div>
       </div>
 
@@ -94,19 +100,39 @@ export default async function ConversationDetailPage({ params }: PageProps) {
           <ul className="contact-list">
             {fiches.map((item) => (
               <li key={item.id}>
-                <a className="link" href={`/leads/${item.id}`}>
-                  {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}
-                  {item.archivee ? " · archivée" : ""}
-                </a>
+                {canViewLeads ? (
+                  <a className="link" href={`/leads/${item.id}`}>
+                    {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}
+                    {item.archivee ? " · archivée" : ""}
+                  </a>
+                ) : (
+                  <span>
+                    {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}{" "}
+                    <a
+                      className="link"
+                      href={`/api/conversations/${conversation.id}/fiches/${item.id}/download?format=pdf`}
+                    >
+                      PDF
+                    </a>{" "}
+                    <a
+                      className="link"
+                      href={`/api/conversations/${conversation.id}/fiches/${item.id}/download?format=md`}
+                    >
+                      Markdown
+                    </a>
+                  </span>
+                )}
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      <div className="transcript">
-        <ConversationTranscript messages={messages.map(toDashboardChatMessage)} />
-      </div>
+      <ConversationLive
+        conversation={conversation}
+        initialMessages={messages.map(toDashboardChatMessage)}
+        canIntervene={canIntervene}
+      />
     </section>
   );
 }

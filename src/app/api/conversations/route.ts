@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listConversations } from "@/application/use-cases/conversations/list-conversations";
 import { parseConversationFilter } from "@/domain/entities/chat";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../_lib/errors";
@@ -16,7 +17,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     const filtre = parseConversationFilter(params.get("filtre"));
     const lien = params.has("lien") ? (params.get("lien") ?? "") : null;
     const conversations = await listConversations(
-      { conversations: pgConversationRepository(getPool()) },
+      {
+        conversations: pgConversationRepository(getPool()),
+        operatorScopes: pgChatOperatorScopeRepository(getPool()),
+      },
       actor,
       filtre,
       lien,

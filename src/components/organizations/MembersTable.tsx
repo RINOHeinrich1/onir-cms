@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
-import { ROLES, type Role } from "@/domain/entities/user";
+import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 
 /** Membres d'une organisation : ajout, changement de rôle, retrait. */
 export function MembersTable({
@@ -120,7 +120,7 @@ export function MembersTable({
                   >
                     {ROLES.map((value) => (
                       <option key={value} value={value}>
-                        {value}
+                        {ROLE_LABELS[value]}
                       </option>
                     ))}
                   </select>
@@ -182,7 +182,7 @@ export function MembersTable({
             <select value={role} onChange={(event) => setRole(event.target.value as Role)}>
               {ROLES.map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {ROLE_LABELS[value]}
                 </option>
               ))}
             </select>

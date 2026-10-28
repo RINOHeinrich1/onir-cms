@@ -53,9 +53,14 @@ export function ConversationTranscript({ messages }: { messages: ChatMessageDto[
         {messages.map((message) => (
           <li key={message.id} className={`msg ${message.role}`}>
             <span className="msg-avatar" aria-hidden="true">
-              {message.role === "user" ? "Visiteur" : "IA"}
+              {message.role === "user" ? "Visiteur" : message.role === "operator" ? "Hum." : "IA"}
             </span>
             <div className="msg-body">
+              {message.role === "operator" ? (
+                <span className="msg-operator-label">
+                  Opérateur{message.authorName === null ? "" : ` · ${message.authorName}`}
+                </span>
+              ) : null}
               {message.role === "assistant" ? (
                 <div className="bubble">
                   <div className="md">

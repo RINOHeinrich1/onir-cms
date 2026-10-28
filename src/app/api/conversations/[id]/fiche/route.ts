@@ -3,6 +3,7 @@ import { generateFicheFromConversation } from "@/application/use-cases/conversat
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
@@ -22,7 +23,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  */
 export async function POST(request: Request, context: RouteContext): Promise<NextResponse> {
   try {
-    const actor = await requireRole(request, "project:write");
+    const actor = await requireRole(request, "conversations:generate_fiche");
     const { id } = await context.params;
     const pool = getPool();
     const result = await generateFicheFromConversation(
@@ -30,6 +31,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         organizations: pgOrganizationRepository(pool),
         links: pgChatLinkRepository(pool),
         conversations: pgConversationRepository(pool),
+        operatorScopes: pgChatOperatorScopeRepository(pool),
         prospects: pgProspectRepository(pool),
         fiches: pgFicheRepository(pool),
         templates: pgChatTemplateRepository(pool),

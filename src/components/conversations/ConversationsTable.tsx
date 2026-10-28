@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LinkFilter } from "@/components/ui/LinkFilter";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConversationFilter } from "@/domain/entities/chat";
@@ -49,6 +49,14 @@ export function ConversationsTable({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState<string | null>(null);
+
+  // Le badge « À répondre » doit rester frais sans action manuelle.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [router]);
 
   const generate = async (conversation: ConversationRowDto): Promise<void> => {
     if (
@@ -179,6 +187,21 @@ export function ConversationsTable({
                     <span className={`badge ${conversation.statut === "finalisee" ? "muted" : ""}`}>
                       {conversation.statut === "finalisee" ? "finalisée" : "en cours"}
                     </span>
+                    {conversation.interventionMode === "human" ? (
+                      <div>
+                        <span className="badge orange">Humain</span>
+                        {conversation.awaitingOperator ? (
+                          <span className="badge orange">À répondre</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {conversation.assignedOperatorName !== null ||
+                    conversation.lastOperatorName !== null ? (
+                      <div className="muted-text">
+                        Opérateur :{" "}
+                        {conversation.assignedOperatorName ?? conversation.lastOperatorName}
+                      </div>
+                    ) : null}
                     {conversation.archivee ? (
                       <div>
                         <span className="badge muted">archivée</span>
