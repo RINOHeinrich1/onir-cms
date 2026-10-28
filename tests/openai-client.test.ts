@@ -87,6 +87,34 @@ describe("openai-client — dialectes", () => {
     expect(second.max_tokens).toBeUndefined();
   });
 
+  it("remonte l'usage prompt/completion au callback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "ok" } }],
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+    let usage: unknown;
+    await chatCompletionForProvider({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "secret",
+      model: "gpt-4o-mini",
+      dialect: "openai",
+      messages,
+      onUsage: (value) => {
+        usage = value;
+      },
+    });
+    expect(usage).toEqual({ promptTokens: 10, completionTokens: 5, totalTokens: 15 });
+  });
+
   it("refuse une réponse vide", async () => {
     vi.stubGlobal(
       "fetch",

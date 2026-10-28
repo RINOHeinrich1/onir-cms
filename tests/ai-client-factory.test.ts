@@ -51,9 +51,17 @@ describe("ai-client-factory — client construit", () => {
       aiProviderId: provider.id,
       aiModel: "Qwen/Qwen3.5",
     });
+    let usage: { completionTokens: number } | undefined;
     await expect(
-      client.complete({ system: "sys", messages: [{ role: "user", content: "hi" }] }),
+      client.complete({
+        system: "sys",
+        messages: [{ role: "user", content: "hi" }],
+        onUsage: (value) => {
+          usage = value;
+        },
+      }),
     ).resolves.toBe("ok");
+    expect(usage?.completionTokens).toBe(3);
 
     const call = fetchMock.mock.calls[0] as [string, RequestInit] | undefined;
     const body = JSON.parse(String(call?.[1]?.body)) as Record<string, unknown>;
