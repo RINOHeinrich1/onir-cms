@@ -5718,3 +5718,10 @@ a.subtab {
 .filter-panel {
   max-height: min(38rem, 62dvh);
 }
+
+.floating-action-panel {
+  right: auto;
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(20rem, calc(100vw - 1rem));
+}
