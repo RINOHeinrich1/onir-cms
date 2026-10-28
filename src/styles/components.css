@@ -5124,3 +5124,53 @@ a.subtab {
   height: calc(100dvh - 10rem);
   min-height: 38rem;
 }
+
+/* Ajustements inbox */
+.inbox-tabs {
+  width: 100%;
+  max-width: 100%;
+  gap: 0.1rem;
+  padding: 0.2rem;
+}
+
+.inbox-tabs .subtab {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .inbox-sidebar-head .inbox-count {
+    display: none;
+  }
+}
+
+/* Le fil occupe la hauteur disponible et garde le composeur en bas. */
+.inbox-thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inbox-thread > .page-head,
+.inbox-thread > .conversation-incidents,
+.inbox-thread > section,
+.inbox-thread > .conversation-status,
+.inbox-thread > .hint,
+.inbox-thread > .alert {
+  flex: none;
+}
+
+.inbox-thread .transcript-scroll {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: none;
+}
+
+.inbox-thread .conversation-composer {
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  padding-bottom: 0.25rem;
+}

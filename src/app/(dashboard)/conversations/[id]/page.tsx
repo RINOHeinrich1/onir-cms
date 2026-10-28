@@ -90,7 +90,7 @@ export default async function ConversationDetailPage({ params, searchParams }: P
             {conversation.visitorNom || (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur")}
           </h1>
           <p className="muted-text">
-            {conversation.visitorEmail || "—"} · lien{" "}
+            {conversation.visitorEmail || "—"} · chatbot{" "}
             <strong>{link?.label === "" || link === null ? "sans nom" : link.label}</strong> ·{" "}
             <span className={`badge ${conversation.statut === "finalisee" ? "muted" : ""}`}>
               {conversation.statut === "finalisee" ? "finalisée" : "en cours"}
