@@ -5725,3 +5725,57 @@ a.subtab {
   min-width: 12rem;
   max-width: min(20rem, calc(100vw - 1rem));
 }
+
+/* Cartes : autoriser les contenus longs à se contraindre à la largeur utile. */
+.chatbot-grid,
+.lead-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+}
+
+.chatbot-card,
+.lead-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.chatbot-card-head > div,
+.chatbot-facts > div,
+.chatbot-link-row,
+.chatbot-card-actions,
+.lead-card-head > div,
+.lead-card-model {
+  min-width: 0;
+}
+
+.chatbot-card-head h2,
+.lead-card-head h2 {
+  overflow-wrap: anywhere;
+}
+
+.chatbot-card-head > div,
+.lead-card-head > div {
+  flex: 1;
+}
+
+.chatbot-link-row .lien-cell {
+  width: 100%;
+}
+
+.chatbot-link-row .lien-url {
+  flex: 1;
+  max-width: 100%;
+}
+
+.lead-card-model .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  .chatbot-grid,
+  .lead-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
