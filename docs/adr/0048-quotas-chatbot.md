@@ -81,6 +81,35 @@ engagée peut terminer au-dessus du plafond ; le blocage est effectif pour
 l’opération suivante. Ce choix évite de couper une réponse en cours de
 génération.
 
+### 3 bis. Définition du token et preuve fournisseur
+
+Un token est une unité produite par le tokenizer du modèle : mot, partie de
+mot, ponctuation, espace ou caractère. Ce n’est ni un mot ni un caractère, et
+le découpage dépend du modèle. Le quota additionne :
+
+```text
+tokens d’entrée  = prompt système + historique + connaissances + question
+tokens de sortie = réponse générée
+total            = entrée + sortie
+```
+
+Infomaniak est compatible OpenAI et renvoie le bloc `usage` standard. Vérifié
+en préprod sur `google/gemma-4-31B-it` :
+
+```text
+chat_reply          : 1004 entrée + 32 sortie = 1036 tokens
+knowledge_selection :  140 entrée +  7 sortie =  147 tokens
+total chatbot       : 1183 tokens
+```
+
+Le quota consomme `total_tokens`. L’entrée est souvent dominante, car elle
+contient le prompt système, l’historique et le contexte RAG.
+
+Point d’intégration tracé : `onUsage` doit être propagé dans **toutes** les
+branches de construction du client IA, y compris le fournisseur configuré en
+base (pas seulement le mode legacy Infomaniak). Un oubli sur ce chemin a été
+corrigé et couvert par des tests de non-régression.
+
 ### 4. Réinitialisation
 
 - `manual` : un administrateur clique sur « Réinitialiser les tokens » ;
