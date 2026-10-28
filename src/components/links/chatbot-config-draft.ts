@@ -1,4 +1,9 @@
-import type { TemplateField, TemplateFieldType } from "@/domain/entities/chat-template";
+import type { FileFieldConstraints } from "@/domain/entities/attachment";
+import type {
+  TemplateField,
+  TemplateFieldType,
+  TemplateRequiredIf,
+} from "@/domain/entities/chat-template";
 
 export type FicheFieldDraft = {
   /** Identifiant d'édition stable (jamais envoyé au serveur). */
@@ -9,6 +14,10 @@ export type FicheFieldDraft = {
   required: boolean;
   options: string;
   example: string;
+  /** Règle conditionnelle conservée lors d'un import/édition. */
+  requiredIf?: TemplateRequiredIf;
+  /** Contraintes fichier conservées lors d'un import/édition. */
+  file?: FileFieldConstraints;
 };
 
 export type FicheDraft = {
@@ -21,6 +30,9 @@ export type FicheDraft = {
   instructions: string;
   renderTemplate: string;
   fields: FicheFieldDraft[];
+  /** Fiche réutilisable d'origine (traçabilité du snapshot, optionnel). */
+  sourceFicheId?: string;
+  sourceVersion?: number;
 };
 
 export type ChatbotConfigDraft = {
@@ -108,6 +120,8 @@ function fieldPayload(field: FicheFieldDraft): Record<string, unknown> {
     required: field.required,
     ...(options.length === 0 ? {} : { options }),
     ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
+    ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
+    ...(field.file === undefined ? {} : { file: field.file }),
   };
 }
 
@@ -139,6 +153,9 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
         .map(fieldPayload),
       renderTemplate: fiche.renderTemplate,
       instructions: fiche.instructions.trim(),
+      ...(fiche.sourceFicheId === undefined
+        ? {}
+        : { sourceFicheId: fiche.sourceFicheId, sourceVersion: fiche.sourceVersion ?? null }),
     })),
   };
 }
@@ -179,6 +196,21 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           ? field.options.filter((item): item is string => typeof item === "string").join(", ")
           : "",
         example: typeof field.example === "string" ? field.example : "",
+        ...(field.requiredIf !== null &&
+        typeof field.requiredIf === "object" &&
+        !Array.isArray(field.requiredIf) &&
+        typeof (field.requiredIf as Record<string, unknown>).field === "string" &&
+        typeof (field.requiredIf as Record<string, unknown>).equals === "string"
+          ? {
+              requiredIf: {
+                field: (field.requiredIf as Record<string, unknown>).field as string,
+                equals: (field.requiredIf as Record<string, unknown>).equals as string,
+              },
+            }
+          : {}),
+        ...(field.file !== null && typeof field.file === "object" && !Array.isArray(field.file)
+          ? { file: field.file as FileFieldConstraints }
+          : {}),
       };
     });
     return {
@@ -193,6 +225,14 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           ? fiche.renderTemplate
           : "# {{contact}}\n",
       fields: fields.length === 0 ? [emptyField()] : fields,
+      ...(typeof fiche.sourceFicheId === "string" && fiche.sourceFicheId !== ""
+        ? {
+            sourceFicheId: fiche.sourceFicheId,
+            ...(typeof fiche.sourceVersion === "number"
+              ? { sourceVersion: fiche.sourceVersion }
+              : {}),
+          }
+        : {}),
     };
   });
   const guardrails = Array.isArray(simpleRaw.guardrails)
@@ -211,6 +251,42 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
         typeof simpleRaw.extraInstructions === "string" ? simpleRaw.extraInstructions : "",
     },
     fiches: fiches.length === 0 ? [emptyFiche(0)] : fiches,
+  };
+}
+
+/** Fiche réutilisable (API) → brouillon d'éditeur, avec traçabilité snapshot. */
+export function draftFromFicheCollecte(input: {
+  id: string;
+  key: string;
+  label: string;
+  description: string;
+  intent: string;
+  instructions: string;
+  renderTemplate: string;
+  version: number;
+  fields: TemplateField[];
+}): FicheDraft {
+  return {
+    id: newId(),
+    key: input.key,
+    label: input.label,
+    description: input.description,
+    intent: input.intent,
+    instructions: input.instructions,
+    renderTemplate: input.renderTemplate.trim() === "" ? "# {{contact}}\n" : input.renderTemplate,
+    sourceFicheId: input.id,
+    sourceVersion: input.version,
+    fields: input.fields.map((field) => ({
+      id: newId(),
+      name: field.name,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      options: field.options?.join(", ") ?? "",
+      example: field.example ?? "",
+      ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
+      ...(field.file === undefined ? {} : { file: field.file }),
+    })),
   };
 }
 

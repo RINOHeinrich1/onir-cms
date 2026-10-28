@@ -44,11 +44,12 @@ const ICONS = {
       <path d="M9 12h6M9 16h4" />
     </>
   ),
-  modeles: (
+  fichesCollecte: (
     <>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6" />
       <path d="M8 13h8M8 17h6" />
+      <rect x="14" y="14" width="6" height="6" rx="1" />
     </>
   ),
   connaissances: (
@@ -164,6 +165,12 @@ const ITEMS: readonly NavItem[] = [
     icon: "conversations",
   },
   { href: "/leads", label: "Leads", action: "project:read", icon: "leads" },
+  {
+    href: "/fiches-collecte",
+    label: "Fiches de collecte",
+    action: "fiches_collecte:list",
+    icon: "fichesCollecte",
+  },
   {
     href: "/connaissances",
     label: "Connaissances",

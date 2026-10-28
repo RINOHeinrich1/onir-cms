@@ -16,6 +16,9 @@ export type FicheDefinition = {
   fields: TemplateField[];
   renderTemplate: string;
   instructions: string;
+  /** Fiche réutilisable d'origine (snapshot, optionnel). */
+  sourceFicheId?: string;
+  sourceVersion?: number;
 };
 
 export type ChatbotConfigInput = {
@@ -76,6 +79,14 @@ function parseFiche(
       fields: validated.value.fields,
       renderTemplate: validated.value.renderTemplate,
       instructions: text(raw.instructions).slice(0, 4000),
+      ...(text(raw.sourceFicheId) === ""
+        ? {}
+        : {
+            sourceFicheId: text(raw.sourceFicheId),
+            ...(typeof raw.sourceVersion === "number" && raw.sourceVersion >= 1
+              ? { sourceVersion: raw.sourceVersion }
+              : {}),
+          }),
     },
   };
 }

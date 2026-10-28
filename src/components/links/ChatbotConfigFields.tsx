@@ -1,13 +1,28 @@
 "use client";
 
-import { TEMPLATE_FIELD_TYPES } from "@/domain/entities/chat-template";
+import { useEffect, useState } from "react";
+import { TEMPLATE_FIELD_TYPES, type TemplateField } from "@/domain/entities/chat-template";
+import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
 import {
   type ChatbotConfigDraft,
+  draftFromFicheCollecte,
   emptyFiche,
   emptyField,
   type FicheDraft,
   type FicheFieldDraft,
 } from "./chatbot-config-draft";
+
+type FicheCollecteOption = {
+  id: string;
+  key: string;
+  label: string;
+  description: string;
+  intent: string;
+  instructions: string;
+  renderTemplate: string;
+  version: number;
+  fields: TemplateField[];
+};
 
 type Props = {
   value: ChatbotConfigDraft;
@@ -46,8 +61,73 @@ function updateField(
  */
 export function ChatbotConfigFields({ value, onChange }: Props) {
   const simple = value.simple;
+  const [fichesCollecte, setFichesCollecte] = useState<FicheCollecteOption[]>([]);
+  const [selectedFiche, setSelectedFiche] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const canAddFiche = value.fiches.length < MAX_FICHES_PER_CHATBOT;
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/fiches-collecte", { cache: "no-store" })
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as { fiches?: FicheCollecteOption[] }) : null,
+      )
+      .then((json) => {
+        if (!cancelled && json?.fiches !== undefined) setFichesCollecte(json.fiches);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const importFiche = (): void => {
+    const fiche = fichesCollecte.find((entry) => entry.id === selectedFiche);
+    if (fiche === undefined) return;
+    if (!canAddFiche) {
+      setImportError(`${MAX_FICHES_PER_CHATBOT} fiches de collecte maximum`);
+      return;
+    }
+    setImportError(null);
+    onChange({ ...value, fiches: [...value.fiches, draftFromFicheCollecte(fiche)] });
+    setSelectedFiche("");
+  };
+
   return (
     <div className="chatbot-config">
+      <fieldset className="fieldset">
+        <legend>Choisir une fiche existante</legend>
+        <div className="field-row">
+          <label className="field">
+            Fiche de collecte réutilisable
+            <select
+              value={selectedFiche}
+              onChange={(event) => setSelectedFiche(event.target.value)}
+            >
+              <option value="">— Choisir —</option>
+              {fichesCollecte.map((fiche) => (
+                <option key={fiche.id} value={fiche.id}>
+                  {fiche.label} ({fiche.key}) · v{fiche.version}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn ghost small"
+            style={{ alignSelf: "end" }}
+            disabled={selectedFiche === "" || !canAddFiche}
+            onClick={importFiche}
+          >
+            Importer une copie
+          </button>
+        </div>
+        <span className="hint">
+          La fiche est copiée dans la configuration du chatbot (snapshot). Une modification
+          ultérieure de la fiche réutilisable n’affecte pas ce chatbot.
+        </span>
+        {importError !== null ? <p className="alert error">{importError}</p> : null}
+      </fieldset>
       <label className="field">
         Prompt système *
         <textarea
