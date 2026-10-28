@@ -78,7 +78,7 @@ body:has(.chat-page) {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: #027a48;
+  background: var(--success);
   box-shadow: 0 0 0 0 rgb(2 122 72 / 0.5);
   animation: chat-pulse 2.4s var(--ease-in-out-quint) infinite;
 }
@@ -501,10 +501,10 @@ body:has(.chat-page) {
   max-width: 60rem;
   margin: 0.75rem auto 0;
   padding: 0.9rem 1.1rem;
-  border: 1px solid #027a48;
+  border: 1px solid var(--success);
   border-radius: var(--r-md);
   background: rgb(2 122 72 / 0.1);
-  color: #027a48;
+  color: var(--success);
   font-weight: 600;
   font-size: 0.9rem;
 }
@@ -1144,7 +1144,7 @@ body:has(.widget-page) {
 }
 
 .info-missing {
-  color: #b42318;
+  color: var(--danger);
   font-weight: 700;
 }
 
@@ -1247,7 +1247,7 @@ body:has(.widget-page) {
 
 .info-source.empty {
   background: color-mix(in srgb, #d92d20 8%, transparent);
-  color: #b42318;
+  color: var(--danger);
 }
 
 .info-field-value {
@@ -1315,7 +1315,7 @@ body:has(.widget-page) {
 }
 
 .incident-banner-copy strong {
-  color: #b42318;
+  color: var(--danger);
   font-size: 0.86rem;
 }
 

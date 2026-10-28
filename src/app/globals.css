@@ -76,8 +76,8 @@
   }
 
   :focus-visible {
-    outline: 3px solid var(--orange);
-    outline-offset: 3px;
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
   }
 }
 
@@ -85,17 +85,17 @@
 .text-title {
   font-family: var(--font-heading);
   font-size: var(--fs-title);
-  line-height: 1;
-  letter-spacing: -0.03em;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
   font-weight: 800;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .text-title::after {
   content: "";
   display: block;
-  width: 4rem;
-  height: 5px;
+  width: 3rem;
+  height: 4px;
   background: var(--orange);
-  margin-top: 1.1rem;
+  margin-top: 0.8rem;
 }

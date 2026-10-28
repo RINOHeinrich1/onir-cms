@@ -3,8 +3,6 @@
 import type { CreatorOption } from "./creator-options";
 import { NO_CREATOR } from "./creator-options";
 
-const ALL_CREATORS = "__all__";
-
 export function CreatorFilter({
   options,
   showUnassigned,
@@ -13,28 +11,82 @@ export function CreatorFilter({
 }: {
   options: CreatorOption[];
   showUnassigned: boolean;
-  value: string | null;
-  onChange: (value: string | null) => void;
+  value: readonly string[];
+  onChange: (value: string[]) => void;
 }) {
+  const selected = new Set(value);
+  const labels = new Map(options.map((option) => [option.id, option.label]));
+  if (showUnassigned) labels.set(NO_CREATOR, "Non renseigné");
+
+  const toggle = (id: string): void => {
+    onChange(selected.has(id) ? value.filter((entry) => entry !== id) : [...value, id]);
+  };
+
   return (
-    <label className="link-filter">
-      <span className="link-filter-label">Créé par</span>
-      <select
-        aria-label="Filtrer par créateur"
-        value={value ?? ALL_CREATORS}
-        onChange={(event) => {
-          const next = event.target.value;
-          onChange(next === ALL_CREATORS ? null : next);
-        }}
-      >
-        <option value={ALL_CREATORS}>Tous les créateurs</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-        {showUnassigned ? <option value={NO_CREATOR}>Non renseigné</option> : null}
-      </select>
-    </label>
+    <div className="tag-filter">
+      <details className="tag-filter-details">
+        <summary className="tag-filter-trigger">
+          <span className="tag-filter-label">Créé par</span>
+          <span className="tag-filter-value">
+            {value.length === 0
+              ? "Tous les créateurs"
+              : `${value.length} créateur${value.length > 1 ? "s" : ""}`}
+          </span>
+          <span className="tag-filter-chevron" aria-hidden>
+            ▾
+          </span>
+        </summary>
+        <fieldset className="tag-filter-panel">
+          <legend className="sr-only">Filtrer par créateur</legend>
+          <button
+            type="button"
+            className="tag-filter-clear"
+            onClick={() => onChange([])}
+            disabled={value.length === 0}
+          >
+            Tous les créateurs
+          </button>
+          {options.map((option) => (
+            <label key={option.id} className="tag-filter-option">
+              <input
+                type="checkbox"
+                checked={selected.has(option.id)}
+                onChange={() => toggle(option.id)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+          {showUnassigned ? (
+            <label className="tag-filter-option">
+              <input
+                type="checkbox"
+                checked={selected.has(NO_CREATOR)}
+                onChange={() => toggle(NO_CREATOR)}
+              />
+              <span>Non renseigné</span>
+            </label>
+          ) : null}
+        </fieldset>
+      </details>
+      {value.length > 0 ? (
+        <div className="tag-filter-chips">
+          {value.map((id) => (
+            <span key={id} className="tag-filter-chip">
+              {labels.get(id) ?? "Créateur"}
+              <button
+                type="button"
+                aria-label={`Retirer le filtre ${labels.get(id) ?? "créateur"}`}
+                onClick={() => toggle(id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <button type="button" className="tag-filter-clear-inline" onClick={() => onChange([])}>
+            Tout effacer
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

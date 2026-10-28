@@ -23,29 +23,6 @@ import type {
 } from "./types";
 import { WidgetCodeModal } from "./WidgetCodeModal";
 
-/** Icône d'avertissement (liens expirés). */
-function WarningIcon() {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className="warn-icon"
-    >
-      <path
-        d="M12 3 2 20h20L12 3z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="M12 9.5v4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="12" cy="17.2" r="1.1" fill="currentColor" />
-    </svg>
-  );
-}
-
 /** Icône de copie (presse-papiers). */
 function CopyIcon() {
   return (
@@ -118,7 +95,7 @@ export function LinksTable({
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const creators = creatorOptions(links);
   const showUnassigned = hasUnassignedCreator(links);
   const visibleLinks = links.filter((link) => matchesCreator(link, creatorFilter));
@@ -231,199 +208,190 @@ export function LinksTable({
         </button>
       </div>
 
-      <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Statut</th>
-              <th>Quotas</th>
-              <th>Visites</th>
-              <th>Label</th>
-              <th>Modèle</th>
-              <th>Moteur IA</th>
-              <th>Lien</th>
-              <th>Expiration</th>
-              <th>Créé par</th>
-              <th>Créé le</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleLinks.map((link) => {
-              const expired =
-                link.expiresAt !== null &&
-                new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
-              const blockReason = chatLinkBlockReason(link);
-              const quota = chatLinkQuota(link);
-              const channels = channelsForLink(link);
-              const pageEnabled = channels.page.enabled;
-              const widgetEnabled = channels.widget.enabled;
-              const previewSurface = pageEnabled ? "page" : "widget";
+      <div className="chatbot-grid">
+        {visibleLinks.map((link) => {
+          const expired =
+            link.expiresAt !== null &&
+            new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
+          const blockReason = chatLinkBlockReason(link);
+          const quota = chatLinkQuota(link);
+          const channels = channelsForLink(link);
+          const pageEnabled = channels.page.enabled;
+          const widgetEnabled = channels.widget.enabled;
+          const previewSurface = pageEnabled ? "page" : "widget";
+          const fichePercent =
+            quota.maxFiches === null
+              ? 0
+              : quota.maxFiches === 0
+                ? 100
+                : Math.min(100, (quota.fichesGenerated / quota.maxFiches) * 100);
+          const tokenPercent =
+            quota.maxTokens === null
+              ? 0
+              : quota.maxTokens === 0
+                ? 100
+                : Math.min(100, (quota.tokensUsed / quota.maxTokens) * 100);
 
-              return (
-                <tr key={link.id}>
-                  <td>
-                    <span className="badge">{link.type}</span>
-                    <div className="channel-badges">
-                      {pageEnabled ? <span className="badge muted">page</span> : null}
-                      {widgetEnabled ? <span className="badge orange">widget</span> : null}
-                    </div>
-                    {pageEnabled && channels.page.identificationMode === "anonymous" ? (
-                      <div className="muted-text">anonyme</div>
-                    ) : null}
-                  </td>
-                  <td>
-                    {expired ? (
-                      <span className="badge warn statut-expire">
-                        <WarningIcon />
-                        expiré
-                      </span>
-                    ) : blockReason !== null ? (
-                      <span
-                        className="badge warn"
-                        title={
-                          blockReason === "fiches"
-                            ? "Limite de fiches atteinte"
-                            : "Budget de tokens atteint"
-                        }
-                      >
-                        bloqué
-                      </span>
-                    ) : (
-                      <span className={`badge ${link.actif ? "" : "muted"}`}>
-                        {link.actif ? "actif" : "révoqué"}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="quota-cell">
-                      <span>
-                        Fiches : {quota.fichesGenerated}
-                        {quota.maxFiches === null ? " / ∞" : ` / ${quota.maxFiches}`}
-                      </span>
-                      <span>
-                        Tokens : {quota.tokensUsed}
-                        {quota.maxTokens === null ? " / ∞" : ` / ${quota.maxTokens}`}
-                      </span>
-                    </div>
-                  </td>
-                  <td
-                    title={
-                      link.lastVisitAt === null
-                        ? "Aucune visite comptée"
-                        : `Dernière visite : ${new Date(link.lastVisitAt).toLocaleString("fr-FR")}`
-                    }
-                  >
-                    <span className="lien-visits">
-                      {link.visitCount}
-                      <span>
-                        {link.lastVisitAt === null
-                          ? "—"
-                          : new Date(link.lastVisitAt).toLocaleDateString("fr-FR")}
-                      </span>
+          return (
+            <article className="chatbot-card" key={link.id}>
+              <header className="chatbot-card-head">
+                <div>
+                  <h2>{link.label === "" ? "Chatbot sans nom" : link.label}</h2>
+                  <p>
+                    {link.type === "standard" ? "Standard" : "Spécifique"} ·{" "}
+                    {link.createdByLabel ?? "Créateur non renseigné"}
+                  </p>
+                </div>
+                <div className="chatbot-status">
+                  {expired ? (
+                    <span className="badge warn">expiré</span>
+                  ) : blockReason !== null ? (
+                    <span className="badge warn">bloqué</span>
+                  ) : (
+                    <span className={`badge ${link.actif ? "success" : "muted"}`}>
+                      {link.actif ? "actif" : "révoqué"}
                     </span>
-                  </td>
-                  <td>{link.label === "" ? <span className="muted-text">—</span> : link.label}</td>
-                  <td>
-                    <span className="badge muted" title={link.templateKey}>
-                      {templates.find((template) => template.key === link.templateKey)?.label ??
-                        link.templateKey}
-                    </span>
-                  </td>
-                  <td>
-                    {link.aiProviderId === null ? (
-                      <span className="badge muted">Défaut organisation</span>
-                    ) : (
-                      <span className="badge" title={link.aiModel ?? ""}>
-                        {aiProviders.find((provider) => provider.id === link.aiProviderId)?.label ??
-                          "Fournisseur indisponible"}
-                        {link.aiModel === null ? "" : ` · ${link.aiModel}`}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {!pageEnabled ? (
-                      <span className="muted-text">
-                        Page désactivée{widgetEnabled ? " · widget actif" : ""}
-                      </span>
-                    ) : link.url === null ? (
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        disabled={generatingId === link.id}
-                        onClick={() => void doRegenerate(link)}
-                      >
-                        {generatingId === link.id ? "…" : "Régénérer"}
-                      </button>
-                    ) : (
-                      <span className="lien-cell">
-                        <LienUrl url={link.url} />
-                        <button
-                          type="button"
-                          className="copy-btn"
-                          aria-label={copiedId === link.id ? "Copié !" : "Copier le lien"}
-                          title={copiedId === link.id ? "Copié !" : "Copier le lien"}
-                          onClick={() => void doCopy(link)}
-                        >
-                          {copiedId === link.id ? "Copié !" : <CopyIcon />}
-                        </button>
-                      </span>
-                    )}
-                  </td>
-                  <td className={expired ? "cell-warn" : undefined}>
+                  )}
+                </div>
+              </header>
+
+              <div className="chatbot-channels">
+                {pageEnabled ? <span className="badge muted">page</span> : null}
+                {widgetEnabled ? <span className="badge orange">widget</span> : null}
+                {pageEnabled && channels.page.identificationMode === "anonymous" ? (
+                  <span className="badge muted">anonyme</span>
+                ) : null}
+                {!pageEnabled ? <span className="badge muted">page désactivée</span> : null}
+              </div>
+
+              <dl className="chatbot-facts">
+                <div>
+                  <dt>Modèle</dt>
+                  <dd>
+                    {templates.find((template) => template.key === link.templateKey)?.label ??
+                      link.templateKey}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Moteur IA</dt>
+                  <dd>
+                    {link.aiProviderId === null
+                      ? "Défaut organisation"
+                      : (aiProviders.find((provider) => provider.id === link.aiProviderId)?.label ??
+                        "Fournisseur indisponible")}
+                    {link.aiModel === null ? "" : ` · ${link.aiModel}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Expiration</dt>
+                  <dd>
                     {link.expiresAt === null
-                      ? "—"
+                      ? "Aucune"
                       : new Date(link.expiresAt).toLocaleDateString("fr-FR")}
-                  </td>
-                  <td>{link.createdByLabel ?? <span className="muted-text">—</span>}</td>
-                  <td>{new Date(link.createdAt).toLocaleDateString("fr-FR")}</td>
-                  <td>
-                    <div className="tools">
-                      <a
-                        className="btn ghost small"
-                        href={`/liens/${link.id}/apercu?surface=${previewSurface}`}
-                      >
-                        Aperçu
-                      </a>
-                      {widgetEnabled ? (
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          disabled={loadingWidgetId === link.id}
-                          onClick={() => void openWidgetCode(link)}
-                        >
-                          {loadingWidgetId === link.id ? "…" : "Code widget"}
-                        </button>
-                      ) : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Visites</dt>
+                  <dd>
+                    {link.visitCount}
+                    {link.lastVisitAt === null
+                      ? ""
+                      : ` · ${new Date(link.lastVisitAt).toLocaleDateString("fr-FR")}`}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="chatbot-quotas">
+                <div className="quota-line">
+                  <span>
+                    Fiches <strong>{quota.fichesGenerated}</strong>
+                    {quota.maxFiches === null ? " / ∞" : ` / ${quota.maxFiches}`}
+                  </span>
+                  <span className="quota-bar" aria-hidden>
+                    <span style={{ width: `${fichePercent}%` }} />
+                  </span>
+                </div>
+                <div className="quota-line">
+                  <span>
+                    Tokens <strong>{quota.tokensUsed}</strong>
+                    {quota.maxTokens === null ? " / ∞" : ` / ${quota.maxTokens}`}
+                  </span>
+                  <span className="quota-bar" aria-hidden>
+                    <span style={{ width: `${tokenPercent}%` }} />
+                  </span>
+                </div>
+              </div>
+
+              <div className="chatbot-link-row">
+                {!pageEnabled ? (
+                  <span className="muted-text">
+                    Page désactivée{widgetEnabled ? " · widget disponible" : ""}
+                  </span>
+                ) : link.url === null ? (
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    disabled={generatingId === link.id}
+                    onClick={() => void doRegenerate(link)}
+                  >
+                    {generatingId === link.id ? "…" : "Régénérer le lien"}
+                  </button>
+                ) : (
+                  <span className="lien-cell">
+                    <LienUrl url={link.url} />
+                    <button
+                      type="button"
+                      className="copy-btn"
+                      aria-label={copiedId === link.id ? "Copié !" : "Copier le lien"}
+                      title={copiedId === link.id ? "Copié !" : "Copier le lien"}
+                      onClick={() => void doCopy(link)}
+                    >
+                      {copiedId === link.id ? "Copié !" : <CopyIcon />}
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              <footer className="chatbot-card-actions">
+                <a
+                  className="btn ghost small"
+                  href={`/liens/${link.id}/apercu?surface=${previewSurface}`}
+                >
+                  Aperçu
+                </a>
+                <details className="action-menu">
+                  <summary className="btn ghost small" aria-label="Autres actions">
+                    ⋯
+                  </summary>
+                  <div className="action-menu-panel">
+                    {widgetEnabled ? (
                       <button
                         type="button"
-                        className="btn ghost small"
-                        onClick={() => setEditing(link)}
+                        disabled={loadingWidgetId === link.id}
+                        onClick={() => void openWidgetCode(link)}
                       >
-                        Modifier
+                        {loadingWidgetId === link.id ? "Chargement…" : "Code widget"}
                       </button>
-                      <button
-                        type="button"
-                        className="btn danger ghost small"
-                        onClick={() => void remove(link)}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {visibleLinks.length === 0 ? (
-              <tr>
-                <td colSpan={12}>
-                  {links.length === 0 ? "Aucun lien." : "Aucun lien pour ce créateur."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                    ) : null}
+                    <button type="button" onClick={() => setEditing(link)}>
+                      Modifier
+                    </button>
+                    <button type="button" className="danger" onClick={() => void remove(link)}>
+                      Supprimer
+                    </button>
+                  </div>
+                </details>
+              </footer>
+            </article>
+          );
+        })}
+        {visibleLinks.length === 0 ? (
+          <div className="empty-state">
+            <strong>Aucun chatbot.</strong>
+            <span>Créez un lien pour commencer à recevoir des conversations.</span>
+            {links.length > 0 ? <span>Aucun résultat pour ce créateur.</span> : null}
+          </div>
+        ) : null}
       </div>
 
       {creating ? (

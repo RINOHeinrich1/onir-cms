@@ -144,110 +144,102 @@ export function ConversationsTable({
         preserve={{ filtre }}
       />
 
-      <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Visiteur</th>
-              <th>Lien</th>
-              <th>Statut</th>
-              <th>Messages</th>
-              <th>Inactivité</th>
-              <th>Reçue le</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {initialConversations.map((conversation) => {
-              const reference = conversation.lastMessageAt ?? conversation.createdAt;
-              const busy = pending === conversation.id;
-              return (
-                <tr
-                  key={conversation.id}
-                  className={conversation.archivee ? "row-archivee" : undefined}
-                >
-                  <td>
-                    <strong>
-                      {conversation.visitorNom ||
-                        (conversation.visitorEmail === "" ? "Anonyme" : "—")}
-                    </strong>
-                    <div className="muted-text">{conversation.visitorEmail || "—"}</div>
-                  </td>
-                  <td>
-                    {conversation.linkLabel === "" ? (
-                      <span className="muted-text">lien sans nom</span>
-                    ) : (
-                      conversation.linkLabel
-                    )}
-                    <div className="muted-text">
-                      <span className="badge muted">{conversation.linkType}</span>
-                    </div>
-                  </td>
-                  <td>
+      <div className="conversation-list">
+        {initialConversations.map((conversation) => {
+          const reference = conversation.lastMessageAt ?? conversation.createdAt;
+          const busy = pending === conversation.id;
+          const displayName =
+            conversation.visitorNom || (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur");
+          const initials = displayName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? "")
+            .join("");
+          return (
+            <article
+              key={conversation.id}
+              className={`conversation-row ${conversation.archivee ? "is-archived" : ""}`}
+            >
+              <div className="conversation-primary">
+                <span className="conversation-avatar" aria-hidden>
+                  {initials || "?"}
+                </span>
+                <div className="conversation-identity">
+                  <div className="conversation-name">
+                    <strong>{displayName}</strong>
                     <span className={`badge ${conversation.statut === "finalisee" ? "muted" : ""}`}>
                       {conversation.statut === "finalisee" ? "finalisée" : "en cours"}
                     </span>
                     {conversation.interventionMode === "human" ? (
-                      <div>
-                        <span className="badge orange">Humain</span>
-                        {conversation.awaitingOperator ? (
-                          <span className="badge orange">À répondre</span>
-                        ) : null}
-                      </div>
+                      <span className="badge orange">humain</span>
                     ) : null}
+                    {conversation.awaitingOperator ? (
+                      <span className="badge warn">à répondre</span>
+                    ) : null}
+                    {conversation.archivee ? <span className="badge muted">archivée</span> : null}
+                  </div>
+                  <div className="conversation-contact">
+                    {conversation.visitorEmail === "" ? "—" : conversation.visitorEmail}
+                  </div>
+                  <div className="conversation-meta">
+                    <span>
+                      {conversation.linkLabel === "" ? "lien sans nom" : conversation.linkLabel}
+                    </span>
+                    <span>{conversation.messageCount} message(s)</span>
+                    <span>il y a {since(reference, nowIso)}</span>
                     {conversation.assignedOperatorName !== null ||
                     conversation.lastOperatorName !== null ? (
-                      <div className="muted-text">
+                      <span>
                         Opérateur :{" "}
                         {conversation.assignedOperatorName ?? conversation.lastOperatorName}
-                      </div>
+                      </span>
                     ) : null}
-                    {conversation.archivee ? (
-                      <div>
-                        <span className="badge muted">archivée</span>
+                  </div>
+                </div>
+              </div>
+              <div className="conversation-side">
+                <span className="conversation-date">
+                  {new Date(conversation.createdAt).toLocaleDateString("fr-FR")}
+                </span>
+                <div className="conversation-actions">
+                  <a className="btn small" href={`/conversations/${conversation.id}`}>
+                    Ouvrir
+                  </a>
+                  {canWrite ? (
+                    <details className="action-menu">
+                      <summary className="btn ghost small" aria-label="Autres actions">
+                        ⋯
+                      </summary>
+                      <div className="action-menu-panel">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void generate(conversation)}
+                        >
+                          {busy ? "Génération…" : "Générer la fiche"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void toggleArchive(conversation)}
+                        >
+                          {conversation.archivee ? "Désarchiver" : "Archiver"}
+                        </button>
                       </div>
-                    ) : null}
-                  </td>
-                  <td>{conversation.messageCount}</td>
-                  <td>{since(reference, nowIso)}</td>
-                  <td>{new Date(conversation.createdAt).toLocaleDateString("fr-FR")}</td>
-                  <td>
-                    <div className="tools">
-                      <a className="btn small" href={`/conversations/${conversation.id}`}>
-                        Ouvrir
-                      </a>
-                      {canWrite ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn ghost small"
-                            disabled={busy}
-                            onClick={() => void generate(conversation)}
-                          >
-                            {busy ? "…" : "Générer la fiche"}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn ghost small"
-                            disabled={busy}
-                            onClick={() => void toggleArchive(conversation)}
-                          >
-                            {conversation.archivee ? "Désarchiver" : "Archiver"}
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {initialConversations.length === 0 ? (
-              <tr>
-                <td colSpan={7}>Aucune conversation.</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                    </details>
+                  ) : null}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+        {initialConversations.length === 0 ? (
+          <div className="empty-state">
+            <strong>Aucune conversation.</strong>
+            <span>Les nouvelles discussions apparaîtront ici.</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

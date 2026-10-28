@@ -37,7 +37,7 @@ export function TemplatesTable({
   const [previewingKey, setPreviewingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
-  const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const creators = creatorOptions(templates);
   const showUnassigned = hasUnassignedCreator(templates);
@@ -131,7 +131,7 @@ export function TemplatesTable({
             onChange={setCreatorFilter}
           />
           <span className="templates-count">
-            {creatorFilter === null
+            {creatorFilter.length === 0
               ? `${templates.length} modèle${templates.length > 1 ? "s" : ""}`
               : `${visibleTemplates.length} sur ${templates.length} modèles`}
           </span>
