@@ -74,30 +74,57 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
   };
 }
 
+function slugifyFieldName(label: string): string {
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return normalized === "" ? "champ" : normalized;
+}
+
 function payload(draft: Draft): Record<string, unknown> {
+  const used = new Set<string>();
+  const fields = draft.fields
+    .filter((field) => field.label.trim() !== "")
+    .map((field) => {
+      const base = slugifyFieldName(field.label);
+      let name = base;
+      let suffix = 2;
+      while (used.has(name)) {
+        name = `${base}-${suffix}`;
+        suffix += 1;
+      }
+      used.add(name);
+      const options = field.options
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== "");
+      return {
+        name,
+        label: field.label.trim(),
+        type: field.type,
+        required: field.required,
+        ...(options.length === 0 ? {} : { options }),
+        ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
+      };
+    });
+  const renderTemplate =
+    `# ${draft.label.trim() === "" ? "Fiche de collecte" : draft.label.trim()}\n\n` +
+    (fields.length === 0
+      ? ""
+      : fields.map((field) => `- **${field.label}** : {{${field.name}}}`).join("\n")) +
+    "\n";
   return {
     key: draft.key.trim(),
     label: draft.label.trim(),
     description: draft.description.trim(),
     intent: draft.intent.trim(),
-    renderTemplate: draft.renderTemplate,
+    renderTemplate,
     instructions: draft.instructions.trim(),
-    fields: draft.fields
-      .filter((field) => field.name.trim() !== "" && field.label.trim() !== "")
-      .map((field) => {
-        const options = field.options
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter((entry) => entry !== "");
-        return {
-          name: field.name.trim(),
-          label: field.label.trim(),
-          type: field.type,
-          required: field.required,
-          ...(options.length === 0 ? {} : { options }),
-          ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
-        };
-      }),
+    fields,
   };
 }
 
@@ -242,15 +269,6 @@ export function FicheCollecteForm({
       {draft.fields.map((field, index) => (
         <div className="field-row" key={field.id}>
           <label className="field">
-            Nom technique
-            <input
-              type="text"
-              value={field.name}
-              placeholder="ville"
-              onChange={(event) => updateField(index, { name: event.target.value })}
-            />
-          </label>
-          <label className="field">
             Libellé
             <input
               type="text"
@@ -307,14 +325,9 @@ export function FicheCollecteForm({
         </div>
       ))}
 
-      <label className="field">
-        Modèle de rendu Markdown
-        <textarea
-          rows={5}
-          value={draft.renderTemplate}
-          onChange={(event) => setDraft({ ...draft, renderTemplate: event.target.value })}
-        />
-      </label>
+      <p className="hint">
+        La structure de la fiche est générée automatiquement à partir des libellés et des champs.
+      </p>
 
       <div className="tools">
         <button type="submit" className="btn" disabled={pending}>
