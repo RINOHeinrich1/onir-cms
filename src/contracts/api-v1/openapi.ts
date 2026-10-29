@@ -343,6 +343,22 @@ export function openapiDocument(): JsonSchema {
           },
         ),
       },
+      "/medias/{id}/file": {
+        get: operation(
+          "Médias",
+          "getMediaFile",
+          ["medias:read"],
+          {
+            "200": {
+              description: "Fichier photo",
+              content: {
+                "image/*": { schema: { type: "string", format: "binary" } },
+              },
+            },
+          },
+          { parameters: [pathId()] },
+        ),
+      },
       "/medias/{id}": {
         get: operation(
           "Médias",

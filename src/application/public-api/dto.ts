@@ -16,7 +16,6 @@ import type { Fiche } from "@/domain/entities/fiche";
 import type { Media } from "@/domain/entities/media";
 import type { Prospect } from "@/domain/entities/prospect";
 import type { WebhookDelivery, WebhookEndpoint } from "@/domain/entities/webhook";
-import { signedMediaUrl } from "@/lib/media-token";
 
 export type FicheDto = ReturnType<typeof ficheDto>;
 export type ProspectDto = ReturnType<typeof prospectDto>;
@@ -50,7 +49,7 @@ export function mediaDto(media: Media) {
     chatLinkIds: media.chatLinkIds,
     active: media.actif,
     url: media.type === "lien" ? media.url : null,
-    fileUrl: media.type === "photo" ? signedMediaUrl(media.id, media.organizationId) : null,
+    fileUrl: media.type === "photo" ? `/api/v1/medias/${media.id}/file` : null,
     mime: media.mime,
     createdAt: media.createdAt,
     updatedAt: media.updatedAt,

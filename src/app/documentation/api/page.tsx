@@ -106,8 +106,9 @@ POST /api/v1/medias
 PATCH  /api/v1/medias/:id
 DELETE /api/v1/medias/:id`}</DocCode>
       <p>
-        Une photo renvoie aussi <code>fileUrl</code>, une URL signée courte pour récupérer le
-        fichier. Les URL et clés de stockage internes ne sont jamais exposées.
+        Une photo renvoie aussi <code>fileUrl</code> vers
+        <code>/api/v1/medias/:id/file</code>, à appeler avec la même clé API. Les URL et clés de
+        stockage internes ne sont jamais exposées.
       </p>
 
       <h2 id="connaissances">Connaissances</h2>

@@ -66,6 +66,7 @@ describe("OpenAPI v1 contract", () => {
         "/webhook-deliveries/{id}/retry",
         "/medias",
         "/medias/{id}",
+        "/medias/{id}/file",
         "/connaissances",
         "/connaissances/{id}",
       ]),
