@@ -203,10 +203,11 @@ Une commande explicite permet de réinitialiser ces données :
 
 ```bash
 # Développement
-RESET_CHATBOT_TEST_DATA=yes npm run db:reset-chatbot-test-data -- --execute
+# Sauvegarde obligatoire (volume persistant)
+BACKUP_DIR=/backups node dist/db-cli.mjs backup
 
-# Image de maintenance (préprod / production)
-RESET_CHATBOT_TEST_DATA=yes node dist/db-cli.mjs reset-chatbot-test-data --execute
+# Reset global verrouillé : dump automatique avant suppression
+RESET_ALL_CHATBOT_DATA=yes BACKUP_DIR=/backups node dist/db-cli.mjs reset-all-chatbot-data --execute
 ```
 
 Cette commande :

@@ -2,21 +2,23 @@
  * CLI autonome de maintenance de la base.
  * Utilisé par l'image Docker `migrate` (bundle esbuild, sans sources).
  *
- * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|reset-chatbot-test-data [--execute]]
+ * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|backup|reset-all-chatbot-data [--execute]]
  */
 
+import { backupDatabase } from "./backup-database";
 import { migrate } from "./migrate";
 import { getPool } from "./pool";
 import { resetChatbotTestData } from "./reset-chatbot-test-data";
 import { seedAdmin } from "./seed-admin";
 
-type Command = "migrate" | "seed" | "migrate-and-seed" | "reset-chatbot-test-data";
+type Command = "migrate" | "seed" | "migrate-and-seed" | "backup" | "reset-all-chatbot-data";
 
 const COMMANDS: readonly Command[] = [
   "migrate",
   "seed",
   "migrate-and-seed",
-  "reset-chatbot-test-data",
+  "backup",
+  "reset-all-chatbot-data",
 ];
 
 function parseCommand(value: string | undefined): Command {
@@ -32,7 +34,12 @@ async function main(): Promise<void> {
   const pool = getPool();
 
   try {
-    if (command === "reset-chatbot-test-data") {
+    if (command === "backup") {
+      await backupDatabase();
+      return;
+    }
+
+    if (command === "reset-all-chatbot-data") {
       await resetChatbotTestData(process.argv.includes("--execute"));
       return;
     }

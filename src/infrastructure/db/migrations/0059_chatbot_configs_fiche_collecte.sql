@@ -1,7 +1,7 @@
 -- 0059_chatbot_configs_fiche_collecte.sql — ADR-0049.
 -- Migration ADDITIVE uniquement : aucune reprise de données.
 -- Les données de test sont réinitialisées par la commande explicite
--- `db:reset-chatbot-test-data`, jamais par cette migration.
+-- `reset-all-chatbot-data`, jamais par cette migration.
 
 CREATE TABLE IF NOT EXISTS chatbot_configs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

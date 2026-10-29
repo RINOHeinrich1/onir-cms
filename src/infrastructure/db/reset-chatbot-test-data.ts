@@ -1,4 +1,5 @@
 import { databaseUrl } from "@/lib/env";
+import { backupDatabase } from "./backup-database";
 import { getPool } from "./pool";
 
 /**
@@ -37,9 +38,9 @@ function target(): string {
 }
 
 export async function resetChatbotTestData(execute: boolean): Promise<void> {
-  if (process.env.RESET_CHATBOT_TEST_DATA !== "yes") {
+  if (process.env.RESET_ALL_CHATBOT_DATA !== "yes") {
     throw new Error(
-      "Refusé : définissez RESET_CHATBOT_TEST_DATA=yes pour confirmer la réinitialisation.",
+      "Refusé : définissez RESET_ALL_CHATBOT_DATA=yes pour confirmer la réinitialisation globale.",
     );
   }
 
@@ -76,6 +77,14 @@ export async function resetChatbotTestData(execute: boolean): Promise<void> {
     return;
   }
 
+  if (process.env.BACKUP_DIR === undefined || process.env.BACKUP_DIR.trim() === "") {
+    throw new Error(
+      "Refusé : BACKUP_DIR est obligatoire pour conserver le dump avant la suppression globale.",
+    );
+  }
+
+  await backupDatabase();
+
   await pool.query("BEGIN");
   try {
     await pool.query(`TRUNCATE TABLE ${found.map(quote).join(", ")} RESTART IDENTITY CASCADE`);
@@ -85,5 +94,5 @@ export async function resetChatbotTestData(execute: boolean): Promise<void> {
     throw error;
   }
 
-  process.stdout.write("Données de test chatbot supprimées.\n");
+  process.stdout.write("Données chatbot supprimées après sauvegarde.\n");
 }

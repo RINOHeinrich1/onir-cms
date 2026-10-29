@@ -46,6 +46,11 @@ LABEL org.opencontainers.image.revision="${REVISION}"
 ENV NODE_ENV=production
 COPY --from=migrate-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /backups \
+ && chown -R node:node /backups
 USER node
 CMD ["node", "dist/db-cli.mjs", "migrate-and-seed"]
 

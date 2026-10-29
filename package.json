@@ -11,7 +11,6 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx --env-file-if-exists=.env src/infrastructure/db/migrate.cli.ts",
-    "db:reset-chatbot-test-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/infrastructure/db/seed-admin.cli.ts",
     "demo:seed": "node --env-file-if-exists=.env scripts/seed-demo-links.mjs",
     "test:integration": "vitest run --config vitest.integration.config.mts",
@@ -19,7 +18,9 @@
     "test:e2e": "playwright test",
     "build:db-cli": "node scripts/build-db-cli.mjs",
     "check:fast": "npm run typecheck && npm run lint && npm run build",
-    "check:full": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build"
+    "check:full": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build",
+    "db:backup": "tsx --env-file-if-exists=.env src/infrastructure/db/backup-database.cli.ts",
+    "db:reset-all-chatbot-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
@@ -52,7 +53,7 @@
     "typescript": "^5",
     "vitest": "^5.0.5"
   },
-  "description": "ONIR CMS — open-source AI prospecting and conversation CMS.",
+  "description": "ONIR CMS \u2014 open-source AI prospecting and conversation CMS.",
   "license": "MIT",
   "repository": {
     "type": "git",
