@@ -8,10 +8,10 @@ import type { AiProviderOption } from "./types";
 type ClusterOption = { id: string; label: string; actif: boolean };
 
 const LABELS: Record<AiLinkUsage, string> = {
-  response: "Génération de réponse",
-  extraction: "Extraction de données",
-  selection: "Sélection médias & connaissances",
-  summary: "Résumé de conversation",
+  response: "Réponse",
+  extraction: "Extraction",
+  selection: "Sélection de données",
+  summary: "Résumé",
 };
 
 function normalize(

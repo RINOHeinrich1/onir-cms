@@ -6,10 +6,10 @@ export const AI_LINK_USAGES = ["response", "extraction", "selection", "summary"]
 export type AiLinkUsage = (typeof AI_LINK_USAGES)[number];
 
 export const AI_USAGE_LABELS: Record<AiUsage, string> = {
-  response: "Génération de réponse",
-  extraction: "Extraction de données",
-  selection: "Sélection médias & connaissances",
-  summary: "Résumé de conversation",
+  response: "Réponse",
+  extraction: "Extraction",
+  selection: "Sélection de données",
+  summary: "Résumé",
   assistant: "Assistant interne",
 };
 
