@@ -7,6 +7,7 @@ import { makeOrganization, setupDb } from "./helpers/db";
 
 let pool: Pool;
 let orgId: string;
+let selectionOrgId: string;
 
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
@@ -15,6 +16,7 @@ const CHAT_C = "33333333-3333-4333-8333-333333333333";
 beforeAll(async () => {
   pool = await setupDb();
   orgId = await makeOrganization(pool, "ScopeChatbot");
+  selectionOrgId = await makeOrganization(pool, "ScopeSelection");
 });
 
 afterAll(async () => {
@@ -114,37 +116,37 @@ describe("portée par chatbot — médias", () => {
 describe("sélection explicite des données globales", () => {
   it("ne retient que les globales sélectionnées + les données scopées au chatbot", async () => {
     const repo = pgConnaissanceRepository(pool);
-    const selectionGlobale = await repo.create(orgId, {
+    const selectionGlobale = await repo.create(selectionOrgId, {
       titre: "Sélection globale",
       contenu: "A",
       chatLinkIds: [],
       createdBy: null,
     });
-    const globaleExclue = await repo.create(orgId, {
+    const globaleExclue = await repo.create(selectionOrgId, {
       titre: "Globale exclue",
       contenu: "B",
       chatLinkIds: [],
       createdBy: null,
     });
-    await repo.create(orgId, {
+    await repo.create(selectionOrgId, {
       titre: "Scopée A",
       contenu: "C",
       chatLinkIds: [CHAT_A],
       createdBy: null,
     });
-    const scopeeB = await repo.create(orgId, {
+    const scopeeB = await repo.create(selectionOrgId, {
       titre: "Scopée B",
       contenu: "D",
       chatLinkIds: [CHAT_B],
       createdBy: null,
     });
 
-    const avant = (await repo.list(orgId)).map((row) => row.id).sort();
-    const selection = await repo.listActivesForChatLinkSelection?.(orgId, CHAT_A, [
+    const avant = (await repo.list(selectionOrgId)).map((row) => row.id).sort();
+    const selection = await repo.listActivesForChatLinkSelection?.(selectionOrgId, CHAT_A, [
       selectionGlobale.id,
       scopeeB.id,
     ]);
-    const apres = (await repo.list(orgId)).map((row) => row.id).sort();
+    const apres = (await repo.list(selectionOrgId)).map((row) => row.id).sort();
 
     expect(selection?.map((row) => row.titre).sort()).toEqual(["Scopée A", "Sélection globale"]);
     expect(selection?.some((row) => row.id === globaleExclue.id)).toBe(false);
@@ -157,7 +159,7 @@ describe("sélection explicite des données globales", () => {
     const photos: Media[] = [];
     const liens: Media[] = [];
     for (const type of ["photo", "lien"] as const) {
-      const selected = await repo.create(orgId, {
+      const selected = await repo.create(selectionOrgId, {
         type,
         libelle: `${type} sélectionnée`,
         description: "",
@@ -168,7 +170,7 @@ describe("sélection explicite des données globales", () => {
         url: type === "lien" ? "https://onirtech.com/selected" : null,
         createdBy: null,
       });
-      await repo.create(orgId, {
+      await repo.create(selectionOrgId, {
         type,
         libelle: `${type} exclue`,
         description: "",
@@ -184,13 +186,13 @@ describe("sélection explicite des données globales", () => {
     }
 
     const photosSelection = await repo.listActivesByTypeForChatLinkSelection?.(
-      orgId,
+      selectionOrgId,
       "photo",
       CHAT_A,
       photos.map((row) => row.id),
     );
     const liensSelection = await repo.listActivesByTypeForChatLinkSelection?.(
-      orgId,
+      selectionOrgId,
       "lien",
       CHAT_A,
       liens.map((row) => row.id),
