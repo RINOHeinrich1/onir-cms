@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import { listAiProviders } from "@/application/use-cases/ai/manage-ai-providers";
-import { getOrganizationAiSettings } from "@/application/use-cases/ai/manage-ai-settings";
 import { AiProvidersPanel } from "@/components/ai/AiProvidersPanel";
 import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
-import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -25,11 +23,9 @@ export default async function AiSettingsPage() {
 
   const pool = getPool();
   const repository = pgAiProviderRepository(pool);
-  const modelRepository = pgAiProviderModelRepository(pool);
-  const [providers, settings] = await Promise.all([
-    listAiProviders({ providers: repository }, context.actor, { includeArchived: true }),
-    getOrganizationAiSettings({ providers: repository, models: modelRepository }, context.actor),
-  ]);
+  const providers = await listAiProviders({ providers: repository }, context.actor, {
+    includeArchived: true,
+  });
 
   await ensureAppSecretsLoaded();
   let aiKeyReady = true;
@@ -65,7 +61,6 @@ export default async function AiSettingsPage() {
 
       <AiProvidersPanel
         initialProviders={providers}
-        initialSettings={settings}
         canManage={actorCan(context.actor, "ai:manage")}
         legacyAvailable={legacyAiCredentials() !== null}
       />

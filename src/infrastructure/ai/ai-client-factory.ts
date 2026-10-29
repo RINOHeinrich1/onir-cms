@@ -8,17 +8,22 @@ import type {
 } from "@/application/ports/ai-client-factory";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import type { AiUsageRepository } from "@/application/ports/ai-usage-repository";
+import { resolveUsageTargets } from "@/application/use-cases/ai/resolve-usage-targets";
 import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import { infomaniakBaseUrl } from "@/domain/entities/ai-provider";
 import { chatCompletionForProvider } from "@/infrastructure/ai/openai-client";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
+import { pgAiUsageRepository } from "@/infrastructure/db/ai-usage-repository";
 import { openAiKey } from "@/lib/ai-crypto";
 import { legacyAiCredentials } from "@/lib/env";
 
 export type AiClientFactoryDependencies = {
   providers: AiProviderRepository;
   models: AiProviderModelRepository;
+  /** Défauts, clusters et overrides (ADR-0058). */
+  usage?: AiUsageRepository;
 };
 
 function unavailable(message: string): AiProviderUnavailableError {
@@ -170,12 +175,72 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     };
   };
 
+  const forUsage = async (
+    target: AiTargetRef | null,
+    usage: import("@/domain/entities/ai-usage").AiUsage,
+    chatLinkId?: string | null,
+  ) => {
+    if (deps.usage === undefined) {
+      return [{ label: "lien", client: await buildClient(await resolve(target)) }];
+    }
+    const refs = await resolveUsageTargets(
+      { usage: deps.usage },
+      {
+        organizationId: target?.organizationId ?? "",
+        usage,
+        chatLinkId: chatLinkId ?? null,
+        fallbackTarget: target,
+      },
+    );
+    if (refs.length === 0) {
+      if (usage === "assistant") throw new AiNotConfiguredError();
+      return [{ label: "legacy", client: await buildClient(await resolve(target)) }];
+    }
+    const clients: { label: string; client: AiClient }[] = [];
+    const seen = new Set<string>();
+    let lastError: unknown = null;
+    for (const [index, ref] of refs.entries()) {
+      try {
+        const resolved = await resolve(ref);
+        const key = `${resolved.providerId ?? "legacy"}:${resolved.model}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        clients.push({
+          label: `${usage}${refs.length > 1 ? ` #${index + 1}` : ""} · ${resolved.providerLabel} · ${resolved.model}`,
+          client: await buildClient(resolved),
+        });
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (clients.length === 0) {
+      throw lastError instanceof Error ? lastError : new AiNotConfiguredError();
+    }
+    return clients;
+  };
+
   return {
     resolve,
     async forTarget(target) {
       return buildClient(await resolve(target));
     },
-    async forExtraction(target) {
+    async forUsage(target, usage, chatLinkId) {
+      return forUsage(target, usage, chatLinkId);
+    },
+    async optionalTarget(target) {
+      try {
+        return await buildClient(await resolve(target));
+      } catch (error) {
+        if (error instanceof AiNotConfiguredError || error instanceof AiProviderUnavailableError) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    async forExtraction(target, chatLinkId) {
+      if (deps.usage !== undefined) {
+        return forUsage(target, "extraction", chatLinkId ?? null);
+      }
       const settings =
         target === null
           ? null
@@ -228,17 +293,6 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
       }
       return clients;
     },
-
-    async optionalTarget(target) {
-      try {
-        return await buildClient(await resolve(target));
-      } catch (error) {
-        if (error instanceof AiNotConfiguredError || error instanceof AiProviderUnavailableError) {
-          return null;
-        }
-        throw error;
-      }
-    },
   };
 }
 
@@ -247,5 +301,6 @@ export function pgAiClientFactory(pool: Pool): AiClientFactory {
   return createAiClientFactory({
     providers: pgAiProviderRepository(pool),
     models: pgAiProviderModelRepository(pool),
+    usage: pgAiUsageRepository(pool),
   });
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
   type ChatLinkChannel,
   type ChatLinkSources,
@@ -10,7 +11,8 @@ import {
   channelsForLink,
   chatLinkQuota,
 } from "@/domain/entities/chat";
-import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
+import type { LinkAiValue } from "./AiAssignmentField";
+import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotConfigFields } from "./ChatbotConfigFields";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import {
@@ -101,10 +103,11 @@ export function LinkEditModal({
   const [resetting, setResetting] = useState(false);
   const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
   const [dataBindingsLoaded, setDataBindingsLoaded] = useState(false);
-  const [ai, setAi] = useState<LinkAiValue>({
+  const [ai] = useState<LinkAiValue>({
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
   });
+  const [aiUsage, setAiUsage] = useState<Partial<Record<AiLinkUsage, AiLinkTarget>>>({});
   const [config, setConfig] = useState<ChatbotConfigDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -235,6 +238,14 @@ export function LinkEditModal({
         setError(json.error ?? "Modification impossible");
         return;
       }
+      const aiResponse = await fetch(`/api/links/${link.id}/ai-usage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiUsage),
+      });
+      if (!aiResponse.ok) {
+        toast.warning("Chatbot mis à jour, mais les moteurs IA n'ont pas pu être enregistrés.");
+      }
       toast.success("Chatbot mis à jour.");
       onSaved(json.link);
     } catch {
@@ -346,10 +357,11 @@ export function LinkEditModal({
                       Le lien reste valide jusqu&apos;à la fin du jour choisi.
                     </span>
                   </label>
-                  <AiAssignmentField
+                  <AiUsageOverridesField
+                    chatLinkId={link.id}
                     providers={aiProviders}
-                    value={ai}
-                    onChange={setAi}
+                    value={aiUsage}
+                    onChange={setAiUsage}
                     canAssign={canAssignAi}
                   />
                   <CategoryPicker contentType="link" contentId={link.id} />

@@ -68,7 +68,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     };
     const factory = pgAiClientFactory(pool);
     const clients = factory.forExtraction
-      ? await factory.forExtraction(target)
+      ? await factory.forExtraction(target, link.id)
       : [{ label: "lien", client: await factory.forTarget(target) }];
     const draft = await draftTemplateDataWithClients(
       { conversations: pgConversationRepository(pool) },

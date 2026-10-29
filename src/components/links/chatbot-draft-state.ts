@@ -1,3 +1,4 @@
+import { AI_LINK_USAGES, type AiLinkTarget, type AiLinkUsage } from "@/domain/entities/ai-usage";
 import type { ChatLinkSources, ChatLinkSurface, ChatLinkType } from "@/domain/entities/chat";
 import { isChatLinkSurface, isChatLinkType, parseLinkSources } from "@/domain/entities/chat";
 import { isWidgetPosition } from "@/domain/widget";
@@ -30,6 +31,7 @@ export type ChatbotDraftState = {
   quota: LinkQuotaDraft;
   dataBindings: Record<string, string>;
   ai: LinkAiValue;
+  aiUsage: Partial<Record<AiLinkUsage, AiLinkTarget>>;
   dataDraft: ChatbotDataDraft;
 };
 
@@ -74,6 +76,7 @@ export function defaultChatbotDraftState(defaultConfidentialiteId = ""): Chatbot
     },
     dataBindings: {},
     ai: { aiProviderId: null, aiModel: null },
+    aiUsage: {},
     dataDraft: { connaissances: [], liens: [], photos: [] },
   };
 }
@@ -141,6 +144,25 @@ function parseAi(input: unknown): LinkAiValue {
   };
 }
 
+function parseAiUsage(input: unknown): Partial<Record<AiLinkUsage, AiLinkTarget>> {
+  const source = record(input);
+  const result: Partial<Record<AiLinkUsage, AiLinkTarget>> = {};
+  for (const usage of AI_LINK_USAGES) {
+    const raw = record(source[usage]);
+    if (raw.kind === "inherit") result[usage] = { kind: "inherit" };
+    else if (raw.kind === "cluster" && typeof raw.clusterId === "string") {
+      result[usage] = { kind: "cluster", clusterId: raw.clusterId };
+    } else if (
+      raw.kind === "model" &&
+      typeof raw.providerId === "string" &&
+      typeof raw.model === "string"
+    ) {
+      result[usage] = { kind: "model", providerId: raw.providerId, model: raw.model };
+    }
+  }
+  return result;
+}
+
 function parseDataBindings(value: unknown): Record<string, string> {
   const source = record(value);
   const result: Record<string, string> = {};
@@ -186,6 +208,7 @@ export function hydrateChatbotDraftState(
     quota: parseQuota(source.quota),
     dataBindings: parseDataBindings(source.dataBindings),
     ai: parseAi(source.ai),
+    aiUsage: parseAiUsage(source.aiUsage),
     dataDraft: hydrateChatbotDataDraft(source.dataDraft),
   };
 }
@@ -206,6 +229,7 @@ export function serializeChatbotDraftState(state: ChatbotDraftState): Record<str
     quota: state.quota,
     dataBindings: state.dataBindings,
     ai: state.ai,
+    aiUsage: state.aiUsage,
     dataDraft: serializeChatbotDataDraft(state.dataDraft),
   };
 }
@@ -278,6 +302,7 @@ export function isChatbotDraftStateMeaningful(state: ChatbotDraftState): boolean
   }
   if (Object.keys(state.dataBindings).length > 0) return true;
   if (state.ai.aiProviderId !== null || state.ai.aiModel !== null) return true;
+  if (Object.keys(state.aiUsage).length > 0) return true;
   if (
     state.dataDraft.connaissances.length > 0 ||
     state.dataDraft.liens.length > 0 ||

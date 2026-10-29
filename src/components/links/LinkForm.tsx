@@ -3,13 +3,15 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
   CHAT_LINK_TYPES,
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
 } from "@/domain/entities/chat";
-import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
+import type { LinkAiValue } from "./AiAssignmentField";
+import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
@@ -119,7 +121,10 @@ export function LinkForm({
     photos: 0,
     liens: 0,
   });
-  const [ai, setAi] = useState<LinkAiValue>(initial.ai);
+  const [ai] = useState<LinkAiValue>(initial.ai);
+  const [aiUsage, setAiUsage] = useState<Partial<Record<AiLinkUsage, AiLinkTarget>>>(
+    initial.aiUsage,
+  );
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
@@ -149,6 +154,7 @@ export function LinkForm({
       quota,
       dataBindings,
       ai,
+      aiUsage,
       dataDraft,
     }),
     [
@@ -165,6 +171,7 @@ export function LinkForm({
       quota,
       dataBindings,
       ai,
+      aiUsage,
       dataDraft,
     ],
   );
@@ -506,6 +513,16 @@ export function LinkForm({
         }
       }
       toast.success("Chatbot créé.");
+      if (Object.keys(aiUsage).length > 0) {
+        const aiResponse = await fetch(`/api/links/${json.link.id}/ai-usage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aiUsage),
+        });
+        if (!aiResponse.ok) {
+          toast.warning("Chatbot créé, mais les moteurs IA n'ont pas pu être enregistrés.");
+        }
+      }
       onCreated(json);
       if (failures.length > 0) {
         const detail = failures.slice(0, 3).join(" · ");
@@ -642,6 +659,12 @@ export function LinkForm({
               </label>
             ) : null}
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
+            <AiUsageOverridesField
+              providers={aiProviders}
+              value={aiUsage}
+              onChange={setAiUsage}
+              canAssign={canAssignAi}
+            />
           </section>
         ) : null}
 
@@ -719,12 +742,6 @@ export function LinkForm({
                   templateVersion={activeTemplate.version}
                   value={dataBindings}
                   onChange={setDataBindings}
-                />
-                <AiAssignmentField
-                  providers={aiProviders}
-                  value={ai}
-                  onChange={setAi}
-                  canAssign={canAssignAi}
                 />
               </div>
             </details>
