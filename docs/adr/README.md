@@ -56,3 +56,4 @@ ADR qui remplace la précédente.
 | [0053](./0053-sauvegarde-obligatoire-nettoyage-controle.md) | Sauvegarde obligatoire et nettoyage contrôlé des données | Accepté |
 | [0054](./0054-resume-manuel-conversation.md) | Résumé manuel de conversation, indépendant des fiches | Accepté |
 | [0055](./0055-fiches-independantes-modele-raisonnement.md) | Fiches indépendantes du modèle de raisonnement et liées à 0..N chatbots | Accepté |
+| [0056](./0056-creation-manuelle-depuis-fiche-collecte.md) | Création manuelle d’une fiche depuis une fiche de collecte | Accepté |

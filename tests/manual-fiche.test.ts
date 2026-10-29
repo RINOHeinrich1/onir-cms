@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/application/actor";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { createFiche } from "@/application/use-cases/fiche/manage-fiches";
@@ -13,6 +14,22 @@ const ACTOR: Actor = {
   role: "admin",
   organizationId: "org-1",
   isSuperAdmin: false,
+};
+
+const COLLECTE = {
+  id: "collecte-1",
+  organizationId: "org-1",
+  key: "projet",
+  label: "Projet",
+  description: "Fiche projet",
+  intent: "",
+  fields: MANUAL_FICHE_DEFINITION.fields,
+  renderTemplate: MANUAL_FICHE_DEFINITION.renderTemplate,
+  instructions: "",
+  version: 1,
+  createdBy: "user-1",
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
 };
 
 const DATA = {
@@ -54,8 +71,16 @@ function fiche(overrides: Partial<Fiche> = {}): Fiche {
 
 async function create(overrides: Record<string, unknown> = {}) {
   const create = vi.fn(async (_organizationId: string, _input: unknown) => fiche());
-  const deps = { fiches: { create } as unknown as FicheRepository };
+  const deps = {
+    fiches: { create } as unknown as FicheRepository,
+    fichesCollecte: {
+      findById: async () => COLLECTE,
+      findVersion: async () => COLLECTE,
+    } as unknown as FicheCollecteRepository,
+  };
   const result = await createFiche(deps, ACTOR, {
+    ficheCollecteId: COLLECTE.id,
+    ficheCollecteVersion: COLLECTE.version,
     data: DATA,
     chatLinkIds: ["link-1"],
     ...overrides,
@@ -71,7 +96,8 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
       expect.objectContaining({
         templateKey: null,
         templateVersion: null,
-        definition: MANUAL_FICHE_DEFINITION,
+        definition: expect.objectContaining({ key: "projet", sourceFicheId: "collecte-1" }),
+        ficheKey: "projet",
         chatLinkIds: ["link-1"],
       }),
     );
@@ -80,9 +106,20 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
   it("refuse une fiche manuelle incomplète", async () => {
     const create = vi.fn(async () => fiche());
     await expect(
-      createFiche({ fiches: { create } as unknown as FicheRepository }, ACTOR, {
-        data: { ...DATA, description: "" },
-      }),
+      createFiche(
+        {
+          fiches: { create } as unknown as FicheRepository,
+          fichesCollecte: {
+            findById: async () => COLLECTE,
+            findVersion: async () => COLLECTE,
+          } as unknown as FicheCollecteRepository,
+        },
+        ACTOR,
+        {
+          ficheCollecteId: COLLECTE.id,
+          data: { ...DATA, description: "" },
+        },
+      ),
     ).rejects.toThrow(/Description du projet/);
   });
 
