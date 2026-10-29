@@ -31,6 +31,11 @@ export const metadata: Metadata = {
 
 type PageProps = { params: Promise<{ token: string }> };
 
+const WIDGET_TRANSPARENT_STYLES = `
+  html, body, #__next { background: transparent !important; }
+  .widget-page, .widget-page .template-host { background: transparent !important; }
+`;
+
 /**
  * Surface widget (ADR-0040) : iframe first-party chargée par `/widget/v2.js`.
  * Aucun header dashboard, aucun formulaire de contact, aucune politique.
@@ -84,6 +89,7 @@ export default async function WidgetPage({ params }: PageProps) {
     });
     return (
       <main className="widget-page template-page">
+        <style>{WIDGET_TRANSPARENT_STYLES}</style>
         <WidgetReadySignal />
         <TemplateHost
           token={token}
@@ -121,6 +127,7 @@ export default async function WidgetPage({ params }: PageProps) {
   });
   return (
     <main className="widget-page template-page">
+      <style>{WIDGET_TRANSPARENT_STYLES}</style>
       <WidgetReadySignal />
       <TemplateHost
         token={token}

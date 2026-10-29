@@ -27,12 +27,13 @@
   iframe.src = origin + "/embed/" + encodeURIComponent(token);
   iframe.setAttribute("data-onir-widget-token", token);
   iframe.setAttribute("allow", "clipboard-write");
+  iframe.setAttribute("allowtransparency", "true");
   iframe.setAttribute("referrerpolicy", "no-referrer");
   iframe.style.position = "fixed";
   iframe.style.border = "0";
   iframe.style.margin = "0";
   iframe.style.padding = "0";
-  iframe.style.background = "transparent";
+  iframe.style.setProperty("background", "transparent", "important");
   iframe.style.colorScheme = "light dark";
   iframe.style.zIndex = zIndex;
   iframe.style.transition = "width 180ms ease, height 180ms ease, opacity 180ms ease";

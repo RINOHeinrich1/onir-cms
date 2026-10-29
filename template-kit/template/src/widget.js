@@ -19,6 +19,7 @@ const STYLE = `
     display: block;
     width: 100%;
     height: 100%;
+    background: transparent;
     --onir-primary: #023777;
     --onir-primary-ink: #ffffff;
     --onir-accent: #fcad28;
