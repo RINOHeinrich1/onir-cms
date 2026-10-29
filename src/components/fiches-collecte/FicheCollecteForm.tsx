@@ -79,8 +79,8 @@ function slugifyFieldName(label: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
     .slice(0, 80);
   return normalized === "" ? "champ" : normalized;
 }
@@ -94,7 +94,7 @@ function payload(draft: Draft): Record<string, unknown> {
       let name = base;
       let suffix = 2;
       while (used.has(name)) {
-        name = `${base}-${suffix}`;
+        name = `${base}_${suffix}`;
         suffix += 1;
       }
       used.add(name);
