@@ -88,8 +88,8 @@ export function AiUsageOverridesField({
     <fieldset className="card" style={{ marginBottom: "1rem" }}>
       <legend className="field">Moteurs IA par usage</legend>
       <p className="hint">
-        Laissez « Hériter du défaut » pour utiliser la configuration de l’usage. Un modèle ou un
-        cluster explicite prend le dessus pour ce chatbot.
+        Laissez « Hériter du défaut d’usage » pour utiliser la configuration de l’usage. Un modèle
+        ou un cluster explicite prend le dessus pour ce chatbot.
       </p>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
@@ -110,7 +110,7 @@ export function AiUsageOverridesField({
                   else patch(usage, { kind: "model", providerId: "", model: "" });
                 }}
               >
-                <option value="inherit">Hériter du défaut</option>
+                <option value="inherit">Hériter du défaut d’usage</option>
                 <option value="model">Modèle</option>
                 <option value="cluster">Cluster</option>
               </select>

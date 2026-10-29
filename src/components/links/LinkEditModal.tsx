@@ -14,8 +14,6 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
-import { ChatbotDataSelection } from "./ChatbotDataSelection";
-import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -53,8 +51,6 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
 
 const EDIT_STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
-  { title: "Fiches de collecte", short: "Fiches" },
-  { title: "Données", short: "Données" },
   { title: "Moteurs IA", short: "IA" },
   { title: "Diffusion", short: "Diffusion" },
   { title: "Récapitulatif", short: "Récapitulatif" },
@@ -167,7 +163,7 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 4) {
+    if (index === 2) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -288,7 +284,7 @@ export function LinkEditModal({
     <div className="modal-overlay chatbot-wizard-overlay">
       <button type="button" className="modal-backdrop" aria-label="Fermer" onClick={onClose} />
       <div
-        className="modal chatbot-wizard-modal"
+        className="modal wide chatbot-wizard-modal"
         role="dialog"
         aria-modal="true"
         aria-label="Modifier le chatbot"
@@ -370,50 +366,6 @@ export function LinkEditModal({
               {step === 1 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[1].title}>
                   <div className="chatbot-step-head">
-                    <h4>Fiches de collecte</h4>
-                    <p className="hint">Sélectionnez les fiches que ce chatbot pourra remplir.</p>
-                  </div>
-                  {config !== null ? (
-                    <ChatbotFichePicker
-                      value={config.fiches}
-                      onChange={(fiches) =>
-                        setConfig((current) =>
-                          current === null ? current : { ...current, fiches },
-                        )
-                      }
-                    />
-                  ) : (
-                    <p className="hint">Aucune configuration avancée disponible.</p>
-                  )}
-                </section>
-              ) : null}
-
-              {step === 2 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
-                  <div className="chatbot-step-head">
-                    <h4>Données</h4>
-                    <p className="hint">
-                      Ajustez les données existantes utilisées par ce chatbot. Les données globales
-                      ne sont jamais modifiées.
-                    </p>
-                  </div>
-                  {config !== null ? (
-                    <ChatbotDataSelection
-                      selection={config.dataSelection}
-                      onChange={(dataSelection) =>
-                        setConfig((current) =>
-                          current === null ? current : { ...current, dataSelection },
-                        )
-                      }
-                      chatLinkId={link.id}
-                    />
-                  ) : null}
-                </section>
-              ) : null}
-
-              {step === 3 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
-                  <div className="chatbot-step-head">
                     <h4>Moteurs IA</h4>
                     <p className="hint">
                       Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
@@ -429,8 +381,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 4 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+              {step === 2 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
                   <div className="chatbot-step-head">
                     <h4>Diffusion</h4>
                     <p className="hint">
@@ -457,8 +409,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 5 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[5].title}>
+              {step === 3 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
                   <div className="chatbot-step-head">
                     <h4>Récapitulatif</h4>
                     <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
