@@ -29,6 +29,7 @@ export function FichesTable({
   archive,
   lien,
   linkLabels,
+  chatLinks,
 }: {
   initialFiches: FicheDto[];
   prospectsById: Record<string, ProspectSummary>;
@@ -36,6 +37,7 @@ export function FichesTable({
   archive: readonly string[];
   lien: readonly string[];
   linkLabels: string[];
+  chatLinks: readonly { id: string; label: string }[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -45,7 +47,7 @@ export function FichesTable({
   const visibleFiches = initialFiches.filter((fiche) => {
     if (query === "") return true;
     const prospect = fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
-    return [prospect?.nom ?? "", fiche.templateKey]
+    return [prospect?.nom ?? "", fiche.definition?.label ?? fiche.templateKey ?? ""]
       .join(" ")
       .toLocaleLowerCase("fr")
       .includes(query);
@@ -99,7 +101,7 @@ export function FichesTable({
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Rechercher un prospect, un modèle…"
+          placeholder="Rechercher un prospect, une fiche…"
           label="Rechercher une fiche"
         />
         <FilterMenu
@@ -167,10 +169,25 @@ export function FichesTable({
                 </span>
               </header>
               <div className="lead-card-model">
-                <span className="muted-text">Modèle</span>
-                <span className="badge muted" title={fiche.templateKey}>
-                  {fiche.templateKey}
+                <span className="muted-text">Fiche</span>
+                <span
+                  className="badge muted"
+                  title={fiche.definition?.key ?? fiche.templateKey ?? "Fiche manuelle"}
+                >
+                  {fiche.definition?.label ?? fiche.templateKey ?? "Fiche manuelle"}
                 </span>
+              </div>
+              <div className="lead-card-model">
+                <span className="muted-text">Chatbots</span>
+                {(fiche.chatLinkIds ?? []).length === 0 ? (
+                  <span className="badge muted">Aucun</span>
+                ) : (
+                  (fiche.chatLinkIds ?? []).map((id) => (
+                    <span key={id} className="badge muted">
+                      {chatLinks.find((link) => link.id === id)?.label || "Chatbot"}
+                    </span>
+                  ))
+                )}
               </div>
               <footer className="lead-card-actions">
                 <a className="btn small" href={`/leads/${fiche.id}`}>
@@ -199,7 +216,7 @@ export function FichesTable({
             <strong>{initialFiches.length === 0 ? "Aucune fiche." : "Aucun résultat."}</strong>
             <span>
               {initialFiches.length === 0
-                ? "Les fiches générées depuis une conversation apparaîtront ici."
+                ? "Les fiches manuelles et générées depuis une conversation apparaîtront ici."
                 : "Modifiez la recherche ou les filtres."}
             </span>
           </div>
@@ -216,6 +233,7 @@ export function FichesTable({
       {creating ? (
         <Modal title="Nouvelle fiche de prospection" onClose={() => setCreating(false)}>
           <FicheForm
+            links={chatLinks}
             onSaved={() => {
               setCreating(false);
               refresh();

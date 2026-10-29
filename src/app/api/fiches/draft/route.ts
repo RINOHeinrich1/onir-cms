@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import {
+  ficheToDefinition,
+  primaryFiche,
+  resolveCurrentConfig,
+} from "@/application/use-cases/chat/chatbot-config-runtime";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../../_lib/errors";
@@ -36,13 +42,24 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (link === null) {
       return NextResponse.json({ error: "Lien introuvable" }, { status: 404 });
     }
-    const template = await pgChatTemplateRepository(pool).findVersion(
+    const config = await resolveCurrentConfig(
+      pgChatbotConfigRepository(pool),
       organizationId,
-      link.templateKey,
-      link.templateVersion,
+      link,
     );
-    if (template === null) {
-      return NextResponse.json({ error: "Modèle introuvable" }, { status: 404 });
+    const fiche = config === null ? null : primaryFiche(config);
+    const definition =
+      config !== null && fiche !== null
+        ? ficheToDefinition(config, fiche)
+        : ((
+            await pgChatTemplateRepository(pool).findVersion(
+              organizationId,
+              link.templateKey,
+              link.templateVersion,
+            )
+          )?.definition ?? null);
+    if (definition === null) {
+      return NextResponse.json({ error: "Définition de fiche introuvable" }, { status: 404 });
     }
     const target = {
       organizationId,
@@ -58,7 +75,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       clients,
       organizationId,
       conversationId,
-      template.definition,
+      definition,
     );
     return NextResponse.json({ draft });
   } catch (error) {

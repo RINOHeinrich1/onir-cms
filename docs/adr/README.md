@@ -55,3 +55,4 @@ ADR qui remplace la précédente.
 | [0052](./0052-selection-donnees-globales-chatbot.md) | Sélection des données globales par configuration chatbot | Accepté |
 | [0053](./0053-sauvegarde-obligatoire-nettoyage-controle.md) | Sauvegarde obligatoire et nettoyage contrôlé des données | Accepté |
 | [0054](./0054-resume-manuel-conversation.md) | Résumé manuel de conversation, indépendant des fiches | Accepté |
+| [0055](./0055-fiches-independantes-modele-raisonnement.md) | Fiches indépendantes du modèle de raisonnement et liées à 0..N chatbots | Accepté |

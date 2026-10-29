@@ -4,6 +4,7 @@ import type {
   FicheSearchRepository,
   FicheSearchResult,
 } from "@/application/ports/fiche-search-repository";
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import { type Fiche, isStatutFiche, type StatutFiche } from "@/domain/entities/fiche";
 
 type FicheRow = {
@@ -12,8 +13,9 @@ type FicheRow = {
   conversation_id: string | null;
   prospect_id: string | null;
   created_by: string | null;
-  template_key: string;
-  template_version: number;
+  template_key: string | null;
+  template_version: number | null;
+  definition: unknown;
   data: unknown;
   plateformes: string[];
   description: string;
@@ -24,13 +26,16 @@ type FicheRow = {
   contraintes_techno: string;
   lien_doc_spec: string;
   archivee: boolean;
+  chat_link_ids: string[];
   created_at: Date;
 };
 
 const COLUMNS = `f.id, f.organization_id, f.conversation_id, f.prospect_id, f.created_by,
-  f.template_key, f.template_version, f.data, f.plateformes, f.description,
+  f.template_key, f.template_version, f.definition, f.data, f.plateformes, f.description,
   f.budget, f.duree, f.contact, f.statut, f.contraintes_techno, f.lien_doc_spec,
-  f.archivee, f.created_at`;
+  f.archivee, f.created_at,
+  (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[])
+     FROM fiche_chat_links fcl WHERE fcl.fiche_id = f.id) AS chat_link_ids`;
 
 function toFiche(row: FicheRow): Fiche {
   const statut: StatutFiche | null =
@@ -45,6 +50,12 @@ function toFiche(row: FicheRow): Fiche {
     conversationId: row.conversation_id,
     prospectId: row.prospect_id,
     createdBy: row.created_by,
+    definition:
+      row.definition !== null &&
+      typeof row.definition === "object" &&
+      !Array.isArray(row.definition)
+        ? (row.definition as TemplateDefinition)
+        : null,
     templateKey: row.template_key,
     templateVersion: row.template_version,
     data,
@@ -57,6 +68,7 @@ function toFiche(row: FicheRow): Fiche {
     contraintesTechno: row.contraintes_techno,
     lienDocSpec: row.lien_doc_spec,
     archivee: row.archivee,
+    chatLinkIds: row.chat_link_ids ?? [],
     createdAt: row.created_at.toISOString(),
   };
 }

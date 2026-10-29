@@ -50,13 +50,15 @@ export async function renderFicheDocument(
   organizationId: string,
   fiche: Fiche,
 ): Promise<RenderedFiche> {
-  const template = await deps.templates.findVersion(
-    organizationId,
-    fiche.templateKey,
-    fiche.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
+  const definition =
+    fiche.definition ??
+    (fiche.templateKey === null || fiche.templateVersion === null
+      ? null
+      : ((
+          await deps.templates.findVersion(organizationId, fiche.templateKey, fiche.templateVersion)
+        )?.definition ?? null));
+  if (definition === null) {
+    throw new NotFoundError("Définition de fiche introuvable");
   }
 
   const prospect =
@@ -73,7 +75,7 @@ export async function renderFicheDocument(
   }
 
   const markdown = renderTemplateMarkdown({
-    definition: template.definition,
+    definition,
     data: fiche.data,
     serverVars: buildServerVariables({ mode: "standard", prospect, conversation: null }),
     date: fiche.createdAt.slice(0, 10),

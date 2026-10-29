@@ -361,6 +361,9 @@ export async function buildWebhookRequest(
   endpoint: WebhookEndpoint,
   fiche: Fiche,
 ): Promise<BuiltWebhookRequest> {
+  if (fiche.templateKey === null || fiche.templateVersion === null) {
+    throw new ValidationError("Cette fiche n'est pas liée à un modèle de raisonnement legacy");
+  }
   const template = await deps.templates.findVersion(
     endpoint.organizationId,
     fiche.templateKey,

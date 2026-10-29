@@ -133,6 +133,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
               archive={archiveValues}
               lien={liens}
               linkLabels={distinctChatLinkLabels(links)}
+              chatLinks={links.map((link) => ({ id: link.id, label: link.label }))}
             />
           );
         })()

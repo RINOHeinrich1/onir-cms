@@ -1,11 +1,16 @@
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { Fiche, FicheArchiveFilter } from "@/domain/entities/fiche";
 
 export type CreateFicheInput = {
   conversationId: string | null;
   prospectId: string | null;
   createdBy: string | null;
-  templateKey: string;
-  templateVersion: number;
+  templateKey: string | null;
+  templateVersion: number | null;
+  /** Snapshot de définition, indépendant du modèle de raisonnement. */
+  definition?: TemplateDefinition | null;
+  /** Chatbots associés (0..N). */
+  chatLinkIds?: string[];
   /** Valeurs génériques (clés = field.name du modèle). */
   data: Record<string, unknown>;
   /** Configuration chatbot source (ADR-0049). */

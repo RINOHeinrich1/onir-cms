@@ -63,8 +63,16 @@ async function loadFicheForOrganization(
   return fiche;
 }
 
+function requiredTemplate(fiche: Fiche): { key: string; version: number } {
+  if (fiche.templateKey === null || fiche.templateVersion === null) {
+    throw new ValidationError("Cette fiche n'est pas liée à un modèle de raisonnement legacy");
+  }
+  return { key: fiche.templateKey, version: fiche.templateVersion };
+}
+
 function assertSameTemplate(endpoint: WebhookEndpoint, fiche: Fiche): void {
-  if (endpoint.templateKey !== fiche.templateKey) {
+  const template = requiredTemplate(fiche);
+  if (endpoint.templateKey !== template.key) {
     throw new ValidationError("Le webhook ne cible pas le modèle de cette fiche");
   }
 }
@@ -77,6 +85,7 @@ export async function listWebhookEndpointsForFiche(
 ): Promise<WebhookEndpointPublicDto[]> {
   assertCan(actor, "webhooks:trigger");
   const fiche = await loadFiche(deps, actor, ficheId);
+  if (fiche.templateKey === null) return [];
   const endpoints = await deps.endpoints.list(organizationOf(actor), fiche.templateKey);
   return endpoints
     .filter((endpoint) => endpoint.enabled && endpoint.deletedAt === null)
@@ -120,12 +129,13 @@ export async function triggerWebhook(
   const endpoint = await loadWebhookEndpoint(deps, organizationId, endpointId);
   assertEndpointUsable(endpoint);
   assertSameTemplate(endpoint, fiche);
+  const template = requiredTemplate(fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
+    templateKey: template.key,
+    templateVersion: template.version,
     isTest: false,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -149,6 +159,8 @@ function sampleFiche(
     createdBy: null,
     templateKey: endpoint.templateKey,
     templateVersion: definition.version,
+    definition: definition.definition,
+    chatLinkIds: [],
     data: buildSampleData(definition.definition.fields),
     plateformes: [],
     description: "",
@@ -189,12 +201,13 @@ export async function testWebhook(
         )
       : await loadFiche(deps, actor, ficheId);
   assertSameTemplate(endpoint, fiche);
+  const template = requiredTemplate(fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   let delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: ficheId,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
+    templateKey: template.key,
+    templateVersion: template.version,
     isTest: true,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -311,12 +324,13 @@ export async function retryWebhookDeliveryForOrganization(
   const endpoint = await loadWebhookEndpoint(deps, organizationId, previous.endpointId);
   assertEndpointUsable(endpoint);
   assertSameTemplate(endpoint, fiche);
+  const template = requiredTemplate(fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
+    templateKey: template.key,
+    templateVersion: template.version,
     isTest: false,
     replayOfId: previous.id,
     idempotencyKey: randomUUID(),
