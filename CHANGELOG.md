@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.17.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.17.0...v0.17.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **conversations:** unifier les menus et déplacer le résumé dans le panneau ([#110](https://github.com/RINOHeinrich1/onir-cms/issues/110)) ([e58c24c](https://github.com/RINOHeinrich1/onir-cms/commit/e58c24cdf8d7393809057491258ad7a90dc716fb))
+
 ## [0.17.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.16.0...v0.17.0) (2026-10-29)
 
 
