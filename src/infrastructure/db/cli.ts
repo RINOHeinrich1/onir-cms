@@ -2,22 +2,30 @@
  * CLI autonome de maintenance de la base.
  * Utilisé par l'image Docker `migrate` (bundle esbuild, sans sources).
  *
- * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|backup|reset-all-chatbot-data [--execute]]
+ * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|backup|audit-legacy-chatbots [--format=json]|reset-all-chatbot-data [--execute]]
  */
 
+import { auditLegacyChatbots, formatLegacyChatbotAudit } from "./audit-legacy-chatbots";
 import { backupDatabase } from "./backup-database";
 import { migrate } from "./migrate";
 import { getPool } from "./pool";
 import { resetChatbotTestData } from "./reset-chatbot-test-data";
 import { seedAdmin } from "./seed-admin";
 
-type Command = "migrate" | "seed" | "migrate-and-seed" | "backup" | "reset-all-chatbot-data";
+type Command =
+  | "migrate"
+  | "seed"
+  | "migrate-and-seed"
+  | "backup"
+  | "audit-legacy-chatbots"
+  | "reset-all-chatbot-data";
 
 const COMMANDS: readonly Command[] = [
   "migrate",
   "seed",
   "migrate-and-seed",
   "backup",
+  "audit-legacy-chatbots",
   "reset-all-chatbot-data",
 ];
 
@@ -36,6 +44,16 @@ async function main(): Promise<void> {
   try {
     if (command === "backup") {
       await backupDatabase();
+      return;
+    }
+
+    if (command === "audit-legacy-chatbots") {
+      const result = await auditLegacyChatbots(pool);
+      process.stdout.write(
+        process.argv.includes("--format=json")
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `${formatLegacyChatbotAudit(result)}\n`,
+      );
       return;
     }
 

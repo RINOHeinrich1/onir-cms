@@ -20,7 +20,8 @@
     "check:fast": "npm run typecheck && npm run lint && npm run build",
     "check:full": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build",
     "db:backup": "tsx --env-file-if-exists=.env src/infrastructure/db/backup-database.cli.ts",
-    "db:reset-all-chatbot-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts"
+    "db:reset-all-chatbot-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts",
+    "db:audit-legacy": "tsx --env-file-if-exists=.env src/infrastructure/db/audit-legacy-chatbots.cli.ts"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
