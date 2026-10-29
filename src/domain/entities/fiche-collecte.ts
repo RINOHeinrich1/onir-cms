@@ -2,6 +2,18 @@ import type { TemplateField } from "@/domain/entities/chat-template";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 
 const FICHE_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Génère une clé technique stable à partir du libellé. */
+export function ficheKeyFromLabel(label: string): string {
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return normalized === "" ? "fiche" : normalized;
+}
 const MAX_LABEL = 160;
 const MAX_TEXT = 4000;
 
@@ -52,11 +64,11 @@ export function validateFicheCollecte(
       : {};
   const errors: string[] = [];
 
-  const key = text(source.key);
+  const label = text(source.label);
+  const key = text(source.key) === "" ? ficheKeyFromLabel(label) : text(source.key);
   if (!FICHE_KEY_PATTERN.test(key)) {
     errors.push("Clé invalide (minuscules, chiffres et tirets, ex. « hotel »)");
   }
-  const label = text(source.label);
   if (label === "") {
     errors.push("Libellé obligatoire");
   } else if (label.length > MAX_LABEL) {

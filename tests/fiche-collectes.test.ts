@@ -127,10 +127,17 @@ describe("fiches de collecte réutilisables", () => {
     expect(history[1]?.label).toBe("Demande d'hébergement");
   });
 
-  it("refuse une clé déjà utilisée", async () => {
+  it("génère une clé unique quand le libellé produit une clé déjà utilisée", async () => {
     const deps = { fiches: memoryRepository() };
     await createFicheCollecte(deps, ACTOR, input());
-    await expect(createFicheCollecte(deps, ACTOR, input())).rejects.toThrow("Clé déjà utilisée");
+    const second = await createFicheCollecte(deps, ACTOR, input());
+    expect(second.key).toBe("hotel-2");
+  });
+
+  it("génère la clé depuis le libellé quand elle n'est pas fournie", async () => {
+    const deps = { fiches: memoryRepository() };
+    const created = await createFicheCollecte(deps, ACTOR, input({ key: "" }));
+    expect(created.key).toBe("hotel");
   });
 
   it("produit un snapshot de fiche avec sourceFicheId/sourceVersion pour le chatbot", async () => {

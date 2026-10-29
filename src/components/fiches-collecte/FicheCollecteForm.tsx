@@ -36,7 +36,7 @@ function newId(): string {
 function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
   if (fiche === null) {
     return {
-      key: "fiche-collecte",
+      key: "",
       label: "",
       description: "",
       intent: "",
@@ -169,30 +169,20 @@ export function FicheCollecteForm({
         </p>
       ) : null}
 
-      <div className="field-row">
-        <label className="field">
-          Clé * (technique)
-          <input
-            type="text"
-            value={draft.key}
-            maxLength={80}
-            onChange={(event) => setDraft({ ...draft, key: event.target.value })}
-            placeholder="hotel"
-            required
-          />
-        </label>
-        <label className="field">
-          Libellé *
-          <input
-            type="text"
-            value={draft.label}
-            maxLength={160}
-            onChange={(event) => setDraft({ ...draft, label: event.target.value })}
-            placeholder="Demande d'hôtel"
-            required
-          />
-        </label>
-      </div>
+      <label className="field">
+        Libellé *
+        <input
+          type="text"
+          value={draft.label}
+          maxLength={160}
+          onChange={(event) => setDraft({ ...draft, label: event.target.value })}
+          placeholder="Demande d'hôtel"
+          required
+        />
+        <span className="hint">
+          La clé technique est générée automatiquement à partir du libellé.
+        </span>
+      </label>
 
       <label className="field">
         Description

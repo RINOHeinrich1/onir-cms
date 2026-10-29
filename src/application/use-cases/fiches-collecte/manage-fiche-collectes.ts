@@ -50,11 +50,13 @@ export async function createFicheCollecte(
   const organizationId = organizationOf(actor);
   const validated = validateFicheCollecte(input);
   if (!validated.ok) throw new ValidationError(validated.errors.join(" ; "));
-  const existing = await deps.fiches.findByKey(organizationId, validated.value.key);
-  if (existing !== null) {
-    throw new ConflictError(`Clé déjà utilisée : ${validated.value.key}`);
+  let key = validated.value.key;
+  let suffix = 2;
+  while ((await deps.fiches.findByKey(organizationId, key)) !== null) {
+    key = `${validated.value.key}-${suffix}`;
+    suffix += 1;
   }
-  return deps.fiches.create(organizationId, validated.value, actor.id);
+  return deps.fiches.create(organizationId, { ...validated.value, key }, actor.id);
 }
 
 /** Modifie une fiche en créant une nouvelle version immuable. */
