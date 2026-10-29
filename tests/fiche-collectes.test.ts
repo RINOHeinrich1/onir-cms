@@ -137,7 +137,7 @@ describe("fiches de collecte réutilisables", () => {
   it("génère la clé depuis le libellé quand elle n'est pas fournie", async () => {
     const deps = { fiches: memoryRepository() };
     const created = await createFicheCollecte(deps, ACTOR, input({ key: "" }));
-    expect(created.key).toBe("hotel");
+    expect(created.key).toBe("demande-d-hotel");
   });
 
   it("produit un snapshot de fiche avec sourceFicheId/sourceVersion pour le chatbot", async () => {
