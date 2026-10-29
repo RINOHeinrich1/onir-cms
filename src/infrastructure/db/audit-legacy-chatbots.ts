@@ -110,7 +110,7 @@ export async function auditLegacyChatbots(pool: Pool): Promise<AuditResult> {
              AND (l.template_key = '' OR t.id IS NULL OR tv.id IS NULL)
          )::text AS blocking_links
        FROM chat_links l
-       LEFT JOIN chat_templates t ON t.key = l.template_key
+       LEFT JOIN chat_templates t ON t.key = l.template_key AND t.organization_id = l.organization_id
        LEFT JOIN chat_template_versions tv ON tv.template_id = t.id AND tv.version = l.template_version
      )
      SELECT totals.*,
@@ -160,7 +160,7 @@ export async function auditLegacyChatbots(pool: Pool): Promise<AuditResult> {
             ) AS medias_visibles
        FROM chat_links l
        JOIN organizations o ON o.id = l.organization_id
-       LEFT JOIN chat_templates t ON t.key = l.template_key
+       LEFT JOIN chat_templates t ON t.key = l.template_key AND t.organization_id = l.organization_id
        LEFT JOIN chat_template_versions tv ON tv.template_id = t.id AND tv.version = l.template_version
        LEFT JOIN conversation_stats cs ON cs.link_id = l.id
        LEFT JOIN fiche_stats fs ON fs.link_id = l.id

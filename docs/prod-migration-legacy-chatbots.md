@@ -45,6 +45,20 @@ Vérifier le dump, puis le restaurer dans une base isolée. Toutes les commandes
 d'audit et les répétitions de migration doivent d'abord tourner sur cette
 copie.
 
+## Audit production du 2026-10-29
+
+Audit exécuté en lecture seule sur la base de production :
+
+- dernière migration : `0048_chat_link_channels.sql` ;
+- `11` liens legacy, `0` lien bloquant ;
+- aucune table de la nouvelle architecture (`chatbot_configs`, etc.) ;
+- aucun template/version manquant ;
+- trois liens partagent le template `onir-cms-demo` ;
+- plusieurs libellés sont vides et devraient être complétés avant la migration.
+
+Conséquence : les migrations `0049` à `0063` doivent être répétées sur une copie
+isolée avant toute application en production.
+
 ## Étape 2 — audit read-only
 
 ```bash
@@ -65,6 +79,31 @@ L'audit ne modifie rien. Il indique notamment :
 
 Un lien est bloquant si son `template_key` est vide ou si le template ou la
 version est introuvable.
+
+## Dry-run d'un lien pilote
+
+```bash
+node dist/db-cli.mjs plan-legacy-chatbot \
+  --link-id=<uuid> \
+  --format=json
+```
+
+Le dry-run ne crée aucune configuration et ne modifie aucun lien. Il produit :
+
+- le template et le nombre de champs ;
+- le prompt historique repris en mode expert ;
+- la fiche de collecte proposée ;
+- les connaissances/médias visibles via l'ancienne portée ;
+- les identifiants de liens à ajouter à `chat_link_ids` ;
+- les bloquants et avertissements.
+
+Pilote retenu : `Démo ONIR CMS — simplifiée`
+(`f815b152-cc67-420e-95e6-1d1ad93dd217`), template `onir-cms-demo` v1.
+
+Résultat du dry-run : aucun bloquant, 3 champs, 6 connaissances scopées,
+1 connaissance globale, 1 média global. Les trois liens partageant le template
+`onir-cms-demo` devront être ajoutés à `chat_link_ids` pour conserver la portée
+historique.
 
 ## Étape 3 — mapping d'un lien
 
@@ -111,3 +150,13 @@ La landing est un dépôt séparé (`onir-cms-landing`). Après la release :
 - vérifier que les URLs pointent vers la production et non la préprod ;
 - conserver les tokens actuels ou ajouter des redirections ;
 - tester les widgets `/embed/...` s'ils sont utilisés.
+
+Mapping constaté :
+
+```text
+Landing « simplifiée » → f815b152-cc67-420e-95e6-1d1ad93dd217
+Landing « immersive »  → 01be07aa-2561-49ae-b7fe-3e1867a3d761
+```
+
+Les tokens publics de la landing doivent rester inchangés. Aucun redirect n'est
+nécessaire si les URLs `/l/<token>` sont conservées.
