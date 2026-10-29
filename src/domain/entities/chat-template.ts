@@ -50,6 +50,9 @@ export type TemplateDefinition = {
   renderTemplate: string;
   /** Réglages du mode Simple (facultatif : anciens modèles sans ce bloc). */
   simple?: TemplateSimpleSettings;
+  /** Origine du snapshot, si la définition vient d'une fiche de collecte. */
+  sourceFicheId?: string;
+  sourceVersion?: number;
 };
 
 export type ChatTemplate = {

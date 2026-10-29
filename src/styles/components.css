@@ -5747,13 +5747,16 @@ a.subtab {
   overflow: hidden;
 }
 
-/* Le menu d'actions des cartes chatbot doit dépasser de la carte. */
-.chatbot-card {
+/* Les menus d'actions des cartes doivent dépasser et rester au-dessus. */
+.chatbot-card,
+.lead-card {
   overflow: visible;
 }
 
-.chatbot-card:has(.action-menu[open]) {
-  z-index: 10;
+.chatbot-card:has(.action-menu[open]),
+.lead-card:has(.action-menu[open]) {
+  position: relative;
+  z-index: 20;
 }
 
 .chatbot-card .action-menu-panel {
@@ -6570,4 +6573,15 @@ a.subtab {
     max-height: 88vh;
     border-radius: 1rem;
   }
+}
+
+/* Tous les menus ⋯ doivent rester au-dessus de leur carte et des voisines. */
+.action-menu[open] {
+  position: relative;
+  z-index: 30;
+}
+
+.card:has(.action-menu[open]) {
+  position: relative;
+  z-index: 20;
 }

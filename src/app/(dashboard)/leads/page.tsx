@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import { listFiches } from "@/application/use-cases/fiche/manage-fiches";
+import { listFicheCollectes } from "@/application/use-cases/fiches-collecte/manage-fiche-collectes";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
 import { listProspects } from "@/application/use-cases/prospects/list-prospects";
 import { FichesTable } from "@/components/fiches/FichesTable";
@@ -10,6 +11,7 @@ import { distinctChatLinkLabels } from "@/domain/entities/chat";
 import type { parseFicheArchiveFilter } from "@/domain/entities/fiche";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -82,6 +84,10 @@ export default async function LeadsPage({ searchParams }: PageProps) {
           listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
         ])
       : null;
+  const fichesCollecte =
+    tab === "fiches" && actorCan(context.actor, "project:write")
+      ? await listFicheCollectes({ fiches: pgFicheCollecteRepository(pool) }, context.actor)
+      : [];
   const organizationId = context.actor.organizationId;
   const files =
     tab === "fichiers" && organizationId !== null
@@ -134,6 +140,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
               lien={liens}
               linkLabels={distinctChatLinkLabels(links)}
               chatLinks={links.map((link) => ({ id: link.id, label: link.label }))}
+              fichesCollecte={fichesCollecte}
             />
           );
         })()

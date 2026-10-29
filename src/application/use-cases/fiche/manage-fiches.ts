@@ -1,15 +1,14 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
-import {
-  type Fiche,
-  type FicheArchiveFilter,
-  MANUAL_FICHE_DEFINITION,
-} from "@/domain/entities/fiche";
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
+import type { Fiche, FicheArchiveFilter } from "@/domain/entities/fiche";
 import { validateTemplateData } from "@/domain/validate-template-data";
 
 export type ManageFichesDependencies = {
   fiches: FicheRepository;
+  fichesCollecte: FicheCollecteRepository;
 };
 
 export type ReadFichesDependencies = {
@@ -29,11 +28,40 @@ export async function createFiche(
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
+  const ficheCollecteId =
+    typeof source.ficheCollecteId === "string" ? source.ficheCollecteId.trim() : "";
+  if (ficheCollecteId === "") {
+    throw new ValidationError("Choisissez une fiche de collecte");
+  }
+  const requestedVersion =
+    typeof source.ficheCollecteVersion === "number" &&
+    Number.isInteger(source.ficheCollecteVersion) &&
+    source.ficheCollecteVersion >= 1
+      ? source.ficheCollecteVersion
+      : null;
+  const selected =
+    requestedVersion === null
+      ? await deps.fichesCollecte.findById(organizationId, ficheCollecteId)
+      : await deps.fichesCollecte.findVersion(organizationId, ficheCollecteId, requestedVersion);
+  if (selected === null) {
+    throw new ValidationError("Fiche de collecte introuvable");
+  }
+  const sourceFicheId = "ficheCollecteId" in selected ? selected.ficheCollecteId : selected.id;
+  const definition: TemplateDefinition = {
+    key: selected.key,
+    label: selected.label,
+    description: selected.description,
+    systemPrompt: "",
+    fields: selected.fields,
+    renderTemplate: selected.renderTemplate,
+    sourceFicheId,
+    sourceVersion: selected.version,
+  };
   const rawData =
     source.data !== null && typeof source.data === "object" && !Array.isArray(source.data)
       ? (source.data as Record<string, unknown>)
       : source;
-  const validated = validateTemplateData(MANUAL_FICHE_DEFINITION, rawData);
+  const validated = validateTemplateData(definition, rawData);
   if (!validated.ok) {
     throw new ValidationError(validated.errors.join(" ; "));
   }
@@ -53,7 +81,8 @@ export async function createFiche(
     createdBy: actor.id,
     templateKey: null,
     templateVersion: null,
-    definition: MANUAL_FICHE_DEFINITION,
+    definition,
+    ficheKey: selected.key,
     chatLinkIds,
     data: validated.value,
   });
