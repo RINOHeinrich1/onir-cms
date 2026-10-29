@@ -5747,6 +5747,19 @@ a.subtab {
   overflow: hidden;
 }
 
+/* Le menu d'actions des cartes chatbot doit dépasser de la carte. */
+.chatbot-card {
+  overflow: visible;
+}
+
+.chatbot-card:has(.action-menu[open]) {
+  z-index: 10;
+}
+
+.chatbot-card .action-menu-panel {
+  z-index: 45;
+}
+
 .chatbot-card-head > div,
 .chatbot-facts > div,
 .chatbot-link-row,
