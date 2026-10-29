@@ -205,8 +205,8 @@ export function parseChatbotConfig(
   } else if (systemPrompt === "") {
     errors.push("Prompt système obligatoire en mode expert");
   }
-  if (!Array.isArray(raw.fiches) || raw.fiches.length === 0) {
-    errors.push("Au moins une fiche de collecte est obligatoire");
+  if (!Array.isArray(raw.fiches)) {
+    errors.push("Liste de fiches de collecte invalide");
   }
   const fiches: FicheDefinition[] = [];
   const keys = new Set<string>();

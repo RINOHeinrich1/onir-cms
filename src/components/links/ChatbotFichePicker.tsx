@@ -81,8 +81,7 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
   }, [options, query]);
 
   const availableCount = Math.max(options.length, value.length);
-  const assignableCount = Math.min(availableCount, MAX_FICHES_PER_CHATBOT);
-  const remainingAssignable = Math.max(0, assignableCount - value.length);
+  const remainingAssignable = Math.max(0, MAX_FICHES_PER_CHATBOT - value.length);
   const remainingLabel =
     remainingAssignable === 1 ? "1 fiche assignable" : `${remainingAssignable} fiches assignables`;
 
@@ -192,7 +191,9 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
           Le maximum est de {MAX_FICHES_PER_CHATBOT} fiches ; il reste {remainingLabel}.
         </p>
         {value.length === 0 && options.length > 0 ? (
-          <p className="hint">Sélectionnez au moins une fiche de collecte.</p>
+          <p className="hint">
+            Aucune fiche sélectionnée : le chatbot ne collectera aucun champ automatiquement.
+          </p>
         ) : value.length === 0 ? null : (
           <ul>
             {value.map((fiche) => (

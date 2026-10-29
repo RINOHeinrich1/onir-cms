@@ -362,9 +362,6 @@ export function LinkForm({
       return null;
     }
     if (index === 1) {
-      if (config.fiches.length === 0) {
-        return "Sélectionnez au moins une fiche de collecte.";
-      }
       return null;
     }
     if (index === 3) {
@@ -800,8 +797,10 @@ export function LinkForm({
               <li className={type === "specifique" && prospectId === "" ? "warn" : "ok"}>
                 {type === "specifique" ? "Prospect rattaché" : "Type standard sans prospect"}
               </li>
-              <li className={config.fiches.length > 0 ? "ok" : "warn"}>
-                Au moins une fiche de collecte
+              <li className="ok">
+                {config.fiches.length === 0
+                  ? "Aucune fiche de collecte (résumé possible)"
+                  : `${config.fiches.length} fiche${config.fiches.length > 1 ? "s" : ""} de collecte`}
               </li>
               <li className="ok">
                 {config.dataSelection.mode === "all"

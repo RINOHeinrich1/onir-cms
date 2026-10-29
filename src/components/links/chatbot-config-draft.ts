@@ -323,7 +323,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
       extraInstructions:
         typeof simpleRaw.extraInstructions === "string" ? simpleRaw.extraInstructions : "",
     },
-    fiches: fiches.length === 0 ? [emptyFiche(0)] : fiches,
+    fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
   };
 }

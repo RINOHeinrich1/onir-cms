@@ -14,6 +14,15 @@ describe("brouillon de configuration chatbot", () => {
     expect(draft.simple.guardrails).toEqual([]);
   });
 
+  it("conserve zéro fiche lors du rechargement d'un brouillon", () => {
+    const draft = draftFromConfig({
+      systemPrompt: "",
+      simple: {},
+      fiches: [],
+    });
+    expect(draft?.fiches).toEqual([]);
+  });
+
   it("convertit l'ancien format de garde-fous texte en liste", () => {
     const draft = draftFromConfig({
       systemPrompt: "Ancien prompt",

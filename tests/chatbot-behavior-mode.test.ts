@@ -64,6 +64,13 @@ describe("modes de comportement du chatbot", () => {
     expect(parsed.value.systemPrompt).not.toBe("PROMPT FOURNI");
   });
 
+  it("accepte une configuration sans fiche de collecte", () => {
+    const parsed = parseChatbotConfig(payload({ fiches: [] }));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.fiches).toEqual([]);
+  });
+
   it("exige un prompt non vide en mode expert", () => {
     const parsed = parseChatbotConfig(payload({ behaviorMode: "expert", systemPrompt: "   " }));
     expect(parsed.ok).toBe(false);
