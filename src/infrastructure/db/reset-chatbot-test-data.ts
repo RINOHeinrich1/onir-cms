@@ -18,6 +18,7 @@ const TABLES = [
   "base_connaissances",
   "medias",
   "webhook_endpoints",
+  "chatbot_drafts",
   "fiche_collectes",
   "chat_templates",
 ] as const;
