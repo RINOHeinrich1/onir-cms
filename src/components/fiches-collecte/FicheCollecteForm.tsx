@@ -45,7 +45,7 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
       fields: [
         {
           id: newId(),
-          name: "contact",
+          name: "",
           label: "Contact",
           type: "text",
           required: true,
