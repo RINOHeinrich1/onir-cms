@@ -154,6 +154,25 @@ const chatbotListParameters = [
   query("active", { type: "boolean" }),
 ];
 
+const mediaListParameters = [
+  limit,
+  cursor,
+  sort,
+  q,
+  query("type", { type: "string", enum: ["photo", "lien"] }),
+  query("active", { type: "boolean" }),
+  query("chatbotId", { type: "string", format: "uuid" }),
+];
+
+const connaissanceListParameters = [
+  limit,
+  cursor,
+  sort,
+  q,
+  query("active", { type: "boolean" }),
+  query("chatbotId", { type: "string", format: "uuid" }),
+];
+
 export function openapiDocument(): JsonSchema {
   return {
     openapi: "3.1.0",
@@ -170,6 +189,8 @@ export function openapiDocument(): JsonSchema {
       { name: "Prospects" },
       { name: "Conversations" },
       { name: "Chatbots" },
+      { name: "Médias" },
+      { name: "Connaissances" },
       { name: "Modèles" },
       { name: "Statistiques" },
       { name: "Webhooks" },
@@ -293,6 +314,103 @@ export function openapiDocument(): JsonSchema {
           "listProspectFiches",
           ["fiches:read"],
           { "200": single({ type: "array", items: ref("Fiche") }, "Fiches") },
+          { parameters: [pathId()] },
+        ),
+      },
+      "/medias": {
+        get: operation(
+          "Médias",
+          "listMedias",
+          ["medias:read"],
+          { "200": page(ref("Media"), "Liste paginée de médias") },
+          { parameters: mediaListParameters },
+        ),
+        post: operation(
+          "Médias",
+          "createMedia",
+          ["medias:write"],
+          {
+            "201": single(ref("Media"), "Média créé"),
+          },
+          {
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": { schema: ref("MediaLinkCreate") },
+                "multipart/form-data": { schema: ref("MediaPhotoCreate") },
+              },
+            },
+          },
+        ),
+      },
+      "/medias/{id}": {
+        get: operation(
+          "Médias",
+          "getMedia",
+          ["medias:read"],
+          { "200": single(ref("Media"), "Média") },
+          { parameters: [pathId()] },
+        ),
+        patch: operation(
+          "Médias",
+          "updateMedia",
+          ["medias:write"],
+          { "200": single(ref("Media"), "Média modifié") },
+          {
+            parameters: [pathId()],
+            requestBody: { required: true, content: json(ref("MediaPatch")) },
+          },
+        ),
+        delete: operation(
+          "Médias",
+          "deleteMedia",
+          ["medias:write"],
+          { "200": noContent("Média supprimé") },
+          { parameters: [pathId()] },
+        ),
+      },
+      "/connaissances": {
+        get: operation(
+          "Connaissances",
+          "listConnaissances",
+          ["connaissances:read"],
+          { "200": page(ref("Connaissance"), "Liste paginée de connaissances") },
+          { parameters: connaissanceListParameters },
+        ),
+        post: createOperation(
+          "Connaissances",
+          "createConnaissance",
+          ["connaissances:write"],
+          "ConnaissanceCreate",
+          { "201": single(ref("Connaissance"), "Connaissance créée") },
+        ),
+      },
+      "/connaissances/{id}": {
+        get: operation(
+          "Connaissances",
+          "getConnaissance",
+          ["connaissances:read"],
+          { "200": single(ref("Connaissance"), "Connaissance") },
+          { parameters: [pathId()] },
+        ),
+        patch: operation(
+          "Connaissances",
+          "updateConnaissance",
+          ["connaissances:write"],
+          { "200": single(ref("Connaissance"), "Connaissance modifiée") },
+          {
+            parameters: [pathId()],
+            requestBody: {
+              required: true,
+              content: json(ref("ConnaissancePatch")),
+            },
+          },
+        ),
+        delete: operation(
+          "Connaissances",
+          "deleteConnaissance",
+          ["connaissances:write"],
+          { "200": noContent("Connaissance supprimée") },
           { parameters: [pathId()] },
         ),
       },
@@ -643,6 +761,85 @@ export function openapiDocument(): JsonSchema {
             conversationId: { type: ["string", "null"], format: "uuid" },
             archived: { type: "boolean" },
             data: { type: "object", additionalProperties: true },
+          },
+        },
+        Media: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            type: { type: "string", enum: ["photo", "lien"] },
+            libelle: { type: "string" },
+            description: { type: "string" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            active: { type: "boolean" },
+            url: { type: ["string", "null"], format: "uri" },
+            fileUrl: { type: ["string", "null"] },
+            mime: { type: ["string", "null"] },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        MediaLinkCreate: {
+          type: "object",
+          required: ["libelle", "url"],
+          properties: {
+            type: { type: "string", enum: ["lien"], default: "lien" },
+            libelle: { type: "string", maxLength: 120 },
+            description: { type: "string", maxLength: 2000 },
+            url: { type: "string", format: "uri" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            actif: { type: "boolean", default: true },
+          },
+        },
+        MediaPhotoCreate: {
+          type: "object",
+          required: ["fichier", "libelle"],
+          properties: {
+            fichier: { type: "string", format: "binary" },
+            libelle: { type: "string", maxLength: 120 },
+            description: { type: "string", maxLength: 2000 },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            actif: { type: "boolean", default: true },
+          },
+        },
+        MediaPatch: {
+          type: "object",
+          properties: {
+            libelle: { type: "string", maxLength: 120 },
+            description: { type: "string", maxLength: 2000 },
+            url: { type: "string", format: "uri" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            actif: { type: "boolean" },
+          },
+        },
+        Connaissance: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            titre: { type: "string" },
+            contenu: { type: "string" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            active: { type: "boolean" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        ConnaissanceCreate: {
+          type: "object",
+          required: ["titre", "contenu"],
+          properties: {
+            titre: { type: "string", maxLength: 120 },
+            contenu: { type: "string" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+          },
+        },
+        ConnaissancePatch: {
+          type: "object",
+          properties: {
+            titre: { type: "string", maxLength: 120 },
+            contenu: { type: "string" },
+            chatLinkIds: { type: "array", items: { type: "string", format: "uuid" } },
+            actif: { type: "boolean" },
           },
         },
         Prospect: {

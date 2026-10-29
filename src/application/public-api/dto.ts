@@ -11,9 +11,12 @@ import {
   channelsForLink,
 } from "@/domain/entities/chat";
 import type { ChatTemplate, ChatTemplateVersion } from "@/domain/entities/chat-template";
+import type { Connaissance } from "@/domain/entities/connaissance";
 import type { Fiche } from "@/domain/entities/fiche";
+import type { Media } from "@/domain/entities/media";
 import type { Prospect } from "@/domain/entities/prospect";
 import type { WebhookDelivery, WebhookEndpoint } from "@/domain/entities/webhook";
+import { signedMediaUrl } from "@/lib/media-token";
 
 export type FicheDto = ReturnType<typeof ficheDto>;
 export type ProspectDto = ReturnType<typeof prospectDto>;
@@ -23,6 +26,8 @@ export type MessageDto = ReturnType<typeof messageDto>;
 export type ChatbotDto = ReturnType<typeof chatbotDto>;
 export type TemplateDto = ReturnType<typeof templateDto>;
 export type TemplateVersionDto = ReturnType<typeof templateVersionDto>;
+export type MediaDto = ReturnType<typeof mediaDto>;
+export type ConnaissanceDto = ReturnType<typeof connaissanceDto>;
 
 export function ficheDto(fiche: Fiche) {
   return {
@@ -33,6 +38,34 @@ export function ficheDto(fiche: Fiche) {
     conversationId: fiche.conversationId,
     archived: fiche.archivee,
     data: fiche.data,
+  };
+}
+
+export function mediaDto(media: Media) {
+  return {
+    id: media.id,
+    type: media.type,
+    libelle: media.libelle,
+    description: media.description,
+    chatLinkIds: media.chatLinkIds,
+    active: media.actif,
+    url: media.type === "lien" ? media.url : null,
+    fileUrl: media.type === "photo" ? signedMediaUrl(media.id, media.organizationId) : null,
+    mime: media.mime,
+    createdAt: media.createdAt,
+    updatedAt: media.updatedAt,
+  };
+}
+
+export function connaissanceDto(connaissance: Connaissance) {
+  return {
+    id: connaissance.id,
+    titre: connaissance.titre,
+    contenu: connaissance.contenu,
+    chatLinkIds: connaissance.chatLinkIds,
+    active: connaissance.actif,
+    createdAt: connaissance.createdAt,
+    updatedAt: connaissance.updatedAt,
   };
 }
 

@@ -31,6 +31,10 @@ describe("API key scopes", () => {
       ok: true,
       scopes: ["prospects:read", "chatbots:write"],
     });
+    expect(parseApiKeyScopes(["medias:read", "connaissances:write"])).toEqual({
+      ok: true,
+      scopes: ["medias:read", "connaissances:write"],
+    });
     expect(parseApiKeyScopes(["unknown:read"]).ok).toBe(false);
     expect(parseApiKeyScopes([]).ok).toBe(false);
   });
@@ -60,6 +64,10 @@ describe("OpenAPI v1 contract", () => {
         "/statistiques/summary",
         "/webhooks",
         "/webhook-deliveries/{id}/retry",
+        "/medias",
+        "/medias/{id}",
+        "/connaissances",
+        "/connaissances/{id}",
       ]),
     );
   });

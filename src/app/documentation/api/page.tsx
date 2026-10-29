@@ -88,6 +88,42 @@ export default function ApiFichesPage() {
       <DocCode>{`GET /api/v1/fiches/:id
 Authorization: Bearer onir_live_...`}</DocCode>
 
+      <h2 id="medias">Médias — photothèque et liens</h2>
+      <p>
+        Scopes : <code>medias:read</code> et <code>medias:write</code>. La liste accepte
+        <code>type=photo|lien</code>, <code>active</code>, <code>chatbotId</code>, <code>q</code>,
+        <code>limit</code>, <code>sort</code> et <code>cursor</code>.
+      </p>
+      <DocCode>{`GET  /api/v1/medias?type=photo&active=true&chatbotId=...
+POST /api/v1/medias
+     Content-Type: application/json
+     { "libelle": "Visuel accueil", "url": "https://...", "actif": true }
+
+POST /api/v1/medias
+     Content-Type: multipart/form-data
+     fichier=@image.webp, libelle=Visuel accueil, chatLinkIds=...
+
+PATCH  /api/v1/medias/:id
+DELETE /api/v1/medias/:id`}</DocCode>
+      <p>
+        Une photo renvoie aussi <code>fileUrl</code>, une URL signée courte pour récupérer le
+        fichier. Les URL et clés de stockage internes ne sont jamais exposées.
+      </p>
+
+      <h2 id="connaissances">Connaissances</h2>
+      <p>
+        Scopes : <code>connaissances:read</code> et <code>connaissances:write</code>. La liste
+        accepte <code>active</code>, <code>chatbotId</code>, <code>q</code>, <code>limit</code>,
+        <code>sort</code> et <code>cursor</code>.
+      </p>
+      <DocCode>{`GET  /api/v1/connaissances?chatbotId=...
+POST /api/v1/connaissances
+     { "titre": "Délais", "contenu": "…", "chatLinkIds": [] }
+
+GET    /api/v1/connaissances/:id
+PATCH  /api/v1/connaissances/:id
+DELETE /api/v1/connaissances/:id`}</DocCode>
+
       <h2 id="isolation">Isolation et limites</h2>
       <p>
         Toutes les requêtes sont automatiquement filtrées par l’organisation de la clé. Un accès à

@@ -16,6 +16,10 @@ export const API_KEY_SCOPES = [
   "webhooks:read",
   "webhooks:write",
   "statistiques:read",
+  "medias:read",
+  "medias:write",
+  "connaissances:read",
+  "connaissances:write",
 ] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
@@ -32,6 +36,10 @@ export const API_KEY_SCOPE_LABELS: Record<ApiKeyScope, string> = {
   "webhooks:read": "Lire les webhooks",
   "webhooks:write": "Gérer les webhooks",
   "statistiques:read": "Lire les statistiques",
+  "medias:read": "Lire les médias",
+  "medias:write": "Gérer les médias",
+  "connaissances:read": "Lire les connaissances",
+  "connaissances:write": "Gérer les connaissances",
 };
 
 export function isApiKeyScope(value: unknown): value is ApiKeyScope {
