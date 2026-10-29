@@ -46,6 +46,7 @@ export async function createFiche(
   if (selected === null) {
     throw new ValidationError("Fiche de collecte introuvable");
   }
+  const sourceFicheId = "ficheCollecteId" in selected ? selected.ficheCollecteId : selected.id;
   const definition: TemplateDefinition = {
     key: selected.key,
     label: selected.label,
@@ -53,7 +54,7 @@ export async function createFiche(
     systemPrompt: "",
     fields: selected.fields,
     renderTemplate: selected.renderTemplate,
-    sourceFicheId: selected.id,
+    sourceFicheId,
     sourceVersion: selected.version,
   };
   const rawData =
