@@ -1,6 +1,6 @@
 {
   "name": "onir-cms",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -56,7 +56,7 @@
     "typescript": "^5",
     "vitest": "^5.0.5"
   },
-  "description": "ONIR CMS \u2014 open-source AI prospecting and conversation CMS.",
+  "description": "ONIR CMS — open-source AI prospecting and conversation CMS.",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -5,6 +5,40 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.17.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.16.0...v0.17.0) (2026-10-29)
+
+
+### Features
+
+* chatbot config-only, résumés, audits et préparation production ([#109](https://github.com/RINOHeinrich1/onir-cms/issues/109)) ([bf5f68a](https://github.com/RINOHeinrich1/onir-cms/commit/bf5f68ab94bc821165dc198c67fd6beeb68aed46))
+* **chatbots:** quotas de fiches et de tokens par chatbot ([#94](https://github.com/RINOHeinrich1/onir-cms/issues/94)) ([c038a4c](https://github.com/RINOHeinrich1/onir-cms/commit/c038a4c0ad272aecfbca8a07ec4c30fa80f45a0b))
+* **compte:** paramètres regroupés dans le menu du profil ([#90](https://github.com/RINOHeinrich1/onir-cms/issues/90)) ([4f7a614](https://github.com/RINOHeinrich1/onir-cms/commit/4f7a61485c5a2b612e698d1b7c72156f7a9e0dd1))
+* **conversations:** expérience chat, champs collectés et incidents ([#91](https://github.com/RINOHeinrich1/onir-cms/issues/91)) ([f2ed8cc](https://github.com/RINOHeinrich1/onir-cms/commit/f2ed8ccf62409c9cd75bf97d79f4604b2d1948c8))
+* **conversations:** inbox desktop et mobile ([#105](https://github.com/RINOHeinrich1/onir-cms/issues/105)) ([0a7edd7](https://github.com/RINOHeinrich1/onir-cms/commit/0a7edd767cf60fc3fa93f3dfce6ea56d690fe995))
+* **conversations:** intervention humaine et opérateur chat ([#83](https://github.com/RINOHeinrich1/onir-cms/issues/83)) ([d4694b0](https://github.com/RINOHeinrich1/onir-cms/commit/d4694b067e26df18345c07947f90f63a748a7cf5))
+* **ia:** extraction structurée multi-fournisseurs ([#92](https://github.com/RINOHeinrich1/onir-cms/issues/92)) ([e340f8d](https://github.com/RINOHeinrich1/onir-cms/commit/e340f8dbe7e76e1131f43f8ba04915f16a2460fa))
+* **ia:** profil de raisonnement configurable par fournisseur ([#93](https://github.com/RINOHeinrich1/onir-cms/issues/93)) ([ee7ca32](https://github.com/RINOHeinrich1/onir-cms/commit/ee7ca32b859c52e68534a03ad75ee702418084fe))
+* **navigation:** boîte à outils responsive à droite du profil ([#89](https://github.com/RINOHeinrich1/onir-cms/issues/89)) ([33984cf](https://github.com/RINOHeinrich1/onir-cms/commit/33984cf718d2d6b0b3d79444fbb180aec92ff17a))
+* **notifications:** cloche d'activité du dashboard ([#88](https://github.com/RINOHeinrich1/onir-cms/issues/88)) ([8e52b73](https://github.com/RINOHeinrich1/onir-cms/commit/8e52b73b5e0a8c51657a11ee3a20495c5f862b15))
+* **templates:** messages opérateur en temps réel et versions 1.4.1/4.45.2 ([#85](https://github.com/RINOHeinrich1/onir-cms/issues/85)) ([0172059](https://github.com/RINOHeinrich1/onir-cms/commit/017205924257937e112e55f0f0978355c00082fe))
+* **ui:** actions rapides sur la vue globale ([#99](https://github.com/RINOHeinrich1/onir-cms/issues/99)) ([6be8d43](https://github.com/RINOHeinrich1/onir-cms/commit/6be8d43ac19abd06e8157f4dcebec27c7b58f0dc))
+* **ui:** confirmation accessible et finitions mobiles ([#102](https://github.com/RINOHeinrich1/onir-cms/issues/102)) ([58e18a1](https://github.com/RINOHeinrich1/onir-cms/commit/58e18a1cc75db56b63837730bf44cdbec10ae507))
+* **ui:** filtre origine multi-valeurs ([#104](https://github.com/RINOHeinrich1/onir-cms/issues/104)) ([63e6e0b](https://github.com/RINOHeinrich1/onir-cms/commit/63e6e0bd6f066d92589a41846351a1a5a4584458))
+* **ui:** identité ONIR CMS et refonte des listes ([#97](https://github.com/RINOHeinrich1/onir-cms/issues/97)) ([704baca](https://github.com/RINOHeinrich1/onir-cms/commit/704baca6be1df93816118149d794141341fbe704))
+* **ui:** organiser les paramètres IA en onglets ([#100](https://github.com/RINOHeinrich1/onir-cms/issues/100)) ([1021212](https://github.com/RINOHeinrich1/onir-cms/commit/1021212a81d24923b9adcdde343e99969d97fe70))
+* **ui:** pagination et filtre chatbot multi-valeurs ([#103](https://github.com/RINOHeinrich1/onir-cms/issues/103)) ([1765d57](https://github.com/RINOHeinrich1/onir-cms/commit/1765d570be55cb80da515639dfd7fa79cda32d89))
+* **ui:** recherche et cartes mobiles sur les listes restantes ([#101](https://github.com/RINOHeinrich1/onir-cms/issues/101)) ([fc45d4d](https://github.com/RINOHeinrich1/onir-cms/commit/fc45d4d74b25b0e0fc6b1ddd586f9f94e564c6d1))
+
+
+### Bug Fixes
+
+* **build:** auto-héberger Montserrat pour un build Turbopack fiable ([#86](https://github.com/RINOHeinrich1/onir-cms/issues/86)) ([62ec082](https://github.com/RINOHeinrich1/onir-cms/commit/62ec08251e6992dce69b92b5de58e5b5a74e820f))
+* **conversations:** ajuster l'inbox mobile ([#106](https://github.com/RINOHeinrich1/onir-cms/issues/106)) ([497afa5](https://github.com/RINOHeinrich1/onir-cms/commit/497afa5f69338855c6ba7a06fc59e9490b90afa2))
+* **conversations:** liste mobile sans fil vide ([#107](https://github.com/RINOHeinrich1/onir-cms/issues/107)) ([61550c4](https://github.com/RINOHeinrich1/onir-cms/commit/61550c4dcac6fc5000f26202cb218bffca1f83d8))
+* **conversations:** scroll de la liste dans la sidebar ([#108](https://github.com/RINOHeinrich1/onir-cms/issues/108)) ([46105d9](https://github.com/RINOHeinrich1/onir-cms/commit/46105d9682ff7117ac4d7e954eeadb7b4a20a995))
+* **ia:** remonter l'usage tokens sur le fournisseur configuré ([#95](https://github.com/RINOHeinrich1/onir-cms/issues/95)) ([fbc3b11](https://github.com/RINOHeinrich1/onir-cms/commit/fbc3b11577ee371a0fa5c881e6563433c197c5ac))
+* **ui:** cartes mobiles pour prospects et fournisseurs IA ([#98](https://github.com/RINOHeinrich1/onir-cms/issues/98)) ([fdbd8b2](https://github.com/RINOHeinrich1/onir-cms/commit/fdbd8b27bb726a43f1512738f003ec9218340884))
+
 ## [0.16.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.15.0...v0.16.0) (2026-10-27)
 
 
