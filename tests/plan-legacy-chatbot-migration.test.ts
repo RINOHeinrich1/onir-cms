@@ -7,6 +7,7 @@ describe("plan de migration legacy", () => {
       generatedAt: "2026-10-29T00:00:00.000Z",
       link: {
         id: "l1",
+        organizationId: "org-1",
         organization: "Onirtech",
         label: "Démo",
         type: "standard",
@@ -14,6 +15,9 @@ describe("plan de migration legacy", () => {
         templateKey: "demo",
         templateVersion: 1,
         alreadyConfigured: false,
+        openConversations: 1,
+        conversations: 3,
+        fiches: 2,
       },
       template: {
         label: "Démo",

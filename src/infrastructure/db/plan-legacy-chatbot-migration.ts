@@ -15,6 +15,9 @@ type LinkRow = {
   template_key: string;
   template_version: number;
   current_config_id: string | null;
+  open_conversations: string;
+  conversations: string;
+  fiches: string;
 };
 
 type VersionRow = {
@@ -25,6 +28,7 @@ export type LegacyMigrationPlan = {
   generatedAt: string;
   link: {
     id: string;
+    organizationId: string;
     organization: string;
     label: string;
     type: string;
@@ -32,6 +36,9 @@ export type LegacyMigrationPlan = {
     templateKey: string;
     templateVersion: number;
     alreadyConfigured: boolean;
+    openConversations: number;
+    conversations: number;
+    fiches: number;
   };
   template: {
     label: string;
@@ -120,7 +127,10 @@ export async function planLegacyChatbotMigration(
   const currentExpr = hasCurrentConfig ? "l.current_config_id" : "NULL::uuid";
   const { rows } = await pool.query<LinkRow>(
     `SELECT l.id, l.organization_id, o.name AS organization_name, l.label, l.type, l.actif,
-            l.template_key, l.template_version, ${currentExpr} AS current_config_id
+            l.template_key, l.template_version, ${currentExpr} AS current_config_id,
+            (SELECT count(*)::text FROM conversations c WHERE c.link_id = l.id) AS conversations,
+            (SELECT count(*)::text FROM conversations c WHERE c.link_id = l.id AND c.statut = 'en_cours') AS open_conversations,
+            (SELECT count(f.id)::text FROM conversations c JOIN fiches f ON f.conversation_id = c.id WHERE c.link_id = l.id) AS fiches
        FROM chat_links l
        JOIN organizations o ON o.id = l.organization_id
       WHERE l.id = $1`,
@@ -182,6 +192,7 @@ export async function planLegacyChatbotMigration(
     generatedAt: new Date().toISOString(),
     link: {
       id: link.id,
+      organizationId: link.organization_id,
       organization: link.organization_name,
       label: link.label,
       type: link.type,
@@ -189,6 +200,9 @@ export async function planLegacyChatbotMigration(
       templateKey: link.template_key,
       templateVersion: link.template_version,
       alreadyConfigured: link.current_config_id !== null,
+      openConversations: Number(link.open_conversations),
+      conversations: Number(link.conversations),
+      fiches: Number(link.fiches),
     },
     template:
       definition === null
@@ -223,6 +237,8 @@ export function formatLegacyMigrationPlan(plan: LegacyMigrationPlan): string {
     `- Organisation : ${plan.link.organization}`,
     `- Template : ${plan.link.templateKey} v${plan.link.templateVersion}`,
     `- Déjà configuré : ${plan.link.alreadyConfigured ? "oui" : "non"}`,
+    `- Conversations : ${plan.link.conversations} (${plan.link.openConversations} ouverte(s))`,
+    `- Fiches existantes : ${plan.link.fiches}`,
     "",
     "## Contenus visibles",
     "",

@@ -119,6 +119,23 @@ Pour chaque lien legacy :
 - conserver les conversations et fiches existantes sans réécriture ;
 - décider du sort des conversations ouvertes avant de basculer le lien.
 
+## Exécution d'un lien
+
+```bash
+# Dry-run (aucune écriture)
+node dist/db-cli.mjs migrate-legacy-chatbot --link-id=<uuid>
+
+# Exécution, si aucune conversation n'est ouverte
+node dist/db-cli.mjs migrate-legacy-chatbot --link-id=<uuid> --execute
+
+# Accepter explicitement une bascule avec conversations ouvertes
+node dist/db-cli.mjs migrate-legacy-chatbot --link-id=<uuid> --execute --allow-open
+```
+
+La commande refuse un lien déjà configuré. Elle crée la configuration, met à
+jour `chat_links.current_config_id` et recopie la portée des contenus scopés
+vers `chat_link_ids`.
+
 ## Étape 4 — migration pilote
 
 Migrer d'abord un seul lien, de préférence un lien de test ou peu utilisé.
@@ -130,6 +147,38 @@ Vérifier :
 - réponses IA, connaissances et médias ;
 - génération de fiche ;
 - absence d'erreur dans les logs.
+
+## Répétition sur copie isolée
+
+Une copie de la production a été restaurée dans une base isolée, puis les
+migrations `0049` à `0063` y ont été appliquées.
+
+Deux liens ont été migrés sur cette copie :
+
+- `Recueille de talent` (`40d43d24-dbc9-463f-bf02-1e2428b8c626`) : 0
+  conversation ouverte, configuration créée, 0 contenu scopé à recopier.
+- `Démo ONIR CMS — simplifiée` (`f815b152-cc67-420e-95e6-1d1ad93dd217`) :
+  configuration créée avec `--allow-open`, 6 connaissances scopées recopiées
+  dans `chat_link_ids`.
+
+Une application temporaire pointée sur cette copie a répondu `200` pour les
+deux liens landing `/l/<token>`.
+
+La production n'a pas été modifiée. La copie isolée a été supprimée après la répétition.
+
+## Rollback
+
+Pour un lien migré :
+
+```sql
+UPDATE chat_links
+   SET current_config_id = NULL
+ WHERE organization_id = '<org>'
+   AND id = '<link-id>';
+```
+
+Le runtime réutilise alors le template historique. Ne supprimer la
+configuration créée que si aucun élément ne la référence.
 
 ## Étape 5 — bascule progressive
 

@@ -22,7 +22,8 @@
     "db:backup": "tsx --env-file-if-exists=.env src/infrastructure/db/backup-database.cli.ts",
     "db:reset-all-chatbot-data": "tsx --env-file-if-exists=.env src/infrastructure/db/reset-chatbot-test-data.cli.ts",
     "db:audit-legacy": "tsx --env-file-if-exists=.env src/infrastructure/db/audit-legacy-chatbots.cli.ts",
-    "db:plan-legacy": "tsx --env-file-if-exists=.env src/infrastructure/db/plan-legacy-chatbot-migration.cli.ts"
+    "db:plan-legacy": "tsx --env-file-if-exists=.env src/infrastructure/db/plan-legacy-chatbot-migration.cli.ts",
+    "db:migrate-legacy": "tsx --env-file-if-exists=.env src/infrastructure/db/migrate-legacy-chatbot.cli.ts"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
