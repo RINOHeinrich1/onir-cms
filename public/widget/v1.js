@@ -34,6 +34,8 @@
   iframe.style.margin = "0";
   iframe.style.padding = "0";
   iframe.style.setProperty("background", "transparent", "important");
+  iframe.style.borderRadius = "50%";
+  iframe.style.outline = "none";
   iframe.style.colorScheme = "light dark";
   iframe.style.zIndex = zIndex;
   iframe.style.transition = "width 180ms ease, height 180ms ease, opacity 180ms ease";
@@ -84,11 +86,13 @@
     var width = positiveNumber(data.width, openWidth);
     var height = positiveNumber(data.height, openHeight);
     applyPosition(position);
+    iframe.style.borderRadius = "22px";
     setSize(width, height);
     iframe.focus();
   }
 
   function close() {
+    iframe.style.borderRadius = "50%";
     setSize(closedWidth, closedHeight);
   }
 
