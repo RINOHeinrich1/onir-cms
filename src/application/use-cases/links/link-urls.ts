@@ -1,6 +1,6 @@
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatLink } from "@/domain/entities/chat";
-import { appUrl } from "@/lib/env";
+import { publicLinkBaseUrl } from "@/lib/env";
 import { decryptLinkToken } from "@/lib/link-crypto";
 
 /** Ligne de lien avec son URL partageable (ou null). */
@@ -13,7 +13,7 @@ export type ChatLinkListItem = ChatLinkWithUrl & { createdByLabel: string | null
 export function publicUrl(tokenEnc: string | null): string | null {
   if (tokenEnc === null) return null;
   try {
-    return `${appUrl()}/l/${decryptLinkToken(tokenEnc)}`;
+    return `${publicLinkBaseUrl()}/l/${decryptLinkToken(tokenEnc)}`;
   } catch {
     return null;
   }

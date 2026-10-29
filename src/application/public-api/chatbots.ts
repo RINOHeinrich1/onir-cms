@@ -14,7 +14,7 @@ import {
   updateChatLinkForOrganization,
 } from "@/application/use-cases/links/manage-chat-links";
 import type { ChatLink } from "@/domain/entities/chat";
-import { appUrl } from "@/lib/env";
+import { publicLinkBaseUrl } from "@/lib/env";
 
 export type ChatbotListCriteria = {
   q: string | null;
@@ -74,7 +74,7 @@ export async function createChatbotForApi(
     createdBy,
     input,
   );
-  return chatbotDto({ ...link, url: `${appUrl()}/l/${token}` });
+  return chatbotDto({ ...link, url: `${publicLinkBaseUrl()}/l/${token}` });
 }
 
 export async function updateChatbotForApi(

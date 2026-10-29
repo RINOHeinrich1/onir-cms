@@ -17,7 +17,7 @@ import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { pgTemplateDataBindingRepository } from "@/infrastructure/db/template-data-binding-repository";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
-import { appUrl } from "@/lib/env";
+import { publicLinkBaseUrl } from "@/lib/env";
 import { errorResponse } from "../_lib/errors";
 import { readJsonObject } from "../_lib/http";
 import { requireRole } from "../_lib/require-user";
@@ -73,7 +73,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         link,
         token,
-        url: `${appUrl()}/l/${token}`,
+        url: `${publicLinkBaseUrl()}/l/${token}`,
         ...(channels.widget.enabled
           ? {
               widgetSnippet: buildWidgetSnippet(
