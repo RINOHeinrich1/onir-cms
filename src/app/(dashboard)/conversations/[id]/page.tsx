@@ -8,6 +8,7 @@ import { ConversationActionsMenu } from "@/components/conversations/Conversation
 import { ConversationIncidentBanner } from "@/components/conversations/ConversationIncidentBanner";
 import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
+import { ConversationSummaryPanel } from "@/components/conversations/ConversationSummaryPanel";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -82,6 +83,8 @@ export default async function ConversationDetailPage({ params, searchParams }: P
   const canIntervene = actorCan(context.actor, "conversations:intervene");
   const canWrite = actorCan(context.actor, "conversations:update");
   const canGenerateFiche = actorCan(context.actor, "conversations:generate_fiche");
+  const canSummarize = actorCan(context.actor, "conversations:summarize");
+  const canChooseSummaryModel = actorCan(context.actor, "ai:assign");
   const canViewLeads = actorCan(context.actor, "project:read");
 
   return (
@@ -128,6 +131,13 @@ export default async function ConversationDetailPage({ params, searchParams }: P
         />
       </header>
       <ConversationInfoPanel conversationId={conversation.id} showTrigger={false} />
+
+      <ConversationSummaryPanel
+        conversationId={conversation.id}
+        canSummarize={canSummarize}
+        canChooseModel={canChooseSummaryModel}
+        finalized={conversation.statut === "finalisee"}
+      />
 
       <ConversationIncidentBanner conversationId={conversation.id} canIntervene={canIntervene} />
 

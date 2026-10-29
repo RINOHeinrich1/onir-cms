@@ -6468,3 +6468,51 @@ a.subtab {
 .chatbot-draft-save-status {
   white-space: nowrap;
 }
+
+/* Résumé manuel de conversation (ADR-0054) */
+.conversation-summary {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.conversation-summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.conversation-summary-head h4 {
+  margin: 0;
+}
+
+.conversation-summary-head .hint {
+  margin: 0.2rem 0 0;
+}
+
+.conversation-summary-content {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.conversation-summary-meta {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+.conversation-summary-model {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+@media (max-width: 640px) {
+  .conversation-summary-head {
+    flex-direction: column;
+  }
+}

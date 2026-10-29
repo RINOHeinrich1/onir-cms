@@ -29,6 +29,7 @@ export const ACTIONS = [
   "conversations:intervene",
   "conversations:update_fields",
   "conversations:generate_fiche",
+  "conversations:summarize",
   "confidentialites:list",
   "confidentialites:read",
   "confidentialites:create",
@@ -137,6 +138,7 @@ const MARKETEUR: readonly Action[] = [
   "conversations:intervene",
   "conversations:update_fields",
   "conversations:generate_fiche",
+  "conversations:summarize",
   "confidentialites:list",
   "confidentialites:read",
   "confidentialites:create",
@@ -193,6 +195,7 @@ const OPERATEUR: readonly Action[] = [
   "conversations:intervene",
   "conversations:update_fields",
   "conversations:generate_fiche",
+  "conversations:summarize",
 ];
 
 const MATRIX: Record<Role, readonly Action[]> = {
