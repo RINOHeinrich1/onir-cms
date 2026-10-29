@@ -296,14 +296,8 @@ export function DashboardHeader({
           />
           <NotificationBell organizationId={activeOrganizationId} />
           <ThemeToggle />
-          <AccountMenu
-            email={email}
-            organizationName={organizationName}
-            role={role}
-            isSuperAdmin={isSuperAdmin}
-          />
 
-          {/* Boîte à outils : tous les modules accessibles, à droite du profil. */}
+          {/* Boîte à outils : tous les modules accessibles, à gauche du profil. */}
           <div className="dash-toolbox">
             <button
               type="button"
@@ -367,6 +361,13 @@ export function DashboardHeader({
               </>
             ) : null}
           </div>
+
+          <AccountMenu
+            email={email}
+            organizationName={organizationName}
+            role={role}
+            isSuperAdmin={isSuperAdmin}
+          />
         </div>
       </div>
     </header>
