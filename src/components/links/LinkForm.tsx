@@ -1,14 +1,13 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   CHAT_LINK_TYPES,
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
-  DEFAULT_LINK_SOURCES,
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
@@ -17,18 +16,25 @@ import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
-  defaultChatbotConfigDraft,
   guidedPromptFromDraft,
 } from "./chatbot-config-draft";
 import {
   type ChatbotDataDraft,
   chatbotDataDraftCount,
-  EMPTY_CHATBOT_DATA_DRAFT,
   submitChatbotDataDraft,
 } from "./chatbot-data-draft";
+import {
+  type ChatbotDraftState,
+  chatbotDraftSaveAction,
+  chatbotDraftStateSignature,
+  defaultChatbotDraftState,
+  hydrateChatbotDraftState,
+  isChatbotDraftStateMeaningful,
+  serializeChatbotDraftState,
+} from "./chatbot-draft-state";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
-import { EMPTY_LINK_QUOTA_DRAFT, type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
+import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
 import { SourcesField } from "./SourcesField";
 import type {
   AiProviderOption,
@@ -49,6 +55,10 @@ type LinkFormProps = {
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
   canAssignAi: boolean;
+  /** État sérialisé d'un brouillon existant à reprendre (null = création). */
+  initialDraft?: Record<string, unknown> | null;
+  /** Identifiant du brouillon repris (null pour une création). */
+  draftId?: string | null;
   onCreated: (created: CreatedLink) => void;
   onCancel: () => void;
 };
@@ -68,51 +78,50 @@ export function LinkForm({
   visualTemplates,
   aiProviders,
   canAssignAi,
+  initialDraft = null,
+  draftId = null,
   onCreated,
   onCancel,
 }: LinkFormProps) {
-  const [step, setStep] = useState(0);
-  const [maxVisited, setMaxVisited] = useState(0);
+  const fallbackState = useMemo(
+    () => defaultChatbotDraftState(confidentialites[0]?.id ?? ""),
+    [confidentialites],
+  );
+  const initial = useMemo(
+    () =>
+      initialDraft === null ? fallbackState : hydrateChatbotDraftState(initialDraft, fallbackState),
+    [initialDraft, fallbackState],
+  );
+  const resumed = initialDraft !== null;
+  const [step, setStep] = useState(initial.step);
+  const [maxVisited, setMaxVisited] = useState(
+    initialDraft === null ? initial.step : STEPS.length - 1,
+  );
   const [stepError, setStepError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
-  const [config, setConfig] = useState<ChatbotConfigDraft>(defaultChatbotConfigDraft);
-  const [type, setType] = useState<ChatLinkType>("specifique");
-  const [channels, setChannels] = useState<ChannelDrafts>({
-    page: {
-      enabled: true,
-      identificationMode: "contact",
-      confidentialiteId: confidentialites[0]?.id ?? "",
-      visualTemplate: "",
-      params: {},
-      widgetPosition: "bottom-right",
-    },
-    widget: {
-      enabled: false,
-      identificationMode: "anonymous",
-      confidentialiteId: "",
-      visualTemplate: "",
-      params: {},
-      widgetPosition: "bottom-right",
-    },
-  });
-  const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>("page");
-  const [prospectId, setProspectId] = useState("");
-  const [label, setLabel] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [sources, setSources] = useState<ChatLinkSources>({ ...DEFAULT_LINK_SOURCES });
-  const [userStateEnabled, setUserStateEnabled] = useState(false);
-  const [quota, setQuota] = useState<LinkQuotaDraft>(EMPTY_LINK_QUOTA_DRAFT);
-  const [dataBindings, setDataBindings] = useState<Record<string, string>>({});
-  const [dataDraft, setDataDraft] = useState<ChatbotDataDraft>(EMPTY_CHATBOT_DATA_DRAFT);
+  const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
+  const [type, setType] = useState<ChatLinkType>(initial.type);
+  const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
+  const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>(initial.activeChannel);
+  const [prospectId, setProspectId] = useState(initial.prospectId);
+  const [label, setLabel] = useState(initial.label);
+  const [expiresAt, setExpiresAt] = useState(initial.expiresAt);
+  const [sources, setSources] = useState<ChatLinkSources>(initial.sources);
+  const [userStateEnabled, setUserStateEnabled] = useState(initial.userStateEnabled);
+  const [quota, setQuota] = useState<LinkQuotaDraft>(initial.quota);
+  const [dataBindings, setDataBindings] = useState<Record<string, string>>(initial.dataBindings);
+  const [dataDraft, setDataDraft] = useState<ChatbotDataDraft>(initial.dataDraft);
   const [globalDataCounts, setGlobalDataCounts] = useState({
     connaissances: 0,
     photos: 0,
     liens: 0,
   });
-  const [ai, setAi] = useState<LinkAiValue>({ aiProviderId: null, aiModel: null });
+  const [ai, setAi] = useState<LinkAiValue>(initial.ai);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
   const selectedProspect = useMemo(
@@ -124,6 +133,223 @@ export function LinkForm({
   );
   const guidedPrompt = guidedPromptFromDraft(config);
   const pendingDataCount = chatbotDataDraftCount(dataDraft);
+
+  const draftState = useMemo<ChatbotDraftState>(
+    () => ({
+      step,
+      type,
+      prospectId,
+      label,
+      expiresAt,
+      config,
+      channels,
+      activeChannel,
+      sources,
+      userStateEnabled,
+      quota,
+      dataBindings,
+      ai,
+      dataDraft,
+    }),
+    [
+      step,
+      type,
+      prospectId,
+      label,
+      expiresAt,
+      config,
+      channels,
+      activeChannel,
+      sources,
+      userStateEnabled,
+      quota,
+      dataBindings,
+      ai,
+      dataDraft,
+    ],
+  );
+  const draftSignature = useMemo(() => chatbotDraftStateSignature(draftState), [draftState]);
+  const draftMeaningful = useMemo(() => isChatbotDraftStateMeaningful(draftState), [draftState]);
+
+  const draftIdRef = useRef<string | null>(draftId);
+  const savedSignatureRef = useRef<string | null>(null);
+  const latestDraftRef = useRef({
+    state: draftState,
+    signature: draftSignature,
+    meaningful: draftMeaningful,
+  });
+  latestDraftRef.current = {
+    state: draftState,
+    signature: draftSignature,
+    meaningful: draftMeaningful,
+  };
+  const savingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const finalizedRef = useRef(false);
+  const mountedRef = useRef(false);
+  const initializedRef = useRef(false);
+  const saveNowRef = useRef<() => Promise<void>>(async () => undefined);
+
+  const saveDraftNow = useCallback(async (): Promise<void> => {
+    if (finalizedRef.current) return;
+    const latest = latestDraftRef.current;
+    const action = chatbotDraftSaveAction({
+      draftId: draftIdRef.current,
+      savedSignature: savedSignatureRef.current,
+      currentSignature: latest.signature,
+      meaningful: latest.meaningful,
+    });
+    if (action === "none") return;
+    if (savingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    savingRef.current = true;
+    if (mountedRef.current) setSavingDraft(true);
+    try {
+      const body = JSON.stringify({
+        label: latest.state.label,
+        state: serializeChatbotDraftState(latest.state),
+      });
+      // `keepalive` permet à la sauvegarde de survivre à un rechargement de
+      // page, dans la limite du quota navigateur (~64 Kio).
+      const keepalive = body.length < 60_000;
+      const response =
+        action === "create"
+          ? await fetch("/api/chatbot-drafts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              keepalive,
+            })
+          : await fetch(`/api/chatbot-drafts/${draftIdRef.current}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body,
+              keepalive,
+            });
+      const json = (await response.json().catch(() => null)) as {
+        draft?: { id?: unknown };
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        if (mountedRef.current) {
+          setSaveError(json?.error ?? "Sauvegarde du brouillon impossible.");
+        }
+        return;
+      }
+      if (action === "create") {
+        const createdId = json?.draft?.id;
+        if (typeof createdId !== "string" || createdId === "") {
+          if (mountedRef.current) setSaveError("Réponse de sauvegarde invalide.");
+          return;
+        }
+        draftIdRef.current = createdId;
+      }
+      savedSignatureRef.current = latest.signature;
+      if (mountedRef.current) setSaveError(null);
+    } catch {
+      if (mountedRef.current) {
+        setSaveError("Erreur réseau : le brouillon n'a pas pu être sauvegardé.");
+      }
+    } finally {
+      savingRef.current = false;
+      if (mountedRef.current) setSavingDraft(false);
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        window.setTimeout(() => void saveNowRef.current(), 0);
+      }
+    }
+  }, []);
+  saveNowRef.current = saveDraftNow;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      savedSignatureRef.current = draftSignature;
+      return;
+    }
+    const action = chatbotDraftSaveAction({
+      draftId: draftIdRef.current,
+      savedSignature: savedSignatureRef.current,
+      currentSignature: draftSignature,
+      meaningful: draftMeaningful,
+    });
+    if (action === "none") return;
+    const timer = window.setTimeout(() => void saveNowRef.current(), 700);
+    return () => window.clearTimeout(timer);
+  }, [draftSignature, draftMeaningful]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      void saveNowRef.current();
+    };
+  }, []);
+
+  useEffect(() => {
+    // Dernière chance avant un rechargement/fermeture d'onglet : on tente la
+    // sauvegarde et, si elle n'a pas encore abouti, le navigateur avertit.
+    const onPageHide = (): void => {
+      void saveNowRef.current();
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent): void => {
+      if (finalizedRef.current) return;
+      if (!latestDraftRef.current.meaningful) return;
+      if (latestDraftRef.current.signature === savedSignatureRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, []);
+
+  const uploadDraftPhoto = useCallback(
+    async (input: {
+      fichier: File;
+      libelle: string;
+      description: string;
+    }): Promise<{ mediaId: string }> => {
+      const form = new FormData();
+      form.set("libelle", input.libelle);
+      form.set("description", input.description);
+      form.set("actif", "false");
+      form.set("fichier", input.fichier);
+      const response = await fetch("/api/medias/photo", { method: "POST", body: form });
+      const json = (await response.json().catch(() => null)) as {
+        media?: { id?: unknown };
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Import de la photo impossible.");
+      }
+      const mediaId = json?.media?.id;
+      if (typeof mediaId !== "string" || mediaId === "") {
+        throw new Error("Réponse d'import invalide.");
+      }
+      return { mediaId };
+    },
+    [],
+  );
+
+  const removeDraftPhoto = useCallback(
+    (photo: { mediaId?: string }): void => {
+      if (photo.mediaId === undefined) return;
+      void fetch(`/api/medias/${photo.mediaId}`, { method: "DELETE" })
+        .then((response) => {
+          if (!response.ok) {
+            toast.warning("La photo temporaire n'a pas pu être supprimée.");
+          }
+        })
+        .catch(() => toast.warning("La photo temporaire n'a pas pu être supprimée."));
+    },
+    [toast],
+  );
 
   const validateStep = (index: number): string | null => {
     if (index === 0) {
@@ -182,6 +408,20 @@ export function LinkForm({
     setStep(step - 1);
   };
 
+  /** Persiste l'état courant avant une action qui démonte le wizard. */
+  const flushDraft = async (): Promise<void> => {
+    await saveNowRef.current();
+    for (let attempt = 0; attempt < 15 && savingRef.current; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await saveNowRef.current();
+  };
+
+  const cancelWizard = async (): Promise<void> => {
+    await flushDraft();
+    onCancel();
+  };
+
   const createChatbot = async (): Promise<void> => {
     const invalid = firstInvalidStep();
     if (invalid !== null) {
@@ -194,6 +434,8 @@ export function LinkForm({
     setStepError(null);
     setPending(true);
     try {
+      // Le brouillon doit refléter le dernier état même si la création échoue.
+      await flushDraft();
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,15 +469,43 @@ export function LinkForm({
         return;
       }
       let failures: string[] = [];
+      let failedPhotoMediaIds: string[] = [];
       if (pendingDataCount > 0) {
         try {
           const result = await submitChatbotDataDraft(dataDraft, json.link.id);
           failures = result.failures;
+          failedPhotoMediaIds = result.failedPhotoMediaIds;
           if (result.created > 0) {
             toast.success(`${result.created} donnée(s) rattachée(s) au chatbot.`);
           }
         } catch {
           failures = ["Ajout des données impossible (erreur inattendue)."];
+        }
+      }
+      // Le chatbot existe : le brouillon ne doit plus être proposé (pas de doublon).
+      finalizedRef.current = true;
+      const finalizedDraftId = draftIdRef.current;
+      draftIdRef.current = null;
+      if (finalizedDraftId !== null) {
+        // Les photos dont la finalisation a échoué ne sont pas nettoyées avec
+        // le brouillon : le fichier importé reste récupérable.
+        const keepMedia =
+          failedPhotoMediaIds.length > 0
+            ? `?keepMedia=${encodeURIComponent(failedPhotoMediaIds.join(","))}`
+            : "";
+        try {
+          const deleted = await fetch(`/api/chatbot-drafts/${finalizedDraftId}${keepMedia}`, {
+            method: "DELETE",
+          });
+          if (!deleted.ok) {
+            toast.warning(
+              "Chatbot créé, mais le brouillon n'a pas pu être supprimé. Supprimez-le depuis la liste.",
+            );
+          }
+        } catch {
+          toast.warning(
+            "Chatbot créé, mais le brouillon n'a pas pu être supprimé. Supprimez-le depuis la liste.",
+          );
         }
       }
       toast.success("Chatbot créé.");
@@ -312,6 +582,18 @@ export function LinkForm({
       <div className="chatbot-wizard-body">
         {stepError !== null ? <p className="alert error">{stepError}</p> : null}
         {error !== null ? <p className="alert error">{error}</p> : null}
+        {saveError !== null ? (
+          <p className="alert error">
+            Brouillon non sauvegardé : {saveError} Vos modifications restent dans cette fenêtre ;
+            réessayez avant de fermer.
+          </p>
+        ) : null}
+        {resumed ? (
+          <p className="alert info">
+            Reprise du brouillon : toutes les données enregistrées (configuration, canaux, sélection
+            de données, connaissances, liens et photos) ont été restaurées.
+          </p>
+        ) : null}
 
         {step === 0 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[0].title}>
@@ -391,6 +673,8 @@ export function LinkForm({
                 setConfig((current) => ({ ...current, dataSelection }))
               }
               onGlobalCountsChange={setGlobalDataCounts}
+              onUploadPhoto={uploadDraftPhoto}
+              onRemovePhoto={removeDraftPhoto}
             />
           </section>
         ) : null}
@@ -560,12 +844,26 @@ export function LinkForm({
               Retour
             </button>
           ) : (
-            <button type="button" className="btn ghost small" disabled={pending} onClick={onCancel}>
+            <button
+              type="button"
+              className="btn ghost small"
+              disabled={pending}
+              onClick={() => void cancelWizard()}
+            >
               Annuler
             </button>
           )}
         </div>
         <div className="tools">
+          <span className="hint chatbot-draft-save-status" aria-live="polite">
+            {savingDraft
+              ? "Sauvegarde du brouillon…"
+              : saveError !== null
+                ? "Sauvegarde en échec"
+                : draftMeaningful
+                  ? "Brouillon enregistré"
+                  : ""}
+          </span>
           <span className="hint chatbot-step-counter">
             Étape {step + 1} / {STEPS.length}
           </span>

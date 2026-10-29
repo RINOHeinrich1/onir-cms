@@ -1,4 +1,6 @@
+import type { ChatbotDraft } from "@/application/ports/chatbot-draft-repository";
 import type { ChatLinkListItem } from "@/application/use-cases/links/link-urls";
+import type { WithCreatorLabel } from "@/application/use-cases/shared/creator-labels";
 import type { ChatLink } from "@/domain/entities/chat";
 import type { Prospect } from "@/domain/entities/prospect";
 import type { TemplateParamSchema } from "@/domain/template-params";
@@ -40,3 +42,6 @@ export type CreatedLink = {
   widgetSnippet?: string;
   widgetEmbedUrl?: string;
 };
+
+/** Brouillon de création de chatbot exposé à la liste (jamais public). */
+export type ChatbotDraftRow = WithCreatorLabel<ChatbotDraft>;

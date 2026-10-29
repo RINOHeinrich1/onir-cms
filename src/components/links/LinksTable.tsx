@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
@@ -20,6 +20,7 @@ import { LinkEditModal } from "./LinkEditModal";
 import { LinkForm } from "./LinkForm";
 import type {
   AiProviderOption,
+  ChatbotDraftRow,
   ChatLinkRow,
   ConfidentialiteOption,
   ProspectOption,
@@ -69,6 +70,7 @@ function LienUrl({ url }: { url: string }) {
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
 export function LinksTable({
   initialLinks,
+  initialDrafts,
   prospects,
   templates,
   confidentialites,
@@ -78,6 +80,7 @@ export function LinksTable({
   nowIso,
 }: {
   initialLinks: ChatLinkRow[];
+  initialDrafts: ChatbotDraftRow[];
   prospects: ProspectOption[];
   templates: TemplateOption[];
   confidentialites: ConfidentialiteOption[];
@@ -89,8 +92,14 @@ export function LinksTable({
 }) {
   const router = useRouter();
   const [links, setLinks] = useState<ChatLinkRow[]>(initialLinks);
+  const [drafts, setDrafts] = useState<ChatbotDraftRow[]>(initialDrafts);
   const [creating, setCreating] = useState(false);
+  const [resumeDraft, setResumeDraft] = useState<ChatbotDraftRow | null>(null);
   const [editing, setEditing] = useState<ChatLinkRow | null>(null);
+
+  useEffect(() => {
+    setDrafts(initialDrafts);
+  }, [initialDrafts]);
   const [widgetCode, setWidgetCode] = useState<{
     snippet: string;
     embedUrl: string;
@@ -134,6 +143,51 @@ export function LinksTable({
       setError("Impossible de recharger la liste");
     }
     router.refresh();
+  };
+
+  const refreshDrafts = async (): Promise<void> => {
+    try {
+      const response = await fetch("/api/chatbot-drafts", { cache: "no-store" });
+      if (response.ok) {
+        const json = (await response.json()) as { drafts: ChatbotDraftRow[] };
+        setDrafts(json.drafts);
+      }
+    } catch {
+      setError("Impossible de recharger les brouillons");
+    }
+  };
+
+  const closeWizard = (): void => {
+    setCreating(false);
+    setResumeDraft(null);
+    // L'autosave de fermeture part au démontage : laisser le temps au POST/PATCH
+    // puis recharger la liste (et la vue serveur).
+    window.setTimeout(() => {
+      void refreshDrafts();
+      router.refresh();
+    }, 500);
+  };
+
+  const resume = (draft: ChatbotDraftRow): void => {
+    setCreating(false);
+    setResumeDraft(draft);
+  };
+
+  const removeDraft = async (draft: ChatbotDraftRow): Promise<void> => {
+    setError(null);
+    if (!(await confirmDialog("Supprimer ce brouillon et ses photos temporaires ?"))) return;
+    try {
+      const response = await fetch(`/api/chatbot-drafts/${draft.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const json = (await response.json()) as { error?: string };
+        setError(json.error ?? "Suppression du brouillon impossible");
+        return;
+      }
+      setDrafts((previous) => previous.filter((entry) => entry.id !== draft.id));
+      router.refresh();
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    }
   };
 
   const onEdited = (updated: ChatLinkRow): void => {
@@ -241,10 +295,71 @@ export function LinksTable({
       </div>
 
       <div className="tools" style={{ marginBottom: "1.5rem" }}>
-        <button type="button" className="btn small" onClick={() => setCreating(true)}>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => {
+            setResumeDraft(null);
+            setCreating(true);
+          }}
+        >
           Nouveau chatbot
         </button>
       </div>
+
+      {drafts.length > 0 ? (
+        <section className="chatbot-drafts" aria-label="Brouillons de chatbot">
+          <div className="chatbot-step-head">
+            <h2>Brouillons</h2>
+            <p className="hint">
+              Reprenez une création interrompue ou supprimez-la. Un brouillon n’est pas un chatbot
+              actif : il n’a ni URL publique ni conversation.
+            </p>
+          </div>
+          <div className="chatbot-grid">
+            {drafts.map((draft) => {
+              const rawStep = draft.state.step;
+              const stepIndex = typeof rawStep === "number" ? Math.trunc(rawStep) : 0;
+              const step = Math.min(4, Math.max(0, stepIndex));
+              return (
+                <article className="chatbot-card" key={draft.id}>
+                  <header className="chatbot-card-head">
+                    <div>
+                      <h2>{draft.label.trim() === "" ? "Brouillon sans nom" : draft.label}</h2>
+                      <p>{draft.createdByLabel ?? "Créateur non renseigné"}</p>
+                    </div>
+                    <div className="chatbot-status">
+                      <span className="badge warn">Brouillon</span>
+                    </div>
+                  </header>
+                  <dl className="chatbot-facts">
+                    <div>
+                      <dt>Étape</dt>
+                      <dd>{step + 1} / 5</dd>
+                    </div>
+                    <div>
+                      <dt>Dernière sauvegarde</dt>
+                      <dd>{new Date(draft.updatedAt).toLocaleDateString("fr-FR")}</dd>
+                    </div>
+                  </dl>
+                  <footer className="chatbot-card-actions">
+                    <button type="button" className="btn small" onClick={() => resume(draft)}>
+                      Reprendre
+                    </button>
+                    <button
+                      type="button"
+                      className="btn danger ghost small"
+                      onClick={() => void removeDraft(draft)}
+                    >
+                      Supprimer
+                    </button>
+                  </footer>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="chatbot-grid">
         {pagination.pageItems.map((link) => {
@@ -441,23 +556,26 @@ export function LinksTable({
         label="Pagination des chatbots"
       />
 
-      {creating ? (
+      {creating || resumeDraft !== null ? (
         <Modal
-          title="Nouveau chatbot"
+          title={resumeDraft === null ? "Nouveau chatbot" : "Reprendre un brouillon"}
           wide
           dialogClassName="chatbot-wizard-modal"
           bodyClassName="chatbot-wizard-host"
           overlayClassName="chatbot-wizard-overlay"
-          onClose={() => setCreating(false)}
+          onClose={closeWizard}
         >
           <LinkForm
+            key={resumeDraft?.id ?? "nouveau"}
             prospects={prospects}
             confidentialites={confidentialites}
             visualTemplates={visualTemplates}
             aiProviders={aiProviders}
             canAssignAi={canAssignAi}
+            initialDraft={resumeDraft?.state ?? null}
+            draftId={resumeDraft?.id ?? null}
             onCreated={(created) => {
-              setCreating(false);
+              closeWizard();
               if (created.widgetSnippet !== undefined && created.widgetEmbedUrl !== undefined) {
                 setWidgetCode({
                   snippet: created.widgetSnippet,
@@ -466,7 +584,7 @@ export function LinksTable({
               }
               void refresh();
             }}
-            onCancel={() => setCreating(false)}
+            onCancel={closeWizard}
           />
         </Modal>
       ) : null}

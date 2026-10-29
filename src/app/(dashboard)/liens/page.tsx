@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import { listAiProviders } from "@/application/use-cases/ai/manage-ai-providers";
+import { listChatbotDrafts } from "@/application/use-cases/chatbot-drafts/manage-chatbot-drafts";
 import { listConfidentialites } from "@/application/use-cases/confidentialites/manage-confidentialites";
 import { linkListItems } from "@/application/use-cases/links/link-urls";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
@@ -13,6 +14,7 @@ import { LinksTable } from "@/components/links/LinksTable";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotDraftRepository } from "@/infrastructure/db/chatbot-draft-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -39,11 +41,12 @@ export default async function LiensPage() {
   const pool = getPool();
   const linkRepository = pgChatLinkRepository(pool);
   const visualTemplateRepo = pgVisualTemplateRepository(pool);
-  const [links, prospects, templates, confidentialites, visualTemplates, aiProviders] =
+  const [links, drafts, prospects, templates, confidentialites, visualTemplates, aiProviders] =
     await Promise.all([
       listChatLinks({ links: linkRepository }, context.actor).then((items) =>
         linkListItems(linkRepository, items),
       ),
+      listChatbotDrafts({ drafts: pgChatbotDraftRepository(pool) }, context.actor),
       listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
       listTemplates({ templates: pgChatTemplateRepository(pool) }, context.actor),
       listConfidentialites({ confidentialites: pgConfidentialiteRepository(pool) }, context.actor),
@@ -62,7 +65,10 @@ export default async function LiensPage() {
       ),
       listAiProviders({ providers: pgAiProviderRepository(pool) }, context.actor),
     ]);
-  const linksWithCreators = await attachCreatorLabels(links, pgCreatorNameRepository(pool));
+  const [linksWithCreators, draftsWithCreators] = await Promise.all([
+    attachCreatorLabels(links, pgCreatorNameRepository(pool)),
+    attachCreatorLabels(drafts, pgCreatorNameRepository(pool)),
+  ]);
 
   return (
     <section>
@@ -74,6 +80,7 @@ export default async function LiensPage() {
       </div>
       <LinksTable
         initialLinks={linksWithCreators}
+        initialDrafts={draftsWithCreators}
         prospects={prospects}
         templates={templates.map((template) => ({ key: template.key, label: template.label }))}
         confidentialites={confidentialites

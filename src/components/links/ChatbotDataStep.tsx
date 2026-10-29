@@ -32,6 +32,8 @@ export function ChatbotDataStep({
   onSelectionChange,
   onGlobalCountsChange,
   chatLinkId,
+  onUploadPhoto,
+  onRemovePhoto,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -39,9 +41,21 @@ export function ChatbotDataStep({
   onSelectionChange: (next: ChatbotDataSelectionValue) => void;
   onGlobalCountsChange?: (counts: { connaissances: number; photos: number; liens: number }) => void;
   chatLinkId?: string | null;
+  /**
+   * Import immédiat d'une photo comme média temporaire (brouillon). Fourni par
+   * le wizard : la photo survit ainsi à la fermeture/reprise du brouillon.
+   */
+  onUploadPhoto?: (input: {
+    fichier: File;
+    libelle: string;
+    description: string;
+  }) => Promise<{ mediaId: string }>;
+  /** Suppression du média temporaire quand la photo est retirée du brouillon. */
+  onRemovePhoto?: (photo: { mediaId?: string }) => void;
 }) {
   const [mode, setMode] = useState<"none" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [connaissance, setConnaissance] = useState<ConnaissanceDraftInput>(CONNAISSANCE_FORM);
   const [lien, setLien] = useState<LienDraftInput>(LIEN_FORM);
   const [photo, setPhoto] = useState<PhotoForm>(PHOTO_FORM);
@@ -95,33 +109,50 @@ export function ChatbotDataStep({
     resetForms();
   };
 
-  const addPhoto = (): void => {
+  const addPhoto = async (): Promise<void> => {
     if (photo.fichier === null) {
       setFormError("Choisissez un fichier image.");
       return;
     }
-    const error = validatePhotoDraft({ ...photo, fichier: photo.fichier });
+    const fichier = photo.fichier;
+    const libelle = photo.libelle.trim();
+    const description = photo.description.trim();
+    const error = validatePhotoDraft({ fichier, libelle, description });
     if (error !== null) {
       setFormError(error);
       return;
     }
-    if (photo.fichier === null) return;
+    if (onUploadPhoto !== undefined) {
+      setUploading(true);
+      setFormError(null);
+      try {
+        const { mediaId } = await onUploadPhoto({ fichier, libelle, description });
+        onChange({
+          ...value,
+          photos: [...value.photos, { id: nextDraftId(), libelle, description, mediaId }],
+        });
+        resetForms();
+      } catch (uploadError) {
+        setFormError(
+          uploadError instanceof Error ? uploadError.message : "Import de la photo impossible.",
+        );
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
     onChange({
       ...value,
-      photos: [
-        ...value.photos,
-        {
-          id: nextDraftId(),
-          fichier: photo.fichier,
-          libelle: photo.libelle.trim(),
-          description: photo.description.trim(),
-        },
-      ],
+      photos: [...value.photos, { id: nextDraftId(), libelle, description, fichier }],
     });
     resetForms();
   };
 
   const removeDraft = (kind: "connaissances" | "liens" | "photos", id: string): void => {
+    if (kind === "photos") {
+      const removed = value.photos.find((item) => item.id === id);
+      if (removed !== undefined) onRemovePhoto?.(removed);
+    }
     onChange({ ...value, [kind]: value[kind].filter((item) => item.id !== id) });
   };
 
@@ -295,10 +326,20 @@ export function ChatbotDataStep({
             />
           </label>
           <div className="tools">
-            <button type="button" className="btn small" onClick={addPhoto}>
-              Ajouter
+            <button
+              type="button"
+              className="btn small"
+              disabled={uploading}
+              onClick={() => void addPhoto()}
+            >
+              {uploading ? "Import…" : "Ajouter"}
             </button>
-            <button type="button" className="btn ghost small" onClick={resetForms}>
+            <button
+              type="button"
+              className="btn ghost small"
+              disabled={uploading}
+              onClick={resetForms}
+            >
               Annuler
             </button>
           </div>

@@ -1195,6 +1195,12 @@
   color: var(--success);
 }
 
+.alert.info {
+  border-left-color: var(--info);
+  background: var(--info-soft);
+  color: var(--info);
+}
+
 /* ---------- Tableau ---------- */
 .table-scroll {
   overflow-x: auto;
@@ -6426,4 +6432,24 @@ a.subtab {
     grid-column: 2 / -1;
     justify-self: start;
   }
+}
+
+/* ---------- Brouillons de chatbot ---------- */
+.chatbot-drafts {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chatbot-drafts .chatbot-step-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.chatbot-drafts .chatbot-card {
+  border-style: dashed;
+}
+
+.chatbot-draft-save-status {
+  white-space: nowrap;
 }

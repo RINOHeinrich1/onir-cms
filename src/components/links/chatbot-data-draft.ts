@@ -1,15 +1,35 @@
 /**
  * Brouillons de données saisis dans l'étape « Données » du wizard chatbot.
- * Ils ne sont persistés qu'après la création du chatbot, pour rattacher les
- * ajouts au chatbot fraîchement créé (`chatLinkIds: [id]`).
+ * Connaissances et liens restent en JSONB dans le brouillon et sont créés à la
+ * finalisation (`chatLinkIds: [id]`). Les photos, elles, sont importées
+ * immédiatement comme médias temporaires puis finalisées à la création.
  */
 
 export type ConnaissanceDraftInput = { titre: string; contenu: string };
 export type ConnaissanceDraft = ConnaissanceDraftInput & { id: string };
 export type LienDraftInput = { libelle: string; url: string; description: string };
 export type LienDraft = LienDraftInput & { id: string };
-export type PhotoDraftInput = { fichier: File; libelle: string; description: string };
-export type PhotoDraft = PhotoDraftInput & { id: string };
+export type PhotoDraftInput = { fichier: File | null; libelle: string; description: string };
+/**
+ * Photo du brouillon. En mode wizard, le fichier est importé immédiatement
+ * comme média temporaire (`actif = false`, sans portée) et seul `mediaId` est
+ * conservé dans l'état sérialisé. `fichier` reste supporté pour les usages
+ * hors wizard (import différé à la création).
+ */
+export type PhotoDraft = {
+  id: string;
+  libelle: string;
+  description: string;
+  fichier?: File;
+  mediaId?: string;
+};
+/** Photo sérialisable : le fichier n'est jamais persisté en JSONB. */
+export type PersistedPhotoDraft = {
+  id: string;
+  libelle: string;
+  description: string;
+  mediaId: string;
+};
 
 let draftSequence = 0;
 
@@ -25,11 +45,98 @@ export type ChatbotDataDraft = {
   photos: PhotoDraft[];
 };
 
+export type PersistedChatbotDataDraft = {
+  connaissances: ConnaissanceDraft[];
+  liens: LienDraft[];
+  photos: PersistedPhotoDraft[];
+};
+
 export const EMPTY_CHATBOT_DATA_DRAFT: ChatbotDataDraft = {
   connaissances: [],
   liens: [],
   photos: [],
 };
+
+/** État sérialisable (JSONB) : les `File` ne sont jamais persistés. */
+export function serializeChatbotDataDraft(draft: ChatbotDataDraft): PersistedChatbotDataDraft {
+  return {
+    connaissances: draft.connaissances.map((item) => ({
+      id: item.id,
+      titre: item.titre,
+      contenu: item.contenu,
+    })),
+    liens: draft.liens.map((item) => ({
+      id: item.id,
+      libelle: item.libelle,
+      url: item.url,
+      description: item.description,
+    })),
+    photos: draft.photos
+      .filter((item): item is PhotoDraft & { mediaId: string } => typeof item.mediaId === "string")
+      .map((item) => ({
+        id: item.id,
+        libelle: item.libelle,
+        description: item.description,
+        mediaId: item.mediaId,
+      })),
+  };
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/** Recharge un brouillon sérialisé (tolérant aux états partiels/legacy). */
+export function hydrateChatbotDataDraft(input: unknown): ChatbotDataDraft {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return EMPTY_CHATBOT_DATA_DRAFT;
+  }
+  const source = input as Record<string, unknown>;
+  const connaissances = Array.isArray(source.connaissances)
+    ? source.connaissances.flatMap((entry) => {
+        if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        return [
+          {
+            id: text(item.id) || nextDraftId(),
+            titre: text(item.titre),
+            contenu: text(item.contenu),
+          },
+        ];
+      })
+    : [];
+  const liens = Array.isArray(source.liens)
+    ? source.liens.flatMap((entry) => {
+        if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        return [
+          {
+            id: text(item.id) || nextDraftId(),
+            libelle: text(item.libelle),
+            url: text(item.url),
+            description: text(item.description),
+          },
+        ];
+      })
+    : [];
+  const photos = Array.isArray(source.photos)
+    ? source.photos.flatMap((entry) => {
+        if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        const mediaId = text(item.mediaId).trim();
+        if (mediaId === "") return [];
+        return [
+          {
+            id: text(item.id) || nextDraftId(),
+            libelle: text(item.libelle),
+            description: text(item.description),
+            mediaId,
+          },
+        ];
+      })
+    : [];
+  return { connaissances, liens, photos };
+}
 
 export function chatbotDataDraftCount(draft: ChatbotDataDraft): number {
   return draft.connaissances.length + draft.liens.length + draft.photos.length;
@@ -80,6 +187,11 @@ async function errorMessage(response: Response, fallback: string): Promise<strin
 export type SubmitChatbotDataResult = {
   created: number;
   failures: string[];
+  /**
+   * Photos temporaires dont la finalisation a échoué : elles ne doivent pas
+   * être nettoyées avec le brouillon, pour ne pas perdre le fichier importé.
+   */
+  failedPhotoMediaIds: string[];
 };
 
 /**
@@ -92,6 +204,7 @@ export async function submitChatbotDataDraft(
   chatLinkId: string,
 ): Promise<SubmitChatbotDataResult> {
   const failures: string[] = [];
+  const failedPhotoMediaIds: string[] = [];
   let created = 0;
   const chatLinkIds = [chatLinkId];
 
@@ -148,30 +261,56 @@ export async function submitChatbotDataDraft(
   }
 
   for (const photo of draft.photos) {
+    const label = photo.libelle.trim();
     try {
+      if (photo.mediaId !== undefined) {
+        // Photo déjà importée en média temporaire : on la finalise en la
+        // rattachant au chatbot et en l'activant. Un retry couvre un incident
+        // réseau transitoire ; un échec définitif est signalé explicitement.
+        let response: Response | null = null;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          response = await fetch(`/api/medias/${photo.mediaId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chatLinkIds, actif: true }),
+          });
+          if (response.ok) break;
+        }
+        if (response === null || !response.ok) {
+          failedPhotoMediaIds.push(photo.mediaId);
+          failures.push(
+            `Photo « ${label} » : ${await errorMessage(
+              response ?? new Response(),
+              "finalisation impossible",
+            )}`,
+          );
+          continue;
+        }
+        created += 1;
+        continue;
+      }
+      if (photo.fichier === undefined) {
+        failures.push(`Photo « ${label} » : fichier introuvable`);
+        continue;
+      }
       const form = new FormData();
-      form.set("libelle", photo.libelle.trim());
+      form.set("libelle", label);
       form.set("description", photo.description.trim());
       form.set("actif", "true");
       form.set("fichier", photo.fichier);
       for (const id of chatLinkIds) form.append("chatLinkIds", id);
       const response = await fetch("/api/medias/photo", { method: "POST", body: form });
       if (!response.ok) {
-        failures.push(
-          `Photo « ${photo.libelle.trim()} » : ${await errorMessage(
-            response,
-            "import impossible",
-          )}`,
-        );
+        failures.push(`Photo « ${label} » : ${await errorMessage(response, "import impossible")}`);
         continue;
       }
       created += 1;
     } catch {
-      failures.push(`Photo « ${photo.libelle.trim()} » : erreur réseau`);
+      failures.push(`Photo « ${label} » : erreur réseau`);
     }
   }
 
-  return { created, failures };
+  return { created, failures, failedPhotoMediaIds };
 }
 
 /**
