@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useRouter, useSearchParams, useSelectedLayoutSegment } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { confirmDialog } from "@/components/ui/confirm";
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
-import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
+import { ConversationActionsMenu } from "./ConversationActionsMenu";
 import type { ConversationRowDto } from "./types";
 
 function initials(value: string): string {
@@ -47,11 +46,15 @@ export function ConversationsWorkspace({
   linkLabels,
   canWrite,
   canGenerateFiche,
+  canViewLeads,
+  canViewProspects,
 }: {
   children: ReactNode;
   linkLabels: string[];
   canWrite: boolean;
   canGenerateFiche: boolean;
+  canViewLeads: boolean;
+  canViewProspects: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,8 +78,6 @@ export function ConversationsWorkspace({
   const [conversations, setConversations] = useState<ConversationRowDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const toast = useToast();
   useToastOnMessage(error);
 
   const load = useCallback(async (): Promise<void> => {
@@ -180,66 +181,6 @@ export function ConversationsWorkspace({
   const detailHref = (id: string): string =>
     `/conversations/${id}?${filterParams({ statut: statuses, archive: archives, lien: liens }).toString()}`;
 
-  const generate = async (conversation: ConversationRowDto): Promise<void> => {
-    if (
-      !(await confirmDialog(
-        "Générer une fiche de prospection à partir de cette conversation ? L'IA analyse l'échange.",
-      ))
-    ) {
-      return;
-    }
-    setPendingId(conversation.id);
-    setError(null);
-    try {
-      const response = await fetch(`/api/conversations/${conversation.id}/fiche`, {
-        method: "POST",
-      });
-      const json = (await response.json()) as { fiche?: { id: string }; error?: string };
-      if (!response.ok || json.fiche === undefined) {
-        setError(json.error ?? "Génération impossible");
-        return;
-      }
-      toast.success("Fiche générée.");
-      router.push(`/leads/${json.fiche.id}`);
-    } catch {
-      setError("Erreur réseau, veuillez réessayer");
-    } finally {
-      setPendingId(null);
-    }
-  };
-
-  const archive = async (conversation: ConversationRowDto): Promise<void> => {
-    const next = !conversation.archivee;
-    if (
-      next &&
-      !(await confirmDialog(
-        "Archiver cette conversation ? Elle sera masquée par défaut (filtre « Archivées »).",
-      ))
-    ) {
-      return;
-    }
-    setPendingId(conversation.id);
-    setError(null);
-    try {
-      const response = await fetch(`/api/conversations/${conversation.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archivee: next }),
-      });
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(json.error ?? "Action impossible");
-        return;
-      }
-      toast.success(next ? "Conversation archivée." : "Conversation désarchivée.");
-      await load();
-    } catch {
-      setError("Erreur réseau, veuillez réessayer");
-    } finally {
-      setPendingId(null);
-    }
-  };
-
   const filterSections: FilterMenuSection[] = [
     {
       id: "statut",
@@ -317,6 +258,10 @@ export function ConversationsWorkspace({
               const displayName =
                 conversation.visitorNom ||
                 (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur");
+              const prospectHref =
+                canViewProspects && conversation.prospectId !== null
+                  ? `/prospects?prospect=${conversation.prospectId}`
+                  : null;
               return (
                 <div className="inbox-row-wrap" key={conversation.id}>
                   <Link
@@ -357,31 +302,19 @@ export function ConversationsWorkspace({
                       )}
                     </span>
                   </Link>
-                  <FloatingMenu
-                    label="Actions de la conversation"
+                  <ConversationActionsMenu
+                    conversationId={conversation.id}
+                    prospectHref={prospectHref}
+                    archivee={conversation.archivee}
+                    canWrite={canWrite}
+                    canGenerateFiche={canGenerateFiche}
+                    canViewLeads={canViewLeads}
+                    mode="list"
+                    detailHref={detailHref(conversation.id)}
                     triggerClassName="icon-btn inbox-row-menu-trigger"
                     panelClassName="inbox-row-menu-panel"
-                  >
-                    <Link href={detailHref(conversation.id)}>Ouvrir</Link>
-                    {canGenerateFiche ? (
-                      <button
-                        type="button"
-                        disabled={pendingId === conversation.id}
-                        onClick={() => void generate(conversation)}
-                      >
-                        Générer la fiche
-                      </button>
-                    ) : null}
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        disabled={pendingId === conversation.id}
-                        onClick={() => void archive(conversation)}
-                      >
-                        {conversation.archivee ? "Désarchiver" : "Archiver"}
-                      </button>
-                    ) : null}
-                  </FloatingMenu>
+                    onChanged={() => void load()}
+                  />
                 </div>
               );
             })

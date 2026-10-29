@@ -6470,6 +6470,11 @@ a.subtab {
 }
 
 /* Résumé manuel de conversation (ADR-0054) */
+.conversation-info-summary {
+  margin-bottom: 1rem;
+  scroll-margin-top: 1rem;
+}
+
 .conversation-summary {
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
