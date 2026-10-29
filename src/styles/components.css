@@ -5817,6 +5817,8 @@ a.subtab {
   display: flex;
   flex: 1;
   flex-direction: column;
+  width: 100%;
+  max-width: none;
   min-width: 0;
   min-height: 0;
 }

@@ -13,8 +13,9 @@ import {
 } from "@/domain/entities/chat";
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
-import { ChatbotConfigFields } from "./ChatbotConfigFields";
+import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
+import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -51,11 +52,12 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
 }
 
 const EDIT_STEPS = [
-  { title: "Général", short: "Général" },
-  { title: "Comportement & fiches", short: "Comportement" },
+  { title: "Contexte & comportement", short: "Contexte" },
+  { title: "Fiches de collecte", short: "Fiches" },
   { title: "Données", short: "Données" },
+  { title: "Moteurs IA", short: "IA" },
   { title: "Diffusion", short: "Diffusion" },
-  { title: "Quotas & récapitulatif", short: "Quotas" },
+  { title: "Récapitulatif", short: "Récapitulatif" },
 ] as const;
 
 /**
@@ -165,7 +167,7 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 3) {
+    if (index === 4) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -301,7 +303,7 @@ export function LinkEditModal({
         </div>
 
         <div className="modal-body chatbot-wizard-host">
-          <form className="form chatbot-wizard" onSubmit={onSubmit} noValidate>
+          <form className="chatbot-wizard" onSubmit={onSubmit} noValidate>
             <nav className="chatbot-wizard-stepper" aria-label="Étapes de modification">
               {EDIT_STEPS.map((entry, index) => (
                 <button
@@ -328,9 +330,10 @@ export function LinkEditModal({
               {step === 0 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[0].title}>
                   <div className="chatbot-step-head">
-                    <h4>Général</h4>
+                    <h4>Contexte & comportement</h4>
                     <p className="hint">
-                      Identité du chatbot, expiration et moteur IA. Le type reste non modifiable.
+                      Identité du chatbot, comportement, expiration et catégorie. Le type reste non
+                      modifiable.
                     </p>
                   </div>
                   <p className="hint">
@@ -357,13 +360,9 @@ export function LinkEditModal({
                       Le lien reste valide jusqu&apos;à la fin du jour choisi.
                     </span>
                   </label>
-                  <AiUsageOverridesField
-                    chatLinkId={link.id}
-                    providers={aiProviders}
-                    value={aiUsage}
-                    onChange={setAiUsage}
-                    canAssign={canAssignAi}
-                  />
+                  {config !== null ? (
+                    <ChatbotBehaviorFields value={config} onChange={setConfig} />
+                  ) : null}
                   <CategoryPicker contentType="link" contentId={link.id} />
                 </section>
               ) : null}
@@ -371,13 +370,18 @@ export function LinkEditModal({
               {step === 1 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[1].title}>
                   <div className="chatbot-step-head">
-                    <h4>Comportement & fiches</h4>
-                    <p className="hint">
-                      Mode guidé ou expert, prompt et fiches de collecte du chatbot.
-                    </p>
+                    <h4>Fiches de collecte</h4>
+                    <p className="hint">Sélectionnez les fiches que ce chatbot pourra remplir.</p>
                   </div>
                   {config !== null ? (
-                    <ChatbotConfigFields value={config} onChange={setConfig} />
+                    <ChatbotFichePicker
+                      value={config.fiches}
+                      onChange={(fiches) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, fiches },
+                        )
+                      }
+                    />
                   ) : (
                     <p className="hint">Aucune configuration avancée disponible.</p>
                   )}
@@ -410,6 +414,24 @@ export function LinkEditModal({
               {step === 3 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
                   <div className="chatbot-step-head">
+                    <h4>Moteurs IA</h4>
+                    <p className="hint">
+                      Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
+                    </p>
+                  </div>
+                  <AiUsageOverridesField
+                    chatLinkId={link.id}
+                    providers={aiProviders}
+                    value={aiUsage}
+                    onChange={setAiUsage}
+                    canAssign={canAssignAi}
+                  />
+                </section>
+              ) : null}
+
+              {step === 4 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+                  <div className="chatbot-step-head">
                     <h4>Diffusion</h4>
                     <p className="hint">
                       Canaux, sources de réponse, état visiteur et bindings de données.
@@ -435,10 +457,10 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 4 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+              {step === 5 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[5].title}>
                   <div className="chatbot-step-head">
-                    <h4>Quotas & récapitulatif</h4>
+                    <h4>Récapitulatif</h4>
                     <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
                   </div>
                   <LinkQuotaFields value={quota} onChange={setQuota} />

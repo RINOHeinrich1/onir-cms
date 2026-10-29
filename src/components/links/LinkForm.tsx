@@ -69,8 +69,9 @@ const STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
   { title: "Fiches de collecte", short: "Fiches" },
   { title: "Données", short: "Données" },
+  { title: "Moteurs IA", short: "IA" },
   { title: "Diffusion", short: "Diffusion" },
-  { title: "Récapitulatif & création", short: "Récapitulatif" },
+  { title: "Récapitulatif", short: "Récapitulatif" },
 ] as const;
 
 /** Création d'un chatbot en 5 étapes dans la même modale. */
@@ -371,7 +372,7 @@ export function LinkForm({
     if (index === 1) {
       return null;
     }
-    if (index === 3) {
+    if (index === 4) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -659,12 +660,17 @@ export function LinkForm({
               </label>
             ) : null}
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
-            <AiUsageOverridesField
-              providers={aiProviders}
-              value={aiUsage}
-              onChange={setAiUsage}
-              canAssign={canAssignAi}
-            />
+            <label className="field">
+              Expiration (optionnel)
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+              />
+              <span className="hint">
+                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
+              </span>
+            </label>
           </section>
         ) : null}
 
@@ -702,6 +708,23 @@ export function LinkForm({
         {step === 3 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
             <div className="chatbot-step-head">
+              <h4>Moteurs IA</h4>
+              <p className="hint">
+                Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
+              </p>
+            </div>
+            <AiUsageOverridesField
+              providers={aiProviders}
+              value={aiUsage}
+              onChange={setAiUsage}
+              canAssign={canAssignAi}
+            />
+          </section>
+        ) : null}
+
+        {step === 4 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
+            <div className="chatbot-step-head">
               <h4>Diffusion</h4>
               <p className="hint">
                 Activez les canaux, puis ajustez les sources et les limites. Les options avancées
@@ -721,18 +744,6 @@ export function LinkForm({
               confidentialites={confidentialites}
             />
             <SourcesField value={sources} onChange={setSources} />
-            <LinkQuotaFields value={quota} onChange={setQuota} />
-            <label className="field">
-              Expiration (optionnel)
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-              />
-              <span className="hint">
-                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
-              </span>
-            </label>
             <details className="chatbot-advanced">
               <summary>Options avancées</summary>
               <div className="chatbot-advanced-body">
@@ -748,12 +759,13 @@ export function LinkForm({
           </section>
         ) : null}
 
-        {step === 4 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
+        {step === 5 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[5].title}>
             <div className="chatbot-step-head">
               <h4>Récapitulatif</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
             </div>
+            <LinkQuotaFields value={quota} onChange={setQuota} />
             <dl className="kv chatbot-summary">
               <dt>Type</dt>
               <dd>{type === "specifique" ? "Spécifique à un prospect" : "Standard"}</dd>
