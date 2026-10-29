@@ -3,13 +3,15 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
   CHAT_LINK_TYPES,
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
 } from "@/domain/entities/chat";
-import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
+import type { LinkAiValue } from "./AiAssignmentField";
+import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
@@ -67,8 +69,9 @@ const STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
   { title: "Fiches de collecte", short: "Fiches" },
   { title: "Données", short: "Données" },
+  { title: "Moteurs IA", short: "IA" },
   { title: "Diffusion", short: "Diffusion" },
-  { title: "Récapitulatif & création", short: "Récapitulatif" },
+  { title: "Récapitulatif", short: "Récapitulatif" },
 ] as const;
 
 /** Création d'un chatbot en 5 étapes dans la même modale. */
@@ -119,7 +122,10 @@ export function LinkForm({
     photos: 0,
     liens: 0,
   });
-  const [ai, setAi] = useState<LinkAiValue>(initial.ai);
+  const [ai] = useState<LinkAiValue>(initial.ai);
+  const [aiUsage, setAiUsage] = useState<Partial<Record<AiLinkUsage, AiLinkTarget>>>(
+    initial.aiUsage,
+  );
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
@@ -149,6 +155,7 @@ export function LinkForm({
       quota,
       dataBindings,
       ai,
+      aiUsage,
       dataDraft,
     }),
     [
@@ -165,6 +172,7 @@ export function LinkForm({
       quota,
       dataBindings,
       ai,
+      aiUsage,
       dataDraft,
     ],
   );
@@ -364,7 +372,7 @@ export function LinkForm({
     if (index === 1) {
       return null;
     }
-    if (index === 3) {
+    if (index === 4) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -506,6 +514,16 @@ export function LinkForm({
         }
       }
       toast.success("Chatbot créé.");
+      if (Object.keys(aiUsage).length > 0) {
+        const aiResponse = await fetch(`/api/links/${json.link.id}/ai-usage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aiUsage),
+        });
+        if (!aiResponse.ok) {
+          toast.warning("Chatbot créé, mais les moteurs IA n'ont pas pu être enregistrés.");
+        }
+      }
       onCreated(json);
       if (failures.length > 0) {
         const detail = failures.slice(0, 3).join(" · ");
@@ -642,6 +660,17 @@ export function LinkForm({
               </label>
             ) : null}
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
+            <label className="field">
+              Expiration (optionnel)
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+              />
+              <span className="hint">
+                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
+              </span>
+            </label>
           </section>
         ) : null}
 
@@ -679,6 +708,23 @@ export function LinkForm({
         {step === 3 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
             <div className="chatbot-step-head">
+              <h4>Moteurs IA</h4>
+              <p className="hint">
+                Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
+              </p>
+            </div>
+            <AiUsageOverridesField
+              providers={aiProviders}
+              value={aiUsage}
+              onChange={setAiUsage}
+              canAssign={canAssignAi}
+            />
+          </section>
+        ) : null}
+
+        {step === 4 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
+            <div className="chatbot-step-head">
               <h4>Diffusion</h4>
               <p className="hint">
                 Activez les canaux, puis ajustez les sources et les limites. Les options avancées
@@ -698,18 +744,6 @@ export function LinkForm({
               confidentialites={confidentialites}
             />
             <SourcesField value={sources} onChange={setSources} />
-            <LinkQuotaFields value={quota} onChange={setQuota} />
-            <label className="field">
-              Expiration (optionnel)
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-              />
-              <span className="hint">
-                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
-              </span>
-            </label>
             <details className="chatbot-advanced">
               <summary>Options avancées</summary>
               <div className="chatbot-advanced-body">
@@ -720,23 +754,18 @@ export function LinkForm({
                   value={dataBindings}
                   onChange={setDataBindings}
                 />
-                <AiAssignmentField
-                  providers={aiProviders}
-                  value={ai}
-                  onChange={setAi}
-                  canAssign={canAssignAi}
-                />
               </div>
             </details>
           </section>
         ) : null}
 
-        {step === 4 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
+        {step === 5 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[5].title}>
             <div className="chatbot-step-head">
               <h4>Récapitulatif</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
             </div>
+            <LinkQuotaFields value={quota} onChange={setQuota} />
             <dl className="kv chatbot-summary">
               <dt>Type</dt>
               <dd>{type === "specifique" ? "Spécifique à un prospect" : "Standard"}</dd>

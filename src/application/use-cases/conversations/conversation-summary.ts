@@ -7,6 +7,7 @@ import type { ChatOperatorScopeRepository } from "@/application/ports/chat-opera
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { ConversationSummaryRepository } from "@/application/ports/conversation-summary-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { fallbackAiClient } from "@/application/use-cases/ai/with-fallback";
 import { assertTokenBudgetAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import type { ChatMessage } from "@/domain/entities/chat";
@@ -129,10 +130,15 @@ export async function generateConversationSummary(
     aiProviderId: explicit?.providerId ?? link.aiProviderId,
     aiModel: explicit?.model ?? link.aiModel,
   };
-  const resolved = await deps.ai.resolve(target);
-  const client = await deps.ai.forTarget(target);
-
+  const chain =
+    deps.ai.forUsage === undefined
+      ? [{ label: "response", client: await deps.ai.forTarget(target) }]
+      : await deps.ai.forUsage(target, "summary", link.id);
+  const client = fallbackAiClient(chain);
   const usageTotal = { tokens: 0 };
+  const labelParts = chain[0]?.label.split(" · ") ?? [];
+  const providerLabel = labelParts[1] ?? "configuré";
+  const modelLabel = labelParts.slice(2).join(" · ") || "usage summary";
   const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
     usageTotal.tokens = usage.totalTokens;
     await deps.links.recordAiUsage?.(organizationId, link.id, {
@@ -171,8 +177,8 @@ export async function generateConversationSummary(
 
   return deps.summaries.upsert(organizationId, conversationId, {
     content,
-    provider: resolved.providerLabel,
-    model: resolved.model,
+    provider: providerLabel,
+    model: modelLabel,
     tokensUsed: usageTotal.tokens,
     sourceMessageCount: messages.length,
     sourceLastMessageAt,

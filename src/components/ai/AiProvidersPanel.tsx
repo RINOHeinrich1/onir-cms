@@ -4,12 +4,12 @@ import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { AI_PROVIDER_PRESET_LABELS } from "@/domain/entities/ai-provider";
-import { AiDefaultSettings } from "./AiDefaultSettings";
-import { AiExtractionSettings } from "./AiExtractionSettings";
+import { AiClustersPanel } from "./AiClustersPanel";
 import { AiModelsPanel } from "./AiModelsPanel";
 import { AiProviderForm } from "./AiProviderForm";
+import { AiUsageDefaults } from "./AiUsageDefaults";
 import { ImportLegacyPanel } from "./ImportLegacyPanel";
-import type { AiProviderDto, AiSettingsDto } from "./types";
+import type { AiProviderDto } from "./types";
 
 function testLabel(provider: AiProviderDto): string {
   if (provider.lastTestOk === true) return "Connecté";
@@ -20,37 +20,27 @@ function testLabel(provider: AiProviderDto): string {
 /** Gestion des fournisseurs IA et du défaut d'organisation. */
 export function AiProvidersPanel({
   initialProviders,
-  initialSettings,
   canManage,
   legacyAvailable,
 }: {
   initialProviders: AiProviderDto[];
-  initialSettings: AiSettingsDto | null;
   canManage: boolean;
   legacyAvailable: boolean;
 }) {
   const [providers, setProviders] = useState(initialProviders);
-  const [settings, setSettings] = useState(initialSettings);
   const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = useState<AiProviderDto | null>(null);
   const [managingModels, setManagingModels] = useState<AiProviderDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<"default" | "extraction" | "providers">("default");
+  const [tab, setTab] = useState<"defaults" | "clusters" | "providers">("defaults");
   useToastOnMessage(error, notice);
 
   const reload = async (): Promise<void> => {
-    const [providersResponse, settingsResponse] = await Promise.all([
-      fetch("/api/ai/providers?includeArchived=1"),
-      fetch("/api/ai/settings"),
-    ]);
+    const providersResponse = await fetch("/api/ai/providers?includeArchived=1");
     if (providersResponse.ok) {
       const json = (await providersResponse.json()) as { providers?: AiProviderDto[] };
       if (json.providers !== undefined) setProviders(json.providers);
-    }
-    if (settingsResponse.ok) {
-      const json = (await settingsResponse.json()) as { settings?: AiSettingsDto | null };
-      setSettings(json.settings ?? null);
     }
   };
 
@@ -108,19 +98,19 @@ export function AiProvidersPanel({
       <nav className="subtabs" aria-label="Sections des paramètres IA">
         <button
           type="button"
-          className={`subtab ${tab === "default" ? "active" : ""}`}
-          aria-pressed={tab === "default"}
-          onClick={() => setTab("default")}
+          className={`subtab ${tab === "defaults" ? "active" : ""}`}
+          aria-pressed={tab === "defaults"}
+          onClick={() => setTab("defaults")}
         >
-          Défaut
+          Défauts par usage
         </button>
         <button
           type="button"
-          className={`subtab ${tab === "extraction" ? "active" : ""}`}
-          aria-pressed={tab === "extraction"}
-          onClick={() => setTab("extraction")}
+          className={`subtab ${tab === "clusters" ? "active" : ""}`}
+          aria-pressed={tab === "clusters"}
+          onClick={() => setTab("clusters")}
         >
-          Extraction
+          Clusters
         </button>
         <button
           type="button"
@@ -132,24 +122,16 @@ export function AiProvidersPanel({
         </button>
       </nav>
 
-      {tab === "default" ? (
-        <AiDefaultSettings
-          key={`${settings?.defaultProviderId ?? "none"}:${settings?.defaultModel ?? "none"}`}
+      {tab === "defaults" ? (
+        <AiUsageDefaults
           providers={activeProviders}
-          settings={settings}
           canManage={canManage}
           onSaved={() => void reload()}
         />
       ) : null}
 
-      {tab === "extraction" ? (
-        <AiExtractionSettings
-          key={`${settings?.extractionProviderId ?? "none"}:${settings?.extractionModel ?? "none"}:${settings?.extractionFallbackProviderId ?? "none"}`}
-          providers={activeProviders}
-          settings={settings}
-          canManage={canManage}
-          onSaved={() => void reload()}
-        />
+      {tab === "clusters" ? (
+        <AiClustersPanel providers={activeProviders} canManage={canManage} />
       ) : null}
 
       {tab === "providers" ? (
@@ -176,11 +158,7 @@ export function AiProvidersPanel({
       ) : null}
 
       {managingModels !== null ? (
-        <AiModelsPanel
-          provider={managingModels}
-          onChanged={() => void reload()}
-          onClose={() => setManagingModels(null)}
-        />
+        <AiModelsPanel provider={managingModels} onClose={() => setManagingModels(null)} />
       ) : null}
 
       {formMode !== null ? (
@@ -208,7 +186,6 @@ export function AiProvidersPanel({
                 <th>Type</th>
                 <th>URL</th>
                 <th>Clé</th>
-                <th>Modèle par défaut</th>
                 <th>Test</th>
                 <th aria-label="Actions" />
               </tr>
@@ -216,16 +193,10 @@ export function AiProvidersPanel({
             <tbody>
               {providers.map((provider) => {
                 const archived = provider.archivedAt !== null;
-                const isDefault = settings?.defaultProviderId === provider.id;
                 return (
                   <tr key={provider.id}>
                     <td data-label="Fournisseur">
                       <strong>{provider.label}</strong>
-                      {isDefault ? (
-                        <span className="badge" style={{ marginLeft: "0.5rem" }}>
-                          défaut
-                        </span>
-                      ) : null}
                       {archived ? (
                         <span className="badge orange" style={{ marginLeft: "0.5rem" }}>
                           archivé
@@ -237,9 +208,6 @@ export function AiProvidersPanel({
                       <span className="hint">{provider.baseUrl}</span>
                     </td>
                     <td data-label="Clé">{provider.apiKeyHint}</td>
-                    <td data-label="Modèle par défaut">
-                      {provider.defaultModel ?? <span className="hint">—</span>}
-                    </td>
                     <td data-label="Test">
                       <span className={`badge ${provider.lastTestOk === false ? "orange" : ""}`}>
                         {testLabel(provider)}
@@ -290,7 +258,7 @@ export function AiProvidersPanel({
               })}
               {providers.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     Aucun fournisseur configuré. Les liens utilisent la configuration legacy.
                   </td>
                 </tr>

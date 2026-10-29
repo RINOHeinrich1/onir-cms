@@ -11,15 +11,12 @@ import type { AiProviderDto } from "./types";
 /** Gestion des modèles d'un fournisseur (synchronisation, ajout, activation). */
 export function AiModelsPanel({
   provider,
-  onChanged,
   onClose,
 }: {
   provider: AiProviderDto;
-  onChanged: () => void;
   onClose: () => void;
 }) {
   const [models, setModels] = useState<AiProviderModel[]>([]);
-  const [defaultModel, setDefaultModel] = useState(provider.defaultModel);
   const [modelId, setModelId] = useState("");
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -130,25 +127,6 @@ export function AiModelsPanel({
         return false;
       }
       setNotice("Réglage du raisonnement enregistré.");
-      return true;
-    });
-  };
-
-  const makeDefault = (model: AiProviderModel): void => {
-    void run(async () => {
-      const response = await fetch(`/api/ai/providers/${provider.id}/default-model`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelId: model.modelId }),
-      });
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(json.error ?? "Modèle par défaut non enregistré");
-        return false;
-      }
-      setDefaultModel(model.modelId);
-      setNotice(`Modèle par défaut : ${model.modelId}`);
-      onChanged();
       return true;
     });
   };
@@ -270,7 +248,6 @@ export function AiModelsPanel({
               <th>Source</th>
               <th>État</th>
               <th>Raisonnement</th>
-              <th>Défaut</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -310,13 +287,6 @@ export function AiModelsPanel({
                   )}
                 </td>
                 <td>
-                  {defaultModel === model.modelId ? (
-                    <span className="badge">par défaut</span>
-                  ) : (
-                    <span className="hint">—</span>
-                  )}
-                </td>
-                <td>
                   <div className="tools">
                     <button
                       type="button"
@@ -337,25 +307,15 @@ export function AiModelsPanel({
                     <button
                       type="button"
                       className="btn ghost small"
-                      disabled={pending || (model.enabled && defaultModel === model.modelId)}
+                      disabled={pending}
                       onClick={() => toggle(model)}
                     >
                       {model.enabled ? "Désactiver" : "Activer"}
                     </button>
-                    {model.enabled && defaultModel !== model.modelId ? (
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        disabled={pending}
-                        onClick={() => makeDefault(model)}
-                      >
-                        Par défaut
-                      </button>
-                    ) : null}
                     <button
                       type="button"
                       className="btn danger ghost small"
-                      disabled={pending || defaultModel === model.modelId}
+                      disabled={pending}
                       onClick={() => void remove(model)}
                     >
                       Supprimer
@@ -366,7 +326,7 @@ export function AiModelsPanel({
             ))}
             {models.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={5}>
                   Aucun modèle. Synchronisez le catalogue ou ajoutez un identifiant manuellement.
                 </td>
               </tr>

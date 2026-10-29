@@ -1,6 +1,7 @@
 import type { AiClient } from "@/application/ports/ai-client";
 import type { AiCapabilities, ReasoningMode } from "@/domain/ai-capabilities";
 import type { AiProviderPreset } from "@/domain/entities/ai-provider";
+import type { AiUsage } from "@/domain/entities/ai-usage";
 
 export type AiTargetRef = {
   organizationId: string;
@@ -40,11 +41,20 @@ export interface AiClientFactory {
   forTarget(target: AiTargetRef | null): Promise<AiClient>;
   /** Variante fail-open : null si aucun fournisseur résoluble. */
   optionalTarget(target: AiTargetRef | null): Promise<AiClient | null>;
+  /** Chaîne de clients pour un usage métier (défaut, cluster, override). */
+  forUsage?(
+    target: AiTargetRef | null,
+    usage: AiUsage,
+    chatLinkId?: string | null,
+  ): Promise<AiExtractionClient[]>;
   /**
    * Chaîne d'extraction : modèle dédié, secours, puis cible du lien.
    * Optionnel pour compatibilité des doubles de test.
    */
-  forExtraction?(target: AiTargetRef | null): Promise<AiExtractionClient[]>;
+  forExtraction?(
+    target: AiTargetRef | null,
+    chatLinkId?: string | null,
+  ): Promise<AiExtractionClient[]>;
 }
 
 /** Helper de test : neutralise la résolution sans I/O. */
@@ -66,6 +76,9 @@ export function fixedAiClientFactory(client: AiClient): AiClientFactory {
       return client;
     },
     async forExtraction() {
+      return [{ label: "test", client }];
+    },
+    async forUsage() {
       return [{ label: "test", client }];
     },
   };

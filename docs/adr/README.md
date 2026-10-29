@@ -57,3 +57,5 @@ ADR qui remplace la précédente.
 | [0054](./0054-resume-manuel-conversation.md) | Résumé manuel de conversation, indépendant des fiches | Accepté |
 | [0055](./0055-fiches-independantes-modele-raisonnement.md) | Fiches indépendantes du modèle de raisonnement et liées à 0..N chatbots | Accepté |
 | [0056](./0056-creation-manuelle-depuis-fiche-collecte.md) | Création manuelle d’une fiche depuis une fiche de collecte | Accepté |
+| [0057](./0057-api-publique-medias-connaissances.md) | API publique des médias et des connaissances | Accepté |
+| [0058](./0058-ia-usages-clusters.md) | IA par usage, clusters et overrides par chatbot | Accepté |

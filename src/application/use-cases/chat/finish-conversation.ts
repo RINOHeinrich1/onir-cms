@@ -177,7 +177,7 @@ async function buildFicheForDefinition(
     aiModel: link.aiModel,
   };
   const clients = deps.ai.forExtraction
-    ? await deps.ai.forExtraction(target)
+    ? await deps.ai.forExtraction(target, link.id)
     : [{ label: "lien", client: await deps.ai.forTarget(target) }];
   const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
     await deps.links.recordAiUsage?.(organizationId, link.id, {

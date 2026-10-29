@@ -5817,6 +5817,8 @@ a.subtab {
   display: flex;
   flex: 1;
   flex-direction: column;
+  width: 100%;
+  max-width: none;
   min-width: 0;
   min-height: 0;
 }
@@ -6584,4 +6586,78 @@ a.subtab {
 .card:has(.action-menu[open]) {
   position: relative;
   z-index: 20;
+}
+
+/* Paramètres IA par usage et clusters (ADR-0058) */
+.ai-usage-defaults {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.ai-usage-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(9rem, 0.7fr) minmax(10rem, 1fr) minmax(
+      10rem,
+      1fr
+    );
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.ai-usage-row strong {
+  display: block;
+}
+
+.ai-usage-row .hint {
+  margin: 0.15rem 0 0;
+}
+
+.ai-cluster-editor {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ai-cluster-members {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ai-cluster-member {
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 1fr) minmax(10rem, 1fr) auto auto auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.ai-cluster-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ai-cluster-card {
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.ai-cluster-members-read {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+@media (max-width: 900px) {
+  .ai-usage-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ai-cluster-member {
+    grid-template-columns: auto 1fr 1fr;
+  }
 }

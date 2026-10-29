@@ -12,6 +12,7 @@ import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { fallbackAiClient } from "@/application/use-cases/ai/with-fallback";
 import { buildAttachmentPromptContext } from "@/application/use-cases/attachments/attachment-prompt";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import {
@@ -279,11 +280,15 @@ export async function sendMessage(
   const history = (await deps.conversations.listMessages(organizationId, conversation.id)).slice(
     -HISTORY_LIMIT,
   );
-  const ai = await deps.ai.forTarget({
+  const target = {
     organizationId,
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
-  });
+  };
+  const ai =
+    deps.ai.forUsage === undefined
+      ? await deps.ai.forTarget(target)
+      : fallbackAiClient(await deps.ai.forUsage(target, "response", link.id));
   const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
     await deps.links.recordAiUsage?.(organizationId, link.id, {
       conversationId: conversation.id,

@@ -7,6 +7,7 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
+import { fallbackAiClient } from "@/application/use-cases/ai/with-fallback";
 import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { listRuntimeMedias } from "@/application/use-cases/chat/chatbot-data-runtime";
 import { type ChatMessageMedia, chatLinkBlockReason } from "@/domain/entities/chat";
@@ -97,11 +98,20 @@ export async function selectChatMedia(
     await deps.conversations.setMessageMedias(organizationId, message.id, []);
     return { computed: true, medias: [] };
   }
-  const ai = await deps.ai.optionalTarget({
+  const target = {
     organizationId,
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
-  });
+  };
+  let ai = null;
+  try {
+    ai =
+      deps.ai.forUsage === undefined
+        ? await deps.ai.optionalTarget(target)
+        : fallbackAiClient(await deps.ai.forUsage(target, "selection", link.id));
+  } catch {
+    ai = null;
+  }
   if (ai === null) {
     await deps.conversations.setMessageMedias(organizationId, message.id, []);
     return { computed: true, medias: [] };

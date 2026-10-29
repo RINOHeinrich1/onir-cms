@@ -7,10 +7,12 @@ import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-reposito
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
+import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { pgFicheSearchRepository } from "@/infrastructure/db/fiche-search-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
+import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { pgPublicStatisticsRepository } from "@/infrastructure/db/public-statistics-repository";
@@ -18,6 +20,7 @@ import { pgTemplateDataBindingRepository } from "@/infrastructure/db/template-da
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { pgWebhookDeliveryRepository } from "@/infrastructure/db/webhook-delivery-repository";
 import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
+import { mediaStorage } from "@/infrastructure/storage";
 
 export function prospectDeps() {
   return { prospects: pgProspectRepository(getPool()) };
@@ -57,6 +60,22 @@ export function chatbotWriteDeps() {
     linkDataBindings: pgLinkDataBindingRepository(pool),
     aiProviders: pgAiProviderRepository(pool),
     aiModels: pgAiProviderModelRepository(pool),
+  };
+}
+
+export function connaissanceDeps() {
+  return { connaissances: pgConnaissanceRepository(getPool()) };
+}
+
+export function mediaReadDeps() {
+  return { medias: pgMediaRepository(getPool()) };
+}
+
+export function mediaWriteDeps() {
+  const pool = getPool();
+  return {
+    medias: pgMediaRepository(pool),
+    storage: mediaStorage(),
   };
 }
 
