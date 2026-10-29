@@ -8,8 +8,7 @@ import type {
   ConversationFieldsView,
   ConversationFieldView,
 } from "@/domain/entities/conversation-field";
-
-export const OPEN_CONVERSATION_INFO_EVENT = "conversation-info-open";
+import { OPEN_CONVERSATION_INFO_EVENT } from "./conversation-events";
 
 type SaveState = { key: string; status: "saving" | "saved" | "error" } | null;
 

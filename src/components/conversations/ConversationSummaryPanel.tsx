@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AiModelSelect } from "@/components/ai/AiModelSelect";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/ToastProvider";
+import { OPEN_CONVERSATION_SUMMARY_EVENT } from "./conversation-events";
 
 type SummaryDto = {
   id: string;
@@ -29,7 +30,7 @@ function formatDate(iso: string): string {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("fr-FR");
 }
 
-/** Panneau de résumé manuel, indépendant des fiches (ADR-0054). */
+/** Panneau dédié au résumé manuel, indépendant du panneau d'informations (ADR-0054). */
 export function ConversationSummaryPanel({
   conversationId,
   canSummarize,
@@ -44,7 +45,8 @@ export function ConversationSummaryPanel({
   const toast = useToast();
   const [summary, setSummary] = useState<SummaryDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -78,7 +80,14 @@ export function ConversationSummaryPanel({
   }, [conversationId]);
 
   useEffect(() => {
-    if (!open || !canChooseModel || providers.length > 0) return;
+    const open = (): void => setDrawerOpen(true);
+    if (new URLSearchParams(window.location.search).get("panel") === "summary") open();
+    window.addEventListener(OPEN_CONVERSATION_SUMMARY_EVENT, open);
+    return () => window.removeEventListener(OPEN_CONVERSATION_SUMMARY_EVENT, open);
+  }, []);
+
+  useEffect(() => {
+    if (!modalOpen || !canChooseModel || providers.length > 0) return;
     let cancelled = false;
     setProvidersLoading(true);
     void fetch("/api/ai/providers", { cache: "no-store" })
@@ -109,12 +118,12 @@ export function ConversationSummaryPanel({
     return () => {
       cancelled = true;
     };
-  }, [canChooseModel, open, providers.length]);
+  }, [canChooseModel, modalOpen, providers.length]);
 
   const start = (): void => {
     setError(null);
     setCustomModel(false);
-    setOpen(true);
+    setModalOpen(true);
   };
 
   const generate = async (): Promise<void> => {
@@ -136,7 +145,7 @@ export function ConversationSummaryPanel({
         return;
       }
       setSummary(json.summary);
-      setOpen(false);
+      setModalOpen(false);
       toast.success("Résumé de la conversation enregistré.");
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -145,56 +154,96 @@ export function ConversationSummaryPanel({
     }
   };
 
-  if (loading) {
-    return canSummarize ? (
-      <section className="conversation-summary">
-        <p className="hint">Chargement du résumé…</p>
-      </section>
-    ) : null;
-  }
-
-  if (summary === null && !canSummarize) return null;
-
   const partial = summary !== null && (!summary.generatedWhileFinalized || !finalized);
   const meta =
     summary === null ? "" : [summary.provider, summary.model].filter(Boolean).join(" · ");
 
   return (
     <>
-      <section className="conversation-summary" aria-label="Résumé de la conversation">
-        <div className="conversation-summary-head">
-          <div>
-            <h4>Résumé de la conversation</h4>
-            {summary === null ? (
-              <p className="hint">Aucun résumé. Génère-le à la demande pour garder le contexte.</p>
-            ) : (
-              <p className="hint">
-                {partial ? "Résumé partiel" : "Résumé final"} · {summary.sourceMessageCount} message
-                {summary.sourceMessageCount > 1 ? "s" : ""} · {formatDate(summary.updatedAt)}
-              </p>
-            )}
-          </div>
-          {canSummarize ? (
-            <button type="button" className="btn ghost small" onClick={start}>
-              {summary === null ? "Résumer" : "Régénérer"}
-            </button>
-          ) : null}
-        </div>
+      {drawerOpen ? (
+        <>
+          <button
+            type="button"
+            className="conversation-summary-backdrop"
+            aria-label="Fermer le résumé"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            className="conversation-summary-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Résumé de la conversation"
+          >
+            <div className="conversation-info-head">
+              <div>
+                <span className="eyebrow">Conversation</span>
+                <h2>Résumé</h2>
+              </div>
+              <button
+                type="button"
+                className="btn ghost small"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
 
-        {summary === null ? null : (
-          <>
-            <p className="conversation-summary-content">{summary.content}</p>
-            {meta === "" ? null : <p className="conversation-summary-meta">Modèle : {meta}</p>}
-          </>
-        )}
-        {error !== null && summary === null ? <p className="alert error">{error}</p> : null}
-      </section>
+            <div className="conversation-summary-body">
+              {loading ? (
+                <p className="hint">Chargement du résumé…</p>
+              ) : (
+                <section className="conversation-summary" aria-label="Résumé de la conversation">
+                  <div className="conversation-summary-head">
+                    <div>
+                      <h4>Résumé de la conversation</h4>
+                      {summary === null ? (
+                        <p className="hint">
+                          Aucun résumé. Génère-le à la demande pour garder le contexte.
+                        </p>
+                      ) : (
+                        <p className="hint">
+                          {partial ? "Résumé partiel" : "Résumé final"} ·{" "}
+                          {summary.sourceMessageCount} message
+                          {summary.sourceMessageCount > 1 ? "s" : ""} ·{" "}
+                          {formatDate(summary.updatedAt)}
+                        </p>
+                      )}
+                    </div>
+                    {canSummarize ? (
+                      <button type="button" className="btn ghost small" onClick={start}>
+                        {summary === null ? "Résumer" : "Régénérer"}
+                      </button>
+                    ) : null}
+                  </div>
 
-      {open ? (
+                  {summary === null ? (
+                    canSummarize ? null : (
+                      <p className="hint">Aucun résumé disponible pour cette conversation.</p>
+                    )
+                  ) : (
+                    <>
+                      <p className="conversation-summary-content">{summary.content}</p>
+                      {meta === "" ? null : (
+                        <p className="conversation-summary-meta">Modèle : {meta}</p>
+                      )}
+                    </>
+                  )}
+                  {error !== null && summary === null ? (
+                    <p className="alert error">{error}</p>
+                  ) : null}
+                </section>
+              )}
+            </div>
+          </aside>
+        </>
+      ) : null}
+
+      {modalOpen ? (
         <Modal
           title={summary === null ? "Résumer la conversation" : "Régénérer le résumé"}
           onClose={() => {
-            if (!pending) setOpen(false);
+            if (!pending) setModalOpen(false);
           }}
         >
           <p className="hint">
@@ -256,7 +305,7 @@ export function ConversationSummaryPanel({
               type="button"
               className="btn ghost"
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => setModalOpen(false)}
             >
               Annuler
             </button>

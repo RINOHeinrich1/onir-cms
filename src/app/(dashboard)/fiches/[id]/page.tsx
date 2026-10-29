@@ -81,7 +81,8 @@ export default async function FicheLecturePage({ params }: PageProps) {
           <span className="eyebrow">Prospection</span>
           <h1 className="text-title">Fiche de prospection</h1>
           <p className="muted-text">
-            {titreProspect} · modèle <strong>{fiche.templateKey}</strong> ·{" "}
+            {titreProspect} ·{" "}
+            <strong>{fiche.definition?.label ?? fiche.templateKey ?? "Fiche manuelle"}</strong> ·{" "}
             {new Date(fiche.createdAt).toLocaleDateString("fr-FR")}
           </p>
         </div>

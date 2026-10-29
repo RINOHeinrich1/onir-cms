@@ -35,6 +35,8 @@ export default async function ConversationsLayout({ children }: { children: Reac
         linkLabels={distinctChatLinkLabels(links)}
         canWrite={actorCan(context.actor, "conversations:update")}
         canGenerateFiche={actorCan(context.actor, "conversations:generate_fiche")}
+        canViewLeads={actorCan(context.actor, "project:read")}
+        canViewProspects={actorCan(context.actor, "prospects:read")}
       >
         {children}
       </ConversationsWorkspace>

@@ -8,18 +8,20 @@ import { STATUTS_FICHE } from "@/domain/entities/fiche";
 const PLATEFORMES = ["site web", "SaaS", "mobile", "automatisme background"] as const;
 
 type FicheFormProps = {
+  links: readonly { id: string; label: string }[];
   onSaved: () => void;
   onCancel: () => void;
 };
 
 /** Formulaire de création d'une fiche de prospection (RM-FICHE-001/002). */
-export function FicheForm({ onSaved, onCancel }: FicheFormProps) {
+export function FicheForm({ links, onSaved, onCancel }: FicheFormProps) {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [plateformes, setPlateformes] = useState<string[]>(["site web"]);
   const [statut, setStatut] = useState<string>("initier");
+  const [chatLinkIds, setChatLinkIds] = useState<string[]>([]);
 
   const togglePlateforme = (value: string): void => {
     setPlateformes((previous) =>
@@ -46,6 +48,7 @@ export function FicheForm({ onSaved, onCancel }: FicheFormProps) {
           statut,
           contraintesTechno: String(data.get("contraintesTechno") ?? ""),
           lienDocSpec: String(data.get("lienDocSpec") ?? ""),
+          chatLinkIds,
         }),
       });
       const json = (await response.json()) as { error?: string };
@@ -125,6 +128,30 @@ export function FicheForm({ onSaved, onCancel }: FicheFormProps) {
         Lien vers le document de spécifications
         <input type="url" name="lienDocSpec" placeholder="https://…" />
       </label>
+
+      <fieldset className="field">
+        <legend>Chatbots associés (optionnel, 0..N)</legend>
+        {links.length === 0 ? (
+          <p className="hint">Aucun chatbot disponible. La fiche restera indépendante.</p>
+        ) : (
+          links.map((link) => (
+            <label key={link.id} className="check">
+              <input
+                type="checkbox"
+                checked={chatLinkIds.includes(link.id)}
+                onChange={() =>
+                  setChatLinkIds((current) =>
+                    current.includes(link.id)
+                      ? current.filter((id) => id !== link.id)
+                      : [...current, link.id],
+                  )
+                }
+              />{" "}
+              {link.label || "Chatbot sans nom"}
+            </label>
+          ))
+        )}
+      </fieldset>
 
       <div className="tools">
         <button type="submit" className="btn small" disabled={pending}>

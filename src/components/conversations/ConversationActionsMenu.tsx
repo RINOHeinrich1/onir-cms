@@ -6,9 +6,18 @@ import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { FloatingMenu } from "@/components/ui/FloatingMenu";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import { OPEN_CONVERSATION_INFO_EVENT } from "./ConversationInfoPanel";
+import {
+  OPEN_CONVERSATION_INFO_EVENT,
+  OPEN_CONVERSATION_SUMMARY_EVENT,
+} from "./conversation-events";
 
-/** Menu vertical des actions d'une conversation ouverte. */
+type ConversationMenuMode = "detail" | "list";
+
+/**
+ * Menu d'actions unique pour le header d'une conversation et la liste.
+ * En mode détail, les panneaux s'ouvrent dans la page ; en mode liste, on
+ * navigue vers le détail avec le panneau demandé.
+ */
 export function ConversationActionsMenu({
   conversationId,
   prospectHref,
@@ -16,6 +25,11 @@ export function ConversationActionsMenu({
   canWrite,
   canGenerateFiche,
   canViewLeads,
+  mode = "detail",
+  detailHref,
+  triggerClassName = "icon-btn",
+  panelClassName = "conversation-actions-menu-panel",
+  onChanged,
 }: {
   conversationId: string;
   prospectHref: string | null;
@@ -23,12 +37,22 @@ export function ConversationActionsMenu({
   canWrite: boolean;
   canGenerateFiche: boolean;
   canViewLeads: boolean;
+  mode?: ConversationMenuMode;
+  detailHref?: string;
+  triggerClassName?: string;
+  panelClassName?: string;
+  onChanged?: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
+
+  const afterChange = (): void => {
+    if (onChanged !== undefined) onChanged();
+    else router.refresh();
+  };
 
   const archive = async (): Promise<void> => {
     const next = !archivee;
@@ -54,7 +78,7 @@ export function ConversationActionsMenu({
         return;
       }
       toast.success(next ? "Conversation archivée." : "Conversation désarchivée.");
-      router.refresh();
+      afterChange();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -82,11 +106,8 @@ export function ConversationActionsMenu({
         return;
       }
       toast.success("Fiche de prospection générée.");
-      if (canViewLeads) {
-        router.push(`/leads/${json.fiche.id}`);
-      } else {
-        router.refresh();
-      }
+      if (canViewLeads) router.push(`/leads/${json.fiche.id}`);
+      else afterChange();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -94,26 +115,50 @@ export function ConversationActionsMenu({
     }
   };
 
+  const panelHref = (panel: "info" | "summary"): string | null => {
+    if (mode !== "list" || detailHref === undefined) return null;
+    const separator = detailHref.includes("?") ? "&" : "?";
+    return `${detailHref}${separator}panel=${panel}`;
+  };
+
+  const summaryHref = panelHref("summary");
+  const infoHref = panelHref("info");
+
   return (
     <FloatingMenu
       label="Actions de la conversation"
-      panelClassName="conversation-actions-menu-panel"
+      triggerClassName={triggerClassName}
+      panelClassName={panelClassName}
     >
       {prospectHref !== null ? <Link href={prospectHref}>Voir le prospect</Link> : null}
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new Event(OPEN_CONVERSATION_INFO_EVENT))}
-      >
-        Informations
-      </button>
-      {canWrite ? (
-        <button type="button" disabled={pending !== null} onClick={() => void archive()}>
-          {archivee ? "Désarchiver" : "Archiver"}
+      {summaryHref !== null ? (
+        <Link href={summaryHref}>Résumé</Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_CONVERSATION_SUMMARY_EVENT))}
+        >
+          Résumé
         </button>
-      ) : null}
+      )}
+      {infoHref !== null ? (
+        <Link href={infoHref}>Informations</Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_CONVERSATION_INFO_EVENT))}
+        >
+          Informations
+        </button>
+      )}
       {canGenerateFiche ? (
         <button type="button" disabled={pending !== null} onClick={() => void generate()}>
           {pending === "generate" ? "Génération…" : "Générer la fiche"}
+        </button>
+      ) : null}
+      {canWrite ? (
+        <button type="button" disabled={pending !== null} onClick={() => void archive()}>
+          {pending === "archive" ? "Enregistrement…" : archivee ? "Désarchiver" : "Archiver"}
         </button>
       ) : null}
     </FloatingMenu>

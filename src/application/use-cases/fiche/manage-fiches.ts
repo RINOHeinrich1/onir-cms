@@ -1,41 +1,20 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
-import type { Fiche, FicheArchiveFilter } from "@/domain/entities/fiche";
+import {
+  type Fiche,
+  type FicheArchiveFilter,
+  MANUAL_FICHE_DEFINITION,
+} from "@/domain/entities/fiche";
 import { validateTemplateData } from "@/domain/validate-template-data";
 
 export type ManageFichesDependencies = {
   fiches: FicheRepository;
-  templates: ChatTemplateRepository;
 };
 
 export type ReadFichesDependencies = {
   fiches: FicheRepository;
 };
-
-async function resolveDefinition(
-  templates: ChatTemplateRepository,
-  organizationId: string,
-  templateKey: unknown,
-  templateVersion: unknown,
-) {
-  const key =
-    typeof templateKey === "string" && templateKey.trim() !== "" ? templateKey : "fiche-projet";
-  if (
-    typeof templateVersion === "number" &&
-    Number.isInteger(templateVersion) &&
-    templateVersion >= 1
-  ) {
-    const exact = await templates.findVersion(organizationId, key, templateVersion);
-    if (exact !== null) return exact.definition;
-  }
-  const current = await templates.currentVersion(organizationId, key);
-  if (current === null) {
-    throw new ValidationError(`Modèle inconnu : ${key}`);
-  }
-  return current.definition;
-}
 
 /** US-FICHE-001 — création manuelle d'une fiche (admin/marketeur, modèle piloté). */
 export async function createFiche(
@@ -50,25 +29,32 @@ export async function createFiche(
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
-  const definition = await resolveDefinition(
-    deps.templates,
-    organizationId,
-    source.templateKey,
-    source.templateVersion,
-  );
-
-  const validated = validateTemplateData(definition, source.data ?? source);
+  const rawData =
+    source.data !== null && typeof source.data === "object" && !Array.isArray(source.data)
+      ? (source.data as Record<string, unknown>)
+      : source;
+  const validated = validateTemplateData(MANUAL_FICHE_DEFINITION, rawData);
   if (!validated.ok) {
     throw new ValidationError(validated.errors.join(" ; "));
   }
+  const chatLinkIds = Array.isArray(source.chatLinkIds)
+    ? [
+        ...new Set(
+          source.chatLinkIds.filter(
+            (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
+          ),
+        ),
+      ]
+    : [];
 
-  const current = await deps.templates.currentVersion(organizationId, definition.key);
   return deps.fiches.create(organizationId, {
     conversationId: null,
     prospectId: typeof source.prospectId === "string" ? source.prospectId : null,
     createdBy: actor.id,
-    templateKey: definition.key,
-    templateVersion: current?.version ?? 1,
+    templateKey: null,
+    templateVersion: null,
+    definition: MANUAL_FICHE_DEFINITION,
+    chatLinkIds,
     data: validated.value,
   });
 }

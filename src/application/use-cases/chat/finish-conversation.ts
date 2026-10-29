@@ -149,8 +149,9 @@ function assertNamedConversation(link: ChatLink, conversation: Conversation): vo
 }
 
 type FicheBuildMeta = {
-  templateKey: string;
-  templateVersion: number;
+  templateKey: string | null;
+  templateVersion: number | null;
+  definition: TemplateDefinition;
   configId?: string | null;
   ficheKey?: string | null;
   ficheInstanceKey?: string | null;
@@ -281,6 +282,8 @@ async function buildFicheForDefinition(
     createdBy,
     templateKey: meta.templateKey,
     templateVersion: meta.templateVersion,
+    definition: meta.definition,
+    chatLinkIds: [link.id],
     data: validated.value,
     ...(meta.configId === undefined ? {} : { configId: meta.configId }),
     ...(meta.ficheKey === undefined ? {} : { ficheKey: meta.ficheKey }),
@@ -350,7 +353,11 @@ export async function buildFicheFromConversation(
       conversation,
       link,
       template.definition,
-      { templateKey: link.templateKey, templateVersion: link.templateVersion },
+      {
+        templateKey: link.templateKey,
+        templateVersion: link.templateVersion,
+        definition: template.definition,
+      },
       createdBy,
     );
     return {
@@ -564,8 +571,9 @@ async function finishConfigConversation(
         link,
         definition,
         {
-          templateKey: link.templateKey,
-          templateVersion: link.templateVersion,
+          templateKey: null,
+          templateVersion: null,
+          definition,
           configId: config.id,
           ficheKey: ficheDefinition.key,
           ficheInstanceKey: instance.instanceKey,
