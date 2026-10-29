@@ -5757,6 +5757,8 @@ a.subtab {
 }
 
 .chatbot-card .action-menu-panel {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
   z-index: 45;
 }
 
