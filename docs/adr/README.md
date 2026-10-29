@@ -50,3 +50,7 @@ ADR qui remplace la précédente.
 | [0047](./0047-extraction-structuree-multi-fournisseurs.md) | Extraction structurée multi-fournisseurs — capacités, raisonnement et fallback | Accepté |
 | [0048](./0048-quotas-chatbot.md) | Quotas par chatbot — fiches à vie et budget de tokens | Accepté |
 | [0049](./0049-configuration-chatbot-fiches-collecte.md) | Configuration du chatbot, fiches de collecte et conversations 0..N fiches | Accepté |
+| [0050](./0050-fiches-collecte-reutilisables-versionnees.md) | Fiches de collecte réutilisables et versionnées | Accepté |
+| [0051](./0051-brouillons-persistants-creation-chatbot.md) | Brouillons persistants de création de chatbot | Accepté |
+| [0052](./0052-selection-donnees-globales-chatbot.md) | Sélection des données globales par configuration chatbot | Accepté |
+| [0053](./0053-sauvegarde-obligatoire-nettoyage-controle.md) | Sauvegarde obligatoire et nettoyage contrôlé des données | Accepté |
