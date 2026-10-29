@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chatbotDataDraftCount,
+  selectableDataForChatbot,
   validateConnaissanceDraft,
   validateLienDraft,
   validatePhotoDraft,
@@ -23,6 +24,19 @@ describe("brouillons de données du wizard", () => {
       }),
     ).toBe(3);
     expect(chatbotDataDraftCount({ connaissances: [], liens: [], photos: [] })).toBe(0);
+  });
+
+  it("ne propose que les données globales (création) ou déjà scopées au chatbot (édition)", () => {
+    const items = [
+      { id: "global", chatLinkIds: [] },
+      { id: "mine", chatLinkIds: ["chat-1"] },
+      { id: "other", chatLinkIds: ["chat-2"] },
+    ];
+    expect(selectableDataForChatbot(items).map((item) => item.id)).toEqual(["global"]);
+    expect(selectableDataForChatbot(items, "chat-1").map((item) => item.id)).toEqual([
+      "global",
+      "mine",
+    ]);
   });
 
   it("valide une connaissance (titre + contenu obligatoires)", () => {

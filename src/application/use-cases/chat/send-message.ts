@@ -20,6 +20,10 @@ import {
   resolveCurrentConfig,
 } from "@/application/use-cases/chat/chatbot-config-runtime";
 import {
+  listRuntimeConnaissances,
+  listRuntimeMedias,
+} from "@/application/use-cases/chat/chatbot-data-runtime";
+import {
   applyFicheDetection,
   detectFicheInstances,
   ensureMonoFicheInstance,
@@ -38,6 +42,7 @@ import type {
   ConversationInterventionMode,
 } from "@/domain/entities/chat";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
+import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
 import { languageReminder } from "@/domain/template-settings";
@@ -96,25 +101,23 @@ function parseAttachmentIds(value: unknown): string[] {
   return ids;
 }
 
-/** Sources média actives et non vides pour ce lien (organisation du lien). */
+/** Sources média actives et non vides pour ce lien (sélection runtime incluse). */
 async function hasEligibleMedia(
   deps: SendMessageDependencies,
   organizationId: string,
   link: ChatLink,
-  configOnly: boolean,
+  config: ChatbotConfig | null,
 ): Promise<boolean> {
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
   if (!wantsPhotos && !wantsLiens) return false;
-  const load = async (type: "photo" | "lien") => {
-    if (configOnly && deps.medias.listActivesByTypeForChatLink !== undefined) {
-      return deps.medias.listActivesByTypeForChatLink(organizationId, type, link.id);
-    }
-    return deps.medias.listActivesByType(organizationId, type, link.templateKey);
-  };
   const [photos, liens] = await Promise.all([
-    wantsPhotos ? load("photo") : Promise.resolve([]),
-    wantsLiens ? load("lien") : Promise.resolve([]),
+    wantsPhotos
+      ? listRuntimeMedias(deps, organizationId, link, "photo", config)
+      : Promise.resolve([]),
+    wantsLiens
+      ? listRuntimeMedias(deps, organizationId, link, "lien", config)
+      : Promise.resolve([]),
   ]);
   return photos.length > 0 || liens.length > 0;
 }
@@ -352,10 +355,7 @@ export async function sendMessage(
 ${attachmentContext}`;
   let connaissances: ConnaissanceRef[] = [];
   if (link.sources.connaissances) {
-    const actives =
-      config !== null && deps.connaissances.listActivesForChatLink !== undefined
-        ? await deps.connaissances.listActivesForChatLink(organizationId, link.id)
-        : await deps.connaissances.listActives(organizationId, link.templateKey);
+    const actives = await listRuntimeConnaissances(deps, organizationId, link, config);
     const utiles = await selectConnaissancesUtiles(
       { ai: withAiUsage(ai, recordUsage, "knowledge_selection") },
       actives,
@@ -410,7 +410,7 @@ ${attachmentContext}`;
     "assistant",
     answer,
   );
-  const mediaPending = await hasEligibleMedia(deps, organizationId, link, config !== null);
+  const mediaPending = await hasEligibleMedia(deps, organizationId, link, config);
   return {
     organizationId,
     userMessage,

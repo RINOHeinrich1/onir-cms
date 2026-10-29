@@ -33,6 +33,7 @@ const BASE_CONFIG: ChatbotConfig = {
     extraInstructions: "Toujours proposer un rendez-vous.",
   },
   fiches: [FICHE],
+  dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
   createdBy: null,
   createdAt: new Date(0).toISOString(),
 };
@@ -88,6 +89,26 @@ describe("modes de comportement du chatbot", () => {
     expect(definition.systemPrompt).not.toContain("assistant commercial");
     expect(definition.systemPrompt).not.toContain("Ne pas promettre de prix.");
     expect(definition.systemPrompt).toContain("INSTRUCTION-FICHE");
+  });
+
+  it("normalise la sélection de données et refuse un mode inconnu", () => {
+    const parsed = parseChatbotConfig(
+      payload({
+        dataSelection: { mode: "selected", connaissanceIds: ["a", "a", " b "], mediaIds: ["m"] },
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.dataSelection).toEqual({
+      mode: "selected",
+      connaissanceIds: ["a", "b"],
+      mediaIds: ["m"],
+    });
+
+    const invalid = parseChatbotConfig(payload({ dataSelection: { mode: "autre" } }));
+    expect(invalid.ok).toBe(false);
+    if (invalid.ok) return;
+    expect(invalid.errors.join(" ")).toContain("Mode de sélection invalide");
   });
 
   it("refuse un mode de comportement inconnu", () => {

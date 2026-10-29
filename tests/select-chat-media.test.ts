@@ -102,6 +102,7 @@ function build(options: {
   aiAnswer?: string;
   aiThrows?: boolean;
   configOnly?: boolean;
+  dataSelection?: { mode: "all" | "selected"; connaissanceIds: string[]; mediaIds: string[] };
 }) {
   const message = options.message ?? assistant();
   const photos = options.photos ?? [media("p1", "photo", "Réalisation e-commerce")];
@@ -119,6 +120,9 @@ function build(options: {
   const listActivesByTypeForChatLink = vi.fn(async (_organizationId: string, type: TypeMedia) =>
     type === "photo" ? photos : liens,
   );
+  const listActivesByTypeForChatLinkSelection = vi.fn(
+    async (_organizationId: string, type: TypeMedia) => (type === "photo" ? photos : liens),
+  );
 
   const links = {
     findById: async () => ({
@@ -127,7 +131,16 @@ function build(options: {
     }),
   } as unknown as ChatLinkRepository;
   const configs = options.configOnly
-    ? ({ findById: async () => ({ id: "cfg-1" }) } as unknown as ChatbotConfigRepository)
+    ? ({
+        findById: async () => ({
+          id: "cfg-1",
+          dataSelection: options.dataSelection ?? {
+            mode: "all",
+            connaissanceIds: [],
+            mediaIds: [],
+          },
+        }),
+      } as unknown as ChatbotConfigRepository)
     : undefined;
   const conversations = {
     findByIdPublic: async () => ({
@@ -147,6 +160,7 @@ function build(options: {
   const mediasRepo = {
     listActivesByType,
     listActivesByTypeForChatLink,
+    listActivesByTypeForChatLinkSelection,
   } as unknown as MediaRepository;
   const organizations = {
     findById: async () => ({
@@ -176,6 +190,7 @@ function build(options: {
     setMessageMedias,
     listActivesByType,
     listActivesByTypeForChatLink,
+    listActivesByTypeForChatLinkSelection,
   };
 }
 
@@ -240,6 +255,21 @@ describe("selectChatMedia — mini-RAG médias asynchrone", () => {
     expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "photo", "l1");
     expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "lien", "l1");
     expect(listActivesByType).not.toHaveBeenCalled();
+  });
+
+  it("runtime selected : ne charge que les globaux sélectionnés (+ scopés)", async () => {
+    const { deps, listActivesByTypeForChatLink, listActivesByTypeForChatLinkSelection } = build({
+      configOnly: true,
+      dataSelection: { mode: "selected", connaissanceIds: [], mediaIds: ["p1"] },
+    });
+    await selectChatMedia(deps, { conversationId: "c1", messageId: "m2" });
+    expect(listActivesByTypeForChatLinkSelection).toHaveBeenCalledWith("org-1", "photo", "l1", [
+      "p1",
+    ]);
+    expect(listActivesByTypeForChatLinkSelection).toHaveBeenCalledWith("org-1", "lien", "l1", [
+      "p1",
+    ]);
+    expect(listActivesByTypeForChatLink).not.toHaveBeenCalled();
   });
 
   it("échec silencieux : panne IA => aucun média, mais résultat mémorisé", async () => {

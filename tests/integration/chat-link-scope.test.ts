@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Media } from "@/domain/entities/media";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { makeOrganization, setupDb } from "./helpers/db";
@@ -107,5 +108,95 @@ describe("portée par chatbot — médias", () => {
     expect(photosB).toEqual(["photo globale"]);
     expect(liensA?.sort()).toEqual(["lien chat-a", "lien globale"]);
     expect(liensB).toEqual(["lien globale"]);
+  });
+});
+
+describe("sélection explicite des données globales", () => {
+  it("ne retient que les globales sélectionnées + les données scopées au chatbot", async () => {
+    const repo = pgConnaissanceRepository(pool);
+    const selectionGlobale = await repo.create(orgId, {
+      titre: "Sélection globale",
+      contenu: "A",
+      chatLinkIds: [],
+      createdBy: null,
+    });
+    const globaleExclue = await repo.create(orgId, {
+      titre: "Globale exclue",
+      contenu: "B",
+      chatLinkIds: [],
+      createdBy: null,
+    });
+    await repo.create(orgId, {
+      titre: "Scopée A",
+      contenu: "C",
+      chatLinkIds: [CHAT_A],
+      createdBy: null,
+    });
+    const scopeeB = await repo.create(orgId, {
+      titre: "Scopée B",
+      contenu: "D",
+      chatLinkIds: [CHAT_B],
+      createdBy: null,
+    });
+
+    const avant = (await repo.list(orgId)).map((row) => row.id).sort();
+    const selection = await repo.listActivesForChatLinkSelection?.(orgId, CHAT_A, [
+      selectionGlobale.id,
+      scopeeB.id,
+    ]);
+    const apres = (await repo.list(orgId)).map((row) => row.id).sort();
+
+    expect(selection?.map((row) => row.titre).sort()).toEqual(["Scopée A", "Sélection globale"]);
+    expect(selection?.some((row) => row.id === globaleExclue.id)).toBe(false);
+    expect(selection?.some((row) => row.id === scopeeB.id)).toBe(false);
+    expect(apres).toEqual(avant);
+  });
+
+  it("applique la même sélection aux photos et aux liens", async () => {
+    const repo = pgMediaRepository(pool);
+    const photos: Media[] = [];
+    const liens: Media[] = [];
+    for (const type of ["photo", "lien"] as const) {
+      const selected = await repo.create(orgId, {
+        type,
+        libelle: `${type} sélectionnée`,
+        description: "",
+        chatLinkIds: [],
+        actif: true,
+        fichier: type === "photo" ? "selected.png" : null,
+        mime: type === "photo" ? "image/png" : null,
+        url: type === "lien" ? "https://onirtech.com/selected" : null,
+        createdBy: null,
+      });
+      await repo.create(orgId, {
+        type,
+        libelle: `${type} exclue`,
+        description: "",
+        chatLinkIds: [],
+        actif: true,
+        fichier: type === "photo" ? "excluded.png" : null,
+        mime: type === "photo" ? "image/png" : null,
+        url: type === "lien" ? "https://onirtech.com/excluded" : null,
+        createdBy: null,
+      });
+      if (type === "photo") photos.push(selected);
+      else liens.push(selected);
+    }
+
+    const photosSelection = await repo.listActivesByTypeForChatLinkSelection?.(
+      orgId,
+      "photo",
+      CHAT_A,
+      photos.map((row) => row.id),
+    );
+    const liensSelection = await repo.listActivesByTypeForChatLinkSelection?.(
+      orgId,
+      "lien",
+      CHAT_A,
+      liens.map((row) => row.id),
+    );
+
+    expect(photosSelection?.map((row) => row.libelle)).toEqual(["photo sélectionnée"]);
+    expect(liensSelection?.map((row) => row.libelle)).toEqual(["lien sélectionnée"]);
   });
 });

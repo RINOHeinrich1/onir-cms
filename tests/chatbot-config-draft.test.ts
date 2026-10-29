@@ -44,6 +44,31 @@ describe("brouillon de configuration chatbot", () => {
     expect(String(payload.systemPrompt)).toContain("Tu es assistant test.");
   });
 
+  it("expose par défaut la sélection globale complète", () => {
+    const draft = defaultChatbotConfigDraft();
+    expect(draft.dataSelection).toEqual({ mode: "all", connaissanceIds: [], mediaIds: [] });
+    expect(chatbotConfigPayload(draft).dataSelection).toEqual(draft.dataSelection);
+  });
+
+  it("recharge et renvoie une sélection personnalisée", () => {
+    const draft = draftFromConfig({
+      ...chatbotConfigPayload(defaultChatbotConfigDraft()),
+      dataSelection: {
+        mode: "selected",
+        connaissanceIds: ["k1", "k1", " k2 "],
+        mediaIds: ["m1"],
+      },
+    });
+    expect(draft?.dataSelection).toEqual({
+      mode: "selected",
+      connaissanceIds: ["k1", "k2"],
+      mediaIds: ["m1"],
+    });
+    expect(chatbotConfigPayload(draft ?? defaultChatbotConfigDraft()).dataSelection).toEqual(
+      draft?.dataSelection,
+    );
+  });
+
   it("en mode expert, conserve le prompt saisi comme source", () => {
     const draft = defaultChatbotConfigDraft();
     draft.behaviorMode = "expert";

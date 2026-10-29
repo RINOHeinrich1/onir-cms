@@ -7,8 +7,11 @@ import type {
 import {
   buildGuidedChatbotPrompt,
   type ChatbotBehaviorMode,
+  type ChatbotDataSelection,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  defaultChatbotDataSelection,
   isChatbotBehaviorMode,
+  parseChatbotDataSelection,
 } from "@/domain/entities/chatbot-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
@@ -55,6 +58,7 @@ export type ChatbotConfigDraft = {
     extraInstructions: string;
   };
   fiches: FicheDraft[];
+  dataSelection: ChatbotDataSelection;
 };
 
 function newId(): string {
@@ -113,6 +117,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
       extraInstructions: "",
     },
     fiches: [],
+    dataSelection: defaultChatbotDataSelection(),
   };
 }
 
@@ -178,6 +183,7 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
         ? {}
         : { sourceFicheId: fiche.sourceFicheId, sourceVersion: fiche.sourceVersion ?? null }),
     })),
+    dataSelection: draft.dataSelection,
   };
 }
 
@@ -267,6 +273,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           .map((entry) => entry.trim())
           .filter((entry) => entry !== "")
       : [];
+  const dataSelection = parseChatbotDataSelection(raw.dataSelection);
   return {
     behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
       ? raw.behaviorMode
@@ -283,6 +290,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
         typeof simpleRaw.extraInstructions === "string" ? simpleRaw.extraInstructions : "",
     },
     fiches: fiches.length === 0 ? [emptyFiche(0)] : fiches,
+    dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
   };
 }
 

@@ -173,3 +173,19 @@ export async function submitChatbotDataDraft(
 
   return { created, failures };
 }
+
+/**
+ * Données proposées à la sélection : globales + (édition seulement) celles déjà
+ * scopées au chatbot courant. Les données scopées à un autre chatbot ne sont
+ * jamais proposées, pour éviter un partage silencieux.
+ */
+export function selectableDataForChatbot<T extends { chatLinkIds: string[] }>(
+  items: T[],
+  chatLinkId?: string | null,
+): T[] {
+  const current = chatLinkId?.trim() ?? "";
+  return items.filter(
+    (item) =>
+      item.chatLinkIds.length === 0 || (current !== "" && item.chatLinkIds.includes(current)),
+  );
+}

@@ -47,6 +47,65 @@ export type FicheDefinition = {
   sourceVersion?: number;
 };
 
+/** Mode de sélection des données globales utilisées par le chatbot. */
+export type ChatbotDataSelectionMode = "all" | "selected";
+
+export type ChatbotDataSelection = {
+  /** `all` : toutes les données globales ; `selected` : sous-ensemble explicite. */
+  mode: ChatbotDataSelectionMode;
+  /** Identifiants des connaissances globales explicitement sélectionnées. */
+  connaissanceIds: string[];
+  /** Identifiants des médias globaux (photos et liens) explicitement sélectionnés. */
+  mediaIds: string[];
+};
+
+export const MAX_DATA_SELECTION_IDS = 2000;
+
+/** Sélection par défaut : toutes les données globales, sans restriction. */
+export function defaultChatbotDataSelection(): ChatbotDataSelection {
+  return { mode: "all", connaissanceIds: [], mediaIds: [] };
+}
+
+function selectionIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const id = entry.trim();
+    if (id === "" || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    if (ids.length >= MAX_DATA_SELECTION_IDS) break;
+  }
+  return ids;
+}
+
+/** Normalise et valide le bloc `dataSelection` (défaut `all`). */
+export function parseChatbotDataSelection(
+  input: unknown,
+): { ok: true; value: ChatbotDataSelection } | { ok: false; error: string } {
+  if (input === undefined || input === null) {
+    return { ok: true, value: defaultChatbotDataSelection() };
+  }
+  if (typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Sélection de données invalide" };
+  }
+  const raw = input as Record<string, unknown>;
+  const mode = raw.mode;
+  if (mode !== undefined && mode !== "all" && mode !== "selected") {
+    return { ok: false, error: "Mode de sélection invalide (all ou selected)" };
+  }
+  return {
+    ok: true,
+    value: {
+      mode: mode === "selected" ? "selected" : "all",
+      connaissanceIds: selectionIds(raw.connaissanceIds),
+      mediaIds: selectionIds(raw.mediaIds),
+    },
+  };
+}
+
 export type ChatbotConfigInput = {
   /** Mode guidé (réglages simples) ou expert (prompt libre). */
   behaviorMode: ChatbotBehaviorMode;
@@ -54,6 +113,8 @@ export type ChatbotConfigInput = {
   systemPrompt: string;
   simple: TemplateSimpleSettings;
   fiches: FicheDefinition[];
+  /** Données globales autorisées au runtime (défaut : toutes). */
+  dataSelection: ChatbotDataSelection;
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
@@ -167,6 +228,8 @@ export function parseChatbotConfig(
       fiches.push(parsed.value);
     });
   }
+  const parsedSelection = parseChatbotDataSelection(raw.dataSelection);
+  if (!parsedSelection.ok) errors.push(parsedSelection.error);
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -175,6 +238,7 @@ export function parseChatbotConfig(
       systemPrompt,
       simple: simple as TemplateSimpleSettings,
       fiches,
+      dataSelection: parsedSelection.ok ? parsedSelection.value : defaultChatbotDataSelection(),
     },
   };
 }

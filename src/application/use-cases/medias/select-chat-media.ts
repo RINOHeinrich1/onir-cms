@@ -8,6 +8,7 @@ import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
+import { listRuntimeMedias } from "@/application/use-cases/chat/chatbot-data-runtime";
 import { type ChatMessageMedia, chatLinkBlockReason } from "@/domain/entities/chat";
 import type { Media } from "@/domain/entities/media";
 import { signedMediaUrl } from "@/lib/media-token";
@@ -117,13 +118,8 @@ export async function selectChatMedia(
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
   const config = await resolveCurrentConfig(deps.configs, organizationId, link);
-  const configOnly = config !== null && deps.medias.listActivesByTypeForChatLink !== undefined;
-  const load = async (type: "photo" | "lien"): Promise<Media[]> => {
-    if (configOnly) {
-      return deps.medias.listActivesByTypeForChatLink?.(organizationId, type, link.id) ?? [];
-    }
-    return deps.medias.listActivesByType(organizationId, type, link.templateKey);
-  };
+  const load = (type: "photo" | "lien"): Promise<Media[]> =>
+    listRuntimeMedias(deps, organizationId, link, type, config);
   const [photos, liens] = await Promise.all([
     wantsPhotos ? load("photo") : Promise.resolve([]),
     wantsLiens ? load("lien") : Promise.resolve([]),

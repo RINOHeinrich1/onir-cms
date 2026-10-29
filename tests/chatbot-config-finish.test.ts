@@ -52,6 +52,7 @@ const CONFIG: ChatbotConfig = {
       instructions: "",
     },
   ],
+  dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
   createdBy: null,
   createdAt: new Date(0).toISOString(),
 };

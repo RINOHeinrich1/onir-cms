@@ -12,6 +12,7 @@ import {
 } from "@/domain/entities/chat";
 import { AiAssignmentField, type LinkAiValue } from "./AiAssignmentField";
 import { ChatbotConfigFields } from "./ChatbotConfigFields";
+import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -266,7 +267,27 @@ export function LinkEditModal({
 
             <CategoryPicker contentType="link" contentId={link.id} />
 
-            {config !== null ? <ChatbotConfigFields value={config} onChange={setConfig} /> : null}
+            {config !== null ? (
+              <>
+                <ChatbotConfigFields value={config} onChange={setConfig} />
+                <div className="chatbot-step-head">
+                  <h4>Données</h4>
+                  <p className="hint">
+                    Ajustez les données existantes utilisées par ce chatbot. Les données globales ne
+                    sont jamais modifiées.
+                  </p>
+                </div>
+                <ChatbotDataSelection
+                  selection={config.dataSelection}
+                  onChange={(dataSelection) =>
+                    setConfig((current) =>
+                      current === null ? current : { ...current, dataSelection },
+                    )
+                  }
+                  chatLinkId={link.id}
+                />
+              </>
+            ) : null}
 
             <SourcesField value={sources} onChange={setSources} />
 

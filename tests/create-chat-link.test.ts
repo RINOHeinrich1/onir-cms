@@ -359,6 +359,7 @@ describe("createChatLink — configuration autonome (ADR-0049)", () => {
         extraInstructions: "",
       },
       fiches: [],
+      dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
       createdBy: null,
       createdAt: new Date(0).toISOString(),
     };
@@ -380,6 +381,34 @@ describe("createChatLink — configuration autonome (ADR-0049)", () => {
     expect(link.templateKey).toBe("");
     expect(link.templateVersion).toBe(0);
     expect(link.currentConfigId).toBe("cfg-1");
+  });
+
+  it("transmet la sélection de données au stockage de configuration", async () => {
+    const createVersion = vi.fn(async () => {
+      throw new Error("arrêt après capture");
+    });
+    const base = configDeps(createVersion);
+    await expect(
+      createChatLink(base, ACTOR, {
+        type: "standard",
+        config: {
+          ...CONFIG_PAYLOAD,
+          dataSelection: {
+            mode: "selected",
+            connaissanceIds: ["k1"],
+            mediaIds: ["m1"],
+          },
+        },
+      }),
+    ).rejects.toThrow(/capture/);
+    expect(createVersion).toHaveBeenCalledWith(
+      "org-1",
+      "link-1",
+      expect.objectContaining({
+        dataSelection: { mode: "selected", connaissanceIds: ["k1"], mediaIds: ["m1"] },
+      }),
+      "admin-1",
+    );
   });
 
   it("compense (supprime le lien) si la création de configuration échoue", async () => {

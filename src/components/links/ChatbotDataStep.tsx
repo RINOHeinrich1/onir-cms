@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { ConnaissanceDto } from "@/components/connaissances/types";
-import type { MediaDto } from "@/components/medias/types";
+import { useState } from "react";
+import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
+import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import type {
   ChatbotDataDraft,
   ConnaissanceDraftInput,
@@ -16,80 +16,35 @@ import {
   validatePhotoDraft,
 } from "./chatbot-data-draft";
 
-type GlobalData = {
-  connaissances: ConnaissanceDto[];
-  photos: MediaDto[];
-  liens: MediaDto[];
-};
-
-const EMPTY_GLOBAL_DATA: GlobalData = { connaissances: [], photos: [], liens: [] };
-
 const CONNAISSANCE_FORM: ConnaissanceDraftInput = { titre: "", contenu: "" };
 const LIEN_FORM: LienDraftInput = { libelle: "", url: "", description: "" };
 type PhotoForm = { fichier: File | null; libelle: string; description: string };
 const PHOTO_FORM: PhotoForm = { fichier: null, libelle: "", description: "" };
 
 /**
- * Étape « Données » : les données globales existantes sont en lecture seule,
- * les ajouts sont des brouillons rattachés au chatbot après sa création.
+ * Étape « Données » : sélection des données existantes (globales en lecture
+ * seule) et ajouts en brouillon rattachés au chatbot après sa création.
  */
 export function ChatbotDataStep({
   value,
   onChange,
+  selection,
+  onSelectionChange,
   onGlobalCountsChange,
+  chatLinkId,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
+  selection: ChatbotDataSelectionValue;
+  onSelectionChange: (next: ChatbotDataSelectionValue) => void;
   onGlobalCountsChange?: (counts: { connaissances: number; photos: number; liens: number }) => void;
+  chatLinkId?: string | null;
 }) {
-  const [global, setGlobal] = useState<GlobalData>(EMPTY_GLOBAL_DATA);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [mode, setMode] = useState<"none" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
   const [connaissance, setConnaissance] = useState<ConnaissanceDraftInput>(CONNAISSANCE_FORM);
   const [lien, setLien] = useState<LienDraftInput>(LIEN_FORM);
   const [photo, setPhoto] = useState<PhotoForm>(PHOTO_FORM);
-
-  const loadGlobal = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [connaissancesResponse, mediasResponse] = await Promise.all([
-        fetch("/api/connaissances", { cache: "no-store" }),
-        fetch("/api/medias", { cache: "no-store" }),
-      ]);
-      if (!connaissancesResponse.ok || !mediasResponse.ok) {
-        throw new Error("Chargement impossible");
-      }
-      const connaissancesJson = (await connaissancesResponse.json()) as {
-        connaissances?: ConnaissanceDto[];
-      };
-      const mediasJson = (await mediasResponse.json()) as { medias?: MediaDto[] };
-      const medias = mediasJson.medias ?? [];
-      const globalOnly = <T extends { chatLinkIds: string[] }>(items: T[]): T[] =>
-        items.filter((item) => item.chatLinkIds.length === 0);
-      const nextGlobal = {
-        connaissances: globalOnly(connaissancesJson.connaissances ?? []),
-        photos: globalOnly(medias.filter((media) => media.type === "photo")),
-        liens: globalOnly(medias.filter((media) => media.type === "lien")),
-      };
-      setGlobal(nextGlobal);
-      onGlobalCountsChange?.({
-        connaissances: nextGlobal.connaissances.length,
-        photos: nextGlobal.photos.length,
-        liens: nextGlobal.liens.length,
-      });
-    } catch {
-      setLoadError("Impossible de charger les données globales.");
-    } finally {
-      setLoading(false);
-    }
-  }, [onGlobalCountsChange]);
-
-  useEffect(() => {
-    void loadGlobal();
-  }, [loadGlobal]);
 
   const resetForms = (): void => {
     setConnaissance(CONNAISSANCE_FORM);
@@ -176,42 +131,19 @@ export function ChatbotDataStep({
     <section className="chatbot-data-step">
       <div className="chatbot-data-globals">
         <div className="chatbot-step-head">
-          <h4>Données globales</h4>
+          <h4>Données existantes</h4>
           <p className="hint">
-            Accessibles à tous les chatbots et en lecture seule ici. Utilisez « Gérer les données »
-            pour les modifier.
+            Lecture seule : sélectionnez les données globales accessibles à ce chatbot. Leur portée
+            n’est jamais modifiée. Utilisez « Gérer les données » pour les éditer.
           </p>
         </div>
 
-        {loading ? <p className="hint">Chargement des données…</p> : null}
-        {loadError !== null ? (
-          <div className="alert error">
-            {loadError}{" "}
-            <button type="button" className="btn ghost small" onClick={() => void loadGlobal()}>
-              Réessayer
-            </button>
-          </div>
-        ) : null}
-
-        {!loading && loadError === null ? (
-          <div className="chatbot-data-global-grid">
-            <GlobalCard
-              title="Connaissances"
-              count={global.connaissances.length}
-              items={global.connaissances.slice(0, 4).map((item) => item.titre)}
-            />
-            <GlobalCard
-              title="Photothèque"
-              count={global.photos.length}
-              items={global.photos.slice(0, 4).map((item) => item.libelle)}
-            />
-            <GlobalCard
-              title="Liens"
-              count={global.liens.length}
-              items={global.liens.slice(0, 4).map((item) => item.libelle)}
-            />
-          </div>
-        ) : null}
+        <ChatbotDataSelection
+          selection={selection}
+          onChange={onSelectionChange}
+          chatLinkId={chatLinkId}
+          onCountsChange={onGlobalCountsChange}
+        />
 
         <div className="tools">
           <a className="btn ghost small" href="/connaissances" target="_blank" rel="noreferrer">
@@ -224,7 +156,7 @@ export function ChatbotDataStep({
       </div>
 
       <div className="chatbot-step-head">
-        <h4>Ajouter des données à ce chatbot ({total})</h4>
+        <h4>Ajouts pour ce chatbot ({total})</h4>
         <p className="hint">
           Ces ajouts seront rattachés au chatbot en cours de création. Ils ne modifient pas les
           données globales.
@@ -424,26 +356,5 @@ export function ChatbotDataStep({
         </ul>
       )}
     </section>
-  );
-}
-
-function GlobalCard({ title, count, items }: { title: string; count: number; items: string[] }) {
-  return (
-    <div className="chatbot-data-global-card">
-      <div className="chatbot-data-global-head">
-        <strong>{title}</strong>
-        <span className="badge muted">{count}</span>
-      </div>
-      {items.length === 0 ? (
-        <span className="hint">Aucune donnée globale.</span>
-      ) : (
-        <ul>
-          {items.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      )}
-      {count > items.length ? <span className="hint">+{count - items.length} autre(s)</span> : null}
-    </div>
   );
 }

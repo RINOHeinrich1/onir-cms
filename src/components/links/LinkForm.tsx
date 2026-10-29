@@ -386,6 +386,10 @@ export function LinkForm({
             <ChatbotDataStep
               value={dataDraft}
               onChange={setDataDraft}
+              selection={config.dataSelection}
+              onSelectionChange={(dataSelection) =>
+                setConfig((current) => ({ ...current, dataSelection }))
+              }
               onGlobalCountsChange={setGlobalDataCounts}
             />
           </section>
@@ -489,9 +493,11 @@ export function LinkForm({
                       .filter((entry) => entry !== "")
                       .join(" · ")}
               </dd>
-              <dt>Données globales</dt>
+              <dt>Données existantes</dt>
               <dd>
-                {`${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s) (lecture seule)`}
+                {config.dataSelection.mode === "all"
+                  ? `Toutes les données globales (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
+                  : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} média(s) sélectionné(s) + données déjà rattachées`}
               </dd>
               <dt>Canaux</dt>
               <dd>
@@ -514,9 +520,10 @@ export function LinkForm({
                 Au moins une fiche de collecte
               </li>
               <li className="ok">
-                {pendingDataCount === 0
-                  ? "Données globales seules"
-                  : `${pendingDataCount} donnée(s) rattachée(s) au chatbot`}
+                {config.dataSelection.mode === "all"
+                  ? "Toutes les données globales"
+                  : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} donnée(s) existante(s) sélectionnée(s)`}
+                {pendingDataCount === 0 ? "" : ` · ${pendingDataCount} ajout(s) pour ce chatbot`}
               </li>
               <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
                 Au moins un canal de diffusion

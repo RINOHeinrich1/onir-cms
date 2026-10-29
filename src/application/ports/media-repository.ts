@@ -42,6 +42,16 @@ export interface MediaRepository {
     type: TypeMedia,
     chatLinkId: string,
   ): Promise<Media[]>;
+  /**
+   * Mode `selected` : médias globaux explicitement sélectionnés + médias déjà
+   * scopés à ce chatbot. Les globaux non sélectionnés sont exclus.
+   */
+  listActivesByTypeForChatLinkSelection?(
+    organizationId: string,
+    type: TypeMedia,
+    chatLinkId: string,
+    globalIds: string[],
+  ): Promise<Media[]>;
   create(organizationId: string, input: CreateMediaInput): Promise<Media>;
   update(organizationId: string, id: string, patch: UpdateMediaInput): Promise<Media | null>;
   delete(organizationId: string, id: string): Promise<boolean>;

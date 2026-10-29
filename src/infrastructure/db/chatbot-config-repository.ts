@@ -6,6 +6,7 @@ import {
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
   type FicheDefinition,
   isChatbotBehaviorMode,
+  parseChatbotDataSelection,
 } from "@/domain/entities/chatbot-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
@@ -18,12 +19,13 @@ type Row = {
   system_prompt: string;
   simple_settings: unknown;
   fiche_definitions: unknown;
+  data_selection: unknown;
   created_by: string | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, created_by, created_at";
+  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, created_by, created_at";
 
 function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -41,6 +43,10 @@ function toConfig(row: Row): ChatbotConfig {
   if (!Array.isArray(row.fiche_definitions)) {
     throw new Error(`Configuration ${row.id} invalide : fiches de collecte illisibles`);
   }
+  const dataSelection = parseChatbotDataSelection(row.data_selection);
+  if (!dataSelection.ok) {
+    throw new Error(`Configuration ${row.id} invalide : sélection de données illisible`);
+  }
   return {
     id: row.id,
     organizationId: row.organization_id,
@@ -50,6 +56,7 @@ function toConfig(row: Row): ChatbotConfig {
     systemPrompt: row.system_prompt,
     simple: simple satisfies TemplateSimpleSettings,
     fiches: row.fiche_definitions as FicheDefinition[],
+    dataSelection: dataSelection.value,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
   };
@@ -104,8 +111,8 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO chatbot_configs
              (organization_id, chat_link_id, version, system_prompt, simple_settings,
-              fiche_definitions, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+              fiche_definitions, data_selection, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -114,6 +121,7 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             input.systemPrompt,
             JSON.stringify({ ...input.simple, behaviorMode: input.behaviorMode }),
             JSON.stringify(input.fiches),
+            JSON.stringify(input.dataSelection),
             createdBy,
           ],
         );
