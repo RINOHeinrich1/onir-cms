@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
-import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { ChatLinkPicker } from "@/components/ui/ChatLinkPicker";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ConnaissanceDto } from "./types";
 
@@ -20,11 +20,11 @@ export function ConnaissanceForm({ editing, onSaved, onCancel }: ConnaissanceFor
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
-  const [templateKeys, setTemplateKeys] = useState<string[]>([]);
+  const [chatLinkIds, setChatLinkIds] = useState<string[]>([]);
 
   useEffect(() => {
     setActif(editing?.actif ?? true);
-    setTemplateKeys(editing?.templateKeys ?? []);
+    setChatLinkIds(editing?.chatLinkIds ?? []);
     setError(null);
   }, [editing]);
 
@@ -34,7 +34,7 @@ export function ConnaissanceForm({ editing, onSaved, onCancel }: ConnaissanceFor
     const payload = {
       titre: String(data.get("titre") ?? ""),
       contenu: String(data.get("contenu") ?? ""),
-      templateKeys,
+      chatLinkIds,
       actif,
     };
 
@@ -84,8 +84,8 @@ export function ConnaissanceForm({ editing, onSaved, onCancel }: ConnaissanceFor
 
       <div className="grid-2">
         <div className="field">
-          <span>Portée (vide = globale)</span>
-          <TemplateKeyPicker value={templateKeys} onChange={setTemplateKeys} />
+          <span>Portée : chatbots</span>
+          <ChatLinkPicker value={chatLinkIds} onChange={setChatLinkIds} />
         </div>
         <label className="check" style={{ alignSelf: "end" }}>
           <input

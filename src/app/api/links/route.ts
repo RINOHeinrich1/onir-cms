@@ -9,6 +9,7 @@ import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-reposi
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
@@ -62,6 +63,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         linkDataBindings: pgLinkDataBindingRepository(pool),
         aiProviders: pgAiProviderRepository(pool),
         aiModels: pgAiProviderModelRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
       },
       actor,
       body,

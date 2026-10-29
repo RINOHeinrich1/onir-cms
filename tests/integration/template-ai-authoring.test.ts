@@ -78,7 +78,8 @@ describe("template-ai authoring (ADR-0038)", () => {
     await connaissances.create(orgId, {
       titre: "Manuel",
       contenu: "À conserver",
-      templateKeys: ["ai-modele"],
+      chatLinkIds: [],
+      legacyTemplateKeys: ["ai-modele"],
       createdBy: null,
     });
 

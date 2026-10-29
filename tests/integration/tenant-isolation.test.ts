@@ -367,7 +367,7 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
       type: "lien",
       libelle: "Partagé",
       description: "",
-      templateKeys: [],
+      chatLinkIds: [],
       actif: true,
       fichier: null,
       mime: null,
@@ -378,7 +378,7 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
       type: "lien",
       libelle: "Partagé",
       description: "",
-      templateKeys: [],
+      chatLinkIds: [],
       actif: true,
       fichier: null,
       mime: null,
@@ -395,7 +395,7 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
         type: "lien",
         libelle: "Partagé",
         description: "",
-        templateKeys: [],
+        chatLinkIds: [],
         actif: true,
         fichier: null,
         mime: null,
@@ -412,13 +412,13 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
     const ca = await connaissances.create(orgA, {
       titre: "Tarifs",
       contenu: "A",
-      templateKeys: [],
+      chatLinkIds: [],
       createdBy: null,
     });
     const cb = await connaissances.create(orgB, {
       titre: "Tarifs",
       contenu: "B",
-      templateKeys: [],
+      chatLinkIds: [],
       createdBy: null,
     });
     expect((await connaissances.findByTitre(orgA, "Tarifs"))?.id).toBe(ca.id);
@@ -427,7 +427,7 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
       connaissances.create(orgA, {
         titre: "Tarifs",
         contenu: "doublon",
-        templateKeys: [],
+        chatLinkIds: [],
         createdBy: null,
       }),
     ).rejects.toThrow();

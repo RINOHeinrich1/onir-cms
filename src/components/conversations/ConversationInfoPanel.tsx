@@ -1,15 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import type { FicheInstanceStatus } from "@/domain/entities/conversation-fiche-instance";
 import type {
+  ConversationFicheView,
   ConversationFieldsView,
   ConversationFieldView,
 } from "@/domain/entities/conversation-field";
 
 export const OPEN_CONVERSATION_INFO_EVENT = "conversation-info-open";
 
-type SaveState = { fieldName: string; status: "saving" | "saved" | "error" } | null;
+type SaveState = { key: string; status: "saving" | "saved" | "error" } | null;
+
+const STATUS_LABELS: Record<FicheInstanceStatus, string> = {
+  detected: "Détectée",
+  active: "Active",
+  paused: "En pause",
+  complete: "Complète",
+  abandoned: "Abandonnée",
+};
 
 function sourceLabel(source: ConversationFieldView["source"]): string {
   if (source === "manual") return "Manuel";
@@ -193,18 +203,104 @@ function FieldEditor({
   );
 }
 
+function FicheSection({
+  fiche,
+  canEdit,
+  saveState,
+  onSave,
+}: {
+  fiche: ConversationFicheView;
+  canEdit: boolean;
+  saveState: SaveState;
+  onSave: (instanceId: string | null, fieldName: string, value: unknown) => Promise<boolean>;
+}) {
+  const mandatory = fiche.fields.filter((field) => field.requiredNow);
+  const optional = fiche.fields.filter((field) => !field.requiredNow);
+  const key = (fieldName: string): string => `${fiche.instanceId ?? fiche.ficheKey}:${fieldName}`;
+
+  const renderField = (field: ConversationFieldView): ReactNode => {
+    const fieldKey = key(field.name);
+    return (
+      <div key={fieldKey} className={`info-field ${field.missing ? "is-missing" : ""}`}>
+        <div className="info-field-head">
+          <span className="info-field-label">
+            {field.label}
+            {field.requiredNow ? <span className="required-mark"> *</span> : null}
+          </span>
+          <span className={`info-source ${field.source ?? "empty"}`}>
+            {field.missing ? "Manquant" : sourceLabel(field.source)}
+          </span>
+        </div>
+        <FieldEditor
+          field={field}
+          fields={fiche.fields}
+          canEdit={canEdit}
+          saving={saveState?.key === fieldKey && saveState.status === "saving"}
+          onSave={(fieldName, value) => onSave(fiche.instanceId, fieldName, value)}
+        />
+        {saveState?.key === fieldKey && saveState.status === "saved" ? (
+          <span className="info-saved">Enregistré</span>
+        ) : null}
+      </div>
+    );
+  };
+
+  return (
+    <section className="info-section">
+      <div className="info-field-head">
+        <h3>
+          {fiche.label}{" "}
+          <span className={`badge ${fiche.status === "active" ? "" : "muted"}`}>
+            {STATUS_LABELS[fiche.status]}
+          </span>
+        </h3>
+        <span className={fiche.requiredMissing > 0 ? "info-missing" : "info-complete"}>
+          {fiche.requiredCollected}/{fiche.requiredTotal} obligatoires
+        </span>
+      </div>
+      {mandatory.length > 0 ? (
+        <>
+          <h4 className="hint">Obligatoires</h4>
+          {mandatory.map(renderField)}
+        </>
+      ) : null}
+      {optional.length > 0 ? (
+        <>
+          <h4 className="hint">Facultatives</h4>
+          {optional.map(renderField)}
+        </>
+      ) : null}
+      {fiche.fields.length === 0 ? (
+        <p className="hint">Cette fiche ne déclare aucun champ.</p>
+      ) : null}
+    </section>
+  );
+}
+
 /**
- * Panneau responsive des informations à collecter (ADR-0045).
- * Édition manuelle, compteur d'obligatoires manquants et analyse IA à la demande.
+ * Panneau responsive des informations à collecter (ADR-0045 / ADR-0049).
+ * Gère les conversations multi-fiches : une section par instance, sans
+ * mélange des champs entre fiches.
  */
-export function ConversationInfoPanel({ conversationId }: { conversationId: string }) {
+export function ConversationInfoPanel({
+  conversationId,
+  showTrigger = true,
+}: {
+  conversationId: string;
+  showTrigger?: boolean;
+}) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<ConversationFieldsView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(null);
+  const [mounted, setMounted] = useState(false);
   const lastRefreshAttempt = useRef(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -214,7 +310,12 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
       );
       const json = (await response.json()) as ConversationFieldsView & { error?: string };
       if (!response.ok) {
-        setError(json.error ?? "Chargement des informations impossible");
+        setSnapshot(null);
+        setError(
+          response.status === 404
+            ? "Conversation introuvable ou supprimée."
+            : (json.error ?? "Chargement des informations impossible"),
+        );
         return;
       }
       setSnapshot(json);
@@ -229,9 +330,18 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
     setRefreshing(true);
     setError(null);
     try {
+      const active = snapshot?.fiches?.find((fiche) => fiche.status === "active");
       const response = await fetch(
         `/api/conversations/${encodeURIComponent(conversationId)}/fields/refresh`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            active?.instanceId === null || active?.instanceId === undefined
+              ? {}
+              : { ficheInstanceId: active.instanceId },
+          ),
+        },
       );
       const json = (await response.json()) as ConversationFieldsView & { error?: string };
       if (!response.ok) {
@@ -244,31 +354,39 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
     } finally {
       setRefreshing(false);
     }
-  }, [conversationId, refreshing]);
+  }, [conversationId, refreshing, snapshot]);
 
   const save = useCallback(
-    async (fieldName: string, value: unknown): Promise<boolean> => {
-      setSaveState({ fieldName, status: "saving" });
+    async (
+      instanceId: string | null,
+      fieldName: string,
+      value: unknown,
+      key: string,
+    ): Promise<boolean> => {
+      setSaveState({ key, status: "saving" });
       try {
         const response = await fetch(
           `/api/conversations/${encodeURIComponent(conversationId)}/fields`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ values: { [fieldName]: value } }),
+            body: JSON.stringify({
+              values: { [fieldName]: value },
+              ...(instanceId === null ? {} : { ficheInstanceId: instanceId }),
+            }),
           },
         );
         const json = (await response.json()) as ConversationFieldsView & { error?: string };
         if (!response.ok) {
-          setSaveState({ fieldName, status: "error" });
+          setSaveState({ key, status: "error" });
           toast.error(json.error ?? "Enregistrement impossible");
           return false;
         }
         setSnapshot(json);
-        setSaveState({ fieldName, status: "saved" });
+        setSaveState({ key, status: "saved" });
         return true;
       } catch {
-        setSaveState({ fieldName, status: "error" });
+        setSaveState({ key, status: "error" });
         toast.error("Enregistrement impossible");
         return false;
       }
@@ -306,28 +424,40 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
     void refresh();
   }, [open, snapshot, refreshing, refresh]);
 
-  const mandatory = useMemo(
+  const fiches = useMemo(() => snapshot?.fiches ?? [], [snapshot]);
+  const multi = fiches.length > 0;
+  const legacyMandatory = useMemo(
     () => snapshot?.fields.filter((field) => field.requiredNow) ?? [],
     [snapshot],
   );
-  const optional = useMemo(
+  const legacyOptional = useMemo(
     () => snapshot?.fields.filter((field) => !field.requiredNow) ?? [],
     [snapshot],
   );
-  const missing = snapshot?.requiredMissing ?? 0;
+  const requiredTotal = multi
+    ? fiches.reduce((sum, fiche) => sum + fiche.requiredTotal, 0)
+    : (snapshot?.requiredTotal ?? 0);
+  const requiredCollected = multi
+    ? fiches.reduce((sum, fiche) => sum + fiche.requiredCollected, 0)
+    : (snapshot?.requiredCollected ?? 0);
+  const missing = multi
+    ? fiches.reduce((sum, fiche) => sum + fiche.requiredMissing, 0)
+    : (snapshot?.requiredMissing ?? 0);
 
   return (
     <>
-      <button
-        type="button"
-        className="btn ghost small conversation-info-toggle"
-        aria-expanded={open}
-        aria-controls="conversation-info-panel"
-        onClick={() => setOpen((value) => !value)}
-      >
-        Informations
-        {missing > 0 ? <span className="badge orange">{missing}</span> : null}
-      </button>
+      {showTrigger ? (
+        <button
+          type="button"
+          className="btn ghost small conversation-info-toggle"
+          aria-expanded={open}
+          aria-controls="conversation-info-panel"
+          onClick={() => setOpen((value) => !value)}
+        >
+          Informations
+          {missing > 0 ? <span className="badge orange">{missing}</span> : null}
+        </button>
+      ) : null}
 
       {open ? (
         <>
@@ -363,7 +493,7 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
                 <div className="conversation-info-progress">
                   <div className="conversation-info-progress-head">
                     <strong>
-                      {snapshot.requiredCollected}/{snapshot.requiredTotal} obligatoires
+                      {requiredCollected}/{requiredTotal} obligatoires
                     </strong>
                     <span className={missing > 0 ? "info-missing" : "info-complete"}>
                       {missing > 0
@@ -375,11 +505,9 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
                     <span
                       style={{
                         width: `${
-                          snapshot.requiredTotal === 0
+                          requiredTotal === 0
                             ? 100
-                            : Math.round(
-                                (snapshot.requiredCollected / snapshot.requiredTotal) * 100,
-                              )
+                            : Math.round((requiredCollected / requiredTotal) * 100)
                         }%`,
                       }}
                     />
@@ -394,74 +522,104 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
                     Dernière analyse impossible : {snapshot.analysis.error ?? "réessayez"}.
                   </p>
                 ) : (
-                  <p className="hint">
-                    Dernière analyse : {relativeTime(snapshot.analysis.lastAnalyzedAt)}
+                  <p className="hint" suppressHydrationWarning>
+                    Dernière analyse :{" "}
+                    {mounted ? relativeTime(snapshot.analysis.lastAnalyzedAt) : "—"}
                   </p>
                 )}
 
                 <div className="conversation-info-body">
-                  {mandatory.length > 0 ? (
-                    <section className="info-section">
-                      <h3>Obligatoires</h3>
-                      {mandatory.map((field) => (
-                        <div
-                          key={field.name}
-                          className={`info-field ${field.missing ? "is-missing" : ""}`}
-                        >
-                          <div className="info-field-head">
-                            <span className="info-field-label">
-                              {field.label}
-                              {field.requiredNow ? <span className="required-mark"> *</span> : null}
-                            </span>
-                            <span className={`info-source ${field.source ?? "empty"}`}>
-                              {field.missing ? "Manquant" : sourceLabel(field.source)}
-                            </span>
-                          </div>
-                          <FieldEditor
-                            field={field}
-                            fields={snapshot.fields}
-                            canEdit={snapshot.canEdit}
-                            saving={
-                              saveState?.fieldName === field.name && saveState.status === "saving"
-                            }
-                            onSave={save}
-                          />
-                          {saveState?.fieldName === field.name && saveState.status === "saved" ? (
-                            <span className="info-saved">Enregistré</span>
-                          ) : null}
-                        </div>
-                      ))}
-                    </section>
-                  ) : null}
+                  {multi ? (
+                    fiches.map((fiche) => (
+                      <FicheSection
+                        key={fiche.instanceId ?? fiche.ficheKey}
+                        fiche={fiche}
+                        canEdit={snapshot.canEdit}
+                        saveState={saveState}
+                        onSave={(instanceId, fieldName, value) =>
+                          save(
+                            instanceId,
+                            fieldName,
+                            value,
+                            `${instanceId ?? fiche.ficheKey}:${fieldName}`,
+                          )
+                        }
+                      />
+                    ))
+                  ) : (
+                    <>
+                      {legacyMandatory.length > 0 ? (
+                        <section className="info-section">
+                          <h3>Obligatoires</h3>
+                          {legacyMandatory.map((field) => (
+                            <div
+                              key={field.name}
+                              className={`info-field ${field.missing ? "is-missing" : ""}`}
+                            >
+                              <div className="info-field-head">
+                                <span className="info-field-label">
+                                  {field.label}
+                                  {field.requiredNow ? (
+                                    <span className="required-mark"> *</span>
+                                  ) : null}
+                                </span>
+                                <span className={`info-source ${field.source ?? "empty"}`}>
+                                  {field.missing ? "Manquant" : sourceLabel(field.source)}
+                                </span>
+                              </div>
+                              <FieldEditor
+                                field={field}
+                                fields={snapshot.fields}
+                                canEdit={snapshot.canEdit}
+                                saving={
+                                  saveState?.key === field.name && saveState.status === "saving"
+                                }
+                                onSave={(fieldName, value) =>
+                                  save(null, fieldName, value, fieldName)
+                                }
+                              />
+                              {saveState?.key === field.name && saveState.status === "saved" ? (
+                                <span className="info-saved">Enregistré</span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </section>
+                      ) : null}
 
-                  {optional.length > 0 ? (
-                    <section className="info-section">
-                      <h3>Facultatives</h3>
-                      {optional.map((field) => (
-                        <div key={field.name} className="info-field">
-                          <div className="info-field-head">
-                            <span className="info-field-label">{field.label}</span>
-                            <span className={`info-source ${field.source ?? "empty"}`}>
-                              {field.missing ? "Non renseigné" : sourceLabel(field.source)}
-                            </span>
-                          </div>
-                          <FieldEditor
-                            field={field}
-                            fields={snapshot.fields}
-                            canEdit={snapshot.canEdit}
-                            saving={
-                              saveState?.fieldName === field.name && saveState.status === "saving"
-                            }
-                            onSave={save}
-                          />
-                        </div>
-                      ))}
-                    </section>
-                  ) : null}
+                      {legacyOptional.length > 0 ? (
+                        <section className="info-section">
+                          <h3>Facultatives</h3>
+                          {legacyOptional.map((field) => (
+                            <div key={field.name} className="info-field">
+                              <div className="info-field-head">
+                                <span className="info-field-label">{field.label}</span>
+                                <span className={`info-source ${field.source ?? "empty"}`}>
+                                  {field.missing ? "Non renseigné" : sourceLabel(field.source)}
+                                </span>
+                              </div>
+                              <FieldEditor
+                                field={field}
+                                fields={snapshot.fields}
+                                canEdit={snapshot.canEdit}
+                                saving={
+                                  saveState?.key === field.name && saveState.status === "saving"
+                                }
+                                onSave={(fieldName, value) =>
+                                  save(null, fieldName, value, fieldName)
+                                }
+                              />
+                            </div>
+                          ))}
+                        </section>
+                      ) : null}
 
-                  {snapshot.fields.length === 0 ? (
-                    <p className="hint">Ce modèle ne déclare aucune information à collecter.</p>
-                  ) : null}
+                      {snapshot.fields.length === 0 ? (
+                        <p className="hint">
+                          Ce chatbot ne déclare aucune information à collecter.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
                 </div>
 
                 {!snapshot.canEdit ? (
@@ -479,6 +637,8 @@ export function ConversationInfoPanel({ conversationId }: { conversationId: stri
                   </div>
                 )}
               </>
+            ) : error !== null ? (
+              <p className="alert error">{error}</p>
             ) : (
               <p className="hint">Chargement des informations…</p>
             )}

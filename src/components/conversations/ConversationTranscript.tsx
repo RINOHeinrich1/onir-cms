@@ -71,16 +71,22 @@ function AvatarIcon({ role }: { role: ChatMessageDto["role"] }) {
   );
 }
 
-function authorLabel(message: ChatMessageDto): string {
+function authorLabel(message: ChatMessageDto, assistantLabel: string): string {
   if (message.role === "user") return "Visiteur";
   if (message.role === "operator") {
     return message.authorName === null ? "Opérateur" : `Opérateur · ${message.authorName}`;
   }
-  return "Assistant IA";
+  return assistantLabel;
 }
 
 /** Transcript en lecture seule d'une conversation (bulles + médias). */
-export function ConversationTranscript({ messages }: { messages: ChatMessageDto[] }) {
+export function ConversationTranscript({
+  messages,
+  assistantLabel,
+}: {
+  messages: ChatMessageDto[];
+  assistantLabel: string;
+}) {
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
 
   if (messages.length === 0) {
@@ -96,7 +102,7 @@ export function ConversationTranscript({ messages }: { messages: ChatMessageDto[
               <AvatarIcon role={message.role} />
             </span>
             <div className="msg-body">
-              <span className="msg-role">{authorLabel(message)}</span>
+              <span className="msg-role">{authorLabel(message, assistantLabel)}</span>
               {message.role === "assistant" ? (
                 <div className="bubble">
                   <div className="md">

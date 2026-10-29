@@ -3,9 +3,11 @@ import type { AiProviderModelRepository } from "@/application/ports/ai-model-rep
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 import { createChatLink } from "@/application/use-cases/links/create-chat-link";
+import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
 import { sealAiKey } from "@/lib/ai-crypto";
 import { memoryAiModelRepository } from "./helpers/ai-model-memory";
 import { memoryAiProviderRepository } from "./helpers/ai-provider-memory";
@@ -313,5 +315,114 @@ describe("createChatLink — affectation IA (ADR-0029)", () => {
         aiModel: "gpt-4o-mini",
       }),
     ).rejects.toThrow(/introuvable/);
+  });
+});
+
+describe("createChatLink — configuration autonome (ADR-0049)", () => {
+  const CONFIG_PAYLOAD = {
+    systemPrompt: "Tu collectes les demandes.",
+    simple: {
+      role: "assistant",
+      objective: "collecter",
+      language: { mode: "auto" },
+      tone: "",
+      guardrails: [],
+      extraInstructions: "",
+    },
+    fiches: [
+      {
+        key: "hotel",
+        label: "Hôtel",
+        description: "Hébergement",
+        intent: "Recherche d'hôtel",
+        fields: [{ name: "ville", label: "Ville", type: "text", required: true }],
+        renderTemplate: "# Hôtel\n\n{{ville}}\n",
+        instructions: "",
+      },
+    ],
+  };
+
+  function configDeps(createVersion?: ChatbotConfigRepository["createVersion"]) {
+    const config: ChatbotConfig = {
+      id: "cfg-1",
+      organizationId: "org-1",
+      chatLinkId: "link-1",
+      version: 1,
+      behaviorMode: "guided",
+      systemPrompt: "Tu collectes les demandes.",
+      simple: {
+        role: "assistant",
+        objective: "collecter",
+        language: { mode: "auto" },
+        tone: "",
+        guardrails: [],
+        extraInstructions: "",
+      },
+      fiches: [],
+      dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
+      createdBy: null,
+      createdAt: new Date(0).toISOString(),
+    };
+    const base = deps();
+    const configs: ChatbotConfigRepository = {
+      currentForLink: async () => null,
+      findById: async () => config,
+      listVersions: async () => [config],
+      createVersion: createVersion ?? (async () => config),
+    };
+    return { ...base, configs };
+  }
+
+  it("crée un chatbot config-only sans modèle de raisonnement", async () => {
+    const { link } = await createChatLink(configDeps(), ACTOR, {
+      type: "standard",
+      config: CONFIG_PAYLOAD,
+    });
+    expect(link.templateKey).toBe("");
+    expect(link.templateVersion).toBe(0);
+    expect(link.currentConfigId).toBe("cfg-1");
+  });
+
+  it("transmet la sélection de données au stockage de configuration", async () => {
+    const createVersion = vi.fn(async () => {
+      throw new Error("arrêt après capture");
+    });
+    const base = configDeps(createVersion);
+    await expect(
+      createChatLink(base, ACTOR, {
+        type: "standard",
+        config: {
+          ...CONFIG_PAYLOAD,
+          dataSelection: {
+            mode: "selected",
+            connaissanceIds: ["k1"],
+            mediaIds: ["m1"],
+          },
+        },
+      }),
+    ).rejects.toThrow(/capture/);
+    expect(createVersion).toHaveBeenCalledWith(
+      "org-1",
+      "link-1",
+      expect.objectContaining({
+        dataSelection: { mode: "selected", connaissanceIds: ["k1"], mediaIds: ["m1"] },
+      }),
+      "admin-1",
+    );
+  });
+
+  it("compense (supprime le lien) si la création de configuration échoue", async () => {
+    const base = configDeps(async () => {
+      throw new Error("config KO");
+    });
+    const deleted = vi.fn(async () => true);
+    const links = { ...base.links, delete: deleted };
+    await expect(
+      createChatLink({ ...base, links }, ACTOR, {
+        type: "standard",
+        config: CONFIG_PAYLOAD,
+      }),
+    ).rejects.toThrow(/config KO/);
+    expect(deleted).toHaveBeenCalledWith("org-1", "link-1");
   });
 });

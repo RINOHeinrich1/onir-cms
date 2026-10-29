@@ -4,6 +4,8 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
@@ -11,8 +13,24 @@ import type { OrganizationRepository } from "@/application/ports/organization-re
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
+import {
+  ficheToDefinition,
+  findFiche,
+  normalizeFicheData,
+  resolveCurrentConfig,
+} from "@/application/use-cases/chat/chatbot-config-runtime";
+import {
+  ensureMonoFicheInstance,
+  instanceForFiche,
+} from "@/application/use-cases/chat/fiche-instances";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
-import { type Conversation, channelsForLink } from "@/domain/entities/chat";
+import { type ChatLink, type Conversation, channelsForLink } from "@/domain/entities/chat";
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
+import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
+import {
+  type ConversationOutcome,
+  isPendingFicheStatus,
+} from "@/domain/entities/conversation-fiche-instance";
 import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
 import { renderTemplateMarkdown } from "@/domain/render-template";
@@ -31,11 +49,26 @@ export type FinishConversationDependencies = {
   ai: AiClientFactory;
   /** Valeurs collectées et éditées dans le panneau d'informations (ADR-0045). */
   conversationFields?: ConversationFieldRepository;
+  /** Configuration chatbot autonome (ADR-0049). */
+  configs?: ChatbotConfigRepository;
+  /** Registre des instances de fiches (ADR-0049). */
+  ficheInstances?: ConversationFicheInstanceRepository;
 };
 
-export type FinishedConversation = {
+export type FinishedFiche = {
   fiche: Fiche;
   /** Document Markdown prêt à télécharger (généré côté serveur). */
+  markdown: string;
+};
+
+/**
+ * Résultat unifié : 0..N fiches + résultat de la conversation.
+ * `fiche`/`markdown` restent exposés pour la compatibilité (première fiche).
+ */
+export type FinishedConversation = {
+  fiches: FinishedFiche[];
+  outcome: ConversationOutcome;
+  fiche: Fiche | null;
   markdown: string;
 };
 
@@ -99,22 +132,8 @@ async function ensureVisitorProspect(
   });
 }
 
-/**
- * Construit la fiche à partir d'une conversation (IA propose les champs, la
- * validation métier tranche). Toutes les lectures sont scopées à l'organisation
- * portée par la conversation (jamais fournie par le client).
- */
-export async function buildFicheFromConversation(
-  deps: FinishConversationDependencies,
-  conversation: Conversation,
-  createdBy: string | null,
-): Promise<FinishedConversation> {
-  const organizationId = conversation.organizationId;
-  const link = await deps.links.findById(organizationId, conversation.linkId);
-  if (link === null) {
-    throw new NotFoundError("Lien introuvable");
-  }
-  assertChatLinkAvailable(link);
+/** Garde métier : une conversation anonyme ne génère pas de fiche nominative. */
+function assertNamedConversation(link: ChatLink, conversation: Conversation): void {
   const channelKind = conversation.channel ?? link.surface;
   const channel = channelsForLink(link)[channelKind];
   const anonymousConversation =
@@ -127,15 +146,30 @@ export async function buildFicheFromConversation(
   ) {
     throw new UnprocessableError("Une conversation anonyme ne génère pas de fiche nominative");
   }
-  const template = await deps.templates.findVersion(
-    organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
-  }
-  const definition = template.definition;
+}
+
+type FicheBuildMeta = {
+  templateKey: string;
+  templateVersion: number;
+  configId?: string | null;
+  ficheKey?: string | null;
+  ficheInstanceKey?: string | null;
+  conversationFicheInstanceId?: string | null;
+  instanceData?: Record<string, unknown>;
+};
+
+async function buildFicheForDefinition(
+  deps: FinishConversationDependencies,
+  conversation: Conversation,
+  link: Awaited<ReturnType<ChatLinkRepository["findById"]>>,
+  definition: TemplateDefinition,
+  meta: FicheBuildMeta,
+  createdBy: string | null,
+  fixedProspect?: Prospect | null,
+): Promise<FinishedFiche> {
+  if (link === null) throw new NotFoundError("Lien introuvable");
+  const organizationId = conversation.organizationId;
+  const channelKind = conversation.channel ?? link.surface;
   const target = {
     organizationId,
     aiProviderId: link.aiProviderId,
@@ -162,39 +196,43 @@ export async function buildFicheFromConversation(
     conversation.id,
     definition,
   );
-  const draft: Record<string, unknown> = { ...aiDraft };
-  if (deps.conversationFields !== undefined) {
+  const draft: Record<string, unknown> = { ...aiDraft, ...(meta.instanceData ?? {}) };
+  if (meta.conversationFicheInstanceId === undefined && deps.conversationFields !== undefined) {
     const collected = await deps.conversationFields.list(organizationId, conversation.id);
     for (const entry of collected) {
       draft[entry.fieldName] = entry.value;
     }
   }
 
-  // Prospect : rattaché à la conversation, sinon celui du lien, sinon créé.
+  // Prospect : partagé en mode config-only, résolu ici en mode legacy.
   let prospect: Prospect | null = null;
-  if (conversation.prospectId !== null) {
-    prospect = await deps.prospects.findById(organizationId, conversation.prospectId);
-  }
-  if (prospect === null && link.prospectId !== null) {
-    prospect = await deps.prospects.findById(organizationId, link.prospectId);
-  }
-  if (prospect === null && channelKind === "widget" && link.type === "standard") {
-    const rawContact = typeof draft.contact === "string" ? draft.contact.trim() : "";
-    prospect = await deps.prospects.create(organizationId, {
-      nom: widgetProspectName(link),
-      prenom: "",
-      nature: "physique",
-      email: extractEmail(draft.contact),
-      activite: "",
-      fonction: "",
-      detail: rawContact,
-      createdBy: null,
-      origine: "libre",
-      lienId: link.id,
-    });
-  }
-  if (prospect === null) {
-    prospect = await ensureVisitorProspect(deps.prospects, organizationId, conversation, link.id);
+  if (fixedProspect !== undefined) {
+    prospect = fixedProspect;
+  } else {
+    if (conversation.prospectId !== null) {
+      prospect = await deps.prospects.findById(organizationId, conversation.prospectId);
+    }
+    if (prospect === null && link.prospectId !== null) {
+      prospect = await deps.prospects.findById(organizationId, link.prospectId);
+    }
+    if (prospect === null && channelKind === "widget" && link.type === "standard") {
+      const rawContact = typeof draft.contact === "string" ? draft.contact.trim() : "";
+      prospect = await deps.prospects.create(organizationId, {
+        nom: widgetProspectName(link),
+        prenom: "",
+        nature: "physique",
+        email: extractEmail(draft.contact),
+        activite: "",
+        fonction: "",
+        detail: rawContact,
+        createdBy: null,
+        origine: "libre",
+        lienId: link.id,
+      });
+    }
+    if (prospect === null) {
+      prospect = await ensureVisitorProspect(deps.prospects, organizationId, conversation, link.id);
+    }
   }
 
   // Contact de la fiche : widget ⇒ prospect technique ou contact collecté dans
@@ -237,30 +275,20 @@ export async function buildFicheFromConversation(
     throw new UnprocessableError(validated.errors.join(" ; "));
   }
 
-  const reserved =
-    deps.links.reserveFiche === undefined
-      ? true
-      : await deps.links.reserveFiche(organizationId, link.id);
-  if (!reserved) {
-    throw new ChatbotBlockedError(
-      "Ce chatbot a atteint sa limite de fiches. Contactez l'équipe pour l'augmenter.",
-    );
-  }
-
-  let fiche: Fiche;
-  try {
-    fiche = await deps.fiches.create(organizationId, {
-      conversationId: conversation.id,
-      prospectId: prospect?.id ?? null,
-      createdBy,
-      templateKey: link.templateKey,
-      templateVersion: link.templateVersion,
-      data: validated.value,
-    });
-  } catch (error) {
-    await deps.links.releaseFiche?.(organizationId, link.id);
-    throw error;
-  }
+  const fiche = await deps.fiches.create(organizationId, {
+    conversationId: conversation.id,
+    prospectId: prospect?.id ?? null,
+    createdBy,
+    templateKey: meta.templateKey,
+    templateVersion: meta.templateVersion,
+    data: validated.value,
+    ...(meta.configId === undefined ? {} : { configId: meta.configId }),
+    ...(meta.ficheKey === undefined ? {} : { ficheKey: meta.ficheKey }),
+    ...(meta.ficheInstanceKey === undefined ? {} : { ficheInstanceKey: meta.ficheInstanceKey }),
+    ...(meta.conversationFicheInstanceId === undefined
+      ? {}
+      : { conversationFicheInstanceId: meta.conversationFicheInstanceId }),
+  });
   await deps.attachments.attachToFiche(organizationId, fiche.id, conversationAttachments);
 
   const serverVars = buildServerVariables({ mode: link.type, prospect, conversation });
@@ -275,8 +303,314 @@ export async function buildFicheFromConversation(
 }
 
 /**
+ * Construit la fiche legacy (mode modèle) à partir d'une conversation.
+ * Conservé pour la génération opérateur et la compatibilité.
+ */
+export async function buildFicheFromConversation(
+  deps: FinishConversationDependencies,
+  conversation: Conversation,
+  createdBy: string | null,
+): Promise<FinishedConversation> {
+  const organizationId = conversation.organizationId;
+  const link = await deps.links.findById(organizationId, conversation.linkId);
+  if (link === null) {
+    throw new NotFoundError("Lien introuvable");
+  }
+  assertChatLinkAvailable(link);
+  assertNamedConversation(link, conversation);
+  const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  if (config !== null) {
+    return finishConfigConversation(deps, conversation, link, config, {
+      abandonPending: false,
+      createdBy,
+      finalize: false,
+    });
+  }
+  const template = await deps.templates.findVersion(
+    organizationId,
+    link.templateKey,
+    link.templateVersion,
+  );
+  if (template === null) {
+    throw new NotFoundError("Modèle de raisonnement introuvable");
+  }
+
+  const reserved =
+    deps.links.reserveFiche === undefined
+      ? true
+      : await deps.links.reserveFiche(organizationId, link.id);
+  if (!reserved) {
+    throw new ChatbotBlockedError(
+      "Ce chatbot a atteint sa limite de fiches. Contactez l'équipe pour l'augmenter.",
+    );
+  }
+  try {
+    const built = await buildFicheForDefinition(
+      deps,
+      conversation,
+      link,
+      template.definition,
+      { templateKey: link.templateKey, templateVersion: link.templateVersion },
+      createdBy,
+    );
+    return {
+      fiches: [built],
+      outcome: "fiches_creees",
+      fiche: built.fiche,
+      markdown: built.markdown,
+    };
+  } catch (error) {
+    await deps.links.releaseFiche?.(organizationId, link.id);
+    throw error;
+  }
+}
+
+/** Réserve N fiches (atomique si le repository le permet). */
+async function reserveFiches(
+  deps: FinishConversationDependencies,
+  link: { id: string; organizationId: string },
+  count: number,
+): Promise<boolean> {
+  if (count <= 0) return true;
+  if (deps.links.reserveFiches !== undefined) {
+    return deps.links.reserveFiches(link.organizationId, link.id, count);
+  }
+  if (deps.links.reserveFiche === undefined) return true;
+  let reserved = 0;
+  for (let index = 0; index < count; index += 1) {
+    const ok = await deps.links.reserveFiche(link.organizationId, link.id);
+    if (!ok) {
+      await deps.links.releaseFiches?.(link.organizationId, link.id, reserved);
+      for (let release = 0; release < reserved; release += 1) {
+        await deps.links.releaseFiche?.(link.organizationId, link.id);
+      }
+      return false;
+    }
+    reserved += 1;
+  }
+  return true;
+}
+
+async function releaseReserved(
+  deps: FinishConversationDependencies,
+  link: { id: string; organizationId: string },
+  count: number,
+): Promise<void> {
+  if (count <= 0) return;
+  if (deps.links.releaseFiches !== undefined) {
+    await deps.links.releaseFiches(link.organizationId, link.id, count);
+    return;
+  }
+  for (let index = 0; index < count; index += 1) {
+    await deps.links.releaseFiche?.(link.organizationId, link.id);
+  }
+}
+
+async function resolveSharedProspect(
+  deps: FinishConversationDependencies,
+  conversation: Conversation,
+  link: NonNullable<Awaited<ReturnType<ChatLinkRepository["findById"]>>>,
+): Promise<Prospect | null> {
+  const organizationId = conversation.organizationId;
+  if (conversation.prospectId !== null) {
+    const found = await deps.prospects.findById(organizationId, conversation.prospectId);
+    if (found !== null) return found;
+  }
+  if (link.prospectId !== null) {
+    const found = await deps.prospects.findById(organizationId, link.prospectId);
+    if (found !== null) return found;
+  }
+  const channelKind = conversation.channel ?? link.surface;
+  if (channelKind === "widget" && link.type === "standard") {
+    return deps.prospects.create(organizationId, {
+      nom: widgetProspectName(link),
+      prenom: "",
+      nature: "physique",
+      email: conversation.visitorEmail.trim().toLowerCase(),
+      activite: "",
+      fonction: "",
+      detail: conversation.visitorContacts
+        .map((entry) => `${entry.type} : ${entry.valeur}`)
+        .join(" ; "),
+      createdBy: null,
+      origine: "libre",
+      lienId: link.id,
+    });
+  }
+  return ensureVisitorProspect(deps.prospects, organizationId, conversation, link.id);
+}
+
+/**
+ * Mode config-only : génère 0..N fiches, une par instance complète.
+ * Mono-fiche ⇒ l'instance active est clôturée et générée. Multi-fiches ⇒
+ * toute instance détectée/active/paused doit être explicitement abandonnée.
+ */
+async function finishConfigConversation(
+  deps: FinishConversationDependencies,
+  conversation: Conversation,
+  link: NonNullable<Awaited<ReturnType<ChatLinkRepository["findById"]>>>,
+  config: ChatbotConfig,
+  options: { abandonPending: boolean; createdBy: string | null; finalize: boolean },
+): Promise<FinishedConversation> {
+  const organizationId = conversation.organizationId;
+  const instancesRepo = deps.ficheInstances;
+  let instances =
+    instancesRepo === undefined
+      ? []
+      : await instancesRepo.listByConversation(organizationId, conversation.id);
+  const monoFiche = config.fiches.length === 1;
+  let abandonedAny = false;
+
+  if (monoFiche) {
+    const primary = config.fiches[0];
+    if (primary !== undefined && instancesRepo !== undefined) {
+      let instance = instanceForFiche(instances, primary.key);
+      if (instance === null) {
+        instance = await ensureMonoFicheInstance(
+          instancesRepo,
+          config,
+          conversation.id,
+          organizationId,
+        );
+      }
+      if (instance !== null && instance.status !== "complete" && instance.status !== "abandoned") {
+        instance = await instancesRepo.update(organizationId, instance.id, {
+          status: "complete",
+          completed: true,
+        });
+      }
+      instances = instance === null ? instances : [instance];
+    }
+  } else {
+    const pending = instances.filter((instance) => isPendingFicheStatus(instance.status));
+    if (pending.length > 0) {
+      if (!options.abandonPending) {
+        const labels = pending
+          .map((instance) => findFiche(config, instance.ficheKey)?.label ?? instance.ficheKey)
+          .join(", ");
+        throw new UnprocessableError(
+          `Des fiches sont encore en cours (${labels}). Abandonnez-les explicitement avant de terminer.`,
+        );
+      }
+      abandonedAny = true;
+      if (instancesRepo !== undefined) {
+        for (const instance of pending) {
+          await instancesRepo.update(organizationId, instance.id, {
+            status: "abandoned",
+            abandonReason: "Clôture explicite du visiteur",
+            completed: false,
+          });
+        }
+        instances = await instancesRepo.listByConversation(organizationId, conversation.id);
+      }
+    }
+  }
+
+  const targets = instances.filter((instance) => instance.status === "complete");
+
+  if (targets.length === 0) {
+    const outcome: ConversationOutcome = abandonedAny ? "abandonnee" : "sans_fiche";
+    if (options.finalize) {
+      await deps.conversations.setOutcome?.(organizationId, conversation.id, outcome);
+      await deps.conversations.markFinalisee(organizationId, conversation.id);
+    }
+    return { fiches: [], outcome, fiche: null, markdown: "" };
+  }
+
+  for (const instance of targets) {
+    const already = await deps.fiches.findByInstance?.(organizationId, instance.id);
+    if (already !== null && already !== undefined) {
+      throw new UnprocessableError("Une fiche a déjà été générée pour cette instance de collecte.");
+    }
+  }
+
+  const prepared = targets.map((instance) => {
+    const ficheDefinition =
+      findFiche(config, instance.ficheKey) ?? (monoFiche ? (config.fiches[0] ?? null) : null);
+    if (ficheDefinition === null) return null;
+    const definition = ficheToDefinition(config, ficheDefinition);
+    const data = normalizeFicheData(ficheDefinition, instance.data);
+    const validation = validateTemplateData(
+      {
+        ...definition,
+        fields: definition.fields.filter(
+          (field) => field.type !== "file" && field.name !== "contact",
+        ),
+      },
+      data,
+    );
+    if (!validation.ok) {
+      throw new UnprocessableError(validation.errors.join(" ; "));
+    }
+    return { instance, ficheDefinition, definition, data };
+  });
+
+  const reserved = await reserveFiches(deps, link, targets.length);
+  if (!reserved) {
+    throw new ChatbotBlockedError(
+      "Ce chatbot a atteint sa limite de fiches. Contactez l'équipe pour l'augmenter.",
+    );
+  }
+
+  const sharedProspect = await resolveSharedProspect(deps, conversation, link);
+  const built: FinishedFiche[] = [];
+  try {
+    for (const entry of prepared) {
+      if (entry === null) continue;
+      const { instance, ficheDefinition, definition, data } = entry;
+      const result = await buildFicheForDefinition(
+        deps,
+        conversation,
+        link,
+        definition,
+        {
+          templateKey: link.templateKey,
+          templateVersion: link.templateVersion,
+          configId: config.id,
+          ficheKey: ficheDefinition.key,
+          ficheInstanceKey: instance.instanceKey,
+          conversationFicheInstanceId: instance.id,
+          instanceData: data,
+        },
+        options.createdBy,
+        sharedProspect,
+      );
+      built.push(result);
+      await instancesRepo?.update(organizationId, instance.id, {
+        status: "complete",
+        completed: true,
+      });
+    }
+  } catch (error) {
+    await releaseReserved(deps, link, targets.length - built.length);
+    throw error;
+  }
+
+  if (built.length === 0) {
+    await releaseReserved(deps, link, targets.length);
+    const outcome: ConversationOutcome = abandonedAny ? "abandonnee" : "sans_fiche";
+    if (options.finalize) {
+      await deps.conversations.setOutcome?.(organizationId, conversation.id, outcome);
+      await deps.conversations.markFinalisee(organizationId, conversation.id);
+    }
+    return { fiches: [], outcome, fiche: null, markdown: "" };
+  }
+
+  if (options.finalize) {
+    await deps.conversations.setOutcome?.(organizationId, conversation.id, "fiches_creees");
+    await deps.conversations.markFinalisee(organizationId, conversation.id);
+  }
+  return {
+    fiches: built,
+    outcome: "fiches_creees",
+    fiche: built[0]?.fiche ?? null,
+    markdown: built[0]?.markdown ?? "",
+  };
+}
+
+/**
  * Finalisation d'une conversation par le visiteur (bouton « Terminer ») :
- * construit la fiche et passe la conversation au statut `finalisee`.
+ * génère 0..N fiches et passe la conversation au statut `finalisee`.
  * Pas de rôle dashboard requis : la possession de l'identifiant de
  * conversation (UUID imprévisible) fait office d'autorisation. L'organisation
  * est dérivée de la conversation ; une organisation suspendue renvoie 404.
@@ -284,6 +618,7 @@ export async function buildFicheFromConversation(
 export async function finishConversation(
   deps: FinishConversationDependencies,
   conversationId: string,
+  options: { abandonPending?: boolean } = {},
 ): Promise<FinishedConversation> {
   const conversation = await deps.conversations.findByIdPublic(conversationId);
   if (conversation === null) {
@@ -294,7 +629,27 @@ export async function finishConversation(
     throw new NotFoundError("Conversation introuvable");
   }
 
+  const link = await deps.links.findById(conversation.organizationId, conversation.linkId);
+  if (link === null) {
+    throw new NotFoundError("Lien introuvable");
+  }
+  assertChatLinkAvailable(link);
+  const config = await resolveCurrentConfig(deps.configs, conversation.organizationId, link);
+  if (config !== null) {
+    assertNamedConversation(link, conversation);
+    return finishConfigConversation(deps, conversation, link, config, {
+      abandonPending: options.abandonPending === true,
+      createdBy: null,
+      finalize: true,
+    });
+  }
+
   const result = await buildFicheFromConversation(deps, conversation, null);
+  await deps.conversations.setOutcome?.(
+    conversation.organizationId,
+    conversation.id,
+    result.outcome,
+  );
   await deps.conversations.markFinalisee(conversation.organizationId, conversation.id);
   return result;
 }

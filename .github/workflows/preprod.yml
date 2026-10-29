@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ui/preprod-batch
   workflow_dispatch:
 
 permissions:

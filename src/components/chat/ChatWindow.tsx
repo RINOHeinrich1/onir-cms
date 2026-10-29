@@ -120,7 +120,9 @@ export function ChatWindow({
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [finishing, setFinishing] = useState(false);
-  const [docs, setDocs] = useState<{ pdf: string; md: string } | null>(null);
+  const [docs, setDocs] = useState<
+    { key: string; label: string; pdf: string; md: string }[] | null
+  >(null);
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachmentDto[]>([]);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
@@ -482,7 +484,7 @@ export function ChatWindow({
     }
   };
 
-  const finish = async (): Promise<void> => {
+  const finish = async (abandonPending = false): Promise<void> => {
     if (anonymous || finishing || docs !== null) return;
     const activeId = activeConversationId;
     if (activeId === null) return;
@@ -494,26 +496,59 @@ export function ChatWindow({
       const response = await fetch("/api/chat/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: activeId }),
+        body: JSON.stringify({
+          conversationId: activeId,
+          ...(abandonPending ? { abandonPending: true } : {}),
+        }),
       });
       const json = (await response.json()) as {
+        fiches?: { fiche?: { ficheKey?: string | null }; markdown?: string; pdfBase64?: string }[];
         markdown?: string;
         pdfBase64?: string;
         error?: string;
       };
-      if (!response.ok || typeof json.markdown !== "string") {
-        setError(
+      if (!response.ok) {
+        const message =
           json.error ??
-            "La fiche est incomplète : poursuivez la discussion pour préciser le projet.",
-        );
+          "La fiche est incomplète : poursuivez la discussion pour préciser le projet.";
+        if (!abandonPending && /abandonn/i.test(message)) {
+          const confirmed = await confirmDialog(
+            "Des fiches sont encore en cours. Les abandonner explicitement et terminer ?",
+          );
+          if (confirmed) {
+            setFinishing(false);
+            await finish(true);
+            return;
+          }
+        }
+        setError(message);
         return;
       }
-      const mdBlob = new Blob([json.markdown], { type: "text/markdown;charset=utf-8" });
-      const pdfBlob = new Blob(
-        [Uint8Array.from(atob(json.pdfBase64 ?? ""), (char) => char.charCodeAt(0))],
-        { type: "application/pdf" },
-      );
-      setDocs({ md: URL.createObjectURL(mdBlob), pdf: URL.createObjectURL(pdfBlob) });
+      const entries: {
+        fiche?: { ficheKey?: string | null };
+        markdown?: string | undefined;
+        pdfBase64?: string | undefined;
+      }[] =
+        json.fiches ??
+        (typeof json.markdown === "string"
+          ? [{ markdown: json.markdown, pdfBase64: json.pdfBase64 }]
+          : []);
+      const next = entries.map((entry, index) => {
+        const mdBlob = new Blob([entry.markdown ?? ""], {
+          type: "text/markdown;charset=utf-8",
+        });
+        const pdfBlob = new Blob(
+          [Uint8Array.from(atob(entry.pdfBase64 ?? ""), (char) => char.charCodeAt(0))],
+          { type: "application/pdf" },
+        );
+        return {
+          key: entry.fiche?.ficheKey ?? `fiche-${index + 1}`,
+          label: entry.fiche?.ficheKey ?? `Fiche ${index + 1}`,
+          md: URL.createObjectURL(mdBlob),
+          pdf: URL.createObjectURL(pdfBlob),
+        };
+      });
+      setDocs(next);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -629,13 +664,22 @@ export function ChatWindow({
 
       {docs !== null ? (
         <div className="chat-fiche" role="status">
-          <span style={{ flex: 1 }}>Fiche de prospection prête.</span>
-          <a className="btn small" href={docs.pdf} download="fiche-projet.pdf">
-            PDF
-          </a>
-          <a className="btn ghost small" href={docs.md} download="fiche-projet.md">
-            Markdown
-          </a>
+          <span style={{ flex: 1 }}>
+            {docs.length === 0
+              ? "Discussion terminée : aucune fiche n'a été générée."
+              : `${docs.length} fiche(s) prête(s).`}
+          </span>
+          {docs.map((document) => (
+            <span key={document.key} className="chat-fiche-item">
+              <span>{document.label}</span>
+              <a className="btn small" href={document.pdf} download={`${document.key}.pdf`}>
+                PDF
+              </a>
+              <a className="btn ghost small" href={document.md} download={`${document.key}.md`}>
+                Markdown
+              </a>
+            </span>
+          ))}
         </div>
       ) : null}
 

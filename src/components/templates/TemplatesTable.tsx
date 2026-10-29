@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { CreatorFilterMenu } from "@/components/ui/CreatorFilterMenu";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
@@ -125,7 +125,7 @@ export function TemplatesTable({
 
       <div className="modeles-toolbar">
         <div className="modeles-toolbar-filters">
-          <CreatorFilter
+          <CreatorFilterMenu
             options={creators}
             showUnassigned={showUnassigned}
             value={creatorFilter}

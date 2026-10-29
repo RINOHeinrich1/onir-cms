@@ -7,7 +7,7 @@ import { listProspects } from "@/application/use-cases/prospects/list-prospects"
 import { FichesTable } from "@/components/fiches/FichesTable";
 import { LeadFilesTable } from "@/components/leads/LeadFilesTable";
 import { distinctChatLinkLabels } from "@/domain/entities/chat";
-import { parseFicheArchiveFilter } from "@/domain/entities/fiche";
+import type { parseFicheArchiveFilter } from "@/domain/entities/fiche";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
@@ -23,7 +23,12 @@ export const metadata: Metadata = {
 
 type LeadsTab = "fiches" | "fichiers";
 type PageProps = {
-  searchParams: Promise<{ onglet?: string; filtre?: string; lien?: string | string[] }>;
+  searchParams: Promise<{
+    onglet?: string;
+    filtre?: string;
+    archive?: string | string[];
+    lien?: string | string[];
+  }>;
 };
 
 function parseTab(value: string | undefined): LeadsTab {
@@ -38,7 +43,25 @@ export default async function LeadsPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const tab = parseTab(params.onglet);
-  const filtre = parseFicheArchiveFilter(params.filtre);
+  const archiveValues = Array.isArray(params.archive)
+    ? params.archive.filter(Boolean)
+    : typeof params.archive === "string"
+      ? params.archive === ""
+        ? []
+        : [params.archive]
+      : params.filtre === "archivees"
+        ? ["archivees"]
+        : params.filtre === "toutes"
+          ? []
+          : ["actives"];
+  const filtre: ReturnType<typeof parseFicheArchiveFilter> =
+    archiveValues.length === 0
+      ? "toutes"
+      : archiveValues.includes("archivees") && !archiveValues.includes("actives")
+        ? "archivees"
+        : archiveValues.includes("actives") && !archiveValues.includes("archivees")
+          ? "actives"
+          : "toutes";
   const liens = Array.isArray(params.lien)
     ? params.lien
     : typeof params.lien === "string"
@@ -107,7 +130,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
               initialFiches={fiches}
               prospectsById={prospectsById}
               canWrite={actorCan(context.actor, "project:write")}
-              filtre={filtre}
+              archive={archiveValues}
               lien={liens}
               linkLabels={distinctChatLinkLabels(links)}
             />

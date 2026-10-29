@@ -4,11 +4,11 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { toDashboardChatMessage } from "@/application/use-cases/attachments/attachment-dto";
 import { getConversation } from "@/application/use-cases/conversations/list-conversations";
-import { ConversationArchiveButton } from "@/components/conversations/ConversationArchiveButton";
+import { ConversationActionsMenu } from "@/components/conversations/ConversationActionsMenu";
 import { ConversationIncidentBanner } from "@/components/conversations/ConversationIncidentBanner";
 import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
-import { GenerateFicheButton } from "@/components/conversations/GenerateFicheButton";
+import { ConversationSummaryPanel } from "@/components/conversations/ConversationSummaryPanel";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -25,7 +25,12 @@ export const metadata: Metadata = {
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ filtre?: string; lien?: string | string[] }>;
+  searchParams: Promise<{
+    statut?: string | string[];
+    archive?: string | string[];
+    lien?: string | string[];
+    filtre?: string;
+  }>;
 };
 
 /**
@@ -44,13 +49,12 @@ export default async function ConversationDetailPage({ params, searchParams }: P
   const { id } = await params;
   const query = await searchParams;
   const backParams = new URLSearchParams();
+  for (const key of ["statut", "archive", "lien"] as const) {
+    const raw = query[key];
+    const values = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
+    for (const value of values) backParams.append(key, value);
+  }
   if (query.filtre !== undefined) backParams.set("filtre", query.filtre);
-  const liens = Array.isArray(query.lien)
-    ? query.lien
-    : query.lien === undefined
-      ? []
-      : [query.lien];
-  for (const lien of liens) backParams.append("lien", lien);
   const backQuery = backParams.toString();
   const backHref = backQuery === "" ? "/conversations" : `/conversations?${backQuery}`;
   const pool = getPool();
@@ -79,45 +83,61 @@ export default async function ConversationDetailPage({ params, searchParams }: P
   const canIntervene = actorCan(context.actor, "conversations:intervene");
   const canWrite = actorCan(context.actor, "conversations:update");
   const canGenerateFiche = actorCan(context.actor, "conversations:generate_fiche");
+  const canSummarize = actorCan(context.actor, "conversations:summarize");
+  const canChooseSummaryModel = actorCan(context.actor, "ai:assign");
   const canViewLeads = actorCan(context.actor, "project:read");
 
   return (
-    <section>
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Conversation</span>
-          <h1 className="text-title">
-            {conversation.visitorNom || (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur")}
-          </h1>
-          <p className="muted-text">
-            {conversation.visitorEmail || "—"} · chatbot{" "}
-            <strong>{link?.label === "" || link === null ? "sans nom" : link.label}</strong> ·{" "}
-            <span className={`badge ${conversation.statut === "finalisee" ? "muted" : ""}`}>
-              {conversation.statut === "finalisee" ? "finalisée" : "en cours"}
-            </span>
-          </p>
-        </div>
-        <div className="tools">
-          <a className="btn ghost small inbox-back" href={backHref}>
-            ← Conversations
+    <section className="conversation-thread-content">
+      <header className="conversation-thread-head">
+        <div className="conversation-thread-id">
+          <a className="icon-btn inbox-back" href={backHref} aria-label="Retour aux conversations">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              aria-hidden
+            >
+              <path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="sr-only">Retour aux conversations</span>
           </a>
-          {prospect !== null && actorCan(context.actor, "prospects:read") ? (
-            <a className="btn ghost small" href={`/prospects?prospect=${prospect.id}`}>
-              Prospect
-            </a>
-          ) : null}
-          <ConversationInfoPanel conversationId={conversation.id} />
-          {canWrite ? (
-            <ConversationArchiveButton
-              conversationId={conversation.id}
-              archivee={conversation.archivee === true}
-            />
-          ) : null}
-          {canGenerateFiche ? (
-            <GenerateFicheButton conversationId={conversation.id} canViewLeads={canViewLeads} />
-          ) : null}
+          <div>
+            <h1>
+              {conversation.visitorNom ||
+                (conversation.visitorEmail === "" ? "Anonyme" : "Visiteur")}
+            </h1>
+            <p>
+              {conversation.visitorEmail || "—"} · chatbot{" "}
+              <strong>{link?.label === "" || link === null ? "sans nom" : link.label}</strong> ·{" "}
+              <span className={`badge ${conversation.statut === "finalisee" ? "muted" : ""}`}>
+                {conversation.statut === "finalisee" ? "finalisée" : "en cours"}
+              </span>
+            </p>
+          </div>
         </div>
-      </div>
+        <ConversationActionsMenu
+          conversationId={conversation.id}
+          prospectHref={
+            prospect !== null && actorCan(context.actor, "prospects:read")
+              ? `/prospects?prospect=${prospect.id}`
+              : null
+          }
+          archivee={conversation.archivee === true}
+          canWrite={canWrite}
+          canGenerateFiche={canGenerateFiche}
+          canViewLeads={canViewLeads}
+        />
+      </header>
+      <ConversationInfoPanel conversationId={conversation.id} showTrigger={false} />
+
+      <ConversationSummaryPanel
+        conversationId={conversation.id}
+        canSummarize={canSummarize}
+        canChooseModel={canChooseSummaryModel}
+        finalized={conversation.statut === "finalisee"}
+      />
 
       <ConversationIncidentBanner conversationId={conversation.id} canIntervene={canIntervene} />
 
@@ -159,6 +179,7 @@ export default async function ConversationDetailPage({ params, searchParams }: P
         conversation={conversation}
         initialMessages={messages.map(toDashboardChatMessage)}
         canIntervene={canIntervene}
+        assistantLabel={link === null || link.label === "" ? "Chatbot sans nom" : link.label}
       />
     </section>
   );

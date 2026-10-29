@@ -202,6 +202,6 @@ describe("generateFicheFromConversation — opérateur (US-CONVERS-002)", () => 
     const result = await generateFicheFromConversation(base.deps, ADMIN, "c1");
     expect(base.create).toHaveBeenCalledTimes(1);
     expect(base.markFinalisee).not.toHaveBeenCalled();
-    expect(result.fiche.id).toBe("f1");
+    expect(result.fiches[0]?.fiche.id).toBe("f1");
   });
 });

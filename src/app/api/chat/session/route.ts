@@ -3,6 +3,8 @@ import { toPublicChatMessage } from "@/application/use-cases/attachments/attachm
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
 import { isChatLinkSurface } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -54,6 +56,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         links: pgChatLinkRepository(pool),
         conversations,
         prospects: pgProspectRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
+        ficheInstances: pgConversationFicheInstanceRepository(pool),
       },
       {
         token,

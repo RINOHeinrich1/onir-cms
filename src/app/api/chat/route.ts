@@ -11,7 +11,9 @@ import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
+import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
@@ -65,6 +67,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         medias: pgMediaRepository(pool),
         attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
+        configs: pgChatbotConfigRepository(pool),
+        ficheInstances: pgConversationFicheInstanceRepository(pool),
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );

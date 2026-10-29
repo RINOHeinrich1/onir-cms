@@ -25,6 +25,7 @@ describe("RBAC — matrice des rôles (RM-ROLE-*)", () => {
       "conversations:intervene",
       "conversations:update_fields",
       "conversations:generate_fiche",
+      "conversations:summarize",
     ] as const) {
       expect(can("operateur", action)).toBe(true);
     }
@@ -51,6 +52,10 @@ describe("RBAC — matrice des rôles (RM-ROLE-*)", () => {
     expect(can("admin", "conversations:generate_fiche")).toBe(true);
     expect(can("marketeur", "conversations:generate_fiche")).toBe(true);
     expect(can("lecteur", "conversations:generate_fiche")).toBe(false);
+    expect(can("admin", "conversations:summarize")).toBe(true);
+    expect(can("marketeur", "conversations:summarize")).toBe(true);
+    expect(can("operateur", "conversations:summarize")).toBe(true);
+    expect(can("lecteur", "conversations:summarize")).toBe(false);
     expect(can("admin", "conversations:update_fields")).toBe(true);
     expect(can("marketeur", "conversations:update_fields")).toBe(true);
     expect(can("operateur", "conversations:update_fields")).toBe(true);

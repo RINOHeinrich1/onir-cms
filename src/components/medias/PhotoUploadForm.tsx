@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { TemplateKeyPicker } from "@/components/ui/TemplateKeyPicker";
+import { ChatLinkPicker } from "@/components/ui/ChatLinkPicker";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { DescriptionField } from "./DescriptionField";
 
@@ -20,7 +20,7 @@ export function PhotoUploadForm({
   const [pending, setPending] = useState(false);
   const [actif, setActif] = useState(true);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [templateKeys, setTemplateKeys] = useState<string[]>([]);
+  const [chatLinkIds, setChatLinkIds] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function PhotoUploadForm({
     const form = new FormData(event.currentTarget);
     form.set("actif", actif ? "true" : "false");
     form.set("fichier", fichier);
-    for (const key of templateKeys) form.append("templateKeys", key);
+    for (const id of chatLinkIds) form.append("chatLinkIds", id);
 
     setPending(true);
     try {
@@ -79,8 +79,8 @@ export function PhotoUploadForm({
 
       <div className="grid-2">
         <div className="field">
-          <span>Portée (vide = globale)</span>
-          <TemplateKeyPicker value={templateKeys} onChange={setTemplateKeys} />
+          <span>Portée : chatbots</span>
+          <ChatLinkPicker value={chatLinkIds} onChange={setChatLinkIds} />
         </div>
         <label className="check" style={{ alignSelf: "end" }}>
           <input

@@ -1,4 +1,5 @@
 import type { TemplateField, TemplateRequiredIf } from "@/domain/entities/chat-template";
+import type { FicheInstanceStatus } from "@/domain/entities/conversation-fiche-instance";
 
 export const CONVERSATION_FIELD_SOURCES = ["ai", "manual", "visitor", "system"] as const;
 export type ConversationFieldSource = (typeof CONVERSATION_FIELD_SOURCES)[number];
@@ -28,8 +29,26 @@ export type ConversationFieldView = TemplateField & {
   missing: boolean;
 };
 
+/** Vue d'une fiche de collecte d'une conversation multi-fiches (ADR-0049). */
+export type ConversationFicheView = {
+  instanceId: string | null;
+  ficheKey: string;
+  label: string;
+  status: FicheInstanceStatus;
+  fields: ConversationFieldView[];
+  requiredTotal: number;
+  requiredCollected: number;
+  requiredMissing: number;
+  collectedTotal: number;
+  total: number;
+};
+
 export type ConversationFieldsView = {
   conversationId: string;
+  /** Configuration chatbot courante (null = champs legacy mono-modèle). */
+  configId?: string | null;
+  /** Fiches de collecte (config-only / multi-fiches). Absent = legacy. */
+  fiches?: ConversationFicheView[];
   templateKey: string;
   templateVersion: number;
   templateLabel: string;

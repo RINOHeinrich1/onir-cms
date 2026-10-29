@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CreatorFilter } from "@/components/ui/CreatorFilter";
+import { CreatorFilterMenu } from "@/components/ui/CreatorFilterMenu";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
@@ -75,7 +75,7 @@ export function ConfidentialitesTable({
     <div className="confidentialites-admin">
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <CreatorFilter
+      <CreatorFilterMenu
         options={creators}
         showUnassigned={showUnassigned}
         value={creatorFilter}

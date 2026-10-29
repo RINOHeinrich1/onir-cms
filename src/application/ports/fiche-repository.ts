@@ -8,6 +8,11 @@ export type CreateFicheInput = {
   templateVersion: number;
   /** Valeurs génériques (clés = field.name du modèle). */
   data: Record<string, unknown>;
+  /** Configuration chatbot source (ADR-0049). */
+  configId?: string | null;
+  ficheKey?: string | null;
+  ficheInstanceKey?: string | null;
+  conversationFicheInstanceId?: string | null;
 };
 
 export interface FicheRepository {
@@ -23,4 +28,9 @@ export interface FicheRepository {
   create(organizationId: string, input: CreateFicheInput): Promise<Fiche>;
   /** Archive / désarchive une fiche ; null si introuvable. */
   setArchivee(organizationId: string, id: string, archivee: boolean): Promise<Fiche | null>;
+  /** Indique qu'une instance a déjà produit sa fiche (unicité). */
+  findByInstance?(
+    organizationId: string,
+    conversationFicheInstanceId: string,
+  ): Promise<Fiche | null>;
 }

@@ -4,6 +4,7 @@ import type { AiProviderModelRepository } from "@/application/ports/ai-model-rep
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConfidentialiteRepository } from "@/application/ports/confidentialite-repository";
 import type { LinkDataBindingRepository } from "@/application/ports/link-data-binding-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -31,6 +32,7 @@ import {
   parseLinkSources,
   parseUserStateEnabled,
 } from "@/domain/entities/chat";
+import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { encryptLinkToken } from "@/lib/link-crypto";
 
@@ -46,6 +48,8 @@ export type CreateChatLinkDependencies = {
   /** Fournisseurs IA (ADR-0029) — requis pour une affectation explicite. */
   aiProviders?: AiProviderRepository;
   aiModels?: AiProviderModelRepository;
+  /** Configuration chatbot autonome (ADR-0049). */
+  configs?: ChatbotConfigRepository;
 };
 
 export type CreatedChatLink = {
@@ -111,11 +115,25 @@ export async function createChatLinkForOrganization(
   });
   const summary = legacyChannelFields(channels);
 
-  const rawTemplateKey = typeof source.templateKey === "string" ? source.templateKey.trim() : "";
-  const templateKey = rawTemplateKey === "" ? "fiche-projet" : rawTemplateKey;
-  const template = await deps.templates.currentVersion(organizationId, templateKey);
-  if (template === null) {
-    throw new ValidationError(`Modèle inconnu : ${templateKey}`);
+  const configInput =
+    source.config !== undefined && source.config !== null
+      ? parseChatbotConfig(source.config)
+      : null;
+  if (configInput?.ok === false) {
+    throw new ValidationError(configInput.errors.join(" ; "));
+  }
+  const configMode = configInput?.ok === true;
+
+  let templateKey = "";
+  let templateVersion = 0;
+  if (!configMode) {
+    const rawTemplateKey = typeof source.templateKey === "string" ? source.templateKey.trim() : "";
+    templateKey = rawTemplateKey === "" ? "fiche-projet" : rawTemplateKey;
+    const template = await deps.templates.currentVersion(organizationId, templateKey);
+    if (template === null) {
+      throw new ValidationError(`Modèle inconnu : ${templateKey}`);
+    }
+    templateVersion = template.version;
   }
 
   if (type === "specifique") {
@@ -146,7 +164,7 @@ export async function createChatLinkForOrganization(
     createdBy,
     expiresAt,
     templateKey,
-    templateVersion: template.version,
+    templateVersion,
     sources,
     userStateEnabled,
     channels,
@@ -154,7 +172,26 @@ export async function createChatLinkForOrganization(
     aiModel: aiAssignment?.aiModel ?? null,
     ...quotas,
   });
-  const link: ChatLink = { ...created, channels };
+  let link: ChatLink = { ...created, channels };
+  if (configMode && configInput.ok) {
+    if (deps.configs === undefined) {
+      await deps.links.delete(organizationId, created.id);
+      throw new ValidationError("Configuration chatbot indisponible");
+    }
+    try {
+      const config = await deps.configs.createVersion(
+        organizationId,
+        created.id,
+        configInput.value,
+        createdBy,
+      );
+      link = { ...link, currentConfigId: config.id };
+    } catch (error) {
+      // Compensation : aucun chatbot config-only orphelin si la config échoue.
+      await deps.links.delete(organizationId, created.id);
+      throw error;
+    }
+  }
   if (dataBindings !== null) {
     if (deps.bindings === undefined || deps.linkDataBindings === undefined) {
       throw new ValidationError("Sources de données indisponibles");

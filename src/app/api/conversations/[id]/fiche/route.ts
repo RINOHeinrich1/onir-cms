@@ -7,6 +7,8 @@ import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repositor
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
 import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -44,6 +46,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
         conversationFields: pgConversationFieldRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
+        ficheInstances: pgConversationFicheInstanceRepository(pool),
       },
       actor,
       id,

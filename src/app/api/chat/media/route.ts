@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { selectChatMedia } from "@/application/use-cases/medias/select-chat-media";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -45,6 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         conversations: pgConversationRepository(pool),
         medias: pgMediaRepository(pool),
         ai: pgAiClientFactory(pool),
+        configs: pgChatbotConfigRepository(pool),
       },
       { conversationId, messageId },
     );

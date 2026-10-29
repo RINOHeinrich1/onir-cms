@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -14,11 +15,17 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  dialogClassName,
+  bodyClassName,
+  overlayClassName,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  dialogClassName?: string;
+  bodyClassName?: string;
+  overlayClassName?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -73,11 +80,23 @@ export function Modal({
     };
   }, []);
 
-  return (
-    <div className="modal-overlay">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className={
+        overlayClassName === undefined ? "modal-overlay" : `modal-overlay ${overlayClassName}`
+      }
+    >
       <button type="button" className="modal-backdrop" aria-label="Fermer" onClick={onClose} />
       <div
-        className={wide ? "modal wide" : "modal"}
+        className={[
+          "modal",
+          wide ? "wide" : "",
+          dialogClassName === undefined ? "" : dialogClassName,
+        ]
+          .filter((entry) => entry !== "")
+          .join(" ")}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -90,8 +109,11 @@ export function Modal({
             ×
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className={bodyClassName === undefined ? "modal-body" : `modal-body ${bodyClassName}`}>
+          {children}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -112,7 +112,11 @@ async function upsertOne(
     `INSERT INTO conversation_field_values
        (conversation_id, organization_id, field_name, value, source, updated_by)
      VALUES ($1, $2, $3, $4::jsonb, $5, $6)
-     ON CONFLICT (conversation_id, field_name) DO UPDATE SET
+     ON CONFLICT (
+       conversation_id,
+       (COALESCE(fiche_instance_id, '00000000-0000-0000-0000-000000000000'::uuid)),
+       field_name
+     ) DO UPDATE SET
        value = EXCLUDED.value,
        source = EXCLUDED.source,
        updated_by = EXCLUDED.updated_by,

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ChatLinkBadges } from "@/components/ui/ChatLinkBadges";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
 import { Modal } from "@/components/ui/Modal";
-import { TemplateKeysBadges } from "@/components/ui/TemplateKeysBadges";
 import { PhotoUploadForm } from "./PhotoUploadForm";
 import type { MediaDto } from "./types";
 
@@ -74,7 +74,7 @@ export function PhotosPanel({
                   <strong>{photo.libelle}</strong>
                 </td>
                 <td>
-                  <TemplateKeysBadges keys={photo.templateKeys} />
+                  <ChatLinkBadges ids={photo.chatLinkIds} />
                 </td>
                 <td>
                   <span className={`badge ${photo.actif ? "" : "muted"}`}>

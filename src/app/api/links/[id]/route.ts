@@ -5,6 +5,7 @@ import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labe
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -37,6 +38,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Ne
         linkDataBindings: pgLinkDataBindingRepository(pool),
         aiProviders: pgAiProviderRepository(pool),
         aiModels: pgAiProviderModelRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
       },
       actor,
       id,

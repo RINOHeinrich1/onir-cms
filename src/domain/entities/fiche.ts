@@ -43,5 +43,12 @@ export type Fiche = {
   lienDocSpec: string;
   /** Fiche archivée (masquée par défaut). */
   archivee: boolean;
+  /** Configuration chatbot source (ADR-0049). */
+  configId?: string | null;
+  /** Fiche de collecte source (config-only). */
+  ficheKey?: string | null;
+  ficheInstanceKey?: string | null;
+  /** Instance de fiche source (ADR-0049). */
+  conversationFicheInstanceId?: string | null;
   createdAt: string;
 };

@@ -250,10 +250,10 @@ describe("finishConversation — bouton Terminer (moteur)", () => {
   it("crée la fiche via le modèle : data + markdown moteur", async () => {
     const base = deps(JSON.stringify({ sujet: "Refonte du site" }));
     const finished = await finishConversation(base, "conv-1");
-    expect(finished.fiche.templateKey).toBe("demo");
-    expect(finished.fiche.templateVersion).toBe(1);
-    expect(finished.fiche.data).toMatchObject({ sujet: "Refonte du site" });
-    expect(finished.fiche.prospectId).toBe("prospect-auto");
+    expect(finished.fiches[0]?.fiche?.templateKey).toBe("demo");
+    expect(finished.fiches[0]?.fiche?.templateVersion).toBe(1);
+    expect(finished.fiches[0]?.fiche?.data).toMatchObject({ sujet: "Refonte du site" });
+    expect(finished.fiches[0]?.fiche?.prospectId).toBe("prospect-auto");
     expect(base.createdProspects).toEqual([
       {
         nom: "Jean Rakoto",
@@ -331,7 +331,7 @@ describe("finishConversation — bouton Terminer (moteur)", () => {
       },
       "conv-1",
     );
-    expect(finished.fiche.prospectId).toBe("prospect-auto");
+    expect(finished.fiches[0]?.fiche?.prospectId).toBe("prospect-auto");
     expect(base.createdProspects[0]).toMatchObject({
       nom: "Prospect issu du widget : Site vitrine",
       email: "jean.widget@exemple.mg",

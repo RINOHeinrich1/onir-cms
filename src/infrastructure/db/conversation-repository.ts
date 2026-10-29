@@ -42,11 +42,14 @@ type ConversationRow = {
   last_visitor_message_at: Date | null;
   last_operator_message_at: Date | null;
   archivee: boolean;
+  config_id: string | null;
+  active_fiche_instance_id: string | null;
+  outcome: string | null;
   created_at: Date;
 };
 
 const CONVERSATION_COLUMNS =
-  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, channel, intervention_mode, assigned_user_id, last_operator_user_id, human_takeover_at, last_visitor_message_at, last_operator_message_at, archivee, created_at";
+  "id, organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, statut, last_message_at, consentement_at, confidentialite_id, channel, intervention_mode, assigned_user_id, last_operator_user_id, human_takeover_at, last_visitor_message_at, last_operator_message_at, archivee, config_id, active_fiche_instance_id, outcome, created_at";
 
 type MessageRow = {
   id: string;
@@ -114,6 +117,9 @@ function toConversation(
       ? row.last_operator_message_at.toISOString()
       : null,
     archivee: row.archivee,
+    configId: row.config_id,
+    activeFicheInstanceId: row.active_fiche_instance_id,
+    outcome: row.outcome,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -383,8 +389,8 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
 
     async create(organizationId, input: CreateConversationInput): Promise<Conversation> {
       const { rows } = await pool.query<ConversationRow>(
-        `INSERT INTO conversations (organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, consentement_at, confidentialite_id, channel)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO conversations (organization_id, link_id, visitor_nom, visitor_email, visitor_contacts, prospect_id, consentement_at, confidentialite_id, channel, config_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING ${CONVERSATION_COLUMNS}`,
         [
           organizationId,
@@ -396,11 +402,29 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
           input.consentementAt,
           input.confidentialiteId,
           input.channel ?? "page",
+          input.configId ?? null,
         ],
       );
       const row = rows[0];
       if (!row) throw new Error("Échec de création de la conversation");
       return toConversation(row);
+    },
+
+    async setConfig(organizationId, id, configId, activeFicheInstanceId = null): Promise<void> {
+      await pool.query(
+        `UPDATE conversations
+            SET config_id = $1, active_fiche_instance_id = $2, updated_at = now()
+          WHERE organization_id = $3 AND id = $4`,
+        [configId, activeFicheInstanceId, organizationId, id],
+      );
+    },
+
+    async setOutcome(organizationId, id, outcome): Promise<void> {
+      await pool.query(
+        `UPDATE conversations SET outcome = $1, updated_at = now()
+          WHERE organization_id = $2 AND id = $3`,
+        [outcome, organizationId, id],
+      );
     },
 
     async markFinalisee(organizationId, id): Promise<void> {

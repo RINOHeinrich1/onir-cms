@@ -575,7 +575,7 @@ export function WebhookForm({
           <input value={name} onChange={(event) => setName(event.target.value)} required />
         </label>
         <label className="field">
-          Modèle de raisonnement
+          Clé de fiche (technique)
           <select
             value={templateKey}
             onChange={(event) => {
@@ -762,7 +762,7 @@ export function WebhookForm({
       </label>
 
       <h4>Champs envoyés</h4>
-      {renderGroup("Champs du modèle", "model")}
+      {renderGroup("Champs de la fiche", "model")}
       {renderGroup("Métadonnées de la fiche", "meta")}
       {renderGroup("Prospect", "prospect")}
 
