@@ -91,7 +91,7 @@ function payload(draft: Draft): Record<string, unknown> {
     .filter((field) => field.label.trim() !== "")
     .map((field) => {
       const base = slugifyFieldName(field.label);
-      let name = base;
+      let name = field.name.trim() === "" ? base : field.name.trim();
       let suffix = 2;
       while (used.has(name)) {
         name = `${base}_${suffix}`;
@@ -206,9 +206,6 @@ export function FicheCollecteForm({
           placeholder="Demande d'hôtel"
           required
         />
-        <span className="hint">
-          La clé technique est générée automatiquement à partir du libellé.
-        </span>
       </label>
 
       <label className="field">
@@ -324,10 +321,6 @@ export function FicheCollecteForm({
           </button>
         </div>
       ))}
-
-      <p className="hint">
-        La structure de la fiche est générée automatiquement à partir des libellés et des champs.
-      </p>
 
       <div className="tools">
         <button type="submit" className="btn" disabled={pending}>

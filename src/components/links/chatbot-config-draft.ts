@@ -146,13 +146,24 @@ export function effectiveSystemPrompt(draft: ChatbotConfigDraft): string {
   return draft.behaviorMode === "expert" ? draft.systemPrompt.trim() : guidedPromptFromDraft(draft);
 }
 
-function fieldPayload(field: FicheFieldDraft): Record<string, unknown> {
+function fieldNameFromLabel(label: string): string {
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+  return normalized === "" ? "champ" : normalized;
+}
+
+function fieldPayload(field: FicheFieldDraft, name: string): Record<string, unknown> {
   const options = field.options
     .split(",")
     .map((entry) => entry.trim())
     .filter((entry) => entry !== "");
   return {
-    name: field.name.trim(),
+    name,
     label: field.label.trim(),
     type: field.type,
     required: field.required,
@@ -169,20 +180,43 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
     behaviorMode: draft.behaviorMode,
     systemPrompt: effectiveSystemPrompt(draft),
     simple: draftSimpleSettings(draft.simple),
-    fiches: draft.fiches.map((fiche) => ({
-      key: fiche.key.trim(),
-      label: fiche.label.trim(),
-      description: fiche.description.trim(),
-      intent: fiche.intent.trim(),
-      fields: fiche.fields
-        .filter((field) => field.name.trim() !== "" && field.label.trim() !== "")
-        .map(fieldPayload),
-      renderTemplate: fiche.renderTemplate,
-      instructions: fiche.instructions.trim(),
-      ...(fiche.sourceFicheId === undefined
-        ? {}
-        : { sourceFicheId: fiche.sourceFicheId, sourceVersion: fiche.sourceVersion ?? null }),
-    })),
+    fiches: draft.fiches.map((fiche) => {
+      const used = new Set<string>();
+      const fields = fiche.fields
+        .filter((field) => field.label.trim() !== "")
+        .map((field) => {
+          const base =
+            field.name.trim() === "" ? fieldNameFromLabel(field.label) : field.name.trim();
+          let name = base;
+          let suffix = 2;
+          while (used.has(name)) {
+            name = `${base}_${suffix}`;
+            suffix += 1;
+          }
+          used.add(name);
+          return { draft: field, name };
+        });
+      const renderTemplate =
+        `# ${fiche.label.trim() === "" ? "Fiche de collecte" : fiche.label.trim()}\n\n` +
+        (fields.length === 0
+          ? ""
+          : fields
+              .map(({ draft: field, name }) => `- **${field.label.trim()}** : {{${name}}}`)
+              .join("\n")) +
+        "\n";
+      return {
+        key: fiche.key.trim(),
+        label: fiche.label.trim(),
+        description: fiche.description.trim(),
+        intent: fiche.intent.trim(),
+        fields: fields.map(({ draft: field, name }) => fieldPayload(field, name)),
+        renderTemplate,
+        instructions: fiche.instructions.trim(),
+        ...(fiche.sourceFicheId === undefined
+          ? {}
+          : { sourceFicheId: fiche.sourceFicheId, sourceVersion: fiche.sourceVersion ?? null }),
+      };
+    }),
     dataSelection: draft.dataSelection,
   };
 }

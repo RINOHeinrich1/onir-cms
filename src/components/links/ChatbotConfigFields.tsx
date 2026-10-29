@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TEMPLATE_FIELD_TYPES } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
+import { ficheKeyFromLabel } from "@/domain/entities/fiche-collecte";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import type { FicheCollecteOption } from "./ChatbotFichePicker";
 import {
@@ -152,30 +153,22 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
             ) : null}
           </div>
 
-          <div className="field-row">
-            <label className="field">
-              Clé *
-              <input
-                type="text"
-                value={fiche.key}
-                placeholder="hotel"
-                onChange={(event) =>
-                  onChange(updateFiche(value, ficheIndex, { key: event.target.value }))
-                }
-              />
-            </label>
-            <label className="field">
-              Libellé *
-              <input
-                type="text"
-                value={fiche.label}
-                placeholder="Demande d'hôtel"
-                onChange={(event) =>
-                  onChange(updateFiche(value, ficheIndex, { label: event.target.value }))
-                }
-              />
-            </label>
-          </div>
+          <label className="field">
+            Libellé *
+            <input
+              type="text"
+              value={fiche.label}
+              placeholder="Demande d'hôtel"
+              onChange={(event) =>
+                onChange(
+                  updateFiche(value, ficheIndex, {
+                    label: event.target.value,
+                    key: ficheKeyFromLabel(event.target.value),
+                  }),
+                )
+              }
+            />
+          </label>
 
           <label className="field">
             Description
@@ -225,21 +218,6 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
           </div>
           {fiche.fields.map((field, fieldIndex) => (
             <div className="field-row" key={field.id}>
-              <label className="field">
-                Nom technique
-                <input
-                  type="text"
-                  value={field.name}
-                  placeholder="ville"
-                  onChange={(event) =>
-                    onChange(
-                      updateFiche(value, ficheIndex, {
-                        fields: updateField(fiche, fieldIndex, { name: event.target.value }).fields,
-                      }),
-                    )
-                  }
-                />
-              </label>
               <label className="field">
                 Libellé
                 <input
@@ -326,17 +304,6 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
               </button>
             </div>
           ))}
-
-          <label className="field">
-            Modèle de rendu Markdown (fiche livrable)
-            <textarea
-              rows={4}
-              value={fiche.renderTemplate}
-              onChange={(event) =>
-                onChange(updateFiche(value, ficheIndex, { renderTemplate: event.target.value }))
-              }
-            />
-          </label>
         </div>
       ))}
     </div>
