@@ -1,9 +1,9 @@
 import type { WidgetPosition } from "@/domain/widget";
-import { appUrl } from "@/lib/env";
+import { publicLinkBaseUrl } from "@/lib/env";
 
 /** URL de l'iframe widget (le loader l'utilise). */
 export function widgetEmbedUrl(token: string): string {
-  return `${appUrl()}/embed/${encodeURIComponent(token)}`;
+  return `${publicLinkBaseUrl()}/embed/${encodeURIComponent(token)}`;
 }
 
 /**
@@ -11,7 +11,7 @@ export function widgetEmbedUrl(token: string): string {
  * position : le template et sa version restent portés par le lien.
  */
 export function buildWidgetSnippet(token: string, position: WidgetPosition): string {
-  const base = appUrl().replace(/\/$/, "");
+  const base = publicLinkBaseUrl().replace(/\/$/, "");
   return [
     `<script`,
     `  async`,

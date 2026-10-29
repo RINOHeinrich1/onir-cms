@@ -34,9 +34,14 @@ export function templateDatabaseUrl(): string | undefined {
   return env("TEMPLATE_DATABASE_URL");
 }
 
-/** URL publique de l'application (défaut local port 3008). */
+/** URL publique du backoffice (défaut local port 3008). */
 export function appUrl(): string {
   return env("APP_URL") ?? "http://localhost:3008";
+}
+
+/** URL publique des liens et widgets. Retombe sur le backoffice si non configurée. */
+export function publicLinkBaseUrl(): string {
+  return env("PUBLIC_LINK_BASE_URL") ?? appUrl();
 }
 
 /**

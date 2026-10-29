@@ -30,7 +30,7 @@ import {
 } from "@/domain/entities/chat";
 import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
-import { appUrl } from "@/lib/env";
+import { publicLinkBaseUrl } from "@/lib/env";
 import { decryptLinkToken, encryptLinkToken } from "@/lib/link-crypto";
 
 export type ChatLinksDependencies = {
@@ -90,7 +90,7 @@ export async function copyChatLink(
   if (stored !== null) {
     try {
       const token = decryptLinkToken(stored);
-      return { link: existing, token, url: `${appUrl()}/l/${token}`, rotated: false };
+      return { link: existing, token, url: `${publicLinkBaseUrl()}/l/${token}`, rotated: false };
     } catch {
       // Chiffré illisible (clé tournée ?) : régénération ci-dessous.
     }
@@ -104,7 +104,7 @@ export async function copyChatLink(
   if (link === null) {
     throw new NotFoundError("Lien introuvable");
   }
-  return { link, token, url: `${appUrl()}/l/${token}`, rotated: true };
+  return { link, token, url: `${publicLinkBaseUrl()}/l/${token}`, rotated: true };
 }
 /**
  * US-LIENS-001 — édition globale d'un lien (admin/marketeur) : libellé et
