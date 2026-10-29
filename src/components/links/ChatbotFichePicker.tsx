@@ -80,6 +80,12 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
     );
   }, [options, query]);
 
+  const availableCount = Math.max(options.length, value.length);
+  const assignableCount = Math.min(availableCount, MAX_FICHES_PER_CHATBOT);
+  const remainingAssignable = Math.max(0, assignableCount - value.length);
+  const remainingLabel =
+    remainingAssignable === 1 ? "1 fiche assignable" : `${remainingAssignable} fiches assignables`;
+
   const toggle = (option: FicheCollecteOption): void => {
     setError(null);
     if (selectedIds.has(option.id)) {
@@ -180,11 +186,14 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
 
       <div className="chatbot-fiche-selected">
         <strong>
-          Fiches sélectionnées ({value.length}/{MAX_FICHES_PER_CHATBOT})
+          Fiches sélectionnées ({value.length}/{availableCount} disponibles)
         </strong>
-        {value.length === 0 ? (
+        <p className="hint">
+          Le maximum est de {MAX_FICHES_PER_CHATBOT} fiches ; il reste {remainingLabel}.
+        </p>
+        {value.length === 0 && options.length > 0 ? (
           <p className="hint">Sélectionnez au moins une fiche de collecte.</p>
-        ) : (
+        ) : value.length === 0 ? null : (
           <ul>
             {value.map((fiche) => (
               <li key={fiche.id}>
