@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ConversationIncidentRecord } from "@/application/ports/conversation-incident-repository";
 import { useToast } from "@/components/ui/ToastProvider";
-import { OPEN_CONVERSATION_INFO_EVENT } from "./ConversationInfoPanel";
+import { OPEN_CONVERSATION_INFO_EVENT } from "./conversation-events";
 
 function isFicheIncident(incident: ConversationIncidentRecord): boolean {
   return incident.kind === "fiche_generation_failed";

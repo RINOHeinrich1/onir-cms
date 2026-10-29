@@ -8,10 +8,7 @@ import type {
   ConversationFieldsView,
   ConversationFieldView,
 } from "@/domain/entities/conversation-field";
-import { ConversationSummaryPanel } from "./ConversationSummaryPanel";
-
-export const OPEN_CONVERSATION_INFO_EVENT = "conversation-info-open";
-export const OPEN_CONVERSATION_SUMMARY_EVENT = "conversation-summary-open";
+import { OPEN_CONVERSATION_INFO_EVENT } from "./conversation-events";
 
 type SaveState = { key: string; status: "saving" | "saved" | "error" } | null;
 
@@ -287,15 +284,9 @@ function FicheSection({
 export function ConversationInfoPanel({
   conversationId,
   showTrigger = true,
-  summary,
 }: {
   conversationId: string;
   showTrigger?: boolean;
-  summary?: {
-    canSummarize: boolean;
-    canChooseModel: boolean;
-    finalized: boolean;
-  };
 }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -304,7 +295,6 @@ export function ConversationInfoPanel({
   const [refreshing, setRefreshing] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(null);
   const [mounted, setMounted] = useState(false);
-  const [focus, setFocus] = useState<"info" | "summary">("info");
   const lastRefreshAttempt = useRef(0);
 
   useEffect(() => {
@@ -405,37 +395,11 @@ export function ConversationInfoPanel({
 
   useEffect(() => {
     void load();
-    const initialPanel = new URLSearchParams(window.location.search).get("panel");
-    if (initialPanel === "info" || initialPanel === "summary") {
-      setFocus(initialPanel);
-      setOpen(true);
-    }
-    const openFromBanner = (): void => {
-      setFocus("info");
-      setOpen(true);
-    };
-    const openFromSummary = (): void => {
-      setFocus("summary");
-      setOpen(true);
-    };
+    if (new URLSearchParams(window.location.search).get("panel") === "info") setOpen(true);
+    const openFromBanner = (): void => setOpen(true);
     window.addEventListener(OPEN_CONVERSATION_INFO_EVENT, openFromBanner);
-    window.addEventListener(OPEN_CONVERSATION_SUMMARY_EVENT, openFromSummary);
-    return () => {
-      window.removeEventListener(OPEN_CONVERSATION_INFO_EVENT, openFromBanner);
-      window.removeEventListener(OPEN_CONVERSATION_SUMMARY_EVENT, openFromSummary);
-    };
+    return () => window.removeEventListener(OPEN_CONVERSATION_INFO_EVENT, openFromBanner);
   }, [load]);
-
-  useEffect(() => {
-    if (!open || focus !== "summary") return;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById("conversation-summary-section")?.scrollIntoView({
-        block: "start",
-        behavior: "smooth",
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [focus, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -522,17 +486,6 @@ export function ConversationInfoPanel({
                 ×
               </button>
             </div>
-
-            {summary !== undefined ? (
-              <div id="conversation-summary-section" className="conversation-info-summary">
-                <ConversationSummaryPanel
-                  conversationId={conversationId}
-                  canSummarize={summary.canSummarize}
-                  canChooseModel={summary.canChooseModel}
-                  finalized={summary.finalized}
-                />
-              </div>
-            ) : null}
 
             {snapshot !== null ? (
               <>

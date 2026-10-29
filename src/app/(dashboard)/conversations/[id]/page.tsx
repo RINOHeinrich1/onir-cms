@@ -8,6 +8,7 @@ import { ConversationActionsMenu } from "@/components/conversations/Conversation
 import { ConversationIncidentBanner } from "@/components/conversations/ConversationIncidentBanner";
 import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
+import { ConversationSummaryPanel } from "@/components/conversations/ConversationSummaryPanel";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -129,14 +130,13 @@ export default async function ConversationDetailPage({ params, searchParams }: P
           canViewLeads={canViewLeads}
         />
       </header>
-      <ConversationInfoPanel
+      <ConversationInfoPanel conversationId={conversation.id} showTrigger={false} />
+
+      <ConversationSummaryPanel
         conversationId={conversation.id}
-        showTrigger={false}
-        summary={{
-          canSummarize,
-          canChooseModel: canChooseSummaryModel,
-          finalized: conversation.statut === "finalisee",
-        }}
+        canSummarize={canSummarize}
+        canChooseModel={canChooseSummaryModel}
+        finalized={conversation.statut === "finalisee"}
       />
 
       <ConversationIncidentBanner conversationId={conversation.id} canIntervene={canIntervene} />

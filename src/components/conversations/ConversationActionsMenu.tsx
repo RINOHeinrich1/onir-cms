@@ -9,7 +9,7 @@ import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   OPEN_CONVERSATION_INFO_EVENT,
   OPEN_CONVERSATION_SUMMARY_EVENT,
-} from "./ConversationInfoPanel";
+} from "./conversation-events";
 
 type ConversationMenuMode = "detail" | "list";
 

@@ -6521,3 +6521,53 @@ a.subtab {
     flex-direction: column;
   }
 }
+
+/* Panneau dédié au résumé (ADR-0054) */
+.conversation-summary-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 62;
+  border: 0;
+  background: color-mix(in srgb, var(--navy) 18%, transparent);
+  backdrop-filter: blur(2px);
+  cursor: default;
+}
+
+.conversation-summary-drawer {
+  position: fixed;
+  top: 4.75rem;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 63;
+  display: flex;
+  flex-direction: column;
+  width: min(30rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-lifted);
+  animation: modal-rise var(--dur-fast) var(--ease-out-expo) both;
+}
+
+.conversation-summary-body {
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* La modale de génération doit toujours passer au-dessus des panneaux. */
+.modal-overlay {
+  z-index: 120;
+}
+
+@media (max-width: 40rem) {
+  .conversation-summary-drawer {
+    top: auto;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    max-height: 88vh;
+    border-radius: 1rem;
+  }
+}
