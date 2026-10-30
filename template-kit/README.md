@@ -90,9 +90,10 @@ Le template reçoit un **contexte gelé** `OnirtechTemplateContext` (via
 `element.onirtechContext`) et **appelle des actions** :
 
 - **lit** : `link`, `brand`, `theme`, `state` (phase `identity`/`chat`, messages,
-  statut), `resources` (`media`, `modelForm`) — filtrés par `capabilities`.
-- **actions** : `submitIdentity`, `sendMessage`, `finish`, `request(capability)`,
-  `openMedia`, `resize`.
+  statut, `fallback`), `resources` (`media`, `modelForm`) — filtrés par
+  `capabilities`.
+- **actions** : `submitIdentity`, `sendMessage`, `finish`, `selectFallback(id)`,
+  `openCollectionForm`, `request(capability)`, `openMedia`, `resize`.
 
 Le template **n'accède jamais** à la base ni à l'API : c'est l'hôte qui exécute.
 Le transport change (Web Component pour `official`/`verified`, iframe sandboxée
