@@ -60,8 +60,9 @@ intro
   └─ remplir la fiche → parcours de collecte existant
 ```
 
-Le visiteur ne peut choisir que des identifiants publiés. Aucun texte libre
-n’est interprété en mode heuristique.
+Le visiteur ne peut choisir que des identifiants publiés. Chaque question
+sélectionnée est enregistrée comme message **utilisateur**, puis la réponse fixe
+comme message assistant. Aucun texte libre n’est interprété en mode heuristique.
 
 ### 3. API publique
 

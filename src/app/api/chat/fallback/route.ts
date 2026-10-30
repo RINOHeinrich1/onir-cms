@@ -83,6 +83,13 @@ export async function POST(request: Request): Promise<NextResponse> {
       throw new ValidationError("Question de fallback inconnue");
     }
 
+    const userMessage = await conversations.appendMessage(
+      conversation.organizationId,
+      conversation.id,
+      "user",
+      question.label,
+    );
+    publishChatRealtime(conversation.id, { type: "message", message: userMessage });
     const message = await conversations.appendMessage(
       conversation.organizationId,
       conversation.id,
@@ -92,6 +99,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     publishChatRealtime(conversation.id, { type: "message", message });
     return NextResponse.json({
       questionId: question.id,
+      userMessage: toPublicChatMessage(userMessage, conversation.organizationId),
       message: toPublicChatMessage(message, conversation.organizationId),
     });
   } catch (error) {

@@ -360,6 +360,7 @@ export function TemplateHost({
           body: JSON.stringify({ conversationId, action: "select", questionId }),
         });
         const json = (await response.json().catch(() => null)) as {
+          userMessage?: ApiChatMessage;
           message?: ApiChatMessage;
           error?: string;
         } | null;
@@ -368,6 +369,9 @@ export function TemplateHost({
           return;
         }
         setError(null);
+        if (json?.userMessage !== undefined) {
+          receiveMessages([fromApiMessage(json.userMessage, allowAttachments)]);
+        }
         if (json?.message !== undefined) {
           receiveMessages([fromApiMessage(json.message, allowAttachments)]);
         }
