@@ -22,6 +22,12 @@ export const chatMessageLimiter = createRateLimiter({
   windowMs: envInt("CHAT_MESSAGE_WINDOW_MS", 5 * 60 * 1000),
 });
 
+/** Fallback heuristique (ADR-0059) : par IP + conversation, défaut 30 / 5 min. */
+export const chatFallbackLimiter = createRateLimiter({
+  limit: envInt("CHAT_FALLBACK_LIMIT", 30),
+  windowMs: envInt("CHAT_FALLBACK_WINDOW_MS", 5 * 60 * 1000),
+});
+
 /** Upload de pièces jointes (ADR-0034) : par **IP + conversation**, 20 / 5 min. */
 export const chatAttachmentLimiter = createRateLimiter({
   limit: envInt("CHAT_ATTACHMENT_LIMIT", 20),

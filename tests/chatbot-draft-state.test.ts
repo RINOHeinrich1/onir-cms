@@ -145,7 +145,7 @@ describe("état de brouillon de chatbot", () => {
       },
       fallback,
     );
-    expect(hydrated.step).toBe(5);
+    expect(hydrated.step).toBe(6);
     expect(hydrated.type).toBe("specifique");
     expect(hydrated.channels.page.enabled).toBe(true);
     expect(hydrated.dataDraft.photos).toEqual([]);

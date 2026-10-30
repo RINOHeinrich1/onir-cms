@@ -51,6 +51,12 @@ type ApiChatMessage = {
   authorName?: string | null;
 };
 
+type FallbackMenu = {
+  intro: string;
+  questions: { id: string; label: string }[];
+  showCollectionForm: boolean;
+};
+
 /** Les endpoints chat renvoient `createdAt` ; le contrat template attend `at`. */
 function withAt(message: TemplateMessage, allowAttachments: boolean): TemplateMessage {
   if (allowAttachments) return message;
@@ -83,6 +89,39 @@ function mergeTemplateMessages(
   for (const message of incoming) byId.set(message.id, message);
   return [...byId.values()].sort((a, b) =>
     a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at),
+  );
+}
+
+function FallbackPanel({
+  menu,
+  onSelect,
+}: {
+  menu: FallbackMenu;
+  onSelect: (questionId: string) => void;
+}) {
+  return (
+    <section className="chat-fallback" aria-live="polite">
+      <p>{menu.intro}</p>
+      {menu.questions.length > 0 ? (
+        <div className="chat-fallback-options">
+          {menu.questions.map((question) => (
+            <button
+              key={question.id}
+              type="button"
+              className="btn ghost small"
+              onClick={() => onSelect(question.id)}
+            >
+              {question.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="hint">Aucune question de secours n’est configurée.</p>
+      )}
+      {menu.showCollectionForm ? (
+        <p className="hint">La fiche de collecte reste disponible dans le formulaire du chatbot.</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -125,6 +164,7 @@ export function TemplateHost({
   const [phase, setPhase] = useState<"identity" | "chat">(baseContext.state.phase);
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fallbackMenu, setFallbackMenu] = useState<FallbackMenu | null>(null);
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
@@ -310,6 +350,54 @@ export function TemplateHost({
     [ensureConversation, platform, preview, template],
   );
 
+  const selectFallbackQuestion = useCallback(
+    async (questionId: string): Promise<void> => {
+      if (conversationId === null) return;
+      try {
+        const response = await fetch(`${platform}/fallback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId, action: "select", questionId }),
+        });
+        const json = (await response.json().catch(() => null)) as {
+          message?: ApiChatMessage;
+          error?: string;
+        } | null;
+        if (!response.ok) {
+          setError(json?.error ?? "Réponse de secours indisponible");
+          return;
+        }
+        setError(null);
+        if (json?.message !== undefined) {
+          receiveMessages([fromApiMessage(json.message, allowAttachments)]);
+        }
+      } catch {
+        setError("Erreur réseau, veuillez réessayer");
+      }
+    },
+    [allowAttachments, conversationId, platform, receiveMessages],
+  );
+
+  const loadFallbackMenu = useCallback(
+    async (activeConversationId: string): Promise<boolean> => {
+      try {
+        const response = await fetch(`${platform}/fallback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId: activeConversationId, action: "menu" }),
+        });
+        if (!response.ok) return false;
+        const json = (await response.json()) as FallbackMenu;
+        if (!Array.isArray(json.questions)) return false;
+        setFallbackMenu(json);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [platform],
+  );
+
   const actions = useMemo<TemplateActions>(
     () => ({
       submitIdentity: (data) => {
@@ -461,10 +549,18 @@ export function TemplateHost({
               error?: string;
             };
             if (!response.ok) {
+              if (
+                [409, 502, 503].includes(response.status) &&
+                (await loadFallbackMenu(activeConversationId))
+              ) {
+                setError(null);
+                return;
+              }
               removeLocal();
               setError(json.error ?? "Réponse impossible pour le moment");
               return;
             }
+            setFallbackMenu(null);
             setPendingAttachments([]);
             if (json.userMessage !== undefined) {
               setMessages((prev) => prev.filter((message) => message.id !== userId));
@@ -568,6 +664,7 @@ export function TemplateHost({
       anonymous,
       baseContext,
       ensureConversation,
+      loadFallbackMenu,
       pendingAttachments,
       platform,
       preview,
@@ -769,6 +866,9 @@ export function TemplateHost({
   if (template.mode === "iframe") {
     return (
       <div className="template-host">
+        {fallbackMenu !== null ? (
+          <FallbackPanel menu={fallbackMenu} onSelect={(id) => void selectFallbackQuestion(id)} />
+        ) : null}
         {error !== null ? <p className="alert error">{error}</p> : null}
         <iframe
           ref={iframeRef}
@@ -784,6 +884,9 @@ export function TemplateHost({
 
   return (
     <div className="template-host" ref={mountRef}>
+      {fallbackMenu !== null ? (
+        <FallbackPanel menu={fallbackMenu} onSelect={(id) => void selectFallbackQuestion(id)} />
+      ) : null}
       {error !== null ? <p className="alert error">{error}</p> : null}
     </div>
   );

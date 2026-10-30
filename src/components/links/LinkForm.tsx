@@ -14,6 +14,7 @@ import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataStep } from "./ChatbotDataStep";
+import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
@@ -71,6 +72,7 @@ const STEPS = [
   { title: "Données", short: "Données" },
   { title: "Moteurs IA", short: "IA" },
   { title: "Diffusion", short: "Diffusion" },
+  { title: "Fallback", short: "Fallback" },
   { title: "Récapitulatif", short: "Récapitulatif" },
 ] as const;
 
@@ -370,6 +372,16 @@ export function LinkForm({
       return null;
     }
     if (index === 1) {
+      return null;
+    }
+    if (index === 5) {
+      if (
+        config.fallback.enabled &&
+        config.fallback.questions.length === 0 &&
+        !config.fallback.showCollectionForm
+      ) {
+        return "Ajoutez au moins une question de fallback ou autorisez la fiche de collecte.";
+      }
       return null;
     }
     if (index === 4) {
@@ -762,6 +774,22 @@ export function LinkForm({
         {step === 5 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[5].title}>
             <div className="chatbot-step-head">
+              <h4>Fallback heuristique</h4>
+              <p className="hint">
+                En cas de panne IA, proposez uniquement des questions/réponses fermées et, si
+                besoin, la fiche de collecte existante.
+              </p>
+            </div>
+            <ChatbotFallbackFields
+              value={config.fallback}
+              onChange={(fallback) => setConfig((current) => ({ ...current, fallback }))}
+            />
+          </section>
+        ) : null}
+
+        {step === 6 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[6].title}>
+            <div className="chatbot-step-head">
               <h4>Récapitulatif</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
             </div>
@@ -816,6 +844,12 @@ export function LinkForm({
                   : enabledChannels
                       .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
                       .join(", ")}
+              </dd>
+              <dt>Fallback heuristique</dt>
+              <dd>
+                {config.fallback.enabled
+                  ? `${config.fallback.questions.length} question(s)${config.fallback.showCollectionForm ? " · fiche de collecte" : ""}`
+                  : "Désactivé"}
               </dd>
               <dt>Quotas</dt>
               <dd>{quotasSummary}</dd>

@@ -36,7 +36,7 @@ export type ChatbotDraftState = {
 };
 
 const STEP_MIN = 0;
-const STEP_MAX = 5;
+const STEP_MAX = 6;
 
 /** État initial du wizard (aucune donnée utilisateur). */
 export function defaultChatbotDraftState(defaultConfidentialiteId = ""): ChatbotDraftState {
@@ -264,6 +264,7 @@ function configComparable(config: ChatbotConfigDraft): string {
       })),
     })),
     dataSelection: config.dataSelection,
+    fallback: config.fallback,
   });
 }
 

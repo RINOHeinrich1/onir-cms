@@ -14,6 +14,12 @@ import type { ChatMessageDto } from "./types";
 
 type Message = ChatMessageDto;
 
+type FallbackMenu = {
+  intro: string;
+  questions: { id: string; label: string }[];
+  showCollectionForm: boolean;
+};
+
 const POLL_MS = 4000;
 
 function mergeMessages(current: Message[], incoming: Message[]): Message[] {
@@ -126,6 +132,7 @@ export function ChatWindow({
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachmentDto[]>([]);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [fallbackMenu, setFallbackMenu] = useState<FallbackMenu | null>(null);
 
   const logRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -398,6 +405,47 @@ export function ChatWindow({
       0,
     );
 
+  const selectFallbackQuestion = async (questionId: string): Promise<void> => {
+    const activeId = activeConversationId;
+    if (activeId === null) return;
+    setError(null);
+    try {
+      const response = await fetch("/api/chat/fallback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeId, action: "select", questionId }),
+      });
+      const json = (await response.json().catch(() => null)) as {
+        message?: Message;
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        setError(json?.error ?? "Réponse de secours indisponible");
+        return;
+      }
+      if (json?.message !== undefined) receiveMessages([json.message]);
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    }
+  };
+
+  const loadFallbackMenu = async (activeId: string): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/chat/fallback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeId, action: "menu" }),
+      });
+      if (!response.ok) return false;
+      const json = (await response.json()) as FallbackMenu;
+      if (!Array.isArray(json.questions)) return false;
+      setFallbackMenu(json);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const send = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const content = draft.trim();
@@ -447,10 +495,15 @@ export function ChatWindow({
         error?: string;
       };
       if (!response.ok) {
+        if ([409, 502, 503].includes(response.status) && (await loadFallbackMenu(activeId))) {
+          setError(null);
+          return;
+        }
         removeLocal();
         setError(json.error ?? "Réponse impossible pour le moment");
         return;
       }
+      setFallbackMenu(null);
       setPendingAttachments([]);
       if (json.mode === "ai" || json.mode === "human") setMode(json.mode);
       if (json.userMessage !== undefined) {
@@ -659,6 +712,33 @@ export function ChatWindow({
           ) : null}
         </ul>
       </div>
+
+      {fallbackMenu !== null ? (
+        <section className="chat-fallback" aria-live="polite">
+          <p>{fallbackMenu.intro}</p>
+          {fallbackMenu.questions.length > 0 ? (
+            <div className="chat-fallback-options">
+              {fallbackMenu.questions.map((question) => (
+                <button
+                  key={question.id}
+                  type="button"
+                  className="btn ghost small"
+                  onClick={() => void selectFallbackQuestion(question.id)}
+                >
+                  {question.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="hint">Aucune question de secours n’est configurée.</p>
+          )}
+          {fallbackMenu.showCollectionForm ? (
+            <p className="hint">
+              La fiche de collecte reste disponible dans le formulaire du chatbot.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {error !== null ? <p className="alert error chat-fiche">{error}</p> : null}
 
