@@ -80,6 +80,11 @@ class StarterTemplate extends HTMLElement {
         li img { max-width:16rem; border-radius:.5rem; display:block; margin-top:.4rem; }
         .composer { display:flex; gap:.5rem; margin-top:1rem; }
         .composer input { flex:1; }
+        .fallback { display:flex; flex-direction:column; gap:.7rem; margin-top:1rem; padding:1rem; border:1px dashed #94a3b8; border-radius:.75rem; background:#f8fafc; }
+        .fallback-intro { margin:0; font-weight:600; }
+        .fallback-options { display:flex; flex-direction:column; gap:.45rem; }
+        .fallback-option, .fallback-form { text-align:left; background:#fff; color:${ctx.theme.primary ?? "#023777"}; border:1px solid #cbd5e1; }
+        .fallback-option:hover, .fallback-form:hover { border-color:${ctx.theme.primary ?? "#023777"}; background:#eff6ff; }
       `,
     });
 
@@ -156,6 +161,30 @@ class StarterTemplate extends HTMLElement {
       "welcome_message",
       "Décrivez votre demande. Je vous réponds directement ici.",
     );
+    const fallback = ctx.state.fallback;
+    const hasCollection =
+      Array.isArray(ctx.resources.modelForm) && ctx.resources.modelForm.length > 0;
+    const fallbackView = fallback
+      ? el("section", { class: "fallback", "aria-live": "polite" }, [
+          el("p", { class: "fallback-intro", text: fallback.intro }),
+          el("div", { class: "fallback-options" }, fallback.questions.map((question) =>
+            el("button", {
+              type: "button",
+              class: "fallback-option",
+              text: question.label,
+              onclick: () => ctx.actions.selectFallback(question.id),
+            }),
+          )),
+          fallback.showCollectionForm && hasCollection
+            ? el("button", {
+                type: "button",
+                class: "fallback-form",
+                text: "Remplir le formulaire",
+                onclick: () => ctx.actions.openCollectionForm(),
+              })
+            : null,
+        ])
+      : null;
     return el("section", {}, [
       el("h2", { text: title }),
       el("ul", {}, items.length ? items : [
@@ -165,17 +194,22 @@ class StarterTemplate extends HTMLElement {
         ]),
       ]),
       ctx.state.typing ? el("p", { text: "…" }) : null,
-      el("div", { class: "composer" }, [
-        input,
-        el("button", {
-          type: "button",
-          text: "Envoyer",
-          onclick: send,
-        }),
-      ]),
-      el("div", { style: "margin-top:1rem" }, [
-        el("button", { type: "button", text: "Terminer", onclick: () => ctx.actions.finish() }),
-      ]),
+      fallbackView,
+      fallback === undefined
+        ? el("div", { class: "composer" }, [
+            input,
+            el("button", {
+              type: "button",
+              text: "Envoyer",
+              onclick: send,
+            }),
+          ])
+        : null,
+      !fallback && hasCollection
+        ? el("div", { style: "margin-top:1rem" }, [
+            el("button", { type: "button", text: "Terminer", onclick: () => ctx.actions.finish() }),
+          ])
+        : null,
     ]);
   }
 }

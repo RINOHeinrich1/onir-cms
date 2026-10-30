@@ -329,6 +329,24 @@ const STYLE = `
 
   .footer { flex: none; background: var(--onir-surface); border-top: 1px solid var(--onir-border); }
   .composer { padding: 10px 11px 8px; }
+  .fallback { margin: 10px 11px 8px; padding: 12px; border: 1px dashed var(--onir-border); border-radius: 14px; background: var(--onir-bg); }
+  .fallback-intro { margin: 0 0 8px; color: var(--onir-ink); font-size: 12px; font-weight: 700; line-height: 1.4; }
+  .fallback-options { display: flex; flex-direction: column; gap: 6px; }
+  .fallback-option, .fallback-form {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--onir-border);
+    border-radius: 10px;
+    background: var(--onir-surface);
+    color: var(--onir-primary);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+  }
+  .fallback-option:hover, .fallback-form:hover { border-color: var(--onir-primary); background: var(--onir-bg); }
+  .fallback-form { margin-top: 8px; text-align: center; }
   .composer-box {
     display: flex;
     align-items: flex-end;
@@ -643,6 +661,7 @@ class StarterWidget extends HTMLElement {
   #typing = null;
   #empty = null;
   #messageNodes = new Map();
+  #fallback = null;
   #composer = null;
   #input = null;
   #send = null;
@@ -882,7 +901,8 @@ class StarterWidget extends HTMLElement {
       el("button", { class: "done-close", type: "button", text: "Fermer", onclick: () => this.#closePanel() }),
     ]);
 
-    const footer = el("div", { class: "footer" }, [composer, done]);
+    const fallback = el("div", { class: "fallback", hidden: "true" });
+    const footer = el("div", { class: "footer" }, [fallback, composer, done]);
     const panel = el("section", { class: "panel", role: "dialog", "aria-modal": "false", "aria-label": "Discussion" }, [
       header,
       log,
@@ -903,6 +923,7 @@ class StarterWidget extends HTMLElement {
     this.#list = list;
     this.#typing = typing;
     this.#empty = empty;
+    this.#fallback = fallback;
     this.#composer = composer;
     this.#input = input;
     this.#send = send;
@@ -957,13 +978,46 @@ class StarterWidget extends HTMLElement {
         ]),
       );
     }
+    const fallback = ctx.state.fallback;
+    const fallbackActive = fallback !== undefined && !finalised;
+    const hasCollection =
+      Array.isArray(ctx.resources?.modelForm) && ctx.resources.modelForm.length > 0;
     this.#empty.hidden = ctx.state.messages.length > 0 || ctx.state.typing;
-    this.#finishButton.hidden = finalised || ctx.state.messages.length === 0;
+    this.#finishButton.hidden = finalised || fallbackActive || !hasCollection || ctx.state.messages.length === 0;
     this.#finishButton.disabled = this.#finishing || ctx.state.typing;
     this.#finishButton.textContent = this.#finishing ? "…" : "Terminer";
     this.#done.hidden = !finalised;
-    this.#composer.hidden = finalised;
-    this.#input.disabled = finalised;
+    this.#composer.hidden = finalised || fallbackActive;
+    this.#input.disabled = finalised || fallbackActive;
+    if (this.#fallback !== null) {
+      this.#fallback.hidden = !fallbackActive;
+      this.#fallback.replaceChildren();
+      if (fallbackActive) {
+        this.#fallback.appendChild(el("p", { class: "fallback-intro", text: fallback.intro }));
+        const options = el("div", { class: "fallback-options" });
+        for (const question of fallback.questions) {
+          options.appendChild(
+            el("button", {
+              class: "fallback-option",
+              type: "button",
+              text: question.label,
+              onclick: () => ctx.actions.selectFallback(question.id),
+            }),
+          );
+        }
+        this.#fallback.appendChild(options);
+        if (fallback.showCollectionForm && hasCollection) {
+          this.#fallback.appendChild(
+            el("button", {
+              class: "fallback-form",
+              type: "button",
+              text: "Remplir le formulaire",
+              onclick: () => ctx.actions.openCollectionForm(),
+            }),
+          );
+        }
+      }
+    }
     if (this.#hint !== null) {
       this.#hint.textContent = this.#finishing
         ? "Enregistrement de votre demande…"
