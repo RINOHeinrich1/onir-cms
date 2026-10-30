@@ -419,6 +419,7 @@ export function ChatWindow({
         body: JSON.stringify({ conversationId: activeId, action: "select", questionId }),
       });
       const json = (await response.json().catch(() => null)) as {
+        userMessage?: Message;
         message?: Message;
         error?: string;
       } | null;
@@ -426,6 +427,7 @@ export function ChatWindow({
         setError(json?.error ?? "Réponse de secours indisponible");
         return;
       }
+      if (json?.userMessage !== undefined) receiveMessages([json.userMessage]);
       if (json?.message !== undefined) receiveMessages([json.message]);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
