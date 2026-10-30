@@ -12,6 +12,7 @@ export function ChatPortal({
   confidentialite,
   anonymous = false,
   attachmentFields = [],
+  canFinish = true,
 }: {
   token: string;
   /** Politique de confidentialité à accepter (null = aucune). */
@@ -20,6 +21,8 @@ export function ChatPortal({
   anonymous?: boolean;
   /** Champs fichier du modèle de raisonnement (ADR-0034). */
   attachmentFields?: TemplateFormField[];
+  /** Faux pour un chatbot de présentation sans fiche de collecte. */
+  canFinish?: boolean;
 }) {
   const [started, setStarted] = useState<{
     conversationId: string;
@@ -34,6 +37,7 @@ export function ChatPortal({
           token={token}
           anonymous
           attachmentFields={attachmentFields}
+          canFinish={canFinish}
         />
       );
     }
@@ -54,6 +58,7 @@ export function ChatPortal({
       initialMessages={started.messages}
       anonymous={anonymous}
       attachmentFields={attachmentFields}
+      canFinish={canFinish}
     />
   );
 }

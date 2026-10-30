@@ -78,6 +78,26 @@ function fieldsGuide(fiche: FicheDefinition): string {
  * saisi est la seule source. Les instructions de la fiche sont toujours
  * ajoutées séparément. Réutilise le moteur de champs/rendu existant.
  */
+/**
+ * Définition runtime d'un chatbot sans fiche de collecte : mode présentation /
+ * information uniquement. Aucun champ, aucune génération de fiche.
+ */
+export function conversationOnlyDefinition(config: ChatbotConfig): TemplateDefinition {
+  const systemPrompt =
+    config.behaviorMode === "expert"
+      ? config.systemPrompt.trim()
+      : buildGuidedChatbotPrompt(config.simple);
+  return {
+    key: "presentation",
+    label: config.simple.role.trim() === "" ? "Assistant" : config.simple.role.trim(),
+    description: "",
+    systemPrompt,
+    fields: [],
+    renderTemplate: "",
+    simple: config.simple,
+  };
+}
+
 export function ficheToDefinition(
   config: ChatbotConfig,
   fiche: FicheDefinition,

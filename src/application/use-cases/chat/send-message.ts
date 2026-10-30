@@ -16,6 +16,7 @@ import { fallbackAiClient } from "@/application/use-cases/ai/with-fallback";
 import { buildAttachmentPromptContext } from "@/application/use-cases/attachments/attachment-prompt";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import {
+  conversationOnlyDefinition,
   ficheToDefinition,
   findFiche,
   resolveCurrentConfig,
@@ -326,6 +327,9 @@ export async function sendMessage(
     const activeFiche = activeInstance === null ? null : findFiche(config, activeInstance.ficheKey);
     const fiche = activeFiche ?? config.fiches[0] ?? null;
     if (fiche !== null) templateDefinition = ficheToDefinition(config, fiche);
+  }
+  if (templateDefinition === null && config !== null) {
+    templateDefinition = conversationOnlyDefinition(config);
   }
   const definition = templateDefinition;
   if (definition === null) {

@@ -41,6 +41,8 @@ type ChatWindowProps = {
   initialMessages?: ChatMessageDto[];
   /** Champs fichier demandés par le modèle (ADR-0034). */
   attachmentFields?: TemplateFormField[];
+  /** Faux pour un chatbot de présentation sans fiche de collecte. */
+  canFinish?: boolean;
 };
 
 /** Heure courte (HH:MM) d'un message, dans la locale du navigateur. */
@@ -114,6 +116,7 @@ export function ChatWindow({
   anonymous = false,
   initialMessages,
   attachmentFields = [],
+  canFinish = true,
 }: ChatWindowProps) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
@@ -838,7 +841,7 @@ export function ChatWindow({
             maxLength={4000}
           />
           <div className="chat-actions">
-            {anonymous ? null : (
+            {anonymous || !canFinish ? null : (
               <button
                 type="button"
                 className="chat-finish"

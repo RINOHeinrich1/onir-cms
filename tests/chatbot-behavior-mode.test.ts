@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ficheToDefinition } from "@/application/use-cases/chat/chatbot-config-runtime";
+import {
+  conversationOnlyDefinition,
+  ficheToDefinition,
+} from "@/application/use-cases/chat/chatbot-config-runtime";
 import {
   buildGuidedChatbotPrompt,
   type ChatbotConfig,
@@ -76,6 +79,13 @@ describe("modes de comportement du chatbot", () => {
     expect(parsed.ok).toBe(false);
     if (parsed.ok) return;
     expect(parsed.errors.join(" ")).toContain("Prompt système obligatoire en mode expert");
+  });
+
+  it("construit une définition de présentation sans fiche de collecte", () => {
+    const definition = conversationOnlyDefinition(BASE_CONFIG);
+    expect(definition.fields).toEqual([]);
+    expect(definition.renderTemplate).toBe("");
+    expect(definition.systemPrompt).toContain("Tu es assistant commercial.");
   });
 
   it("en mode guidé, génère le prompt au runtime et ignore l'ancien snapshot", () => {
