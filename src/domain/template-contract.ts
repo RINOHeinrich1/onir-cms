@@ -52,6 +52,13 @@ export type TemplateMessageUserState = {
   confidence: number;
 };
 
+/** Menu de secours heuristique (capacité `fallback`, ADR-0059). */
+export type TemplateFallbackState = {
+  intro: string;
+  questions: { id: string; label: string }[];
+  showCollectionForm: boolean;
+};
+
 export type TemplateMessage = {
   id: string;
   role: "user" | "assistant";
@@ -116,6 +123,8 @@ export type TemplateContextPayload = {
     typing: boolean;
     /** Pièces téléversées mais pas encore envoyées (capacité `attachments`). */
     pendingAttachments?: TemplateAttachment[];
+    /** Menu de secours actif (capacité `fallback`, ADR-0059). */
+    fallback?: TemplateFallbackState;
   };
   resources: {
     media: { photos: TemplateMediaItem[]; liens: TemplateMediaItem[] };
@@ -143,6 +152,8 @@ export type TemplateAction =
   | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
+  | { action: "selectFallback"; payload: { questionId: string } }
+  | { action: "openCollectionForm" }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -172,7 +183,13 @@ export function parseTemplateAction(
   switch (action) {
     case "ready":
     case "finish":
+    case "openCollectionForm":
       return { ok: true, value: { action } };
+    case "selectFallback": {
+      const questionId = typeof payload.questionId === "string" ? payload.questionId.trim() : "";
+      if (questionId === "") return { ok: false, error: "questionId requis" };
+      return { ok: true, value: { action, payload: { questionId } } };
+    }
     case "sendMessage": {
       const content = typeof payload.content === "string" ? payload.content.trim() : "";
       const attachmentIds = Array.isArray(payload.attachmentIds)

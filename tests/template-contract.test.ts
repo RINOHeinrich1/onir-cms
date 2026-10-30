@@ -125,6 +125,10 @@ describe("parseTemplateAction — validation côté hôte", () => {
   it("accepte les actions valides", () => {
     expect(parseTemplateAction({ action: "ready" }).ok).toBe(true);
     expect(parseTemplateAction({ action: "finish" }).ok).toBe(true);
+    expect(parseTemplateAction({ action: "openCollectionForm" }).ok).toBe(true);
+    expect(
+      parseTemplateAction({ action: "selectFallback", payload: { questionId: "tarifs" } }).ok,
+    ).toBe(true);
     expect(parseTemplateAction({ action: "sendMessage", payload: { content: "Salut" } }).ok).toBe(
       true,
     );
@@ -173,6 +177,9 @@ describe("parseTemplateAction — validation côté hôte", () => {
       false,
     );
     expect(parseTemplateAction({ action: "resize", payload: { height: -1 } }).ok).toBe(false);
+    expect(parseTemplateAction({ action: "selectFallback", payload: { questionId: " " } }).ok).toBe(
+      false,
+    );
     expect(parseTemplateAction({ action: "sabotage" }).ok).toBe(false);
     expect(parseTemplateAction("nope").ok).toBe(false);
   });

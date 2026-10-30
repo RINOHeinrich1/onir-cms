@@ -323,3 +323,32 @@ Le cœur (`.`, hors adaptateurs) est plafonné à **5 Ko gzip**, contrôlé en C
 ## Licence
 
 MIT.
+
+## Fallback heuristique (capacité `fallback`)
+
+Déclarez `fallback` dans le manifeste pour rendre vous-même le menu de secours :
+
+```ts
+const { ctx, actions } = useTemplate();
+const fallback = ctx.state.fallback;
+
+if (fallback) {
+  return h(
+    "section",
+    null,
+    h("p", null, fallback.intro),
+    ...fallback.questions.map((question) =>
+      h("button", { onClick: () => actions.selectFallback(question.id) }, question.label),
+    ),
+    fallback.showCollectionForm
+      ? h("button", { onClick: () => actions.openCollectionForm() }, "Remplir le formulaire")
+      : null,
+  );
+}
+```
+
+- `ctx.state.fallback` est absent hors panne IA.
+- `actions.selectFallback(id)` valide l’ID côté hôte, ajoute la question comme message utilisateur puis la réponse comme message assistant.
+- `actions.openCollectionForm()` ferme le menu ; le template affiche ensuite son propre formulaire existant.
+- Sans la capacité `fallback`, l’hôte conserve son menu générique.
+

@@ -26,6 +26,10 @@ const CAPABILITY_DESCRIPTIONS: Record<TemplateCapability, { text: string; field:
     text: "Pièces jointes des champs fichier (ADR-0034)",
     field: "ctx.state.pendingAttachments / message.attachments",
   },
+  fallback: {
+    text: "Menu de secours heuristique personnalisable (ADR-0059)",
+    field: "ctx.state.fallback / actions.selectFallback()",
+  },
   data: {
     text: "Ressources de données déclarées par contrat (ADR-0026)",
     field: "ctx.data.load(contract)",

@@ -93,8 +93,8 @@ aperçu du template dans le catalogue et sur sa fiche.
   copié d'un exemple).
 - `ui.shadowDom` : `open` | `closed` | `none` (mode WC).
 - `capabilities` : sous-ensemble de `messages`, `media`, `modelForm`, `theme`,
-  `userState`, `knowledge`, `attachments` (une capacité non déclarée n'est **pas**
-  fournie). `userState`, `knowledge` et `attachments` sont des **extensions
+  `userState`, `knowledge`, `attachments`, `fallback` (une capacité non déclarée n'est **pas**
+  fournie). `userState`, `knowledge`, `attachments` et `fallback` sont des **extensions
   additives** (ADR-0020, ADR-0034).
 - `network` : liste de domaines externes autorisés — **vide par défaut**.
 - `params` : variables **paramétrables par lien** (ADR-0023, §12) — optionnel,
@@ -117,7 +117,8 @@ export type TemplateCapability =
   | "theme"
   | "userState"     // extension additive (ADR-0020)
   | "knowledge"     // extension additive (ADR-0020)
-  | "attachments";  // extension additive (ADR-0034)
+  | "attachments"   // extension additive (ADR-0034)
+  | "fallback";     // extension additive (ADR-0059)
 
 export type TemplateMessageMedia = {
   type: "photo" | "lien";
@@ -193,6 +194,12 @@ export type OnirtechTemplateContext = Readonly<{
     typing: boolean;
     /** Pièces téléversées, pas encore envoyées (capacité `attachments`). */
     pendingAttachments?: readonly TemplateAttachment[];
+    /** Menu de secours actif (capacité `fallback`). */
+    fallback?: Readonly<{
+      intro: string;
+      questions: readonly { id: string; label: string }[];
+      showCollectionForm: boolean;
+    }>;
   }>;
   resources: Readonly<{
     media: Readonly<{ photos: readonly TemplateMediaItem[]; liens: readonly TemplateMediaItem[] }>;
@@ -213,6 +220,10 @@ export type OnirtechTemplateContext = Readonly<{
     removeAttachment(attachmentId: string): Promise<void>;
     /** Bouton « Terminer » : génère la fiche. */
     finish(): void;
+    /** Sélectionne une question du menu de secours (capacité `fallback`). */
+    selectFallback(questionId: string): void;
+    /** Ferme le menu de secours et laisse le template afficher son formulaire. */
+    openCollectionForm(): void;
     /** Rafraîchit une ressource (résout la promesse avec la donnée à jour). */
     request(capability: TemplateCapability): Promise<unknown>;
     /** Ouvre un lien média (validé/allowlisté par l'hôte). */
@@ -275,6 +286,8 @@ L'hôte monte `<iframe sandbox="allow-scripts allow-forms">` (**sans**
   - `{ __onirtech: 1, type: "action", action: "removeAttachment", payload: { attachmentId } }`
   - `{ __onirtech: 1, type: "action", action: "submitIdentity", payload }`
   - `{ __onirtech: 1, type: "action", action: "finish" }`
+  - `{ __onirtech: 1, type: "action", action: "selectFallback", payload: { questionId } }`
+  - `{ __onirtech: 1, type: "action", action: "openCollectionForm" }`
   - `{ __onirtech: 1, type: "action", action: "request", payload: { capability } }`
   - `{ __onirtech: 1, type: "action", action: "openMedia", payload: { url } }`
   - `{ __onirtech: 1, type: "resize", payload: { height } }`
@@ -365,7 +378,7 @@ open source.
 
 ## 11. Note d'extension additive — capacités cœur (ADR-0020)
 
-Deux **capacités cœur** génériques sont exposées aux templates, de façon
+Des **capacités cœur** additives sont exposées aux templates, de façon
 **additive** (aucune rupture de `onirtech.template-host.v1`, aucun template
 existant impacté) :
 
@@ -373,6 +386,7 @@ existant impacté) :
 | --- | --- | --- | --- |
 | `userState` | `TemplateMessage.userState` = `{ label, confidence }` | message **utilisateur** | capacité déclarée **ET** flag lien `userStateEnabled` |
 | `knowledge` | `TemplateMessage.knowledge` = `{ ref, titre }[]` | message **assistant** | capacité déclarée **ET** source `connaissances` du lien active |
+| `fallback` | `state.fallback` = `{ intro, questions, showCollectionForm }` | état de secours | capacité déclarée |
 
 ### Double garde (invariant)
 L'hôte ne fournit la donnée **que si** la capacité est déclarée au manifeste **ET**

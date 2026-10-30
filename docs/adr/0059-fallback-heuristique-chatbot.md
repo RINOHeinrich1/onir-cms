@@ -96,12 +96,13 @@ peut :
 ### 5. Template et SDK
 
 Le template visuel ne lit jamais la configuration en base et n’appelle jamais
-l’API directement. Dans cette première implémentation, le shell hôte affiche un menu de secours
-générique et appelle l’API ; le template visuel reste inchangé.
+l’API directement. Une capacité additive `fallback` expose `state.fallback` et
+les actions `selectFallback(questionId)` / `openCollectionForm()`.
 
-L’ajout est additif : les templates qui ne gèrent pas encore le fallback
-continuent de fonctionner. Une projection du menu dans le contexte du template
-pourra être ajoutée ensuite pour permettre un rendu entièrement personnalisé.
+Si le template ne déclare pas la capacité, le shell hôte conserve le menu
+générique actuel. Si le template la déclare, il peut rendre le menu et le
+formulaire selon son propre design ; l’hôte valide toujours les IDs et exécute
+les appels API.
 
 ### 6. Sécurité et limites
 
