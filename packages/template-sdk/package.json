@@ -1,6 +1,6 @@
 {
   "name": "@onirtech/template-sdk",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "SDK TypeScript des templates visuels ONIRTECH (contrat onirtech.template-host.v1).",
   "license": "MIT",
   "type": "module",
