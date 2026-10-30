@@ -14,6 +14,7 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -52,6 +53,7 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
 const EDIT_STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
   { title: "Moteurs IA", short: "IA" },
+  { title: "Fallback", short: "Fallback" },
   { title: "Diffusion", short: "Diffusion" },
   { title: "Récapitulatif", short: "Récapitulatif" },
 ] as const;
@@ -163,7 +165,16 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 2) {
+    if (index === 2 && config !== null) {
+      if (
+        config.fallback.enabled &&
+        config.fallback.questions.length === 0 &&
+        !config.fallback.showCollectionForm
+      ) {
+        return "Ajoutez au moins une question de fallback ou autorisez la fiche de collecte.";
+      }
+    }
+    if (index === 3) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -384,6 +395,28 @@ export function LinkEditModal({
               {step === 2 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
                   <div className="chatbot-step-head">
+                    <h4>Fallback heuristique</h4>
+                    <p className="hint">
+                      En cas de panne IA, proposez uniquement des questions/réponses fermées et, si
+                      besoin, la fiche de collecte existante.
+                    </p>
+                  </div>
+                  {config !== null ? (
+                    <ChatbotFallbackFields
+                      value={config.fallback}
+                      onChange={(fallback) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, fallback },
+                        )
+                      }
+                    />
+                  ) : null}
+                </section>
+              ) : null}
+
+              {step === 3 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
+                  <div className="chatbot-step-head">
                     <h4>Diffusion</h4>
                     <p className="hint">
                       Canaux, sources de réponse, état visiteur et bindings de données.
@@ -409,8 +442,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 3 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
+              {step === 4 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
                   <div className="chatbot-step-head">
                     <h4>Récapitulatif</h4>
                     <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
@@ -465,6 +498,12 @@ export function LinkEditModal({
                       ]
                         .filter((value) => value !== "")
                         .join(", ") || "Aucune"}
+                    </dd>
+                    <dt>Fallback heuristique</dt>
+                    <dd>
+                      {config === null || !config.fallback.enabled
+                        ? "Désactivé"
+                        : `${config.fallback.questions.length} question(s)${config.fallback.showCollectionForm ? " · fiche de collecte" : ""}`}
                     </dd>
                     <dt>Quotas</dt>
                     <dd>{quotasSummary}</dd>

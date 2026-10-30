@@ -8,6 +8,11 @@ import {
 
 export const MAX_FICHES_PER_CHATBOT = 8;
 const FICHE_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const MAX_FALLBACK_QUESTIONS = 20;
+export const MAX_FALLBACK_QUESTION_LENGTH = 120;
+export const MAX_FALLBACK_ANSWER_LENGTH = 4000;
+export const MAX_FALLBACK_INTRO_LENGTH = 500;
+const FALLBACK_QUESTION_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Source du comportement du chatbot : réglages guidés ou prompt expert. */
 export type ChatbotBehaviorMode = "guided" | "expert";
@@ -106,6 +111,112 @@ export function parseChatbotDataSelection(
   };
 }
 
+/** Question/réponse fermée du mode de secours heuristique (ADR-0059). */
+export type ChatbotFallbackQuestion = {
+  id: string;
+  label: string;
+  answer: string;
+};
+
+/**
+ * Secours heuristique : menu fermé de questions/réponses et accès à la fiche
+ * de collecte existante. Aucun mot-clé, aucune interprétation du texte libre.
+ */
+export type ChatbotFallback = {
+  enabled: boolean;
+  intro: string;
+  questions: ChatbotFallbackQuestion[];
+  showCollectionForm: boolean;
+};
+
+export function defaultChatbotFallback(): ChatbotFallback {
+  return {
+    enabled: false,
+    intro: "L’assistant est momentanément indisponible. Choisissez une option.",
+    questions: [],
+    showCollectionForm: true,
+  };
+}
+
+/** Normalise et valide le bloc `fallback` du snapshot chatbot. */
+export function parseChatbotFallback(
+  input: unknown,
+): { ok: true; value: ChatbotFallback } | { ok: false; error: string } {
+  if (input === undefined || input === null) {
+    return { ok: true, value: defaultChatbotFallback() };
+  }
+  if (typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, error: "Fallback heuristique invalide" };
+  }
+  const raw = input as Record<string, unknown>;
+  if (raw.enabled !== undefined && typeof raw.enabled !== "boolean") {
+    return { ok: false, error: "Activation du fallback invalide" };
+  }
+  if (raw.showCollectionForm !== undefined && typeof raw.showCollectionForm !== "boolean") {
+    return { ok: false, error: "Accès à la fiche de collecte invalide" };
+  }
+  const intro = text(raw.intro);
+  if (intro.length > MAX_FALLBACK_INTRO_LENGTH) {
+    return {
+      ok: false,
+      error: `Introduction du fallback limitée à ${MAX_FALLBACK_INTRO_LENGTH} caractères`,
+    };
+  }
+  if (raw.questions !== undefined && !Array.isArray(raw.questions)) {
+    return { ok: false, error: "Liste des questions de fallback invalide" };
+  }
+  const rawQuestions = Array.isArray(raw.questions) ? raw.questions : [];
+  if (rawQuestions.length > MAX_FALLBACK_QUESTIONS) {
+    return { ok: false, error: `${MAX_FALLBACK_QUESTIONS} questions de fallback maximum` };
+  }
+  const questions: ChatbotFallbackQuestion[] = [];
+  const ids = new Set<string>();
+  for (const [index, entry] of rawQuestions.entries()) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      return { ok: false, error: `Question de fallback ${index + 1} invalide` };
+    }
+    const item = entry as Record<string, unknown>;
+    const id = text(item.id);
+    const label = text(item.label);
+    const answer = text(item.answer);
+    if (!FALLBACK_QUESTION_ID_PATTERN.test(id)) {
+      return { ok: false, error: `Identifiant de question de fallback invalide (${id || "vide"})` };
+    }
+    if (ids.has(id)) {
+      return { ok: false, error: `Identifiant de question de fallback en double : ${id}` };
+    }
+    if (label === "") {
+      return { ok: false, error: `Libellé de la question « ${id} » obligatoire` };
+    }
+    if (label.length > MAX_FALLBACK_QUESTION_LENGTH) {
+      return {
+        ok: false,
+        error: `Libellé de la question « ${id} » limité à ${MAX_FALLBACK_QUESTION_LENGTH} caractères`,
+      };
+    }
+    if (answer === "") {
+      return { ok: false, error: `Réponse de la question « ${id} » obligatoire` };
+    }
+    if (answer.length > MAX_FALLBACK_ANSWER_LENGTH) {
+      return {
+        ok: false,
+        error: `Réponse de la question « ${id} » limitée à ${MAX_FALLBACK_ANSWER_LENGTH} caractères`,
+      };
+    }
+    ids.add(id);
+    questions.push({ id, label, answer });
+  }
+  return {
+    ok: true,
+    value: {
+      enabled: raw.enabled === true,
+      intro,
+      questions,
+      showCollectionForm: raw.showCollectionForm !== false,
+    },
+  };
+}
+
 export type ChatbotConfigInput = {
   /** Mode guidé (réglages simples) ou expert (prompt libre). */
   behaviorMode: ChatbotBehaviorMode;
@@ -115,6 +226,8 @@ export type ChatbotConfigInput = {
   fiches: FicheDefinition[];
   /** Données globales autorisées au runtime (défaut : toutes). */
   dataSelection: ChatbotDataSelection;
+  /** Secours heuristique fermé (ADR-0059). Absent sur les anciens snapshots. */
+  fallback?: ChatbotFallback;
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
@@ -230,6 +343,8 @@ export function parseChatbotConfig(
   }
   const parsedSelection = parseChatbotDataSelection(raw.dataSelection);
   if (!parsedSelection.ok) errors.push(parsedSelection.error);
+  const parsedFallback = parseChatbotFallback(raw.fallback);
+  if (!parsedFallback.ok) errors.push(parsedFallback.error);
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -239,6 +354,7 @@ export function parseChatbotConfig(
       simple: simple as TemplateSimpleSettings,
       fiches,
       dataSelection: parsedSelection.ok ? parsedSelection.value : defaultChatbotDataSelection(),
+      fallback: parsedFallback.ok ? parsedFallback.value : defaultChatbotFallback(),
     },
   };
 }

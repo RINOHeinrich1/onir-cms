@@ -8,10 +8,13 @@ import {
   buildGuidedChatbotPrompt,
   type ChatbotBehaviorMode,
   type ChatbotDataSelection,
+  type ChatbotFallback,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
   defaultChatbotDataSelection,
+  defaultChatbotFallback,
   isChatbotBehaviorMode,
   parseChatbotDataSelection,
+  parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
@@ -59,6 +62,7 @@ export type ChatbotConfigDraft = {
   };
   fiches: FicheDraft[];
   dataSelection: ChatbotDataSelection;
+  fallback: ChatbotFallback;
 };
 
 function newId(): string {
@@ -118,6 +122,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     },
     fiches: [],
     dataSelection: defaultChatbotDataSelection(),
+    fallback: defaultChatbotFallback(),
   };
 }
 
@@ -218,6 +223,7 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
       };
     }),
     dataSelection: draft.dataSelection,
+    fallback: draft.fallback,
   };
 }
 
@@ -308,6 +314,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           .filter((entry) => entry !== "")
       : [];
   const dataSelection = parseChatbotDataSelection(raw.dataSelection);
+  const fallback = parseChatbotFallback(raw.fallback);
   return {
     behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
       ? raw.behaviorMode
@@ -325,6 +332,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     },
     fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
+    fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
   };
 }
 

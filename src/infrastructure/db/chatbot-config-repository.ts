@@ -4,9 +4,11 @@ import {
   type ChatbotBehaviorMode,
   type ChatbotConfig,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  defaultChatbotFallback,
   type FicheDefinition,
   isChatbotBehaviorMode,
   parseChatbotDataSelection,
+  parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
@@ -20,12 +22,13 @@ type Row = {
   simple_settings: unknown;
   fiche_definitions: unknown;
   data_selection: unknown;
+  fallback: unknown;
   created_by: string | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, created_by, created_at";
+  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, created_by, created_at";
 
 function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -47,6 +50,10 @@ function toConfig(row: Row): ChatbotConfig {
   if (!dataSelection.ok) {
     throw new Error(`Configuration ${row.id} invalide : sélection de données illisible`);
   }
+  const fallback = parseChatbotFallback(row.fallback);
+  if (!fallback.ok) {
+    throw new Error(`Configuration ${row.id} invalide : fallback heuristique illisible`);
+  }
   return {
     id: row.id,
     organizationId: row.organization_id,
@@ -57,6 +64,7 @@ function toConfig(row: Row): ChatbotConfig {
     simple: simple satisfies TemplateSimpleSettings,
     fiches: row.fiche_definitions as FicheDefinition[],
     dataSelection: dataSelection.value,
+    fallback: fallback.value,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
   };
@@ -111,8 +119,8 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO chatbot_configs
              (organization_id, chat_link_id, version, system_prompt, simple_settings,
-              fiche_definitions, data_selection, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              fiche_definitions, data_selection, fallback, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -122,6 +130,7 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             JSON.stringify({ ...input.simple, behaviorMode: input.behaviorMode }),
             JSON.stringify(input.fiches),
             JSON.stringify(input.dataSelection),
+            JSON.stringify(input.fallback ?? defaultChatbotFallback()),
             createdBy,
           ],
         );
