@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { toPublicChatMessage } from "@/application/use-cases/attachments/attachment-dto";
+import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { startConversation } from "@/application/use-cases/chat/start-conversation";
 import {
   buildLinkContext,
@@ -21,6 +22,7 @@ import { hashLinkToken } from "@/domain/link-token";
 import type { TemplateFormField } from "@/domain/template-contract";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
@@ -106,6 +108,12 @@ export default async function ChatPortalPage({ params }: PageProps) {
     link.templateKey,
     link.templateVersion,
   );
+  const config = await resolveCurrentConfig(
+    pgChatbotConfigRepository(pool),
+    link.organizationId,
+    link,
+  );
+  const canFinish = reasoning !== null || (config?.fiches.length ?? 0) > 0;
   const attachmentFields: TemplateFormField[] =
     reasoning?.definition.fields
       .filter((field) => field.type === "file")
@@ -208,7 +216,12 @@ export default async function ChatPortalPage({ params }: PageProps) {
     return (
       <main className="chat-page">
         <ChatHeader title="Discussion" />
-        <ChatPortal token={token} confidentialite={consent} attachmentFields={attachmentFields} />
+        <ChatPortal
+          token={token}
+          confidentialite={consent}
+          attachmentFields={attachmentFields}
+          canFinish={canFinish}
+        />
       </main>
     );
   }
@@ -263,6 +276,7 @@ export default async function ChatPortalPage({ params }: PageProps) {
           toPublicChatMessage(message, started.conversation.organizationId),
         )}
         attachmentFields={attachmentFields}
+        canFinish={canFinish}
       />
     </main>
   );
