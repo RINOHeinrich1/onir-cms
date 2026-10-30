@@ -27,6 +27,8 @@ type TemplateActions = {
   attachFile(fieldName: string, file: File): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
+  selectFallback(questionId: string): void;
+  openCollectionForm(): void;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
@@ -614,6 +616,12 @@ export function TemplateHost({
       },
       attachFile: uploadAttachment,
       removeAttachment,
+      selectFallback: (questionId) => {
+        void selectFallbackQuestion(questionId);
+      },
+      openCollectionForm: () => {
+        setFallbackMenu(null);
+      },
       finish: () => {
         if (anonymous && surface !== "widget") {
           setStatus("finalisee");
@@ -668,6 +676,7 @@ export function TemplateHost({
       anonymous,
       baseContext,
       ensureConversation,
+      selectFallbackQuestion,
       loadFallbackMenu,
       pendingAttachments,
       platform,
@@ -734,6 +743,9 @@ export function TemplateHost({
         messages,
         typing,
         ...(template.capabilities.includes("attachments") ? { pendingAttachments } : {}),
+        ...(template.capabilities.includes("fallback") && fallbackMenu !== null
+          ? { fallback: fallbackMenu }
+          : {}),
       },
       actions,
       data: { load: loadData },
@@ -750,6 +762,7 @@ export function TemplateHost({
       status,
       messages,
       typing,
+      fallbackMenu,
       pendingAttachments,
       actions,
       loadData,
@@ -783,6 +796,12 @@ export function TemplateHost({
           break;
         case "finish":
           actions.finish();
+          break;
+        case "selectFallback":
+          actions.selectFallback(action.payload.questionId);
+          break;
+        case "openCollectionForm":
+          actions.openCollectionForm();
           break;
         case "openMedia":
           actions.openMedia(action.payload.url);
@@ -870,7 +889,7 @@ export function TemplateHost({
   if (template.mode === "iframe") {
     return (
       <div className="template-host">
-        {fallbackMenu !== null ? (
+        {fallbackMenu !== null && !template.capabilities.includes("fallback") ? (
           <FallbackPanel menu={fallbackMenu} onSelect={(id) => void selectFallbackQuestion(id)} />
         ) : null}
         {error !== null ? <p className="alert error">{error}</p> : null}
@@ -888,7 +907,7 @@ export function TemplateHost({
 
   return (
     <div className="template-host" ref={mountRef}>
-      {fallbackMenu !== null ? (
+      {fallbackMenu !== null && !template.capabilities.includes("fallback") ? (
         <FallbackPanel menu={fallbackMenu} onSelect={(id) => void selectFallbackQuestion(id)} />
       ) : null}
       {error !== null ? <p className="alert error">{error}</p> : null}

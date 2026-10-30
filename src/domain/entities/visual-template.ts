@@ -35,6 +35,8 @@ export const TEMPLATE_CAPABILITIES = [
   "knowledge",
   // Pièces jointes de prospection (ADR-0034) : champs fichier du modèle.
   "attachments",
+  // Fallback heuristique personnalisable (ADR-0059).
+  "fallback",
   // Contrats de données déclarés (ADR-0026) : ressources structurées servies
   // par un fournisseur (SQL en v1), validées contre le schéma du template.
   "data",

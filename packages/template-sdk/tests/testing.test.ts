@@ -41,7 +41,16 @@ describe("createMockContext", () => {
     expect(ctx.brand.logoUrl).toBeNull();
     expect(Object.keys(ctx.theme).length).toBeGreaterThan(0);
     expect(new Set(ctx.capabilities)).toEqual(
-      new Set(["messages", "media", "modelForm", "theme", "userState", "knowledge", "attachments"]),
+      new Set([
+        "messages",
+        "media",
+        "modelForm",
+        "theme",
+        "userState",
+        "knowledge",
+        "attachments",
+        "fallback",
+      ]),
     );
     expect(ctx.params).toEqual({});
     expect(Object.isFrozen(ctx.params)).toBe(true);
@@ -65,6 +74,8 @@ describe("createMockContext", () => {
 
     expect(() => ctx.actions.sendMessage("Bonjour")).not.toThrow();
     expect(ctx.actions.finish()).toBeUndefined();
+    expect(() => ctx.actions.selectFallback("tarifs")).not.toThrow();
+    expect(ctx.actions.openCollectionForm()).toBeUndefined();
     expect(() => ctx.actions.openMedia("https://example.com")).not.toThrow();
     expect(() => ctx.actions.resize(320)).not.toThrow();
     expect(() =>
@@ -126,7 +137,7 @@ describe("createMockContext", () => {
 
     const second = createMockContext();
     expect(second.params).toEqual({});
-    expect(second.capabilities).toHaveLength(7);
+    expect(second.capabilities).toHaveLength(8);
   });
 });
 

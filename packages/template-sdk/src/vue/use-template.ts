@@ -72,6 +72,8 @@ export function useTemplate(): UseTemplateResult {
     attachFile: (fieldName, file) => store.value.actions.attachFile(fieldName, file),
     removeAttachment: (attachmentId) => store.value.actions.removeAttachment(attachmentId),
     finish: () => store.value.actions.finish(),
+    selectFallback: (questionId) => store.value.actions.selectFallback(questionId),
+    openCollectionForm: () => store.value.actions.openCollectionForm(),
     request: (capability) => store.value.actions.request(capability),
     openMedia: (url) => store.value.actions.openMedia(url),
     resize: (height) => store.value.actions.resize(height),

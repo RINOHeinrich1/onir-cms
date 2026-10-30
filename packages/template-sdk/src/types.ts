@@ -20,6 +20,7 @@ export type TemplateCapability =
   | "userState"
   | "knowledge"
   | "attachments"
+  | "fallback"
   | "data";
 
 /** Mode du Shadow DOM (option de `defineTemplate`). */
@@ -187,6 +188,13 @@ export type TemplateKnowledgeRef = {
   titre: string;
 };
 
+/** Menu de secours heuristique (capacité `fallback`, ADR-0059). */
+export type TemplateFallbackState = {
+  intro: string;
+  questions: { id: string; label: string }[];
+  showCollectionForm: boolean;
+};
+
 /** Message de la discussion. */
 export type TemplateMessage = {
   id: string;
@@ -228,6 +236,8 @@ export type TemplateState = {
   typing: boolean;
   /** Pièces téléversées mais pas encore envoyées (capacité `attachments`). */
   pendingAttachments?: TemplateAttachment[];
+  /** Menu de secours actif (capacité `fallback`, ADR-0059). */
+  fallback?: TemplateFallbackState;
 };
 
 /** Identité soumise par le visiteur. */
@@ -249,6 +259,8 @@ export type TemplateAction =
   | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
+  | { action: "selectFallback"; payload: { questionId: string } }
+  | { action: "openCollectionForm" }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -299,6 +311,8 @@ export type TemplateActions = {
   attachFile(fieldName: string, file: File): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
+  selectFallback(questionId: string): void;
+  openCollectionForm(): void;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
