@@ -5,6 +5,30 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.20.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.19.0...v0.20.0) (2026-10-31)
+
+
+### Features
+
+* **chatbot:** création assistée par IA ([#134](https://github.com/RINOHeinrich1/onir-cms/issues/134)) ([7b16dd9](https://github.com/RINOHeinrich1/onir-cms/commit/7b16dd9f6451b3b3a7ab2d0f36e7afc32598a134))
+* **chatbot:** création atomique lien, configuration et connaissances ([#135](https://github.com/RINOHeinrich1/onir-cms/issues/135)) ([401f1a0](https://github.com/RINOHeinrich1/onir-cms/commit/401f1a095ce2bd7c8a3e040a4e44578f99f8f16c))
+* **chatbot:** fallback heuristique à questions/réponses fermées ([#120](https://github.com/RINOHeinrich1/onir-cms/issues/120)) ([cd3c906](https://github.com/RINOHeinrich1/onir-cms/commit/cd3c906982b3219345de3c84b7c8097ca1fa1bd1))
+* **starter:** aligner le mode lien sur le chat par défaut ([#127](https://github.com/RINOHeinrich1/onir-cms/issues/127)) ([44edb5a](https://github.com/RINOHeinrich1/onir-cms/commit/44edb5ad57a7359347ecec3dfaea3d2d5d96f763))
+* **starter:** formulaire de collecte dans le widget ([#131](https://github.com/RINOHeinrich1/onir-cms/issues/131)) ([02aeb1e](https://github.com/RINOHeinrich1/onir-cms/commit/02aeb1ea5462d565b4647d06b867369e5de5c4fc))
+* **starter:** personnaliser le fallback heuristique ([#126](https://github.com/RINOHeinrich1/onir-cms/issues/126)) ([3a69fd1](https://github.com/RINOHeinrich1/onir-cms/commit/3a69fd175d0fb5991247ffa0148ebfb29ae418e9))
+* **starter:** rendre le markdown dans le mode page ([#133](https://github.com/RINOHeinrich1/onir-cms/issues/133)) ([1470358](https://github.com/RINOHeinrich1/onir-cms/commit/1470358c73a7a99fa2ec385c48cd1ad46c59516a))
+* **templates:** exposer le fallback heuristique au SDK ([#124](https://github.com/RINOHeinrich1/onir-cms/issues/124)) ([f8cbea9](https://github.com/RINOHeinrich1/onir-cms/commit/f8cbea999de58d32091306f365d8c414869c7a7e))
+* **templates:** rendre le formulaire de collecte fonctionnel ([#130](https://github.com/RINOHeinrich1/onir-cms/issues/130)) ([2c71ff5](https://github.com/RINOHeinrich1/onir-cms/commit/2c71ff5efb7f7173063ed27292afdcd1dc26f4d1))
+
+
+### Bug Fixes
+
+* **chatbot:** autoriser les chatbots de présentation sans fiche ([#122](https://github.com/RINOHeinrich1/onir-cms/issues/122)) ([10b7557](https://github.com/RINOHeinrich1/onir-cms/commit/10b75578d993916a9a6de57b3296354dbfb6e7a1))
+* **chatbot:** journaliser la question heuristique comme message utilisateur ([#123](https://github.com/RINOHeinrich1/onir-cms/issues/123)) ([a6ea5f1](https://github.com/RINOHeinrich1/onir-cms/commit/a6ea5f197804134be385d0db85b0249c08631a28))
+* **starter:** déclarer modelForm pour la fiche de collecte ([#128](https://github.com/RINOHeinrich1/onir-cms/issues/128)) ([7158887](https://github.com/RINOHeinrich1/onir-cms/commit/7158887a7a29e1918d76b4694fa567da3083e9a5))
+* **starter:** rendre le fil de discussion page scrollable ([#132](https://github.com/RINOHeinrich1/onir-cms/issues/132)) ([78c005c](https://github.com/RINOHeinrich1/onir-cms/commit/78c005cf84cbe6a85b1b2031cb2484c3f2f4b116))
+* **templates:** lire modelForm depuis la configuration chatbot ([#129](https://github.com/RINOHeinrich1/onir-cms/issues/129)) ([0afae40](https://github.com/RINOHeinrich1/onir-cms/commit/0afae40f19a29771cd40c2dbc7345d60cf9e3c30))
+
 ## [0.19.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.18.0...v0.19.0) (2026-10-29)
 
 
