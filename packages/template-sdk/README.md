@@ -350,5 +350,6 @@ if (fallback) {
 - `ctx.state.fallback` est absent hors panne IA.
 - `actions.selectFallback(id)` valide l’ID côté hôte, ajoute la question comme message utilisateur puis la réponse comme message assistant.
 - `actions.openCollectionForm()` ferme le menu ; le template affiche ensuite son propre formulaire existant.
+- `actions.submitCollection(values)` enregistre les champs du formulaire dans la fiche de collecte.
 - Sans la capacité `fallback`, l’hôte conserve son menu générique.
 

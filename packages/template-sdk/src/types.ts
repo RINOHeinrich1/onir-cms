@@ -261,6 +261,7 @@ export type TemplateAction =
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
   | { action: "openCollectionForm" }
+  | { action: "submitCollection"; payload: { values: Record<string, string> } }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -313,6 +314,7 @@ export type TemplateActions = {
   finish(): void;
   selectFallback(questionId: string): void;
   openCollectionForm(): void;
+  submitCollection(values: Record<string, string>): Promise<void>;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;

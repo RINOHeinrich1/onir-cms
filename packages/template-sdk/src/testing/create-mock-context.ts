@@ -133,6 +133,7 @@ function defaultActions(): TemplateActions {
     finish: () => undefined,
     selectFallback: () => undefined,
     openCollectionForm: () => undefined,
+    submitCollection: async () => undefined,
     request: () => Promise.resolve(undefined),
     openMedia: () => undefined,
     resize: () => undefined,
