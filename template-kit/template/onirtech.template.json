@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -48,6 +48,7 @@
     "messages",
     "media",
     "theme",
+    "modelForm",
     "fallback"
   ],
   "network": [],
