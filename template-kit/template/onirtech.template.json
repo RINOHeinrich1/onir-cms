@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -22,7 +22,7 @@
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-9J0Y1+VORRwX2srEkqGNjTMPUmeXR1qAXOCK7U+3tCA=",
+      "integrity": "sha256-N1PkjO3bWQu/DlMbYh0ZemYAIlR75iTVhJTZcX28lqQ=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [

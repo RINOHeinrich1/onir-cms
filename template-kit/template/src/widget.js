@@ -347,6 +347,14 @@ const STYLE = `
   }
   .fallback-option:hover, .fallback-form:hover { border-color: var(--onir-primary); background: var(--onir-bg); }
   .fallback-form { margin-top: 8px; text-align: center; }
+  .collection-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 11px 8px; padding: 12px; border: 1px solid var(--onir-border); border-radius: 14px; background: var(--onir-surface); }
+  .collection-form h3 { margin: 0 0 2px; color: var(--onir-primary); font-size: 12px; }
+  .collection-form label { display: flex; flex-direction: column; gap: 4px; color: var(--onir-ink); font-size: 10.5px; font-weight: 700; }
+  .collection-form input, .collection-form textarea, .collection-form select { padding: 8px 9px; border: 1px solid var(--onir-border); border-radius: 8px; background: var(--onir-surface); color: var(--onir-ink); font-size: 11.5px; }
+  .collection-form textarea { min-height: 62px; resize: vertical; }
+  .collection-actions { display: flex; gap: 6px; margin-top: 2px; }
+  .collection-actions button { flex: 1; padding: 8px; border: 1px solid var(--onir-border); border-radius: 8px; background: var(--onir-bg); color: var(--onir-ink); font-size: 11px; cursor: pointer; }
+  .collection-actions button[type="submit"] { border-color: var(--onir-primary); background: var(--onir-primary); color: #fff; font-weight: 700; }
   .composer-box {
     display: flex;
     align-items: flex-end;
@@ -662,6 +670,7 @@ class StarterWidget extends HTMLElement {
   #empty = null;
   #messageNodes = new Map();
   #fallback = null;
+  #collectionOpen = false;
   #composer = null;
   #input = null;
   #send = null;
@@ -979,20 +988,23 @@ class StarterWidget extends HTMLElement {
       );
     }
     const fallback = ctx.state.fallback;
-    const fallbackActive = fallback !== undefined && !finalised;
     const hasCollection =
       Array.isArray(ctx.resources?.modelForm) && ctx.resources.modelForm.length > 0;
+    const collectionOpen = this.#collectionOpen && hasCollection && !finalised;
+    const fallbackActive = fallback !== undefined && !collectionOpen && !finalised;
     this.#empty.hidden = ctx.state.messages.length > 0 || ctx.state.typing;
     this.#finishButton.hidden = finalised || fallbackActive || !hasCollection || ctx.state.messages.length === 0;
     this.#finishButton.disabled = this.#finishing || ctx.state.typing;
     this.#finishButton.textContent = this.#finishing ? "…" : "Terminer";
     this.#done.hidden = !finalised;
-    this.#composer.hidden = finalised || fallbackActive;
-    this.#input.disabled = finalised || fallbackActive;
+    this.#composer.hidden = finalised || fallbackActive || collectionOpen;
+    this.#input.disabled = finalised || fallbackActive || collectionOpen;
     if (this.#fallback !== null) {
-      this.#fallback.hidden = !fallbackActive;
+      this.#fallback.hidden = !(fallbackActive || collectionOpen);
       this.#fallback.replaceChildren();
-      if (fallbackActive) {
+      if (collectionOpen) {
+        this.#fallback.appendChild(this.#collectionForm(ctx, ctx.resources.modelForm));
+      } else if (fallbackActive) {
         this.#fallback.appendChild(el("p", { class: "fallback-intro", text: fallback.intro }));
         const options = el("div", { class: "fallback-options" });
         for (const question of fallback.questions) {
@@ -1012,7 +1024,11 @@ class StarterWidget extends HTMLElement {
               class: "fallback-form",
               type: "button",
               text: "Remplir le formulaire",
-              onclick: () => ctx.actions.openCollectionForm(),
+              onclick: () => {
+                this.#collectionOpen = true;
+                ctx.actions.openCollectionForm();
+                this.#updatePanel();
+              },
             }),
           );
         }
@@ -1032,6 +1048,60 @@ class StarterWidget extends HTMLElement {
       this.#lastSeenId = last?.id ?? this.#lastSeenId;
       this.#unread = 0;
     }
+  }
+
+  #collectionForm(ctx, fields) {
+    const values = {};
+    const controls = [];
+    for (const field of fields) {
+      if (field.type === "file") continue;
+      let control;
+      if (field.type === "textarea") {
+        control = el("textarea", { name: field.name, maxlength: "4000" });
+      } else if (field.type === "select" && Array.isArray(field.options)) {
+        control = el("select", { name: field.name }, [
+          el("option", { value: "", text: "Choisir…" }),
+          ...field.options.map((option) => el("option", { value: option, text: option })),
+        ]);
+      } else {
+        control = el("input", {
+          type: field.type === "email" ? "email" : field.type === "url" ? "url" : "text",
+          name: field.name,
+          maxlength: "4000",
+        });
+      }
+      controls.push(el("label", {}, [`${field.label}${field.required ? " *" : ""}`, control]));
+    }
+    return el("section", { class: "collection-form" }, [
+      el("h3", { text: "Compléter la fiche" }),
+      el("form", {
+        onsubmit: async (event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          for (const field of fields) {
+            if (field.type === "file") continue;
+            const control = form.elements.namedItem(field.name);
+            values[field.name] = control !== null && "value" in control ? control.value : "";
+          }
+          await ctx.actions.submitCollection(values);
+          this.#collectionOpen = false;
+          this.#updatePanel();
+        },
+      }, [
+        ...controls,
+        el("div", { class: "collection-actions" }, [
+          el("button", {
+            type: "button",
+            text: "Annuler",
+            onclick: () => {
+              this.#collectionOpen = false;
+              this.#updatePanel();
+            },
+          }),
+          el("button", { type: "submit", text: "Enregistrer" }),
+        ]),
+      ]),
+    ]);
   }
 
   #renderMessages() {
