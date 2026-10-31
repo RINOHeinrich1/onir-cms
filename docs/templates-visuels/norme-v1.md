@@ -224,6 +224,8 @@ export type OnirtechTemplateContext = Readonly<{
     selectFallback(questionId: string): void;
     /** Ferme le menu de secours et laisse le template afficher son formulaire. */
     openCollectionForm(): void;
+    /** Enregistre les valeurs du formulaire de collecte (capacité `modelForm`). */
+    submitCollection(values: Record<string, string>): Promise<void>;
     /** Rafraîchit une ressource (résout la promesse avec la donnée à jour). */
     request(capability: TemplateCapability): Promise<unknown>;
     /** Ouvre un lien média (validé/allowlisté par l'hôte). */
@@ -288,6 +290,7 @@ L'hôte monte `<iframe sandbox="allow-scripts allow-forms">` (**sans**
   - `{ __onirtech: 1, type: "action", action: "finish" }`
   - `{ __onirtech: 1, type: "action", action: "selectFallback", payload: { questionId } }`
   - `{ __onirtech: 1, type: "action", action: "openCollectionForm" }`
+  - `{ __onirtech: 1, type: "action", action: "submitCollection", payload: { values } }`
   - `{ __onirtech: 1, type: "action", action: "request", payload: { capability } }`
   - `{ __onirtech: 1, type: "action", action: "openMedia", payload: { url } }`
   - `{ __onirtech: 1, type: "resize", payload: { height } }`

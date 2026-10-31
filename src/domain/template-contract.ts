@@ -154,6 +154,7 @@ export type TemplateAction =
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
   | { action: "openCollectionForm" }
+  | { action: "submitCollection"; payload: { values: Record<string, string> } }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -185,6 +186,21 @@ export function parseTemplateAction(
     case "finish":
     case "openCollectionForm":
       return { ok: true, value: { action } };
+    case "submitCollection": {
+      const values = payload.values;
+      if (values === null || typeof values !== "object" || Array.isArray(values)) {
+        return { ok: false, error: "values requis" };
+      }
+      const cleaned: Record<string, string> = {};
+      for (const [key, value] of Object.entries(values)) {
+        if (typeof key !== "string" || key.trim() === "") continue;
+        if (typeof value !== "string") continue;
+        if (value.length > 4000) return { ok: false, error: "valeur trop longue" };
+        cleaned[key] = value;
+      }
+      if (Object.keys(cleaned).length === 0) return { ok: false, error: "values vide" };
+      return { ok: true, value: { action, payload: { values: cleaned } } };
+    }
     case "selectFallback": {
       const questionId = typeof payload.questionId === "string" ? payload.questionId.trim() : "";
       if (questionId === "") return { ok: false, error: "questionId requis" };

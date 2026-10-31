@@ -76,6 +76,7 @@ describe("createMockContext", () => {
     expect(ctx.actions.finish()).toBeUndefined();
     expect(() => ctx.actions.selectFallback("tarifs")).not.toThrow();
     expect(ctx.actions.openCollectionForm()).toBeUndefined();
+    await expect(ctx.actions.submitCollection({ projet: "Test" })).resolves.toBeUndefined();
     expect(() => ctx.actions.openMedia("https://example.com")).not.toThrow();
     expect(() => ctx.actions.resize(320)).not.toThrow();
     expect(() =>

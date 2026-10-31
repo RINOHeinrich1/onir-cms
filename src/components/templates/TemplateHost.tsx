@@ -29,6 +29,7 @@ type TemplateActions = {
   finish(): void;
   selectFallback(questionId: string): void;
   openCollectionForm(): void;
+  submitCollection(values: Record<string, string>): Promise<void>;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
@@ -622,6 +623,25 @@ export function TemplateHost({
       openCollectionForm: () => {
         setFallbackMenu(null);
       },
+      submitCollection: async (values) => {
+        if (conversationId === null) return;
+        try {
+          const response = await fetch(`${platform}/fields`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversationId, values }),
+          });
+          const json = (await response.json().catch(() => null)) as { error?: string } | null;
+          if (!response.ok) {
+            setError(json?.error ?? "Enregistrement du formulaire impossible");
+            return;
+          }
+          setError(null);
+          setFallbackMenu(null);
+        } catch {
+          setError("Erreur réseau, veuillez réessayer");
+        }
+      },
       finish: () => {
         if (anonymous && surface !== "widget") {
           setStatus("finalisee");
@@ -802,6 +822,9 @@ export function TemplateHost({
           break;
         case "openCollectionForm":
           actions.openCollectionForm();
+          break;
+        case "submitCollection":
+          void actions.submitCollection(action.payload.values);
           break;
         case "openMedia":
           actions.openMedia(action.payload.url);

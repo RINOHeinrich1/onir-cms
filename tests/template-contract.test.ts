@@ -129,6 +129,12 @@ describe("parseTemplateAction — validation côté hôte", () => {
     expect(
       parseTemplateAction({ action: "selectFallback", payload: { questionId: "tarifs" } }).ok,
     ).toBe(true);
+    expect(
+      parseTemplateAction({
+        action: "submitCollection",
+        payload: { values: { projet: "Plateforme" } },
+      }).ok,
+    ).toBe(true);
     expect(parseTemplateAction({ action: "sendMessage", payload: { content: "Salut" } }).ok).toBe(
       true,
     );
@@ -178,6 +184,9 @@ describe("parseTemplateAction — validation côté hôte", () => {
     );
     expect(parseTemplateAction({ action: "resize", payload: { height: -1 } }).ok).toBe(false);
     expect(parseTemplateAction({ action: "selectFallback", payload: { questionId: " " } }).ok).toBe(
+      false,
+    );
+    expect(parseTemplateAction({ action: "submitCollection", payload: { values: {} } }).ok).toBe(
       false,
     );
     expect(parseTemplateAction({ action: "sabotage" }).ok).toBe(false);

@@ -74,6 +74,7 @@ export function useTemplate(): UseTemplateResult {
     finish: () => store.value.actions.finish(),
     selectFallback: (questionId) => store.value.actions.selectFallback(questionId),
     openCollectionForm: () => store.value.actions.openCollectionForm(),
+    submitCollection: (values) => store.value.actions.submitCollection(values),
     request: (capability) => store.value.actions.request(capability),
     openMedia: (url) => store.value.actions.openMedia(url),
     resize: (height) => store.value.actions.resize(height),

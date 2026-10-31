@@ -44,6 +44,7 @@ function el(tag, props = {}, children = []) {
 class StarterTemplate extends HTMLElement {
   #root;
   #ctx;
+  #collectionOpen = false;
 
   constructor() {
     super();
@@ -229,6 +230,15 @@ class StarterTemplate extends HTMLElement {
         .identity .check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 400; line-height: 1.45; }
         .identity button[type="submit"] { padding: 11px; border: 0; border-radius: 10px; background: var(--page-primary); color: #fff; font-weight: 700; cursor: pointer; }
         .identity a { color: var(--page-primary); }
+        .collection { margin-top: 16px; padding: 16px; border: 1px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
+        .collection h3 { margin: 0 0 12px; color: var(--page-primary); font-size: 14px; }
+        .collection form { display: flex; flex-direction: column; gap: 10px; }
+        .collection label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; font-weight: 650; }
+        .collection input, .collection textarea, .collection select { padding: 9px 10px; border: 1px solid var(--page-border); border-radius: 9px; background: var(--page-surface); color: var(--page-ink); font-size: 12.5px; }
+        .collection textarea { min-height: 72px; resize: vertical; }
+        .collection-actions { display: flex; gap: 8px; margin-top: 4px; }
+        .collection-actions button { flex: 1; padding: 10px; border: 1px solid var(--page-border); border-radius: 9px; background: var(--page-bg); color: var(--page-ink); cursor: pointer; }
+        .collection-actions button[type="submit"] { border-color: var(--page-primary); background: var(--page-primary); color: #fff; font-weight: 700; }
         .loading { padding: 24px; text-align: center; color: #64748b; }
         @media (max-width: 520px) {
           .page { width: 100%; margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
@@ -334,9 +344,10 @@ class StarterTemplate extends HTMLElement {
     ]);
 
     const fallback = ctx.state.fallback;
-    const hasCollection =
-      Array.isArray(ctx.resources.modelForm) && ctx.resources.modelForm.length > 0;
-    const fallbackView = fallback
+    const modelForm = Array.isArray(ctx.resources.modelForm) ? ctx.resources.modelForm : [];
+    const hasCollection = modelForm.length > 0;
+    const collectionOpen = this.#collectionOpen && hasCollection;
+    const fallbackView = fallback && !collectionOpen
       ? el("section", { class: "fallback", "aria-live": "polite" }, [
           el("p", { class: "fallback-intro", text: fallback.intro }),
           el("div", { class: "fallback-options" }, fallback.questions.map((question) =>
@@ -352,7 +363,11 @@ class StarterTemplate extends HTMLElement {
                 type: "button",
                 class: "fallback-form",
                 text: "Remplir le formulaire",
-                onclick: () => ctx.actions.openCollectionForm(),
+                onclick: () => {
+                  this.#collectionOpen = true;
+                  ctx.actions.openCollectionForm();
+                  this.#render();
+                },
               })
             : null,
         ])
@@ -395,8 +410,9 @@ class StarterTemplate extends HTMLElement {
       ]),
     ]);
 
+    const collectionForm = collectionOpen ? this.#collectionForm(ctx, modelForm) : null;
     const finish =
-      hasCollection && !fallback && !finalised && ctx.state.messages.length > 0
+      hasCollection && !fallback && !collectionOpen && !finalised && ctx.state.messages.length > 0
         ? el("button", {
             type: "button",
             class: "finish",
@@ -411,13 +427,14 @@ class StarterTemplate extends HTMLElement {
       el("ul", { class: "messages" }, items),
       ctx.state.typing ? el("p", { class: "typing", text: "L’assistant écrit…" }) : null,
       fallbackView,
+      collectionForm,
     ]);
 
     const body = el("div", { class: "body" }, [
       log,
       finalised
         ? el("p", { class: "done", text: "Votre demande a bien été enregistrée." })
-        : fallback === undefined
+        : fallback === undefined && !collectionOpen
           ? composer
           : null,
     ]);
@@ -426,6 +443,65 @@ class StarterTemplate extends HTMLElement {
       if (fallback === undefined) textarea.focus();
     });
     return body;
+  }
+
+  #collectionForm(ctx, fields) {
+    const values = {};
+    const controls = [];
+    for (const field of fields) {
+      if (field.type === "file") continue;
+      let control;
+      if (field.type === "textarea") {
+        control = el("textarea", { name: field.name, maxlength: "4000" });
+      } else if (field.type === "select" && Array.isArray(field.options)) {
+        control = el("select", { name: field.name }, [
+          el("option", { value: "", text: "Choisir…" }),
+          ...field.options.map((option) => el("option", { value: option, text: option })),
+        ]);
+      } else {
+        control = el("input", {
+          type: field.type === "email" ? "email" : field.type === "url" ? "url" : "text",
+          name: field.name,
+          maxlength: "4000",
+        });
+      }
+      controls.push(
+        el("label", {}, [
+          `${field.label}${field.required ? " *" : ""}`,
+          control,
+        ]),
+      );
+    }
+    return el("section", { class: "collection" }, [
+      el("h3", { text: "Compléter la fiche" }),
+      el("form", {
+        onsubmit: async (event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          for (const field of fields) {
+            if (field.type === "file") continue;
+            const control = form.elements.namedItem(field.name);
+            values[field.name] = control !== null && "value" in control ? control.value : "";
+          }
+          await ctx.actions.submitCollection(values);
+          this.#collectionOpen = false;
+          this.#render();
+        },
+      }, [
+        ...controls,
+        el("div", { class: "collection-actions" }, [
+          el("button", {
+            type: "button",
+            text: "Annuler",
+            onclick: () => {
+              this.#collectionOpen = false;
+              this.#render();
+            },
+          }),
+          el("button", { type: "submit", text: "Enregistrer" }),
+        ]),
+      ]),
+    ]);
   }
 }
 
