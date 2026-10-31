@@ -486,6 +486,7 @@ export function LinkForm({
             widget: channelApiPayload(channels.widget),
           },
           dataBindings,
+          ...(stagedKnowledge.length === 0 ? {} : { knowledge: stagedKnowledge }),
         }),
       });
       const json = (await response.json()) as CreatedLink & { error?: string };
@@ -507,32 +508,6 @@ export function LinkForm({
           failures = ["Ajout des données impossible (erreur inattendue)."];
         }
       }
-      const knowledgeFailures: string[] = [];
-      let knowledgeCreated = 0;
-      if (stagedKnowledge.length > 0) {
-        for (const item of stagedKnowledge) {
-          try {
-            const created = await fetch("/api/connaissances", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                titre: item.titre,
-                contenu: item.contenu,
-                chatLinkIds: [json.link.id],
-              }),
-            });
-            if (created.ok) {
-              knowledgeCreated += 1;
-            } else {
-              const payload = (await created.json().catch(() => null)) as { error?: string } | null;
-              knowledgeFailures.push(payload?.error ?? item.titre);
-            }
-          } catch {
-            knowledgeFailures.push(item.titre);
-          }
-        }
-      }
-
       // Le chatbot existe : le brouillon ne doit plus être proposé (pas de doublon).
       finalizedRef.current = true;
       const finalizedDraftId = draftIdRef.current;
@@ -559,8 +534,15 @@ export function LinkForm({
           );
         }
       }
-      if (knowledgeCreated > 0) {
-        toast.success(`${knowledgeCreated} connaissance(s) rattachée(s) au chatbot.`);
+      if (json.knowledge !== undefined) {
+        if (json.knowledge.created > 0) {
+          toast.success(`${json.knowledge.created} connaissance(s) rattachée(s) au chatbot.`);
+        }
+        if (json.knowledge.skipped.length > 0) {
+          toast.warning(
+            `Connaissances ignorées (doublons) : ${json.knowledge.skipped.slice(0, 3).join(" · ")}`,
+          );
+        }
       }
       toast.success("Chatbot créé.");
       if (Object.keys(aiUsage).length > 0) {
@@ -579,13 +561,6 @@ export function LinkForm({
         const more = failures.length > 3 ? ` (+${failures.length - 3})` : "";
         toast.warning(
           `Chatbot créé, mais ${failures.length} ajout(s) de données ont échoué : ${detail}${more}`,
-        );
-      }
-      if (knowledgeFailures.length > 0) {
-        const detail = knowledgeFailures.slice(0, 3).join(" · ");
-        const more = knowledgeFailures.length > 3 ? ` (+${knowledgeFailures.length - 3})` : "";
-        toast.warning(
-          `Chatbot créé, mais ${knowledgeFailures.length} connaissance(s) n’ont pas pu être ajoutées : ${detail}${more}`,
         );
       }
     } catch {

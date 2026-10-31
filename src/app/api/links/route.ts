@@ -10,6 +10,7 @@ import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-reposito
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgChatbotProvisioningRepository } from "@/infrastructure/db/chatbot-provisioning-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
@@ -52,7 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     }
     const pool = getPool();
-    const { link, token } = await createChatLink(
+    const { link, token, knowledge } = await createChatLink(
       {
         links: pgChatLinkRepository(pool),
         prospects: pgProspectRepository(pool),
@@ -64,6 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         aiProviders: pgAiProviderRepository(pool),
         aiModels: pgAiProviderModelRepository(pool),
         configs: pgChatbotConfigRepository(pool),
+        provisioner: pgChatbotProvisioningRepository(pool),
       },
       actor,
       body,
@@ -74,6 +76,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         link,
         token,
         url: `${publicLinkBaseUrl()}/l/${token}`,
+        ...(knowledge === undefined ? {} : { knowledge }),
         ...(channels.widget.enabled
           ? {
               widgetSnippet: buildWidgetSnippet(
