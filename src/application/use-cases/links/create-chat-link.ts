@@ -5,6 +5,10 @@ import type { AiProviderRepository } from "@/application/ports/ai-provider-repos
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type {
+  ChatbotProvisioningRepository,
+  ProvisioningKnowledgeInput,
+} from "@/application/ports/chatbot-provisioning-repository";
 import type { ConfidentialiteRepository } from "@/application/ports/confidentialite-repository";
 import type { LinkDataBindingRepository } from "@/application/ports/link-data-binding-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -50,13 +54,50 @@ export type CreateChatLinkDependencies = {
   aiModels?: AiProviderModelRepository;
   /** Configuration chatbot autonome (ADR-0049). */
   configs?: ChatbotConfigRepository;
+  /** Création transactionnelle lien + config + connaissances (ADR-0060). */
+  provisioner?: ChatbotProvisioningRepository;
 };
 
 export type CreatedChatLink = {
   link: ChatLink;
   /** Jeton en clair, communiqué une seule fois (jamais re-lisible ensuite). */
   token: string;
+  /** Bilan des connaissances créées avec le chatbot (ADR-0060). */
+  knowledge?: { created: number; skipped: string[] };
 };
+
+const MAX_KNOWLEDGE = 10;
+const MAX_KNOWLEDGE_TITLE = 120;
+const MAX_KNOWLEDGE_CONTENT = 8_000;
+
+function parseProvisioningKnowledge(value: unknown): ProvisioningKnowledgeInput[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new ValidationError("Liste de connaissances invalide");
+  if (value.length > MAX_KNOWLEDGE) {
+    throw new ValidationError(`Trop de connaissances (${MAX_KNOWLEDGE} maximum)`);
+  }
+  const result: ProvisioningKnowledgeInput[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new ValidationError("Connaissance invalide");
+    }
+    const row = entry as Record<string, unknown>;
+    const titre = typeof row.titre === "string" ? row.titre.trim() : "";
+    const contenu = typeof row.contenu === "string" ? row.contenu.trim() : "";
+    if (titre === "" || contenu === "") {
+      throw new ValidationError("Chaque connaissance doit avoir un titre et un contenu");
+    }
+    if (titre.length > MAX_KNOWLEDGE_TITLE || contenu.length > MAX_KNOWLEDGE_CONTENT) {
+      throw new ValidationError("Connaissance trop longue");
+    }
+    const fingerprint = titre.toLocaleLowerCase("fr");
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    result.push({ titre, contenu });
+  }
+  return result;
+}
 
 /**
  * US-LIENS-001 — création d'un lien de chat.
@@ -123,6 +164,10 @@ export async function createChatLinkForOrganization(
     throw new ValidationError(configInput.errors.join(" ; "));
   }
   const configMode = configInput?.ok === true;
+  const knowledge = parseProvisioningKnowledge(source.knowledge);
+  if (knowledge.length > 0 && !configMode) {
+    throw new ValidationError("Les connaissances nécessitent une configuration chatbot");
+  }
 
   let templateKey = "";
   let templateVersion = 0;
@@ -154,7 +199,7 @@ export async function createChatLinkForOrganization(
   }
 
   const token = generateLinkToken();
-  const created = await deps.links.create(organizationId, {
+  const linkInput = {
     tokenHash: hashLinkToken(token),
     tokenEnc: encryptLinkToken(token),
     label,
@@ -171,24 +216,44 @@ export async function createChatLinkForOrganization(
     aiProviderId: aiAssignment?.aiProviderId ?? null,
     aiModel: aiAssignment?.aiModel ?? null,
     ...quotas,
-  });
-  let link: ChatLink = { ...created, channels };
-  if (configMode && configInput.ok) {
+  };
+  let link: ChatLink;
+  let knowledgeResult: { created: number; skipped: string[] } | undefined;
+  if (knowledge.length > 0 && configMode && configInput.ok) {
+    if (deps.provisioner === undefined) {
+      throw new ValidationError("Création transactionnelle indisponible");
+    }
+    const provisioned = await deps.provisioner.create({
+      organizationId,
+      link: linkInput,
+      config: configInput.value,
+      knowledge,
+      createdBy,
+    });
+    const loaded = await deps.links.findById(organizationId, provisioned.linkId);
+    if (loaded === null) throw new Error("Lien créé introuvable");
+    link = loaded;
+    knowledgeResult = provisioned.knowledge;
+  } else {
+    const created = await deps.links.create(organizationId, linkInput);
+    link = { ...created, channels };
+  }
+  if (knowledgeResult === undefined && configMode && configInput.ok) {
     if (deps.configs === undefined) {
-      await deps.links.delete(organizationId, created.id);
+      await deps.links.delete(organizationId, link.id);
       throw new ValidationError("Configuration chatbot indisponible");
     }
     try {
       const config = await deps.configs.createVersion(
         organizationId,
-        created.id,
+        link.id,
         configInput.value,
         createdBy,
       );
       link = { ...link, currentConfigId: config.id };
     } catch (error) {
       // Compensation : aucun chatbot config-only orphelin si la config échoue.
-      await deps.links.delete(organizationId, created.id);
+      await deps.links.delete(organizationId, link.id);
       throw error;
     }
   }
@@ -206,5 +271,5 @@ export async function createChatLinkForOrganization(
       dataBindings,
     );
   }
-  return { link, token };
+  return { link, token, ...(knowledgeResult === undefined ? {} : { knowledge: knowledgeResult }) };
 }

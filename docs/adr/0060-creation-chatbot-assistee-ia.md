@@ -102,11 +102,20 @@ compatible avec le widget.
 
 ### 8. Application et connaissances
 
-Le formulaire existant crée le lien et sa configuration. Les connaissances en
-attente sont ensuite créées et rattachées au nouveau lien.
+Le formulaire envoie les connaissances candidates dans le payload de création
+du lien. Le serveur exécute dans une **transaction unique** :
 
-Si l’ajout d’une connaissance échoue, le chatbot reste créé et l’utilisateur
-reçoit un avertissement détaillé. Un doublon est ignoré, sans écrasement.
+1. création du lien ;
+2. création des canaux ;
+3. création de la configuration ;
+4. création des connaissances avec `chat_link_ids = [nouveauLienId]`.
+
+Si une étape échoue, l’ensemble est annulé : aucun chatbot partiel, aucune
+connaissance orpheline.
+
+Les doublons de titre sont détectés avant insertion, ignorés et retournés dans
+le bilan de création. L’API `/api/connaissances` reste disponible
+indépendamment pour la gestion manuelle.
 
 ### 9. Aucun média
 
@@ -125,7 +134,6 @@ Les photos et liens médias ne sont ni générés ni associés automatiquement.
 ### Négatives
 
 - le brouillon IA n’est pas persisté si l’utilisateur recharge la page ;
-- la création du lien puis des connaissances n’est pas atomique ;
 - un site rendu uniquement côté client peut fournir peu de contenu ;
 - le template visuel et les canaux restent à la charge de l’utilisateur.
 

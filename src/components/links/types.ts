@@ -41,6 +41,8 @@ export type CreatedLink = {
   /** Snippet widget (si le lien a la surface widget). */
   widgetSnippet?: string;
   widgetEmbedUrl?: string;
+  /** Bilan de création des connaissances (ADR-0060). */
+  knowledge?: { created: number; skipped: string[] };
 };
 
 /** Brouillon de création de chatbot exposé à la liste (jamais public). */
