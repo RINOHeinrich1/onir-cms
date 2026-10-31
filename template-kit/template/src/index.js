@@ -99,7 +99,10 @@ class StarterTemplate extends HTMLElement {
         [hidden] { display: none !important; }
         .page {
           width: min(760px, calc(100% - 32px));
+          height: min(820px, calc(100dvh - 48px));
           margin: 24px auto;
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
           border: 1px solid var(--page-border);
           border-radius: 22px;
@@ -156,13 +159,15 @@ class StarterTemplate extends HTMLElement {
         }
         .finish:hover:not(:disabled) { background: color-mix(in srgb, #fff 14%, transparent); }
         .finish:disabled { opacity: .45; cursor: not-allowed; }
-        .body { display: flex; flex-direction: column; min-height: 520px; }
+        .body { display: flex; flex: 1; min-height: 0; flex-direction: column; }
         .log {
           flex: 1;
-          max-height: 560px;
+          min-height: 0;
           overflow-y: auto;
+          overscroll-behavior: contain;
           padding: 18px;
           background: var(--page-bg);
+          scrollbar-gutter: stable;
         }
         .intro { display: flex; gap: 10px; margin-bottom: 18px; padding: 14px; border: 1px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
         .intro strong { display: block; margin-bottom: 3px; font-size: 13px; }
@@ -221,7 +226,7 @@ class StarterTemplate extends HTMLElement {
         .send { flex: none; width: 36px; height: 36px; border: 0; border-radius: 11px; background: var(--page-primary); color: #fff; font-size: 16px; cursor: pointer; }
         .hint { margin: 7px 2px 0; color: var(--page-muted); font-size: 10px; text-align: center; }
         .done { padding: 12px 16px; border-top: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 650; }
-        .identity { padding: 22px; }
+        .identity { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; }
         .identity h2 { margin: 0 0 5px; color: var(--page-primary); font-size: 18px; }
         .identity p { margin: 0 0 16px; color: var(--page-muted); font-size: 13px; line-height: 1.5; }
         .identity form { display: flex; flex-direction: column; gap: 12px; }
@@ -241,9 +246,8 @@ class StarterTemplate extends HTMLElement {
         .collection-actions button[type="submit"] { border-color: var(--page-primary); background: var(--page-primary); color: #fff; font-weight: 700; }
         .loading { padding: 24px; text-align: center; color: #64748b; }
         @media (max-width: 520px) {
-          .page { width: 100%; margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
-          .body { min-height: calc(100vh - 75px); }
-          .log { max-height: none; }
+          .page { width: 100%; height: 100dvh; margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
+          .log { padding: 14px; }
         }
         @media (prefers-reduced-motion: reduce) {
           *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
