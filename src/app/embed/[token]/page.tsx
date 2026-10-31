@@ -14,6 +14,7 @@ import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -69,6 +70,7 @@ export default async function WidgetPage({ params }: PageProps) {
     visualTemplates: pgVisualTemplateRepository(pool),
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
   };
   const spec = await loadTemplateSpec(deps, link, "widget", channel);
   if (spec === null) {

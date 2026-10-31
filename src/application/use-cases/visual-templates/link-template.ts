@@ -1,4 +1,5 @@
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 import {
@@ -24,6 +25,8 @@ export type LinkTemplateDependencies = {
   visualTemplates: VisualTemplateRepository;
   medias: MediaRepository;
   templates: ChatTemplateRepository;
+  /** Configuration chatbot config-only (fiches hors ancien template). */
+  configs?: ChatbotConfigRepository;
   /** Fournisseur de données (ADR-0026) — requis seulement pour les contrats `eager`. */
   data?: TemplateDataDependencies;
 };
@@ -137,13 +140,14 @@ export async function buildLinkContext(
   }
   let modelForm: TemplateFormField[] | null = null;
   if (caps.includes("modelForm")) {
-    const template = await deps.templates.findVersion(
-      link.organizationId,
-      link.templateKey,
-      link.templateVersion,
-    );
-    modelForm =
-      template?.definition.fields.map((field) => ({
+    // Configuration chatbot actuelle (fiches portées par le snapshot).
+    const config =
+      deps.configs !== undefined && typeof link.currentConfigId === "string"
+        ? await deps.configs.findById(link.organizationId, link.currentConfigId)
+        : null;
+    const fields = config?.fiches[0]?.fields;
+    if (fields !== undefined && fields.length > 0) {
+      modelForm = fields.map((field) => ({
         name: field.name,
         label: field.label,
         type: field.type,
@@ -156,7 +160,30 @@ export async function buildLinkContext(
               maxFiles: field.file.maxFiles,
               maxBytes: field.file.maxBytes,
             }),
-      })) ?? null;
+      }));
+    } else {
+      // Compatibilité avec les liens historiques portés par un template de raisonnement.
+      const template = await deps.templates.findVersion(
+        link.organizationId,
+        link.templateKey,
+        link.templateVersion,
+      );
+      modelForm =
+        template?.definition.fields.map((field) => ({
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          ...(field.options === undefined ? {} : { options: field.options }),
+          ...(field.file === undefined
+            ? {}
+            : {
+                accept: field.file.accept,
+                maxFiles: field.file.maxFiles,
+                maxBytes: field.file.maxBytes,
+              }),
+        })) ?? null;
+    }
   }
   const surface = input.surface ?? link.surface;
   const channel = input.channel ?? channelsForLink(link)[surface];
