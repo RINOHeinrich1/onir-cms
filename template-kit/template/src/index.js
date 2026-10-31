@@ -41,6 +41,130 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
+function appendInline(parent, text) {
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*/g;
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+    if (match[1] !== undefined && match[2] !== undefined) {
+      parent.appendChild(
+        el("a", { href: match[2], target: "_blank", rel: "noopener noreferrer", text: match[1] }),
+      );
+    } else if (match[3] !== undefined) {
+      parent.appendChild(el("strong", { text: match[3] }));
+    } else if (match[4] !== undefined) {
+      parent.appendChild(el("code", { text: match[4] }));
+    } else if (match[5] !== undefined) {
+      parent.appendChild(el("em", { text: match[5] }));
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+function renderMarkdown(target, content) {
+  const root = el("div", { class: "md" });
+  const lines = String(content ?? "").replace(/\r\n?/g, "\n").split("\n");
+  let paragraph = [];
+  let list = null;
+  let listTag = null;
+  let code = null;
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    const block = el("p");
+    paragraph.forEach((line, index) => {
+      if (index > 0) block.appendChild(el("br"));
+      appendInline(block, line);
+    });
+    root.appendChild(block);
+    paragraph = [];
+  };
+  const flushList = () => {
+    if (list !== null) root.appendChild(list);
+    list = null;
+    listTag = null;
+  };
+  const openList = (tag) => {
+    if (list !== null && listTag === tag) return;
+    flushList();
+    list = el(tag);
+    listTag = tag;
+  };
+
+  for (const source of lines) {
+    const line = source.replace(/\s+$/, "");
+    if (code !== null) {
+      if (/^```/.test(line)) {
+        root.appendChild(el("pre", {}, [el("code", { text: code.join("\n") })]));
+        code = null;
+      } else {
+        code.push(source);
+      }
+      continue;
+    }
+    if (/^```/.test(line)) {
+      flushParagraph();
+      flushList();
+      code = [];
+      continue;
+    }
+    if (line.trim() === "") {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    if (heading !== null) {
+      flushParagraph();
+      flushList();
+      const block = el("div", { class: `md-h md-h${heading[1].length}` });
+      appendInline(block, heading[2]);
+      root.appendChild(block);
+      continue;
+    }
+    if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
+      flushParagraph();
+      flushList();
+      root.appendChild(el("hr"));
+      continue;
+    }
+    const unordered = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (unordered !== null) {
+      flushParagraph();
+      openList("ul");
+      const item = el("li");
+      appendInline(item, unordered[1]);
+      list.appendChild(item);
+      continue;
+    }
+    const ordered = /^\s*\d+\.\s+(.*)$/.exec(line);
+    if (ordered !== null) {
+      flushParagraph();
+      openList("ol");
+      const item = el("li");
+      appendInline(item, ordered[1]);
+      list.appendChild(item);
+      continue;
+    }
+    const quote = /^>\s?(.*)$/.exec(line);
+    if (quote !== null) {
+      flushParagraph();
+      flushList();
+      const block = el("blockquote");
+      appendInline(block, quote[1]);
+      root.appendChild(block);
+      continue;
+    }
+    flushList();
+    paragraph.push(line);
+  }
+  if (code !== null) root.appendChild(el("pre", {}, [el("code", { text: code.join("\n") })]));
+  flushParagraph();
+  flushList();
+  target.appendChild(root);
+}
+
 class StarterTemplate extends HTMLElement {
   #root;
   #ctx;
@@ -190,6 +314,22 @@ class StarterTemplate extends HTMLElement {
         .message.user .bubble { border-color: transparent; border-radius: 14px 14px 5px 14px; background: var(--page-primary); color: #fff; }
         .message.operator .bubble { background: #ecfdf5; }
         .msg-author { margin-bottom: 4px; color: #0f766e; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+        .bubble .md { white-space: normal; }
+        .bubble .md > :first-child { margin-top: 0; }
+        .bubble .md > :last-child { margin-bottom: 0; }
+        .bubble .md p { margin: 0 0 .55em; }
+        .bubble .md ul, .bubble .md ol { margin: .35em 0 .6em; padding-left: 1.25em; }
+        .bubble .md li { margin: .18em 0; }
+        .bubble .md .md-h { margin: .7em 0 .3em; font-weight: 800; line-height: 1.25; }
+        .bubble .md .md-h1 { font-size: 1.15em; }
+        .bubble .md .md-h2 { font-size: 1.05em; }
+        .bubble .md .md-h3 { font-size: 1em; }
+        .bubble .md code { padding: .12em .32em; border-radius: 4px; background: color-mix(in srgb, currentColor 10%, transparent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; }
+        .bubble .md pre { overflow-x: auto; margin: .5em 0; padding: .65em .75em; border-radius: 8px; background: color-mix(in srgb, currentColor 9%, transparent); }
+        .bubble .md pre code { padding: 0; background: transparent; }
+        .bubble .md blockquote { margin: .5em 0; padding-left: .8em; border-left: 3px solid color-mix(in srgb, currentColor 30%, transparent); opacity: .9; }
+        .bubble .md hr { border: 0; border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent); margin: .7em 0; }
+        .bubble .md a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
         .media { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
         .media img { max-width: 220px; border-radius: 9px; display: block; }
         .media a { color: var(--page-primary); font-size: 12px; }
@@ -326,9 +466,15 @@ class StarterTemplate extends HTMLElement {
         typeof message.authorName === "string"
           ? el("div", { class: "msg-author", text: message.authorName })
           : null;
+      const content = el("div", { class: "bubble-content" });
+      if (message.role === "user") {
+        content.textContent = message.content;
+      } else {
+        renderMarkdown(content, message.content);
+      }
       const bubble = el("div", { class: "bubble" }, [
         ...(author === null ? [] : [author]),
-        el("div", { text: message.content }),
+        content,
         media.length > 0 ? el("div", { class: "media" }, media) : null,
       ]);
       return el("li", { class: `message ${message.role}${author === null ? "" : " operator"}` }, [bubble]);
