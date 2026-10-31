@@ -61,6 +61,8 @@ RÈGLES ABSOLUES :
 - Pour file, ne l'utilise que si l'utilisateur doit joindre un document ou une image.
 - Les connaissances doivent être factuelles, courtes et directement utilisables par un RAG. Titre unique et explicite (120 caractères max).
 - Tu peux proposer des instructions supplémentaires pour les besoins non couverts par le ton ou les garde-fous.
+- Propose aussi un fallback heuristique : 4 à 8 questions/réponses fermées, factuelles, issues des sources. Aucun mot-clé, aucune invention de prix, délai ou coordonnée. "showCollectionForm" vaut true seulement si tu proposes des champs.
+- Les identifiants de questions du fallback doivent être des slugs minuscules (ex. services, localisation).
 - Ne produis pas de prompt système ni de template Markdown : le serveur les génère.
 
 SUGGESTIONS DE TON (non limitatives) :
@@ -90,7 +92,15 @@ SCHÉMA JSON ATTENDU :
   ],
   "knowledge": [
     { "titre": "Titre factuel", "contenu": "Contenu factuel issu des sources" }
-  ]
+  ],
+  "fallback": {
+    "enabled": true,
+    "intro": "L’assistant est momentanément indisponible. Choisissez une option.",
+    "questions": [
+      { "id": "services", "label": "Quels services proposez-vous ?", "answer": "Réponse factuelle issue des sources." }
+    ],
+    "showCollectionForm": true
+  }
 }`;
 
   const documentText = input.documents

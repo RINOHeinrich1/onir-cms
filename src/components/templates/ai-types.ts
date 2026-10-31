@@ -1,5 +1,6 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
-import type { TemplateLanguagePolicy } from "@/domain/template-settings";
+import type { ChatbotFallback } from "@/domain/entities/chatbot-config";
+import type { TemplateLanguagePolicy, TemplateSimpleSettings } from "@/domain/template-settings";
 
 export type TemplateAiKnowledgeDto = {
   titre: string;
@@ -19,6 +20,8 @@ export type TemplateAiDraftDto = {
   systemPrompt: string;
   renderTemplate: string;
   knowledge: TemplateAiKnowledgeDto[];
+  fallback: ChatbotFallback;
+  settings: TemplateSimpleSettings;
   warnings: string[];
 };
 

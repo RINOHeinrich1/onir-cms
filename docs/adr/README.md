@@ -60,3 +60,4 @@ ADR qui remplace la précédente.
 | [0057](./0057-api-publique-medias-connaissances.md) | API publique des médias et des connaissances | Accepté |
 | [0058](./0058-ia-usages-clusters.md) | IA par usage, clusters et overrides par chatbot | Accepté |
 | [0059](./0059-fallback-heuristique-chatbot.md) | Fallback heuristique des chatbots — questions/réponses fermées et fiche existante | Accepté |
+| [0060](./0060-creation-chatbot-assistee-ia.md) | Création de chatbot assistée par IA — préremplissage supervisé | Accepté |

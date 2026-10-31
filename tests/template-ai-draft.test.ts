@@ -21,6 +21,12 @@ const RAW = {
     { titre: "Zone d'intervention", contenu: "Lyon et métropole." },
     { titre: "Zone d'intervention", contenu: "Doublon ignoré." },
   ],
+  fallback: {
+    enabled: true,
+    intro: "L’assistant est indisponible.",
+    questions: [{ id: "zone", label: "Quelle est votre zone ?", answer: "Lyon et métropole." }],
+    showCollectionForm: true,
+  },
 };
 
 describe("template-ai-draft (ADR-0038)", () => {
@@ -39,6 +45,8 @@ describe("template-ai-draft (ADR-0038)", () => {
     expect(result.value.knowledge).toHaveLength(1);
     expect(result.value.systemPrompt).toContain("Tu es l'assistant de qualification");
     expect(result.value.renderTemplate).toContain("## Type de projet");
+    expect(result.value.fallback.enabled).toBe(true);
+    expect(result.value.fallback.questions[0]?.id).toBe("zone");
   });
 
   it("conserve un select sans options en texte", () => {
@@ -61,6 +69,7 @@ describe("template-ai-draft (ADR-0038)", () => {
     if (!result.ok) return;
     expect(result.value.fields).toEqual([]);
     expect(result.value.systemPrompt).not.toContain("Informations à réunir");
+    expect(result.value.fallback.showCollectionForm).toBe(false);
   });
 
   it("conserve une langue fixe, un ton libre et un garde-fou personnalisé", () => {

@@ -16,6 +16,8 @@ import {
   parseChatbotDataSelection,
   parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
+import type { TemplateAiDraft } from "@/domain/template-ai-draft";
+import { toTemplateKey } from "@/domain/template-defaults";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
 export type FicheFieldDraft = {
@@ -70,6 +72,56 @@ function newId(): string {
     return crypto.randomUUID();
   }
   return `draft-${Math.random().toString(36).slice(2)}`;
+}
+
+/** Convertit un brouillon IA de modèle en configuration de chatbot éditable. */
+export function chatbotConfigDraftFromAi(draft: TemplateAiDraft): ChatbotConfigDraft {
+  const fields: FicheFieldDraft[] = draft.fields.map((field) => ({
+    id: newId(),
+    name: field.name,
+    label: field.label,
+    type: field.type,
+    required: field.required,
+    options: field.options?.join(", ") ?? "",
+    example: field.example ?? "",
+    ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
+    ...(field.file === undefined ? {} : { file: field.file }),
+  }));
+  const fiches: FicheDraft[] =
+    fields.length === 0
+      ? []
+      : [
+          {
+            id: newId(),
+            key: toTemplateKey(draft.label),
+            label: draft.label,
+            description: draft.description,
+            intent: draft.objective,
+            instructions: draft.extraInstructions,
+            renderTemplate: draft.renderTemplate,
+            fields,
+          },
+        ];
+  return {
+    behaviorMode: "guided",
+    systemPrompt: draft.systemPrompt,
+    simple: {
+      role: draft.role,
+      objective: draft.objective,
+      languageMode: draft.language.mode === "fixed" ? "fixed" : "auto",
+      languageValue:
+        draft.language.mode === "fixed" && typeof draft.language.value === "string"
+          ? draft.language.value
+          : "",
+      tone: draft.tone,
+      guardrails: [...draft.guardrails],
+      extraInstructions: draft.extraInstructions,
+    },
+    fiches,
+    dataSelection: defaultChatbotDataSelection(),
+    fallback:
+      fields.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
+  };
 }
 
 export function emptyField(): FicheFieldDraft {

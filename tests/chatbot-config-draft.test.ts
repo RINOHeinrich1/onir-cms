@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   defaultChatbotConfigDraft,
   draftFromConfig,
   effectiveSystemPrompt,
 } from "@/components/links/chatbot-config-draft";
+import { parseTemplateAiDraft } from "@/domain/template-ai-draft";
 
 describe("brouillon de configuration chatbot", () => {
   it("démarre en mode guidé sans fiche sélectionnée", () => {
@@ -76,6 +78,35 @@ describe("brouillon de configuration chatbot", () => {
     expect(chatbotConfigPayload(draft ?? defaultChatbotConfigDraft()).dataSelection).toEqual(
       draft?.dataSelection,
     );
+  });
+
+  it("convertit un brouillon IA en configuration éditable avec fiche et fallback", () => {
+    const parsed = parseTemplateAiDraft(
+      {
+        label: "Assistant projet",
+        description: "Qualifier un projet",
+        role: "conseiller",
+        objective: "Comprendre le besoin",
+        fields: [
+          { label: "Projet", type: "textarea", required: true },
+          { label: "Budget", type: "text", required: false },
+        ],
+        knowledge: [],
+        fallback: {
+          enabled: true,
+          questions: [{ id: "services", label: "Quels services ?", answer: "Réponse factuelle" }],
+        },
+      },
+      { key: "assistant-projet" },
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const draft = chatbotConfigDraftFromAi(parsed.value);
+    expect(draft.behaviorMode).toBe("guided");
+    expect(draft.fiches).toHaveLength(1);
+    expect(draft.fiches[0]?.fields).toHaveLength(2);
+    expect(draft.fallback.questions).toHaveLength(1);
+    expect(draft.fallback.showCollectionForm).toBe(true);
   });
 
   it("en mode expert, conserve le prompt saisi comme source", () => {
