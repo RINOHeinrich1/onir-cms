@@ -141,6 +141,7 @@ export default async function ChatPortalPage({ params }: PageProps) {
     visualTemplates: pgVisualTemplateRepository(pool),
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
   };
   const spec = await loadTemplateSpec(deps, link, "page", channel);
   if (spec?.dataContracts.some((contract) => contract.loading === "eager")) {

@@ -10,6 +10,7 @@ import { TemplateHost } from "@/components/templates/TemplateHost";
 import { channelsForLink } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -70,6 +71,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
     visualTemplates: pgVisualTemplateRepository(pool),
     medias: pgMediaRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
   };
   const channels = channelsForLink(link);
   const requestedSurface =
