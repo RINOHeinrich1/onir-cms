@@ -17,13 +17,14 @@ const MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 1_000;
 const MAX_TABLE_CELLS = 10_000;
 
-const EXTENSIONS = new Map<string, SupportedFileType>([
+const EXTENSIONS = new Map<string, SupportedFileType | "txt">([
   [".pdf", "pdf"],
   [".docx", "docx"],
   [".odt", "odt"],
   [".md", "md"],
   [".markdown", "md"],
   [".rtf", "rtf"],
+  [".txt", "txt"],
 ]);
 
 const MIME_BY_EXTENSION: Record<string, readonly string[]> = {
@@ -33,6 +34,7 @@ const MIME_BY_EXTENSION: Record<string, readonly string[]> = {
   ".md": ["text/markdown", "text/plain", "text/x-markdown", ""],
   ".markdown": ["text/markdown", "text/plain", "text/x-markdown", ""],
   ".rtf": ["application/rtf", "text/rtf", "text/plain", ""],
+  ".txt": ["text/plain", "text/markdown", ""],
 };
 
 function normalizeText(value: string): string {
@@ -69,12 +71,28 @@ export function officeDocumentExtractor(
       const fileType = EXTENSIONS.get(extension);
       if (fileType === undefined) {
         throw new ValidationError(
-          "Format non pris en charge : utilisez PDF, DOCX, ODT, Markdown ou RTF",
+          "Format non pris en charge : utilisez PDF, DOCX, ODT, Markdown, RTF ou TXT",
         );
       }
       const allowedMimes = MIME_BY_EXTENSION[extension] ?? [];
       if (input.mime !== "" && !allowedMimes.includes(input.mime)) {
         throw new ValidationError(`Type de fichier incohérent pour « ${input.name} »`);
+      }
+
+      if (fileType === "txt") {
+        const text = normalizeText(new TextDecoder().decode(input.bytes).replace(/^\uFEFF/, ""));
+        const truncated = text.length > MAX_EXTRACTED_CHARS;
+        const limited = truncated ? text.slice(0, MAX_EXTRACTED_CHARS) : text;
+        return {
+          name: input.name,
+          mime: input.mime,
+          text: limited,
+          chars: limited.length,
+          truncated,
+          warnings: truncated
+            ? [`Texte tronqué à ${MAX_EXTRACTED_CHARS.toLocaleString("fr-FR")} caractères.`]
+            : [],
+        };
       }
 
       const warnings: string[] = [];

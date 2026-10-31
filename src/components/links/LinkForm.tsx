@@ -2,6 +2,11 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  TemplateAiGenerationDto,
+  TemplateAiKnowledgeDto,
+} from "@/components/templates/ai-types";
+import { TemplateAiAssistPanel } from "@/components/templates/TemplateAiAssistPanel";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -18,6 +23,7 @@ import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
+  chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   guidedPromptFromDraft,
 } from "./chatbot-config-draft";
@@ -108,6 +114,8 @@ export function LinkForm({
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
+  const [aiAssistOpen, setAiAssistOpen] = useState(false);
+  const [stagedKnowledge, setStagedKnowledge] = useState<TemplateAiKnowledgeDto[]>([]);
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
   const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>(initial.activeChannel);
@@ -499,6 +507,32 @@ export function LinkForm({
           failures = ["Ajout des données impossible (erreur inattendue)."];
         }
       }
+      const knowledgeFailures: string[] = [];
+      let knowledgeCreated = 0;
+      if (stagedKnowledge.length > 0) {
+        for (const item of stagedKnowledge) {
+          try {
+            const created = await fetch("/api/connaissances", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                titre: item.titre,
+                contenu: item.contenu,
+                chatLinkIds: [json.link.id],
+              }),
+            });
+            if (created.ok) {
+              knowledgeCreated += 1;
+            } else {
+              const payload = (await created.json().catch(() => null)) as { error?: string } | null;
+              knowledgeFailures.push(payload?.error ?? item.titre);
+            }
+          } catch {
+            knowledgeFailures.push(item.titre);
+          }
+        }
+      }
+
       // Le chatbot existe : le brouillon ne doit plus être proposé (pas de doublon).
       finalizedRef.current = true;
       const finalizedDraftId = draftIdRef.current;
@@ -525,6 +559,9 @@ export function LinkForm({
           );
         }
       }
+      if (knowledgeCreated > 0) {
+        toast.success(`${knowledgeCreated} connaissance(s) rattachée(s) au chatbot.`);
+      }
       toast.success("Chatbot créé.");
       if (Object.keys(aiUsage).length > 0) {
         const aiResponse = await fetch(`/api/links/${json.link.id}/ai-usage`, {
@@ -544,11 +581,43 @@ export function LinkForm({
           `Chatbot créé, mais ${failures.length} ajout(s) de données ont échoué : ${detail}${more}`,
         );
       }
+      if (knowledgeFailures.length > 0) {
+        const detail = knowledgeFailures.slice(0, 3).join(" · ");
+        const more = knowledgeFailures.length > 3 ? ` (+${knowledgeFailures.length - 3})` : "";
+        toast.warning(
+          `Chatbot créé, mais ${knowledgeFailures.length} connaissance(s) n’ont pas pu être ajoutées : ${detail}${more}`,
+        );
+      }
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
       setPending(false);
     }
+  };
+
+  const onAiGenerated = (result: TemplateAiGenerationDto): void => {
+    const next = chatbotConfigDraftFromAi(result.draft);
+    setConfig(next);
+    setLabel(result.draft.label);
+    setChannels((current) => ({
+      page: {
+        ...current.page,
+        enabled: true,
+        identificationMode: "contact",
+      },
+      widget: {
+        ...current.widget,
+        enabled: true,
+        identificationMode: "anonymous",
+      },
+    }));
+    setStagedKnowledge(result.draft.knowledge);
+    setSources((current) => ({ ...current, phototheque: false, lien: false }));
+    const fields = result.draft.fields.length;
+    const questions = result.draft.fallback.questions.length;
+    toast.success(
+      `Brouillon appliqué : ${fields} champ(s), ${questions} question(s) de secours, ${result.draft.knowledge.length} connaissance(s).`,
+    );
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
@@ -620,6 +689,38 @@ export function LinkForm({
             Reprise du brouillon : toutes les données enregistrées (configuration, canaux, sélection
             de données, connaissances, liens et photos) ont été restaurées.
           </p>
+        ) : null}
+
+        {step === 0 && !resumed ? (
+          <section className="chatbot-form-section">
+            <button
+              type="button"
+              className="btn ghost small"
+              onClick={() => setAiAssistOpen((current) => !current)}
+            >
+              {aiAssistOpen ? "Masquer l’assistant IA" : "Créer avec l’IA"}
+            </button>
+            {aiAssistOpen ? (
+              <div className="template-ai-panel">
+                <TemplateAiAssistPanel
+                  templateKey={null}
+                  endpoint="/api/chatbots/ai/generate"
+                  onGenerated={onAiGenerated}
+                />
+                {stagedKnowledge.length > 0 ? (
+                  <div className="chatbot-ai-knowledge">
+                    <strong>{stagedKnowledge.length} connaissance(s) prête(s)</strong>
+                    <ul>
+                      {stagedKnowledge.slice(0, 6).map((item) => (
+                        <li key={item.titre}>{item.titre}</li>
+                      ))}
+                    </ul>
+                    <p className="hint">Elles seront rattachées à ce chatbot après création.</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         {step === 0 ? (

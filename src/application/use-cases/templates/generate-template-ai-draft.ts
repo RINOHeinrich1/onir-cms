@@ -53,6 +53,8 @@ export type GenerateTemplateAiInput = {
   providerId?: string;
   model?: string;
   templateKey?: string;
+  /** Permission requise : template (défaut) ou création de chatbot. */
+  requiredPermission?: "templates:create" | "links:create";
   crawl?: {
     maxPages?: number;
     maxDepth?: number;
@@ -115,7 +117,10 @@ export async function generateTemplateAiDraft(
 ): Promise<TemplateAiGenerationResult> {
   const organizationId = organizationOf(actor);
   const templateKey = text(input.templateKey) === "" ? null : text(input.templateKey);
-  assertCan(actor, templateKey === null ? "templates:create" : "templates:update");
+  assertCan(
+    actor,
+    templateKey === null ? (input.requiredPermission ?? "templates:create") : "templates:update",
+  );
   assertCan(actor, "ai:read");
 
   const description = text(input.description);

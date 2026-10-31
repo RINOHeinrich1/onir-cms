@@ -7,14 +7,16 @@ import type { TemplateAiGenerationDto, TemplateAiModelsDto } from "./ai-types";
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ACCEPT = ".pdf,.docx,.odt,.md,.markdown,.rtf";
+const ACCEPT = ".pdf,.docx,.odt,.md,.markdown,.rtf,.txt";
 
 export function TemplateAiAssistPanel({
   templateKey,
   onGenerated,
+  endpoint = "/api/templates/ai/generate",
 }: {
   templateKey: string | null;
   onGenerated: (result: TemplateAiGenerationDto) => void;
+  endpoint?: string;
 }) {
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -127,7 +129,7 @@ export function TemplateAiAssistPanel({
       if (templateKey !== null) formData.set("templateKey", templateKey);
       for (const file of files) formData.append("files", file);
 
-      const response = await fetch("/api/templates/ai/generate", {
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -199,7 +201,7 @@ export function TemplateAiAssistPanel({
         Documents (optionnel)
         <input type="file" accept={ACCEPT} multiple onChange={onFilesChange} disabled={pending} />
         <span className="hint">
-          PDF, DOCX, ODT, Markdown ou RTF · {MAX_FILES} fichiers max · 10 Mo par fichier.
+          PDF, DOCX, ODT, Markdown, RTF ou TXT · {MAX_FILES} fichiers max · 10 Mo par fichier.
         </span>
       </label>
       {files.length > 0 ? (

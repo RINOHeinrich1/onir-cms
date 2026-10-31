@@ -14,6 +14,11 @@ import {
   type TemplateFieldType,
 } from "@/domain/entities/chat-template";
 import {
+  type ChatbotFallback,
+  defaultChatbotFallback,
+  parseChatbotFallback,
+} from "@/domain/entities/chatbot-config";
+import {
   buildDefaultRenderTemplate,
   buildDefaultSystemPrompt,
   toFieldName,
@@ -49,6 +54,7 @@ export type TemplateAiDraft = {
   systemPrompt: string;
   renderTemplate: string;
   knowledge: TemplateAiKnowledgeCandidate[];
+  fallback: ChatbotFallback;
   warnings: string[];
   settings: TemplateSimpleSettings;
 };
@@ -234,6 +240,14 @@ export function parseTemplateAiDraft(
   const guardrails = normalizeGuardrails(input.guardrails);
   const extraInstructions = text(input.extraInstructions).slice(0, 4_000);
   const knowledge = normalizeKnowledge(input.knowledge, warnings);
+  const parsedFallback = parseChatbotFallback(input.fallback);
+  const fallback = parsedFallback.ok ? parsedFallback.value : defaultChatbotFallback();
+  if (!parsedFallback.ok) {
+    warnings.push(`Fallback non généré : ${parsedFallback.error}`);
+  }
+  if (normalizedFields.length === 0) {
+    fallback.showCollectionForm = false;
+  }
 
   if (errors.length > 0) return { ok: false, errors };
 
@@ -282,6 +296,7 @@ export function parseTemplateAiDraft(
       systemPrompt: validated.value.systemPrompt,
       renderTemplate: validated.value.renderTemplate,
       knowledge,
+      fallback,
       warnings,
       settings,
     },
