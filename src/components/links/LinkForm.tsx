@@ -138,6 +138,8 @@ export function LinkForm({
   );
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  useToastOnMessage(stepError);
+  useToastOnMessage(saveError);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
   const selectedProspect = useMemo(

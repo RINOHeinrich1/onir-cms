@@ -115,6 +115,7 @@ export function LinkEditModal({
   const [pending, setPending] = useState(false);
   const [step, setStep] = useState(0);
   const [stepError, setStepError] = useState<string | null>(null);
+  useToastOnMessage(stepError);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
   const dialogRef = useRef<HTMLDivElement>(null);
