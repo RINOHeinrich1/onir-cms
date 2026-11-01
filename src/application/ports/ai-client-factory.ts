@@ -37,6 +37,8 @@ export type AiExtractionClient = {
 export interface AiClientFactory {
   /** Résout la cible sans construire de client ; lève si rien n'est configuré. */
   resolve(target: AiTargetRef | null): Promise<ResolvedAiTarget>;
+  /** Résout selon le défaut/cluster d'un usage, avec repli sur la cible fournie. */
+  resolveForUsage?(target: AiTargetRef | null, usage: AiUsage): Promise<ResolvedAiTarget>;
   /** Construit un client lié au fournisseur/modèle résolu ; lève si indisponible. */
   forTarget(target: AiTargetRef | null): Promise<AiClient>;
   /** Variante fail-open : null si aucun fournisseur résoluble. */
@@ -71,6 +73,15 @@ export function fixedAiClientFactory(client: AiClient): AiClientFactory {
     },
     async forTarget() {
       return client;
+    },
+    async resolveForUsage() {
+      return {
+        organizationId: "org-test",
+        providerId: null,
+        providerLabel: "test",
+        model: "test",
+        source: "legacy",
+      };
     },
     async optionalTarget() {
       return client;

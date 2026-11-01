@@ -221,6 +221,19 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
 
   return {
     resolve,
+    async resolveForUsage(target, usage) {
+      if (deps.usage === undefined) return resolve(target);
+      const refs = await resolveUsageTargets(
+        { usage: deps.usage },
+        {
+          organizationId: target?.organizationId ?? "",
+          usage,
+          fallbackTarget: target,
+        },
+      );
+      const first = refs[0];
+      return first === undefined ? resolve(target) : resolve(first);
+    },
     async forTarget(target) {
       return buildClient(await resolve(target));
     },
