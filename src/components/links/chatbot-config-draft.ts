@@ -222,7 +222,10 @@ function fieldPayload(field: FicheFieldDraft, name: string): Record<string, unkn
   return {
     name,
     label: field.label.trim(),
-    type: field.type,
+    type:
+      (field.type === "select" || field.type === "multi") && options.length === 0
+        ? "text"
+        : field.type,
     required: field.required,
     ...(options.length === 0 ? {} : { options }),
     ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),

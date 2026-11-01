@@ -80,6 +80,35 @@ describe("brouillon de configuration chatbot", () => {
     );
   });
 
+  it("convertit un select sans options en texte dans le payload", () => {
+    const draft = defaultChatbotConfigDraft();
+    draft.fiches = [
+      {
+        id: "f1",
+        key: "fiche",
+        label: "Fiche",
+        description: "",
+        intent: "",
+        instructions: "",
+        renderTemplate: "",
+        fields: [
+          {
+            id: "field-1",
+            name: "duree_prevue",
+            label: "Durée prévue",
+            type: "select",
+            required: false,
+            options: "",
+            example: "3 à 6 mois",
+          },
+        ],
+      },
+    ];
+    const payload = chatbotConfigPayload(draft);
+    const fiches = payload.fiches as Array<{ fields: Array<{ type: string }> }>;
+    expect(fiches[0]?.fields[0]?.type).toBe("text");
+  });
+
   it("convertit un brouillon IA en configuration éditable avec fiche et fallback", () => {
     const parsed = parseTemplateAiDraft(
       {
