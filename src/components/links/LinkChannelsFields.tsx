@@ -72,7 +72,22 @@ export function LinkChannelsFields({
         ? { identificationMode: "anonymous" as const }
         : {}),
     };
-    onChange({ ...value, [channel]: nextDraft });
+    const nextValue = { ...value, [channel]: nextDraft };
+    if (
+      channel === "widget" &&
+      enabled &&
+      nextDraft.visualTemplate === "" &&
+      value.page.visualTemplate !== ""
+    ) {
+      const display = widgetDisplayForSelection(visualTemplates, value.page.visualTemplate);
+      if (display !== null) {
+        nextDraft.visualTemplate = value.page.visualTemplate;
+        nextDraft.params = defaultsForSchema(
+          paramsSchemaForSelection(visualTemplates, value.page.visualTemplate),
+        );
+      }
+    }
+    onChange(nextValue);
     if (enabled) onActiveChange(channel);
     else if (active === channel) {
       const other = channel === "page" ? "widget" : "page";
@@ -181,11 +196,27 @@ export function LinkChannelsFields({
               onChange={(event) => {
                 const next = event.target.value;
                 const display = widgetDisplayForSelection(visualTemplates, next);
-                setDraft({
+                const nextDraft: ChannelDraft = {
+                  ...draft,
                   visualTemplate: next,
                   params: defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)),
                   ...(display === null ? {} : { widgetPosition: display.defaultPosition }),
-                });
+                };
+                const nextValue = { ...value, [active]: nextDraft };
+                if (
+                  active === "page" &&
+                  value.widget.enabled &&
+                  value.widget.visualTemplate === "" &&
+                  display !== null
+                ) {
+                  nextValue.widget = {
+                    ...value.widget,
+                    visualTemplate: next,
+                    params: defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)),
+                    widgetPosition: display.defaultPosition,
+                  };
+                }
+                onChange(nextValue);
               }}
             >
               <option value="">— Défaut —</option>
