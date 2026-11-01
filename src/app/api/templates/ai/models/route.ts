@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listTemplateAiModels } from "@/application/use-cases/templates/list-template-ai-models";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
+import { pgAiUsageRepository } from "@/infrastructure/db/ai-usage-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../../../_lib/errors";
 import { requireRole } from "../../../_lib/require-user";
@@ -17,6 +18,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       {
         providers: pgAiProviderRepository(pool),
         models: pgAiProviderModelRepository(pool),
+        usage: pgAiUsageRepository(pool),
       },
       actor,
     );

@@ -217,8 +217,22 @@ export async function generateTemplateAiDraft(
   let resolved: ResolvedAiTarget;
   let client: AiClient;
   try {
-    resolved = await deps.aiFactory.resolve(target);
-    client = await deps.aiFactory.forTarget(target);
+    if (provider !== null && model !== null) {
+      resolved = await deps.aiFactory.resolve(target);
+    } else if (deps.aiFactory.resolveForUsage !== undefined) {
+      resolved = await deps.aiFactory.resolveForUsage(target, "assistant");
+    } else {
+      resolved = await deps.aiFactory.resolve(target);
+    }
+    const resolvedTarget =
+      resolved.providerId === null
+        ? target
+        : {
+            organizationId,
+            aiProviderId: resolved.providerId,
+            aiModel: resolved.model,
+          };
+    client = await deps.aiFactory.forTarget(resolvedTarget);
   } catch (error) {
     if (error instanceof AiNotConfiguredError || error instanceof AppError) throw error;
     throw new BadGatewayError("Aucun fournisseur IA disponible pour cette génération");

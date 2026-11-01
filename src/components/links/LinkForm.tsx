@@ -680,6 +680,7 @@ export function LinkForm({
                 <TemplateAiAssistPanel
                   templateKey={null}
                   endpoint="/api/chatbots/ai/generate"
+                  modelsEndpoint="/api/chatbots/ai/models"
                   onGenerated={onAiGenerated}
                 />
                 {stagedKnowledge.length > 0 ? (

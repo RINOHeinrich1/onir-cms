@@ -13,10 +13,12 @@ export function TemplateAiAssistPanel({
   templateKey,
   onGenerated,
   endpoint = "/api/templates/ai/generate",
+  modelsEndpoint = "/api/templates/ai/models",
 }: {
   templateKey: string | null;
   onGenerated: (result: TemplateAiGenerationDto) => void;
   endpoint?: string;
+  modelsEndpoint?: string;
 }) {
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -37,7 +39,7 @@ export function TemplateAiAssistPanel({
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/templates/ai/models", { cache: "no-store" })
+    void fetch(modelsEndpoint, { cache: "no-store" })
       .then(async (response) => {
         const json = (await response.json()) as TemplateAiModelsDto & { error?: string };
         if (cancelled) return;
@@ -63,7 +65,7 @@ export function TemplateAiAssistPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [modelsEndpoint]);
 
   useEffect(() => {
     if (!pending) {
