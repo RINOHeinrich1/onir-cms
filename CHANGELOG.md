@@ -5,6 +5,17 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.20.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.0...v0.20.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **chatbot:** conserver les connaissances site/documents dans les brouillons
+* **chatbot:** sélectionner les connaissances créées au lieu de toutes les données globales
+* **chatbot:** afficher Terminer dès que la configuration est valide
+* **chatbot:** actualiser connaissances, photothèque et liens dans le modal
+* **chatbot:** type standard par défaut et libellé « Générer le chatbot »
+
 ## [0.20.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.19.0...v0.20.0) (2026-11-01)
 
 
