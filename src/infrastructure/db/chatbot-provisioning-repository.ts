@@ -94,6 +94,7 @@ async function insertConfig(
   organizationId: string,
   linkId: string,
   input: ProvisionChatbotInput,
+  knowledgeIds: string[],
 ): Promise<void> {
   const { rows } = await client.query<ConfigRow>(
     `INSERT INTO chatbot_configs
@@ -107,7 +108,11 @@ async function insertConfig(
       input.config.systemPrompt,
       JSON.stringify({ ...input.config.simple, behaviorMode: input.config.behaviorMode }),
       JSON.stringify(input.config.fiches),
-      JSON.stringify(input.config.dataSelection),
+      JSON.stringify(
+        knowledgeIds.length > 0
+          ? { mode: "selected" as const, connaissanceIds: knowledgeIds, mediaIds: [] }
+          : input.config.dataSelection,
+      ),
       JSON.stringify(input.config.fallback ?? defaultChatbotFallback()),
       input.createdBy,
     ],
@@ -125,7 +130,7 @@ async function insertKnowledge(
   organizationId: string,
   linkId: string,
   input: ProvisionChatbotInput,
-): Promise<ProvisionChatbotResult["knowledge"]> {
+): Promise<ProvisionChatbotResult["knowledge"] & { ids: string[] }> {
   const titles = input.knowledge.map((item) => item.titre);
   const existing = await client.query<{ titre: string }>(
     `SELECT lower(titre) AS titre
@@ -135,26 +140,30 @@ async function insertKnowledge(
   );
   const skipped = new Set(existing.rows.map((row) => row.titre));
   let created = 0;
+  const ids: string[] = [];
   for (const item of input.knowledge) {
     const normalizedTitle = item.titre.toLocaleLowerCase("fr");
     if (skipped.has(normalizedTitle)) {
       skipped.add(normalizedTitle);
       continue;
     }
-    await client.query(
+    const inserted = await client.query<{ id: string }>(
       `INSERT INTO base_connaissances
          (organization_id, titre, contenu, chat_link_ids, template_keys,
           created_by, origin)
-       VALUES ($1, $2, $3, ARRAY[$4]::uuid[], ARRAY[]::text[], $5, 'ai')`,
+       VALUES ($1, $2, $3, ARRAY[$4]::uuid[], ARRAY[]::text[], $5, 'ai')
+       RETURNING id`,
       [organizationId, item.titre, item.contenu, linkId, input.createdBy],
     );
+    const insertedId = inserted.rows[0]?.id;
+    if (insertedId !== undefined) ids.push(insertedId);
     skipped.add(normalizedTitle);
     created += 1;
   }
   const conflicted = input.knowledge
     .filter((item) => existing.rows.some((row) => row.titre === item.titre.toLocaleLowerCase("fr")))
     .map((item) => item.titre);
-  return { created, skipped: [...new Set(conflicted)] };
+  return { created, skipped: [...new Set(conflicted)], ids };
 }
 
 export function pgChatbotProvisioningRepository(pool: Pool): ChatbotProvisioningRepository {
@@ -167,8 +176,8 @@ export function pgChatbotProvisioningRepository(pool: Pool): ChatbotProvisioning
         if (channels === undefined) throw new Error("Canaux du lien manquants");
         const linkId = await insertLink(client, input, channels);
         await insertChannels(client, linkId, channels);
-        await insertConfig(client, input.organizationId, linkId, input);
         const knowledge = await insertKnowledge(client, input.organizationId, linkId, input);
+        await insertConfig(client, input.organizationId, linkId, input, knowledge.ids);
         await client.query("COMMIT");
         return { linkId, knowledge };
       } catch (error) {

@@ -116,6 +116,7 @@ export function LinkForm({
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
   const [aiAssistOpen, setAiAssistOpen] = useState(false);
   const [stagedKnowledge, setStagedKnowledge] = useState<TemplateAiKnowledgeDto[]>([]);
+  const [aiSources, setAiSources] = useState<TemplateAiGenerationDto["sources"] | null>(null);
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
   const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>(initial.activeChannel);
@@ -589,6 +590,7 @@ export function LinkForm({
       },
     }));
     setStagedKnowledge(result.draft.knowledge);
+    setAiSources(result.sources);
     setSources((current) => ({ ...current, phototheque: false, lien: false }));
     const fields = result.draft.fields.length;
     const questions = result.draft.fallback.questions.length;
@@ -687,6 +689,12 @@ export function LinkForm({
                   modelsEndpoint="/api/chatbots/ai/models"
                   onGenerated={onAiGenerated}
                 />
+                {aiSources !== null ? (
+                  <p className="hint">
+                    Sources : {aiSources.pages.length} page(s), {aiSources.files.length}{" "}
+                    document(s), {aiSources.chars.toLocaleString("fr-FR")} caractères extraits.
+                  </p>
+                ) : null}
                 {stagedKnowledge.length > 0 ? (
                   <div className="chatbot-ai-knowledge">
                     <strong>{stagedKnowledge.length} connaissance(s) prête(s)</strong>

@@ -153,7 +153,12 @@ describe("generateTemplateAiDraft (ADR-0038)", () => {
     });
     expect(result.key).toBe("renovation");
     expect(result.draft.fields[0]?.name).toBe("type_de_projet");
-    expect(result.draft.knowledge).toHaveLength(1);
+    expect(result.draft.knowledge).toHaveLength(3);
+    expect(result.draft.knowledge.map((item) => item.titre)).toEqual([
+      "Accueil",
+      "brief.md",
+      "Zone",
+    ]);
     expect(result.sources.files[0]?.chars).toBe(23);
     expect(result.sources.pages[0]?.title).toBe("Accueil");
     expect(result.existingAiKnowledgeCount).toBe(0);
