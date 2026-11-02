@@ -51,4 +51,6 @@ export interface ConnaissanceRepository {
     patch: UpdateConnaissanceInput,
   ): Promise<Connaissance | null>;
   delete(organizationId: string, id: string): Promise<boolean>;
+  /** Suppression groupée, retourne le nombre réellement supprimé. */
+  deleteMany(organizationId: string, ids: string[]): Promise<number>;
 }

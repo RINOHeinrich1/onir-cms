@@ -87,6 +87,7 @@ function connaissances(count = 0): ConnaissanceRepository {
     countAiByTemplate: async () => count,
     update: missing,
     delete: async () => false,
+    deleteMany: async () => 0,
   };
 }
 
