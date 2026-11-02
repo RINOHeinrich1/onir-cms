@@ -1497,18 +1497,18 @@
 }
 
 /* Détail : le contenu long est confiné dans une zone scrollable. */
-.connaissance-detail-meta {
+.connaissance-detail-meta.kv {
   grid-template-columns: minmax(6.5rem, max-content) minmax(0, 1fr);
   min-width: 0;
   max-width: 100%;
   margin: 0;
 }
 
-.connaissance-detail-meta dd {
+.connaissance-detail-meta.kv dd {
   min-width: 0;
 }
 
-.connaissance-detail-meta .badge {
+.connaissance-detail-meta.kv .badge {
   max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1598,21 +1598,21 @@
     width: 100%;
   }
 
-  .connaissance-detail-meta {
+  .connaissance-detail-meta.kv {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.15rem;
   }
 
-  .connaissance-detail-meta dt {
+  .connaissance-detail-meta.kv dt {
     margin-top: 0.45rem;
     font-size: 0.78rem;
   }
 
-  .connaissance-detail-meta dt:first-child {
+  .connaissance-detail-meta.kv dt:first-child {
     margin-top: 0;
   }
 
-  .connaissance-detail-meta dd {
+  .connaissance-detail-meta.kv dd {
     margin-bottom: 0.3rem;
   }
 
