@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { ConnaissanceDto } from "@/components/connaissances/types";
 import type { MediaDto } from "@/components/medias/types";
+import type { TemplateAiKnowledgeDto } from "@/components/templates/ai-types";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { selectableDataForChatbot } from "./chatbot-data-draft";
 
@@ -83,12 +84,15 @@ export function ChatbotDataSelection({
   onChange,
   chatLinkId,
   onCountsChange,
+  pendingKnowledge = [],
 }: {
   selection: DataSelection;
   onChange: (next: DataSelection) => void;
   /** Édition : inclut aussi les données déjà scopées à ce chatbot. */
   chatLinkId?: string | null | undefined;
   onCountsChange?: ((counts: DataCounts) => void) | undefined;
+  /** Connaissances issues de l'IA, pas encore créées en base. */
+  pendingKnowledge?: TemplateAiKnowledgeDto[];
 }) {
   const modeName = useId();
   const [connaissances, setConnaissances] = useState<ConnaissanceDto[]>([]);
@@ -134,6 +138,18 @@ export function ChatbotDataSelection({
       selectableDataForChatbot(connaissances, currentChatLinkId),
       "connaissance",
     );
+    const pendingItems: SelectableItem[] = pendingKnowledge
+      .filter((item) => item.id !== undefined)
+      .map((item) => ({
+        id: item.id as string,
+        title: item.titre,
+        description: item.contenu,
+        badge: "chatbot" as const,
+        thumbnail: null,
+        url: item.source?.type === "page" ? item.source.url : null,
+      }))
+      .filter((item) => !connaissanceItems.some((known) => known.id === item.id));
+    connaissanceItems.push(...pendingItems);
     const photos = selectableDataForChatbot(
       medias.filter((media) => media.type === "photo"),
       currentChatLinkId,
@@ -147,7 +163,7 @@ export function ChatbotDataSelection({
       photos: toSelectable(photos, "photo"),
       liens: toSelectable(liens, "lien"),
     };
-  }, [connaissances, medias, currentChatLinkId]);
+  }, [connaissances, medias, currentChatLinkId, pendingKnowledge]);
 
   useEffect(() => {
     if (loading) return;

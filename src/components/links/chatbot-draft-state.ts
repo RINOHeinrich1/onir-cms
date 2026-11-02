@@ -98,9 +98,13 @@ function parseStagedKnowledge(value: unknown): TemplateAiKnowledgeDto[] {
       (entry): entry is Record<string, unknown> =>
         entry !== null && typeof entry === "object" && !Array.isArray(entry),
     )
-    .map((entry) => ({
+    .map((entry, index) => ({
+      id: typeof entry.id === "string" && entry.id !== "" ? entry.id : `staged-${index + 1}`,
       titre: typeof entry.titre === "string" ? entry.titre : "",
       contenu: typeof entry.contenu === "string" ? entry.contenu : "",
+      ...(entry.source !== null && typeof entry.source === "object"
+        ? { source: entry.source as never }
+        : {}),
     }))
     .filter((entry) => entry.titre !== "" && entry.contenu !== "");
 }
@@ -237,7 +241,24 @@ export function hydrateChatbotDraftState(
   const source = record(input);
   const channelsInput = record(source.channels);
   const step = typeof source.step === "number" ? Math.trunc(source.step) : fallback.step;
-  const config = draftFromConfig(source.config) ?? fallback.config;
+  let config = draftFromConfig(source.config) ?? fallback.config;
+  const stagedKnowledge = parseStagedKnowledge(source.stagedKnowledge);
+  if (
+    stagedKnowledge.length > 0 &&
+    config.dataSelection.mode === "all" &&
+    config.dataSelection.mediaIds.length === 0
+  ) {
+    config = {
+      ...config,
+      dataSelection: {
+        mode: "selected",
+        connaissanceIds: stagedKnowledge
+          .map((item) => item.id)
+          .filter((id): id is string => id !== undefined),
+        mediaIds: [],
+      },
+    };
+  }
   const type =
     typeof source.type === "string" && isChatLinkType(source.type) ? source.type : fallback.type;
   const activeChannel =
@@ -263,7 +284,7 @@ export function hydrateChatbotDraftState(
     ai: parseAi(source.ai),
     aiUsage: parseAiUsage(source.aiUsage),
     dataDraft: hydrateChatbotDataDraft(source.dataDraft),
-    stagedKnowledge: parseStagedKnowledge(source.stagedKnowledge),
+    stagedKnowledge,
     aiSources: parseAiSources(source.aiSources),
   };
 }

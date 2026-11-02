@@ -139,7 +139,7 @@ describe("état de brouillon de chatbot", () => {
     expect(hydrated.dataBindings).toEqual({ "row-1": "id-1" });
     expect(hydrated.ai).toEqual({ aiProviderId: "provider-1", aiModel: "model-1" });
     expect(hydrated.dataDraft).toEqual(state.dataDraft);
-    expect(hydrated.stagedKnowledge).toEqual(state.stagedKnowledge);
+    expect(hydrated.stagedKnowledge).toEqual([{ ...state.stagedKnowledge[0], id: "staged-1" }]);
     expect(hydrated.aiSources).toEqual(state.aiSources);
   });
 

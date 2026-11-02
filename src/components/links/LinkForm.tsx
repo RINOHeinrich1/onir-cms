@@ -497,7 +497,18 @@ export function LinkForm({
             widget: channelApiPayload(channels.widget),
           },
           dataBindings,
-          ...(stagedKnowledge.length === 0 ? {} : { knowledge: stagedKnowledge }),
+          ...(stagedKnowledge.length === 0
+            ? {}
+            : {
+                knowledge:
+                  config.dataSelection.mode === "selected"
+                    ? stagedKnowledge.filter(
+                        (item) =>
+                          item.id !== undefined &&
+                          config.dataSelection.connaissanceIds.includes(item.id),
+                      )
+                    : stagedKnowledge,
+              }),
         }),
       });
       const json = (await response.json()) as CreatedLink & { error?: string };
@@ -583,7 +594,18 @@ export function LinkForm({
 
   const onAiGenerated = (result: TemplateAiGenerationDto): void => {
     const next = chatbotConfigDraftFromAi(result.draft);
-    setConfig(next);
+    const staged = result.draft.knowledge.map((item, index) => ({
+      ...item,
+      id: `staged-${result.generationId}-${index + 1}`,
+    }));
+    setConfig({
+      ...next,
+      dataSelection: {
+        mode: "selected",
+        connaissanceIds: staged.map((item) => item.id),
+        mediaIds: [],
+      },
+    });
     setLabel(result.draft.label);
     setChannels((current) => ({
       page: {
@@ -597,7 +619,7 @@ export function LinkForm({
         identificationMode: "anonymous",
       },
     }));
-    setStagedKnowledge(result.draft.knowledge);
+    setStagedKnowledge(staged);
     setAiSources(result.sources);
     setSources((current) => ({ ...current, phototheque: false, lien: false }));
     const fields = result.draft.fields.length;
