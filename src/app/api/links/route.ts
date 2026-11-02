@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createChatLink } from "@/application/use-cases/links/create-chat-link";
 import { linkListItems } from "@/application/use-cases/links/link-urls";
-import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
+import { deleteChatLinks, listChatLinks } from "@/application/use-cases/links/manage-chat-links";
 import { buildWidgetSnippet, widgetEmbedUrl } from "@/application/use-cases/links/widget-code";
 import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labels";
 import { channelsForLink } from "@/domain/entities/chat";
@@ -89,6 +89,25 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       { status: 201 },
     );
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+/** DELETE /api/links — suppression groupée de chatbots (admin/marketeur). */
+export async function DELETE(request: Request): Promise<NextResponse> {
+  try {
+    const actor = await requireRole(request, "links:revoke");
+    const body = await readJsonObject(request);
+    if (body === null) {
+      return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+    }
+    const result = await deleteChatLinks(
+      { links: pgChatLinkRepository(getPool()) },
+      actor,
+      body.ids,
+    );
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return errorResponse(error);
   }
