@@ -1,3 +1,7 @@
+import type {
+  TemplateAiGenerationDto,
+  TemplateAiKnowledgeDto,
+} from "@/components/templates/ai-types";
 import { AI_LINK_USAGES, type AiLinkTarget, type AiLinkUsage } from "@/domain/entities/ai-usage";
 import type { ChatLinkSources, ChatLinkSurface, ChatLinkType } from "@/domain/entities/chat";
 import { isChatLinkSurface, isChatLinkType, parseLinkSources } from "@/domain/entities/chat";
@@ -33,6 +37,10 @@ export type ChatbotDraftState = {
   ai: LinkAiValue;
   aiUsage: Partial<Record<AiLinkUsage, AiLinkTarget>>;
   dataDraft: ChatbotDataDraft;
+  /** Connaissances candidates issues de l'IA et des sources (ADR-0060). */
+  stagedKnowledge: TemplateAiKnowledgeDto[];
+  /** Résumé des pages/documents analysés, conservé avec le brouillon. */
+  aiSources: TemplateAiGenerationDto["sources"] | null;
 };
 
 const STEP_MIN = 0;
@@ -42,7 +50,7 @@ const STEP_MAX = 6;
 export function defaultChatbotDraftState(defaultConfidentialiteId = ""): ChatbotDraftState {
   return {
     step: 0,
-    type: "specifique",
+    type: "standard",
     prospectId: "",
     label: "",
     expiresAt: "",
@@ -78,6 +86,51 @@ export function defaultChatbotDraftState(defaultConfidentialiteId = ""): Chatbot
     ai: { aiProviderId: null, aiModel: null },
     aiUsage: {},
     dataDraft: { connaissances: [], liens: [], photos: [] },
+    stagedKnowledge: [],
+    aiSources: null,
+  };
+}
+
+function parseStagedKnowledge(value: unknown): TemplateAiKnowledgeDto[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (entry): entry is Record<string, unknown> =>
+        entry !== null && typeof entry === "object" && !Array.isArray(entry),
+    )
+    .map((entry) => ({
+      titre: typeof entry.titre === "string" ? entry.titre : "",
+      contenu: typeof entry.contenu === "string" ? entry.contenu : "",
+    }))
+    .filter((entry) => entry.titre !== "" && entry.contenu !== "");
+}
+
+function parseAiSources(value: unknown): TemplateAiGenerationDto["sources"] | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  return {
+    pages: Array.isArray(source.pages)
+      ? source.pages.filter(
+          (entry): entry is { url: string; title: string; chars: number } =>
+            entry !== null &&
+            typeof entry === "object" &&
+            typeof (entry as Record<string, unknown>).url === "string" &&
+            typeof (entry as Record<string, unknown>).title === "string" &&
+            typeof (entry as Record<string, unknown>).chars === "number",
+        )
+      : [],
+    files: Array.isArray(source.files)
+      ? source.files.filter(
+          (entry): entry is { name: string; chars: number; warnings: string[] } =>
+            entry !== null &&
+            typeof entry === "object" &&
+            typeof (entry as Record<string, unknown>).name === "string" &&
+            typeof (entry as Record<string, unknown>).chars === "number" &&
+            Array.isArray((entry as Record<string, unknown>).warnings),
+        )
+      : [],
+    chars: typeof source.chars === "number" ? source.chars : 0,
+    truncated: source.truncated === true,
   };
 }
 
@@ -210,6 +263,8 @@ export function hydrateChatbotDraftState(
     ai: parseAi(source.ai),
     aiUsage: parseAiUsage(source.aiUsage),
     dataDraft: hydrateChatbotDataDraft(source.dataDraft),
+    stagedKnowledge: parseStagedKnowledge(source.stagedKnowledge),
+    aiSources: parseAiSources(source.aiSources),
   };
 }
 
@@ -231,6 +286,8 @@ export function serializeChatbotDraftState(state: ChatbotDraftState): Record<str
     ai: state.ai,
     aiUsage: state.aiUsage,
     dataDraft: serializeChatbotDataDraft(state.dataDraft),
+    stagedKnowledge: state.stagedKnowledge,
+    aiSources: state.aiSources,
   };
 }
 
@@ -274,7 +331,7 @@ function configComparable(config: ChatbotConfigDraft): string {
  */
 export function isChatbotDraftStateMeaningful(state: ChatbotDraftState): boolean {
   if (state.step > 0) return true;
-  if (state.type !== "specifique") return true;
+  if (state.type !== "standard") return true;
   if (
     state.label.trim() !== "" ||
     state.prospectId.trim() !== "" ||
@@ -304,6 +361,7 @@ export function isChatbotDraftStateMeaningful(state: ChatbotDraftState): boolean
   if (Object.keys(state.dataBindings).length > 0) return true;
   if (state.ai.aiProviderId !== null || state.ai.aiModel !== null) return true;
   if (Object.keys(state.aiUsage).length > 0) return true;
+  if (state.stagedKnowledge.length > 0 || state.aiSources !== null) return true;
   if (
     state.dataDraft.connaissances.length > 0 ||
     state.dataDraft.liens.length > 0 ||
