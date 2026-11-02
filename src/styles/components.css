@@ -1598,6 +1598,24 @@
     width: 100%;
   }
 
+  .connaissance-detail-meta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+
+  .connaissance-detail-meta dt {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+  }
+
+  .connaissance-detail-meta dt:first-child {
+    margin-top: 0;
+  }
+
+  .connaissance-detail-meta dd {
+    margin-bottom: 0.3rem;
+  }
+
   .connaissance-detail-content {
     max-height: 45dvh;
     padding: 0.75rem;
