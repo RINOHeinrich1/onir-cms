@@ -67,7 +67,10 @@ mots-clés n’est introduite.
 ### 5. Sources et connaissances
 
 Les contenus du site et des documents sont transformés en connaissances
-candidates. Les fichiers ne sont pas conservés après extraction.
+candidates de façon **déterministe** : chaque page ou document exploitable
+produit une connaissance, même si l’IA n’en propose aucune. Les propositions de
+l’IA sont fusionnées après les sources, avec déduplication par titre.
+Les fichiers ne sont pas conservés après extraction.
 
 Après validation, les connaissances sont créées avec
 `chatLinkIds = [nouveauChatbotId]` : elles sont rattachées au chatbot, pas
@@ -108,7 +111,12 @@ du lien. Le serveur exécute dans une **transaction unique** :
 1. création du lien ;
 2. création des canaux ;
 3. création de la configuration ;
-4. création des connaissances avec `chat_link_ids = [nouveauLienId]`.
+4. création des connaissances avec `chat_link_ids = [nouveauLienId]` ;
+5. configuration avec `dataSelection.mode = "selected"` et les IDs créés.
+
+Ainsi, un chatbot créé depuis un site ne récupère pas silencieusement toutes les
+connaissances globales : il utilise en priorité les connaissances issues de ses
+sources.
 
 Si une étape échoue, l’ensemble est annulé : aucun chatbot partiel, aucune
 connaissance orpheline.

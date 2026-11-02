@@ -30,6 +30,7 @@ import {
   extractAiJsonObject,
   parseTemplateAiDraft,
   type TemplateAiDraft,
+  type TemplateAiKnowledgeCandidate,
 } from "@/domain/template-ai-draft";
 import { toTemplateKey, uniqueTemplateKey } from "@/domain/template-defaults";
 
@@ -109,6 +110,63 @@ function parseNullableProvider(value: unknown): string | null {
   return provider === "" ? null : provider;
 }
 
+function knowledgeTitle(value: string, fallback: string): string {
+  const title = value.replace(/\s+/g, " ").trim() || fallback;
+  return title.slice(0, 120);
+}
+
+function sourceKnowledgeFromPage(page: {
+  url: string;
+  title: string;
+  text: string;
+}): TemplateAiKnowledgeCandidate | null {
+  const contenu = page.text.trim();
+  if (contenu === "") return null;
+  return {
+    titre: knowledgeTitle(page.title, page.url),
+    contenu: contenu.slice(0, 8_000),
+    source: { type: "page", url: page.url },
+  };
+}
+
+function buildSourceKnowledge(
+  pages: Array<{ url: string; title: string; text: string }>,
+  documents: Array<{ name: string; text: string; chars: number }>,
+): TemplateAiKnowledgeCandidate[] {
+  const items: TemplateAiKnowledgeCandidate[] = [];
+  for (const page of pages) {
+    const item = sourceKnowledgeFromPage(page);
+    if (item !== null) items.push(item);
+  }
+  for (const document of documents) {
+    const contenu = document.text.trim();
+    if (contenu === "") continue;
+    items.push({
+      titre: knowledgeTitle(document.name, "Document"),
+      contenu: contenu.slice(0, 8_000),
+      source: { type: "document", filename: document.name },
+    });
+  }
+  return items;
+}
+
+function mergeKnowledge(
+  source: TemplateAiKnowledgeCandidate[],
+  generated: TemplateAiKnowledgeCandidate[],
+): TemplateAiKnowledgeCandidate[] {
+  const result: TemplateAiKnowledgeCandidate[] = [];
+  const titles = new Set<string>();
+  for (const item of [...source, ...generated]) {
+    const title = knowledgeTitle(item.titre, "Connaissance");
+    const fingerprint = title.toLocaleLowerCase("fr");
+    if (titles.has(fingerprint)) continue;
+    titles.add(fingerprint);
+    result.push({ ...item, titre: title });
+    if (result.length >= 20) break;
+  }
+  return result;
+}
+
 /** Génère un brouillon sans aucune écriture en base. */
 export async function generateTemplateAiDraft(
   deps: TemplateAiGenerationDependencies,
@@ -180,6 +238,7 @@ export async function generateTemplateAiDraft(
   }
 
   let website = "";
+  let websitePages: Array<{ url: string; title: string; text: string }> = [];
   let websiteSummary: TemplateAiGenerationSourceSummary["pages"] = [];
   let websiteTruncated = false;
   const websiteUrl = text(input.websiteUrl);
@@ -187,6 +246,7 @@ export async function generateTemplateAiDraft(
     try {
       const crawled = await deps.websites.read(websiteUrl, clampCrawl(input.crawl));
       warnings.push(...crawled.warnings);
+      websitePages = crawled.pages;
       website = crawled.pages
         .map((page) => `--- PAGE : ${page.url} ---\n${page.text}`)
         .join("\n\n");
@@ -278,14 +338,31 @@ export async function generateTemplateAiDraft(
   });
   if (!parsed.ok) throw new ValidationError(parsed.errors.join(" ; "));
 
+  const sourceKnowledge = buildSourceKnowledge(websitePages, extractedDocuments);
+  const generatedKnowledge = parsed.value.knowledge;
+  const mergedKnowledge = mergeKnowledge(sourceKnowledge, generatedKnowledge);
+  if (websiteUrl !== "" && websiteSummary.length === 0) {
+    warnings.push(
+      "Le site n’a fourni aucune page exploitable. Ajoutez un document ou complétez la description.",
+    );
+  }
+  if (sourceKnowledge.length > 0) {
+    warnings.push(
+      `${sourceKnowledge.length} connaissance(s) issue(s) des sources ont été ajoutées au brouillon.`,
+    );
+  }
   const allWarnings = [...new Set([...warnings, ...parsed.value.warnings])];
+  const draft: TemplateAiDraft = {
+    ...parsed.value,
+    knowledge: mergedKnowledge,
+  };
   const existingAiKnowledgeCount =
     templateKey === null ? 0 : await deps.connaissances.countAiByTemplate(organizationId, key);
 
   return {
     generationId: randomUUID(),
     key,
-    draft: parsed.value,
+    draft,
     sources: {
       pages: websiteSummary,
       files: extractedDocuments.map((document) => ({

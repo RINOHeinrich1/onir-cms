@@ -36,9 +36,14 @@ export const TEMPLATE_AI_MAX_FIELDS = 12;
 export const TEMPLATE_AI_MAX_KNOWLEDGE_TITLE = 120;
 export const TEMPLATE_AI_MAX_KNOWLEDGE_CONTENT = 8_000;
 
+export type TemplateAiKnowledgeSource =
+  | { type: "page"; url: string }
+  | { type: "document"; filename: string };
+
 export type TemplateAiKnowledgeCandidate = {
   titre: string;
   contenu: string;
+  source?: TemplateAiKnowledgeSource;
 };
 
 export type TemplateAiDraft = {
