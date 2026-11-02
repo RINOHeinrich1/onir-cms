@@ -109,8 +109,17 @@ async function insertConfig(
       JSON.stringify({ ...input.config.simple, behaviorMode: input.config.behaviorMode }),
       JSON.stringify(input.config.fiches),
       JSON.stringify(
-        knowledgeIds.length > 0
-          ? { mode: "selected" as const, connaissanceIds: knowledgeIds, mediaIds: [] }
+        knowledgeIds.length > 0 || input.knowledge.length > 0
+          ? {
+              mode: "selected" as const,
+              connaissanceIds: [
+                ...input.config.dataSelection.connaissanceIds.filter(
+                  (id) => !id.startsWith("staged-") && !id.startsWith("pending-"),
+                ),
+                ...knowledgeIds,
+              ].filter((id, index, all) => all.indexOf(id) === index),
+              mediaIds: [],
+            }
           : input.config.dataSelection,
       ),
       JSON.stringify(input.config.fallback ?? defaultChatbotFallback()),

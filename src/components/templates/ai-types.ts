@@ -3,8 +3,10 @@ import type { ChatbotFallback } from "@/domain/entities/chatbot-config";
 import type { TemplateLanguagePolicy, TemplateSimpleSettings } from "@/domain/template-settings";
 
 export type TemplateAiKnowledgeDto = {
+  id?: string;
   titre: string;
   contenu: string;
+  source?: { type: "page"; url: string } | { type: "document"; filename: string };
 };
 
 export type TemplateAiDraftDto = {
