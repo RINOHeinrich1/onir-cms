@@ -14,11 +14,13 @@ export function TemplateAiAssistPanel({
   onGenerated,
   endpoint = "/api/templates/ai/generate",
   modelsEndpoint = "/api/templates/ai/models",
+  submitLabel = "Générer le modèle",
 }: {
   templateKey: string | null;
   onGenerated: (result: TemplateAiGenerationDto) => void;
   endpoint?: string;
   modelsEndpoint?: string;
+  submitLabel?: string;
 }) {
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -302,7 +304,7 @@ export function TemplateAiAssistPanel({
           onClick={() => void generate()}
           disabled={pending || !hasModels || model === ""}
         >
-          {pending ? "Génération en cours…" : "Générer le modèle"}
+          {pending ? "Génération en cours…" : submitLabel}
         </button>
         <span className="hint">Aucune donnée n'est écrite avant votre validation.</span>
       </div>

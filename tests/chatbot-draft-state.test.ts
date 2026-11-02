@@ -80,6 +80,13 @@ describe("état de brouillon de chatbot", () => {
       liens: [{ id: "l1", libelle: "Lien", url: "https://example.com", description: "d" }],
       photos: [{ id: "p1", libelle: "Photo", description: "pd", mediaId: "media-1" }],
     };
+    state.stagedKnowledge = [{ titre: "Page site", contenu: "Contenu du site" }];
+    state.aiSources = {
+      pages: [{ url: "https://example.com", title: "Accueil", chars: 12 }],
+      files: [],
+      chars: 12,
+      truncated: false,
+    };
 
     const serialized = serializeChatbotDraftState(state);
     expect(JSON.stringify(serialized)).not.toContain('"fichier"');
@@ -132,6 +139,8 @@ describe("état de brouillon de chatbot", () => {
     expect(hydrated.dataBindings).toEqual({ "row-1": "id-1" });
     expect(hydrated.ai).toEqual({ aiProviderId: "provider-1", aiModel: "model-1" });
     expect(hydrated.dataDraft).toEqual(state.dataDraft);
+    expect(hydrated.stagedKnowledge).toEqual(state.stagedKnowledge);
+    expect(hydrated.aiSources).toEqual(state.aiSources);
   });
 
   it("tolère un état partiel ou invalide", () => {
@@ -146,7 +155,7 @@ describe("état de brouillon de chatbot", () => {
       fallback,
     );
     expect(hydrated.step).toBe(6);
-    expect(hydrated.type).toBe("specifique");
+    expect(hydrated.type).toBe("standard");
     expect(hydrated.channels.page.enabled).toBe(true);
     expect(hydrated.dataDraft.photos).toEqual([]);
   });

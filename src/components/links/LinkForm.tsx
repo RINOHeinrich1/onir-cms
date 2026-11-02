@@ -115,8 +115,12 @@ export function LinkForm({
   const [pending, setPending] = useState(false);
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
   const [aiAssistOpen, setAiAssistOpen] = useState(false);
-  const [stagedKnowledge, setStagedKnowledge] = useState<TemplateAiKnowledgeDto[]>([]);
-  const [aiSources, setAiSources] = useState<TemplateAiGenerationDto["sources"] | null>(null);
+  const [stagedKnowledge, setStagedKnowledge] = useState<TemplateAiKnowledgeDto[]>(
+    initial.stagedKnowledge,
+  );
+  const [aiSources, setAiSources] = useState<TemplateAiGenerationDto["sources"] | null>(
+    initial.aiSources,
+  );
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
   const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>(initial.activeChannel);
@@ -170,6 +174,8 @@ export function LinkForm({
       ai,
       aiUsage,
       dataDraft,
+      stagedKnowledge,
+      aiSources,
     }),
     [
       step,
@@ -187,6 +193,8 @@ export function LinkForm({
       ai,
       aiUsage,
       dataDraft,
+      stagedKnowledge,
+      aiSources,
     ],
   );
   const draftSignature = useMemo(() => chatbotDraftStateSignature(draftState), [draftState]);
@@ -687,6 +695,7 @@ export function LinkForm({
                   templateKey={null}
                   endpoint="/api/chatbots/ai/generate"
                   modelsEndpoint="/api/chatbots/ai/models"
+                  submitLabel="Générer le chatbot"
                   onGenerated={onAiGenerated}
                 />
                 {aiSources !== null ? (
