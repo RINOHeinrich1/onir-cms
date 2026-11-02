@@ -833,6 +833,7 @@ export function LinkForm({
               onGlobalCountsChange={setGlobalDataCounts}
               onUploadPhoto={uploadDraftPhoto}
               onRemovePhoto={removeDraftPhoto}
+              pendingKnowledge={stagedKnowledge}
             />
           </section>
         ) : null}
