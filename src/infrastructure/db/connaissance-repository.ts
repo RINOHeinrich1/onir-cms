@@ -186,5 +186,14 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       );
       return (result.rowCount ?? 0) > 0;
     },
+
+    async deleteMany(organizationId, ids): Promise<number> {
+      if (ids.length === 0) return 0;
+      const result = await pool.query(
+        "DELETE FROM base_connaissances WHERE organization_id = $1 AND id::text = ANY($2::text[])",
+        [organizationId, ids],
+      );
+      return result.rowCount ?? 0;
+    },
   };
 }

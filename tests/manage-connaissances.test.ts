@@ -3,6 +3,7 @@ import type { ConnaissanceRepository } from "@/application/ports/connaissance-re
 import {
   createConnaissance,
   deleteConnaissance,
+  deleteConnaissances,
   listConnaissances,
   updateConnaissance,
 } from "@/application/use-cases/connaissances/manage-connaissances";
@@ -40,6 +41,9 @@ function repo(current: Connaissance | null) {
       current === null || id !== current.id ? null : { ...current, ...patch },
     ),
     delete: vi.fn(async () => current !== null),
+    deleteMany: vi.fn(async (_organizationId: string, ids: string[]) =>
+      current === null ? 0 : ids.filter((id) => id === current.id).length,
+    ),
     countAiByTemplate: async () => 0,
     listActives: async () => (current === null ? [] : [current]),
   } satisfies ConnaissanceRepository;
@@ -141,6 +145,23 @@ describe("manage-connaissances (US-CONNAISS-001)", () => {
     await deleteConnaissance({ connaissances: links }, ACTOR, "c1");
     await expect(deleteConnaissance({ connaissances: repo(null) }, ACTOR, "c1")).rejects.toThrow(
       /introuvable/,
+    );
+  });
+
+  it("supprime une sélection en dédupliquant les identifiants", async () => {
+    const links = repo(row());
+    const result = await deleteConnaissances({ connaissances: links }, ACTOR, [" c1 ", "c1", "c2"]);
+    expect(links.deleteMany).toHaveBeenCalledWith("org-1", ["c1", "c2"]);
+    expect(result).toEqual({ deleted: 1, requested: 2, missing: 1 });
+  });
+
+  it("refuse une sélection vide ou invalide", async () => {
+    const links = repo(row());
+    await expect(deleteConnaissances({ connaissances: links }, ACTOR, [])).rejects.toThrow(
+      /Aucune connaissance/,
+    );
+    await expect(deleteConnaissances({ connaissances: links }, ACTOR, ["ok", 3])).rejects.toThrow(
+      /Identifiants invalides/,
     );
   });
 });

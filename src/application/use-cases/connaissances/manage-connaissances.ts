@@ -94,6 +94,37 @@ export async function updateConnaissance(
   return updated;
 }
 
+/** Suppression groupée (admin/marketeur), scopée à l'organisation. */
+export async function deleteConnaissances(
+  deps: ManageConnaissancesDependencies,
+  actor: Actor,
+  ids: unknown,
+): Promise<{ deleted: number; requested: number; missing: number }> {
+  assertCan(actor, "connaissances:delete");
+
+  if (!Array.isArray(ids)) {
+    throw new ValidationError("Identifiants invalides");
+  }
+  if (ids.some((id) => typeof id !== "string" || id.trim() === "")) {
+    throw new ValidationError("Identifiants invalides");
+  }
+
+  const normalized = [...new Set(ids.map((id) => (id as string).trim()))];
+  if (normalized.length === 0) {
+    throw new ValidationError("Aucune connaissance sélectionnée");
+  }
+  if (normalized.length > 500) {
+    throw new ValidationError("Trop de connaissances sélectionnées (500 maximum)");
+  }
+
+  const deleted = await deps.connaissances.deleteMany(organizationOf(actor), normalized);
+  return {
+    deleted,
+    requested: normalized.length,
+    missing: normalized.length - deleted,
+  };
+}
+
 /** US-CONNAISS-001 — suppression (admin/marketeur). */
 export async function deleteConnaissance(
   deps: ManageConnaissancesDependencies,

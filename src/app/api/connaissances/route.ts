@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   createConnaissance,
+  deleteConnaissances,
   listConnaissances,
 } from "@/application/use-cases/connaissances/manage-connaissances";
 import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labels";
@@ -44,6 +45,25 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
     );
     return NextResponse.json({ connaissance }, { status: 201 });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+/** DELETE /api/connaissances — suppression groupée (admin/marketeur). */
+export async function DELETE(request: Request): Promise<NextResponse> {
+  try {
+    const actor = await requireRole(request, "connaissances:delete");
+    const body = await readJsonObject(request);
+    if (body === null) {
+      return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+    }
+    const result = await deleteConnaissances(
+      { connaissances: pgConnaissanceRepository(getPool()) },
+      actor,
+      body.ids,
+    );
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return errorResponse(error);
   }
