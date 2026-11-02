@@ -263,6 +263,43 @@ export async function resetChatLinkTokens(
   return link;
 }
 
+/** Suppression groupée (admin/marketeur), scopée à l'organisation. */
+export async function deleteChatLinks(
+  deps: ChatLinksDependencies,
+  actor: Actor,
+  ids: unknown,
+): Promise<{ deleted: number; requested: number; missing: number }> {
+  assertCan(actor, "links:revoke");
+
+  if (!Array.isArray(ids)) {
+    throw new ValidationError("Identifiants invalides");
+  }
+  if (ids.some((id) => typeof id !== "string" || id.trim() === "")) {
+    throw new ValidationError("Identifiants invalides");
+  }
+  const normalized = [...new Set(ids.map((id) => (id as string).trim()))];
+  if (normalized.length === 0) {
+    throw new ValidationError("Aucun chatbot sélectionné");
+  }
+  if (normalized.length > 500) {
+    throw new ValidationError("Trop de chatbots sélectionnés (500 maximum)");
+  }
+
+  let deleted = 0;
+  if (deps.links.deleteMany !== undefined) {
+    deleted = await deps.links.deleteMany(organizationOf(actor), normalized);
+  } else {
+    for (const id of normalized) {
+      if (await deps.links.delete(organizationOf(actor), id)) deleted += 1;
+    }
+  }
+  return {
+    deleted,
+    requested: normalized.length,
+    missing: normalized.length - deleted,
+  };
+}
+
 export async function deleteChatLink(
   deps: ChatLinksDependencies,
   actor: Actor,

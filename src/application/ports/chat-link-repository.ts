@@ -118,4 +118,6 @@ export interface ChatLinkRepository {
   ): Promise<ChatLink | null>;
   /** Suppression définitive (conversations en cascade) ; false si introuvable. */
   delete(organizationId: string, id: string): Promise<boolean>;
+  /** Suppression groupée (conversations en cascade), retourne le nombre supprimé. */
+  deleteMany?(organizationId: string, ids: string[]): Promise<number>;
 }

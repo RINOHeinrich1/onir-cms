@@ -4593,6 +4593,19 @@ a.subtab {
   border-radius: var(--r-md);
   background: var(--surface-raised);
   box-shadow: var(--sh-card);
+  transition:
+    border-color var(--dur-fast) var(--ease-out-expo),
+    background var(--dur-fast) var(--ease-out-expo);
+}
+
+.chatbot-card.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-raised));
+}
+
+.chatbot-card-select {
+  flex: none;
+  padding-top: 0.12rem;
 }
 
 .chatbot-card-head {
@@ -4600,6 +4613,10 @@ a.subtab {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.chatbot-card-head .round-checkbox {
+  flex: none;
 }
 
 .chatbot-card-head h2 {
@@ -6196,6 +6213,18 @@ a.subtab {
   .lead-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .links-selection-toolbar {
+    align-items: stretch;
+  }
+
+  .links-bulk-bar {
+    align-items: stretch;
+  }
+
+  .links-bulk-bar .btn {
+    width: 100%;
+  }
 }
 
 /* ---------- Création de chatbot : assistant en 4 étapes ---------- */
@@ -6856,6 +6885,34 @@ a.subtab {
 .chatbot-drafts .chatbot-step-head h2 {
   margin: 0 0 0.25rem;
   font-size: 1.1rem;
+}
+
+.links-selection-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.links-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  font-size: 0.86rem;
+}
+
+.links-bulk-bar .btn {
+  flex: none;
 }
 
 .chatbot-drafts .chatbot-card {

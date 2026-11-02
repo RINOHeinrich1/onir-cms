@@ -2,6 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  pruneSelection,
+  selectionState,
+  toggleVisibleSelection,
+} from "@/components/connaissances/connaissance-selection";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
@@ -12,8 +17,9 @@ import {
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { RoundCheckbox } from "@/components/ui/RoundCheckbox";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
 import { LinkEditModal } from "./LinkEditModal";
@@ -91,6 +97,7 @@ export function LinksTable({
   nowIso: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [links, setLinks] = useState<ChatLinkRow[]>(initialLinks);
   const [drafts, setDrafts] = useState<ChatbotDraftRow[]>(initialDrafts);
   const [creating, setCreating] = useState(false);
@@ -111,6 +118,8 @@ export function LinksTable({
   useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkPending, setBulkPending] = useState(false);
   const creators = creatorOptions(links);
   const showUnassigned = hasUnassignedCreator(links);
   const query = search.trim().toLocaleLowerCase("fr");
@@ -126,6 +135,8 @@ export function LinksTable({
         .toLocaleLowerCase("fr")
         .includes(query);
     });
+  const visibleIds = visibleLinks.map((link) => link.id);
+  const visibleSelection = selectionState(selectedIds, visibleIds);
   const pagination = usePagination(visibleLinks, 9, `${search}|${creatorFilter.join(",")}`);
   const creatorFilterOptions = [
     ...creators.map((creator) => ({ value: creator.id, label: creator.label })),
@@ -138,6 +149,12 @@ export function LinksTable({
       if (response.ok) {
         const json = (await response.json()) as { links: ChatLinkRow[] };
         setLinks(json.links);
+        setSelectedIds((current) =>
+          pruneSelection(
+            current,
+            json.links.map((link) => link.id),
+          ),
+        );
       }
     } catch {
       setError("Impossible de recharger la liste");
@@ -228,9 +245,69 @@ export function LinksTable({
         setError(json.error ?? "Suppression impossible");
         return;
       }
+      setSelectedIds((current) => current.filter((id) => id !== link.id));
+      toast.success("Chatbot supprimé.");
       await refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
+    }
+  };
+
+  const removeSelection = async (): Promise<void> => {
+    if (selectedIds.length === 0 || bulkPending) return;
+    const ids = [...selectedIds];
+    setError(null);
+    if (
+      !(await confirmDialog(
+        `Supprimer ${ids.length} chatbot${ids.length > 1 ? "s" : ""} et toutes leurs conversations ? Cette action est irréversible.`,
+        {
+          title: "Supprimer la sélection",
+          confirmLabel: "Supprimer",
+          danger: true,
+        },
+      ))
+    ) {
+      return;
+    }
+
+    setBulkPending(true);
+    try {
+      const response = await fetch("/api/links", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const json = (await response.json()) as {
+        error?: string;
+        deleted?: number;
+        missing?: number;
+      };
+      if (!response.ok) {
+        setError(json.error ?? "Suppression impossible");
+        return;
+      }
+
+      const deleted = json.deleted ?? 0;
+      setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
+      await refresh();
+
+      if (deleted === 0) {
+        setError("Aucun chatbot supprimé");
+        return;
+      }
+      if ((json.missing ?? 0) > 0) {
+        toast.warning(
+          `${deleted} chatbot${deleted > 1 ? "s" : ""} supprimé${deleted > 1 ? "s" : ""}, ${json.missing} introuvable${(json.missing ?? 0) > 1 ? "s" : ""}.`,
+        );
+        return;
+      }
+      toast.success(
+        `${deleted} chatbot${deleted > 1 ? "s" : ""} supprimé${deleted > 1 ? "s" : ""}.`,
+      );
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setBulkPending(false);
     }
   };
 
@@ -275,7 +352,10 @@ export function LinksTable({
       <div className="list-filters">
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) => {
+            setSearch(value);
+            setSelectedIds([]);
+          }}
           placeholder="Rechercher un chatbot…"
           label="Rechercher un chatbot"
         />
@@ -290,11 +370,24 @@ export function LinksTable({
               },
             ] satisfies FilterMenuSection[]
           }
-          onApply={(values) => setCreatorFilter(values.createur ?? [])}
+          onApply={(values) => {
+            setCreatorFilter(values.createur ?? []);
+            setSelectedIds([]);
+          }}
         />
       </div>
 
-      <div className="tools" style={{ marginBottom: "1.5rem" }}>
+      <div className="links-selection-toolbar">
+        <RoundCheckbox
+          checked={visibleSelection === "all"}
+          indeterminate={visibleSelection === "partial"}
+          disabled={visibleIds.length === 0}
+          onChange={() => setSelectedIds((current) => toggleVisibleSelection(current, visibleIds))}
+          ariaLabel={visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+        >
+          {visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+          <span className="connaissance-select-count">({visibleIds.length})</span>
+        </RoundCheckbox>
         <button
           type="button"
           className="btn small"
@@ -306,6 +399,23 @@ export function LinksTable({
           Nouveau chatbot
         </button>
       </div>
+
+      {selectedIds.length > 0 ? (
+        <div className="links-bulk-bar" role="status">
+          <strong>
+            {selectedIds.length} chatbot{selectedIds.length > 1 ? "s" : ""} sélectionné
+            {selectedIds.length > 1 ? "s" : ""}
+          </strong>
+          <button
+            type="button"
+            className="btn danger small"
+            disabled={bulkPending}
+            onClick={() => void removeSelection()}
+          >
+            {bulkPending ? "Suppression…" : "Supprimer la sélection"}
+          </button>
+        </div>
+      ) : null}
 
       {drafts.length > 0 ? (
         <section className="chatbot-drafts" aria-label="Brouillons de chatbot">
@@ -386,8 +496,23 @@ export function LinksTable({
                 : Math.min(100, (quota.tokensUsed / quota.maxTokens) * 100);
 
           return (
-            <article className="chatbot-card" key={link.id}>
+            <article
+              className={`chatbot-card${selectedIds.includes(link.id) ? " is-selected" : ""}`}
+              key={link.id}
+            >
               <header className="chatbot-card-head">
+                <RoundCheckbox
+                  className="chatbot-card-select"
+                  checked={selectedIds.includes(link.id)}
+                  onChange={(checked) =>
+                    setSelectedIds((current) =>
+                      checked
+                        ? [...new Set([...current, link.id])]
+                        : current.filter((id) => id !== link.id),
+                    )
+                  }
+                  ariaLabel={`Sélectionner « ${link.label === "" ? "Chatbot sans nom" : link.label} »`}
+                />
                 <div>
                   <h2>{link.label === "" ? "Chatbot sans nom" : link.label}</h2>
                   <p>
@@ -544,7 +669,7 @@ export function LinksTable({
           <div className="empty-state">
             <strong>Aucun chatbot.</strong>
             <span>Créez un lien pour commencer à recevoir des conversations.</span>
-            {links.length > 0 ? <span>Aucun résultat pour ce créateur.</span> : null}
+            {links.length > 0 ? <span>Aucun résultat pour ces filtres.</span> : null}
           </div>
         ) : null}
       </div>
