@@ -13,6 +13,7 @@ x-app-environment: &app-environment
   DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.com}
   DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Définir DEFAULT_ADMIN_PASSWORD dans .env.release}
   APP_URL: ${APP_URL:-https://cms-backoffice.onirtech.com}
+  PUBLIC_LINK_BASE_URL: ${PUBLIC_LINK_BASE_URL:-${APP_URL:-https://cms-backoffice.onirtech.com}}
   AI_API_TOKEN: ${AI_API_TOKEN:-}
   AI_PRODUCT_ID: ${AI_PRODUCT_ID:-}
   AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
