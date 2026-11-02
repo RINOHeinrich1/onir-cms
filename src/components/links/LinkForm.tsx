@@ -619,6 +619,8 @@ export function LinkForm({
     }));
   };
 
+  const canFinish = firstInvalidStep() === null;
+
   const quotasSummary =
     quota.maxFiches === "" && quota.maxTokens === ""
       ? "Illimité"
@@ -1012,16 +1014,17 @@ export function LinkForm({
             <button type="button" className="btn small" disabled={pending} onClick={goNext}>
               Suivant
             </button>
-          ) : (
+          ) : null}
+          {canFinish ? (
             <button
               type="button"
               className="btn small"
               disabled={pending}
               onClick={() => void createChatbot()}
             >
-              {pending ? "Création…" : "Créer le chatbot"}
+              {pending ? "Création…" : "Terminer"}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </form>
