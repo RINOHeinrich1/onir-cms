@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { CreatorFilterMenu } from "@/components/ui/CreatorFilterMenu";
+import { useEffect, useState } from "react";
+import { type ChatLinkOption, loadChatLinkOptions } from "@/components/ui/chat-link-options";
 import { confirmDialog } from "@/components/ui/confirm";
 import {
   creatorOptions,
@@ -15,6 +15,8 @@ import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ConnaissanceCard } from "./ConnaissanceCard";
 import { ConnaissanceDetailModal } from "./ConnaissanceDetailModal";
 import { ConnaissanceForm } from "./ConnaissanceForm";
+import { ConnaissancesFilterMenu } from "./ConnaissancesFilterMenu";
+import { GLOBAL_SCOPE, matchesScope, scopeFilterOptions } from "./connaissance-scope";
 import { pruneSelection, selectionState, toggleVisibleSelection } from "./connaissance-selection";
 import type { ConnaissanceDto } from "./types";
 
@@ -35,11 +37,19 @@ export function ConnaissancesTable({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
+  const [scopeFilter, setScopeFilter] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkPending, setBulkPending] = useState(false);
+  const [chatbots, setChatbots] = useState<ChatLinkOption[]>([]);
+  const [chatbotsLoaded, setChatbotsLoaded] = useState(false);
   const creators = creatorOptions(connaissances);
   const showUnassigned = hasUnassignedCreator(connaissances);
-  const visibleConnaissances = connaissances.filter((item) => matchesCreator(item, creatorFilter));
+  const scopeOptions = chatbotsLoaded
+    ? scopeFilterOptions(connaissances, chatbots)
+    : [{ value: GLOBAL_SCOPE, label: "Globale" }];
+  const visibleConnaissances = connaissances.filter(
+    (item) => matchesCreator(item, creatorFilter) && matchesScope(item, scopeFilter),
+  );
   const visibleIds = visibleConnaissances.map((item) => item.id);
   const visibleSelection = selectionState(selectedIds, visibleIds);
 
@@ -68,10 +78,28 @@ export function ConnaissancesTable({
     await refresh();
   };
 
-  const applyCreatorFilter = (next: string[]): void => {
-    setCreatorFilter(next);
+  const applyFilters = (next: { createur: string[]; portee: string[] }): void => {
+    setCreatorFilter(next.createur);
+    setScopeFilter(next.portee);
     setSelectedIds([]);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    loadChatLinkOptions()
+      .then((loaded) => {
+        if (!cancelled) setChatbots(loaded);
+      })
+      .catch(() => {
+        // Le filtre reste utilisable avec Globale ; les libellés seront neutres.
+      })
+      .finally(() => {
+        if (!cancelled) setChatbotsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const remove = async (connaissance: ConnaissanceDto): Promise<void> => {
     setError(null);
@@ -156,11 +184,13 @@ export function ConnaissancesTable({
       {error !== null ? <p className="alert error">{error}</p> : null}
 
       <div className="connaissances-toolbar">
-        <CreatorFilterMenu
-          options={creators}
+        <ConnaissancesFilterMenu
+          creatorOptions={creators}
           showUnassigned={showUnassigned}
-          value={creatorFilter}
-          onChange={applyCreatorFilter}
+          scopeOptions={scopeOptions}
+          creatorValue={creatorFilter}
+          scopeValue={scopeFilter}
+          onApply={applyFilters}
         />
 
         <div className="connaissances-toolbar-actions">
@@ -227,7 +257,11 @@ export function ConnaissancesTable({
 
       {visibleConnaissances.length === 0 ? (
         <p className="connaissances-empty">
-          {connaissances.length === 0 ? "Aucune entrée." : "Aucune entrée pour ce créateur."}
+          {connaissances.length === 0
+            ? "Aucune entrée."
+            : creatorFilter.length > 0 || scopeFilter.length > 0
+              ? "Aucune entrée pour ces filtres."
+              : "Aucune entrée pour ce créateur."}
         </p>
       ) : null}
 

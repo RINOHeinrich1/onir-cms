@@ -11,6 +11,8 @@ export type FilterMenuSection = {
   value: readonly string[];
 };
 
+const MAX_APPLIED_CHIPS = 3;
+
 function valuesBySection(sections: readonly FilterMenuSection[]): Record<string, string[]> {
   return Object.fromEntries(sections.map((section) => [section.id, [...section.value]]));
 }
@@ -104,7 +106,7 @@ export function FilterMenu({
           section.value.length > 0 ? (
             <span className="filter-applied-group" key={section.id}>
               <span className="filter-applied-label">{section.label}</span>
-              {section.value.map((value) => {
+              {section.value.slice(0, MAX_APPLIED_CHIPS).map((value) => {
                 const label =
                   section.options.find((option) => option.value === value)?.label ?? value;
                 return (
@@ -120,6 +122,11 @@ export function FilterMenu({
                   </span>
                 );
               })}
+              {section.value.length > MAX_APPLIED_CHIPS ? (
+                <span className="filter-chip-more">
+                  +{section.value.length - MAX_APPLIED_CHIPS}
+                </span>
+              ) : null}
             </span>
           ) : null,
         )}
