@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.20.3](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.2...v0.20.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **chatbot:** transmettre les connaissances en attente à l'étape Données
+
 ## [0.20.2](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.1...v0.20.2) (2026-11-02)
 
 
