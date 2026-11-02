@@ -200,10 +200,9 @@ export function LinkEditModal({
     if (step < EDIT_STEPS.length - 1) goToStep(step + 1);
   };
 
-  const onSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
+  const save = async (force = false): Promise<void> => {
     setError(null);
-    if (step < EDIT_STEPS.length - 1) {
+    if (!force && step < EDIT_STEPS.length - 1) {
       goNext();
       return;
     }
@@ -291,6 +290,13 @@ export function LinkEditModal({
           quota.maxFiches === "" ? "Fiches illimitées" : `${quota.maxFiches} fiche(s)`,
           quota.maxTokens === "" ? "Tokens illimités" : `${quota.maxTokens} token(s)`,
         ].join(" · ");
+
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    void save(false);
+  };
+
+  const canFinish = [0, 1, 2, 3].every((index) => validateStep(index) === null);
 
   return (
     <div className="modal-overlay chatbot-wizard-overlay">
@@ -540,11 +546,17 @@ export function LinkEditModal({
                   <button type="button" className="btn small" disabled={pending} onClick={goNext}>
                     Suivant
                   </button>
-                ) : (
-                  <button type="submit" className="btn small" disabled={pending}>
-                    {pending ? "Enregistrement…" : "Enregistrer"}
+                ) : null}
+                {canFinish ? (
+                  <button
+                    type="button"
+                    className="btn small"
+                    disabled={pending}
+                    onClick={() => void save(true)}
+                  >
+                    {pending ? "Enregistrement…" : "Terminer"}
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </form>
