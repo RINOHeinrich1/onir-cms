@@ -325,6 +325,14 @@ export function ChatbotDataSelection({
             <button
               type="button"
               className="btn ghost small"
+              disabled={loading}
+              onClick={() => void load()}
+            >
+              {loading ? "Actualisation…" : "Actualiser"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost small"
               disabled={visibleIds.length === 0}
               onClick={selectPage}
             >
