@@ -1370,6 +1370,12 @@
   min-width: 0;
 }
 
+.connaissance-card-badges .badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .connaissance-card-excerpt {
   display: -webkit-box;
   overflow: hidden;
@@ -1492,18 +1498,35 @@
 
 /* Détail : le contenu long est confiné dans une zone scrollable. */
 .connaissance-detail-meta {
+  grid-template-columns: minmax(6.5rem, max-content) minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
+}
+
+.connaissance-detail-meta dd {
+  min-width: 0;
+}
+
+.connaissance-detail-meta .badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .connaissance-detail-section {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .connaissance-detail-content {
+  max-width: 100%;
   max-height: min(55dvh, 32rem);
+  min-width: 0;
   overflow: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
@@ -1513,6 +1536,7 @@
   font-size: 0.9rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: pre-wrap;
 }
 
@@ -1521,6 +1545,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.6rem;
+  max-width: 100%;
   padding-top: 0.85rem;
   border-top: 1px solid var(--border);
 }
