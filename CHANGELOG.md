@@ -5,6 +5,23 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.20.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.19.0...v0.20.0) (2026-11-01)
+
+
+### Features
+
+* **chatbot:** création assistée par IA avec fiche, fallback et connaissances
+* **chatbot:** création atomique du lien, de la configuration et des connaissances
+* **starter:** rendu Markdown, chat page scrollable et formulaire de collecte
+* **templates:** capacité de fallback personnalisable et SDK 0.2.0
+
+### Bug Fixes
+
+* **chatbot:** erreurs du wizard remontées en toast
+* **chatbot:** synchronisation du template widget depuis la page
+* **chatbot:** conversion des selects sans options en texte
+* **ai:** utilisation du défaut Assistant interne pour la création
+
 ## [0.19.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.18.0...v0.19.0) (2026-10-29)
 
 
