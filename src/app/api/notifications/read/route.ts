@@ -7,7 +7,7 @@ import { requireUser } from "../../_lib/require-user";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/notifications/read — ouvre les notifications : avance le filigrane. */
+/** POST /api/notifications/read — marque comme lues l’activité et les alertes. */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const { actor } = await requireUser(request);

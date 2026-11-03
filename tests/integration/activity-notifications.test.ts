@@ -131,6 +131,7 @@ describe("pgActivityRepository", () => {
 
     const lastReadAt = await activity.ensureLastReadAt(orgA, userA);
     expect(Date.parse(lastReadAt)).not.toBeNaN();
+    expect(await activity.ensureAlertsReadAt(orgA, userA)).toBeNull();
     expect(await activity.countConversationsSince(orgA, lastReadAt, null)).toBe(0);
     expect(await activity.countLeadsSince(orgA, lastReadAt)).toBe(0);
 
@@ -155,6 +156,7 @@ describe("pgActivityRepository", () => {
 
     const readAt = await activity.markRead(orgA, userA);
     expect(Date.parse(readAt)).toBeGreaterThanOrEqual(Date.parse(lastReadAt));
+    expect(await activity.ensureAlertsReadAt(orgA, userA)).not.toBeNull();
     expect(await activity.countConversationsSince(orgA, readAt, null)).toBe(0);
     expect(await activity.countLeadsSince(orgA, readAt)).toBe(0);
   });
