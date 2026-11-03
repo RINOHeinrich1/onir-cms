@@ -71,7 +71,10 @@ export async function listActivityNotifications(
   }
 
   const organizationId = organizationOf(actor);
-  const lastReadAt = await deps.activity.ensureLastReadAt(organizationId, actor.id);
+  const [lastReadAt, alertsReadAt] = await Promise.all([
+    deps.activity.ensureLastReadAt(organizationId, actor.id),
+    deps.activity.ensureAlertsReadAt(organizationId, actor.id),
+  ]);
   const allowedLinkIds = canConversations
     ? await resolveConversationLinkScope(deps.operatorScopes, actor)
     : [];
@@ -79,19 +82,17 @@ export async function listActivityNotifications(
   const fetchLimit = pageLimit + 1;
 
   const canIntervene = actorCan(actor, "conversations:intervene");
-  const [conversations, leads, unreadConversations, unreadLeads, incidents, alertCount] =
-    await Promise.all([
-      canConversations
-        ? deps.activity.listLatestConversations(organizationId, allowedLinkIds, fetchLimit)
-        : Promise.resolve([]),
-      canLeads ? deps.activity.listLatestLeads(organizationId, fetchLimit) : Promise.resolve([]),
-      canConversations
-        ? deps.activity.countConversationsSince(organizationId, lastReadAt, allowedLinkIds)
-        : Promise.resolve(0),
-      canLeads ? deps.activity.countLeadsSince(organizationId, lastReadAt) : Promise.resolve(0),
-      canIntervene ? deps.incidents.listOpen(organizationId, allowedLinkIds) : Promise.resolve([]),
-      canIntervene ? deps.incidents.countOpen(organizationId, allowedLinkIds) : Promise.resolve(0),
-    ]);
+  const [conversations, leads, unreadConversations, unreadLeads, incidents] = await Promise.all([
+    canConversations
+      ? deps.activity.listLatestConversations(organizationId, allowedLinkIds, fetchLimit)
+      : Promise.resolve([]),
+    canLeads ? deps.activity.listLatestLeads(organizationId, fetchLimit) : Promise.resolve([]),
+    canConversations
+      ? deps.activity.countConversationsSince(organizationId, lastReadAt, allowedLinkIds)
+      : Promise.resolve(0),
+    canLeads ? deps.activity.countLeadsSince(organizationId, lastReadAt) : Promise.resolve(0),
+    canIntervene ? deps.incidents.listOpen(organizationId, allowedLinkIds) : Promise.resolve([]),
+  ]);
 
   const ordered = sortActivityNotifications([
     ...conversations.map(conversationNotification),
@@ -102,7 +103,11 @@ export async function listActivityNotifications(
     read: item.createdAt <= lastReadAt,
   }));
 
-  const alerts: ActivityAlert[] = incidents.map((incident) => ({
+  const unreadIncidents =
+    alertsReadAt === null
+      ? incidents
+      : incidents.filter((incident) => incident.lastSeenAt > alertsReadAt);
+  const alerts: ActivityAlert[] = unreadIncidents.map((incident) => ({
     id: incident.id,
     kind: incident.kind,
     title: incident.title,
@@ -120,13 +125,13 @@ export async function listActivityNotifications(
     items,
     alerts,
     unreadCount: unreadConversations + unreadLeads,
-    alertCount,
+    alertCount: alerts.length,
     hasMore: ordered.length > pageLimit,
     lastReadAt,
   };
 }
 
-/** Ouvre le menu : avance le filigrane au présent. */
+/** Marque comme lues les notifications d’activité et les alertes d’incidents. */
 export async function markActivityNotificationsRead(
   deps: Pick<ListActivityNotificationsDependencies, "activity">,
   actor: Actor,

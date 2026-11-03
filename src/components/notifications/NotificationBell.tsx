@@ -103,7 +103,9 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
       }
       readVersionRef.current += 1;
       setUnreadCount(0);
+      setAlertCount(0);
       setItems((previous) => previous.map((item) => ({ ...item, read: true })));
+      setAlerts([]);
       setError(null);
       return true;
     } catch {
@@ -113,11 +115,11 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
   }, []);
 
   const markAllRead = useCallback(async (): Promise<void> => {
-    if (markingRead || unreadCount === 0) return;
+    if (markingRead || (unreadCount === 0 && alertCount === 0)) return;
     setMarkingRead(true);
     await markRead();
     setMarkingRead(false);
-  }, [markRead, markingRead, unreadCount]);
+  }, [alertCount, markRead, markingRead, unreadCount]);
 
   const load = useCallback(async (): Promise<void> => {
     if (inFlightRef.current || document.visibilityState === "hidden") return;
@@ -292,7 +294,7 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
               )}
             </div>
 
-            {unreadCount > 0 ? (
+            {totalCount > 0 ? (
               <button
                 type="button"
                 className="activity-mark-all"

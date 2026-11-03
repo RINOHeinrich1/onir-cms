@@ -9,7 +9,9 @@ export type ActivityLeadRecord = ActivityLeadSource;
 export interface ActivityRepository {
   /** Filigrane de lecture ; l'initialise à `now()` s'il n'existe pas. */
   ensureLastReadAt(organizationId: string, userId: string): Promise<string>;
-  /** Avance le filigrane à l'heure base (sans jamais le reculer) et le renvoie. */
+  /** Filigrane de lecture des alertes d'incidents (null = jamais acquittées). */
+  ensureAlertsReadAt(organizationId: string, userId: string): Promise<string | null>;
+  /** Avance les filigranes (activité + alertes) à l'heure base et renvoie celui d'activité. */
   markRead(organizationId: string, userId: string): Promise<string>;
 
   /** Dernières conversations accessibles, les plus récentes d'abord. */

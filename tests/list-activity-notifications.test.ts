@@ -58,11 +58,13 @@ function baseDeps() {
     ],
   );
   const ensureLastReadAt = vi.fn(async () => "2026-10-28T09:00:00.000Z");
+  const ensureAlertsReadAt = vi.fn(async (): Promise<string | null> => null);
   const markRead = vi.fn(async () => "2026-10-28T10:00:00.000Z");
   const countConversationsSince = vi.fn(async () => 1);
   const countLeadsSince = vi.fn(async () => 2);
   const activity = {
     ensureLastReadAt,
+    ensureAlertsReadAt,
     markRead,
     listLatestConversations,
     listLatestLeads,
@@ -102,6 +104,7 @@ function baseDeps() {
     listLatestConversations,
     listLatestLeads,
     ensureLastReadAt,
+    ensureAlertsReadAt,
     markRead,
     countConversationsSince,
     countLeadsSince,
@@ -126,6 +129,14 @@ describe("listActivityNotifications", () => {
       "2026-10-28T09:00:00.000Z",
       null,
     );
+  });
+
+  it("ignore les alertes déjà acquittées", async () => {
+    const base = baseDeps();
+    base.ensureAlertsReadAt.mockResolvedValue("2026-10-28T09:03:00.000Z");
+    const feed = await listActivityNotifications(base, ADMIN, 6);
+    expect(feed.alerts).toEqual([]);
+    expect(feed.alertCount).toBe(0);
   });
 
   it("un opérateur ne reçoit que ses conversations, dans son périmètre", async () => {

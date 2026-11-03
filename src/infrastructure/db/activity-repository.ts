@@ -32,13 +32,26 @@ export function pgActivityRepository(pool: Pool): ActivityRepository {
       return row.last_read_at.toISOString();
     },
 
+    async ensureAlertsReadAt(organizationId, userId): Promise<string | null> {
+      const { rows } = await pool.query<{ alerts_read_at: Date | null }>(
+        `SELECT alerts_read_at
+           FROM notification_states
+          WHERE organization_id = $1 AND user_id = $2`,
+        [organizationId, userId],
+      );
+      const row = rows[0];
+      return row?.alerts_read_at?.toISOString() ?? null;
+    },
+
     async markRead(organizationId, userId): Promise<string> {
       const { rows } = await pool.query<{ last_read_at: Date }>(
-        `INSERT INTO notification_states (organization_id, user_id, last_read_at)
-         VALUES ($1, $2, now())
+        `INSERT INTO notification_states
+           (organization_id, user_id, last_read_at, alerts_read_at)
+         VALUES ($1, $2, now(), now())
          ON CONFLICT (organization_id, user_id)
          DO UPDATE SET
            last_read_at = GREATEST(notification_states.last_read_at, now()),
+           alerts_read_at = GREATEST(COALESCE(notification_states.alerts_read_at, to_timestamp(0)), now()),
            updated_at = now()
          RETURNING last_read_at`,
         [organizationId, userId],
