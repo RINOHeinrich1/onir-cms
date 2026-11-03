@@ -54,8 +54,13 @@ export function WidgetCodeModal({
         <button type="button" className="btn small" onClick={() => void copy()}>
           {copied ? "Copié !" : "Copier le code"}
         </button>
-        <a className="btn ghost small" href={embedUrl} target="_blank" rel="noopener noreferrer">
-          Ouvrir le widget
+        <a
+          className="btn ghost small"
+          href={`${embedUrl}/preview`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Aperçu du widget
         </a>
         <button type="button" className="btn ghost small" onClick={onClose}>
           Fermer

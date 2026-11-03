@@ -10,6 +10,7 @@ import {
 import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { WidgetReadySignal } from "@/components/templates/WidgetReadySignal";
+import { WidgetStandaloneRedirect } from "@/components/templates/WidgetStandaloneRedirect";
 import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
@@ -90,6 +91,7 @@ export default async function WidgetPage({ params }: PageProps) {
     return (
       <main className="widget-page template-page">
         <style>{WIDGET_TRANSPARENT_STYLES}</style>
+        <WidgetStandaloneRedirect token={token} />
         <WidgetReadySignal />
         <TemplateHost
           token={token}
@@ -128,6 +130,7 @@ export default async function WidgetPage({ params }: PageProps) {
   return (
     <main className="widget-page template-page">
       <style>{WIDGET_TRANSPARENT_STYLES}</style>
+      <WidgetStandaloneRedirect token={token} />
       <WidgetReadySignal />
       <TemplateHost
         token={token}

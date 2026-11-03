@@ -477,6 +477,10 @@ export function LinksTable({
           const pageEnabled = channels.page.enabled;
           const widgetEnabled = channels.widget.enabled;
           const previewSurface = pageEnabled ? "page" : "widget";
+          const previewHref =
+            previewSurface === "widget" && link.url !== null
+              ? `${link.url.replace("/l/", "/embed/")}/preview`
+              : `/liens/${link.id}/apercu?surface=${previewSurface}`;
           const fichePercent =
             quota.maxFiches === null
               ? 0
@@ -629,7 +633,7 @@ export function LinksTable({
               <footer className="chatbot-card-actions">
                 <a
                   className="btn ghost small"
-                  href={`/liens/${link.id}/apercu?surface=${previewSurface}`}
+                  href={previewHref}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
