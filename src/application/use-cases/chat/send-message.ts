@@ -44,12 +44,56 @@ import type {
   ConversationInterventionMode,
 } from "@/domain/entities/chat";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
-import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
+import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
+import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-field";
+import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
 import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt";
+
+function buildCollecteState(fiche: FicheDefinition, data: Record<string, unknown>): string {
+  const missing: string[] = [];
+  const invalid: string[] = [];
+  for (const field of fiche.fields) {
+    if (field.type === "file") continue;
+    if (field.type === "multi") {
+      const { invalid: bad } = canonicalMultiValue(field, data[field.name]);
+      if (bad.length > 0) invalid.push(`${field.label} (${bad.join(", ")})`);
+      if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
+        missing.push(`${field.label} [${field.name}]`);
+      }
+      continue;
+    }
+    if (field.type === "select") {
+      const value = data[field.name];
+      if (
+        typeof value === "string" &&
+        value.trim() !== "" &&
+        canonicalOption(field, value) === null
+      ) {
+        invalid.push(`${field.label} (${value})`);
+      }
+      if (isFieldRequired(field, data) && isFieldEmpty(field, value)) {
+        missing.push(`${field.label} [${field.name}]`);
+      }
+      continue;
+    }
+    if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
+      missing.push(`${field.label} [${field.name}]`);
+    }
+  }
+  if (missing.length === 0 && invalid.length === 0) return "";
+  return [
+    "État de collecte actuel (source structurée, pas ton résumé) :",
+    invalid.length > 0 ? `- Valeurs invalides à corriger : ${invalid.join(", ")}` : "",
+    missing.length > 0 ? `- Champs obligatoires manquants : ${missing.join(", ")}` : "",
+    "Ne dis pas que tout est complet tant que ces listes ne sont pas vides. Demande les informations manquantes une par une.",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
 
 export type SendMessageDependencies = {
   organizations: OrganizationRepository;
@@ -362,6 +406,13 @@ export async function sendMessage(
       : `${system}
 
 ${attachmentContext}`;
+  if (config !== null && activeInstance !== null) {
+    const stateFiche = findFiche(config, activeInstance.ficheKey) ?? config.fiches[0] ?? null;
+    if (stateFiche !== null) {
+      const state = buildCollecteState(stateFiche, activeInstance.data);
+      if (state !== "") systemEnrichi = `${systemEnrichi}\n\n${state}`;
+    }
+  }
   let connaissances: ConnaissanceRef[] = [];
   if (link.sources.connaissances) {
     const actives = await listRuntimeConnaissances(deps, organizationId, link, config);

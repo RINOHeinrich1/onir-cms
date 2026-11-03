@@ -35,7 +35,7 @@ import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
 import { renderTemplateMarkdown } from "@/domain/render-template";
 import { buildServerVariables } from "@/domain/template-variables";
-import { validateTemplateData } from "@/domain/validate-template-data";
+import { validatePartialTemplateData, validateTemplateData } from "@/domain/validate-template-data";
 import { attachmentMarkdownLink } from "@/lib/attachment-links";
 
 export type FinishConversationDependencies = {
@@ -197,7 +197,11 @@ async function buildFicheForDefinition(
     conversation.id,
     definition,
   );
-  const draft: Record<string, unknown> = { ...aiDraft, ...(meta.instanceData ?? {}) };
+  const instanceValidation = validatePartialTemplateData(definition, meta.instanceData ?? {});
+  const draft: Record<string, unknown> = {
+    ...aiDraft,
+    ...(instanceValidation.ok ? instanceValidation.value : {}),
+  };
   if (meta.conversationFicheInstanceId === undefined && deps.conversationFields !== undefined) {
     const collected = await deps.conversationFields.list(organizationId, conversation.id);
     for (const entry of collected) {
@@ -537,18 +541,8 @@ async function finishConfigConversation(
     if (ficheDefinition === null) return null;
     const definition = ficheToDefinition(config, ficheDefinition);
     const data = normalizeFicheData(ficheDefinition, instance.data);
-    const validation = validateTemplateData(
-      {
-        ...definition,
-        fields: definition.fields.filter(
-          (field) => field.type !== "file" && field.name !== "contact",
-        ),
-      },
-      data,
-    );
-    if (!validation.ok) {
-      throw new UnprocessableError(validation.errors.join(" ; "));
-    }
+    // L'extraction IA est exécutée dans buildFicheForDefinition, avant la
+    // validation : ne pas valider ici l'état (potentiellement vide) de l'instance.
     return { instance, ficheDefinition, definition, data };
   });
 
@@ -565,29 +559,39 @@ async function finishConfigConversation(
     for (const entry of prepared) {
       if (entry === null) continue;
       const { instance, ficheDefinition, definition, data } = entry;
-      const result = await buildFicheForDefinition(
-        deps,
-        conversation,
-        link,
-        definition,
-        {
-          templateKey: null,
-          templateVersion: null,
+      try {
+        const result = await buildFicheForDefinition(
+          deps,
+          conversation,
+          link,
           definition,
-          configId: config.id,
-          ficheKey: ficheDefinition.key,
-          ficheInstanceKey: instance.instanceKey,
-          conversationFicheInstanceId: instance.id,
-          instanceData: data,
-        },
-        options.createdBy,
-        sharedProspect,
-      );
-      built.push(result);
-      await instancesRepo?.update(organizationId, instance.id, {
-        status: "complete",
-        completed: true,
-      });
+          {
+            templateKey: null,
+            templateVersion: null,
+            definition,
+            configId: config.id,
+            ficheKey: ficheDefinition.key,
+            ficheInstanceKey: instance.instanceKey,
+            conversationFicheInstanceId: instance.id,
+            instanceData: data,
+          },
+          options.createdBy,
+          sharedProspect,
+        );
+        built.push(result);
+        await instancesRepo?.update(organizationId, instance.id, {
+          status: "complete",
+          completed: true,
+        });
+      } catch (error) {
+        // La validation a échoué : la fiche reste active pour permettre la
+        // correction (le visiteur peut compléter la conversation).
+        await instancesRepo?.update(organizationId, instance.id, {
+          status: "active",
+          completed: false,
+        });
+        throw error;
+      }
     }
   } catch (error) {
     await releaseReserved(deps, link, targets.length - built.length);

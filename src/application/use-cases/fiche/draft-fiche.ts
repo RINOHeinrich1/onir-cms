@@ -18,12 +18,18 @@ export function buildExtractionGuide(definition: TemplateDefinition): string {
   const fields = definition.fields.filter((field) => field.type !== "file");
   const keys = fields.map((field) => `"${field.name}"`).join(", ");
   const rules = fields.map((field) => {
+    const format =
+      field.type === "email"
+        ? " (format email)"
+        : field.type === "url"
+          ? " (format URL http(s))"
+          : "";
     const base =
       field.type === "multi"
-        ? `${field.label} : tableau (plusieurs possibles parmi ${field.options?.join(", ") ?? "—"})`
+        ? `${field.label} : tableau (plusieurs possibles parmi ${field.options?.join(", ") ?? "—"})${format}`
         : field.type === "select"
-          ? `${field.label} : "${field.options?.join('" ou "') ?? ""}" uniquement`
-          : `${field.label}`;
+          ? `${field.label} : "${field.options?.join('" ou "') ?? ""}" uniquement${format}`
+          : `${field.label}${format}`;
     const suffix = field.required
       ? " (obligatoire)"
       : field.requiredIf
@@ -41,6 +47,7 @@ export function buildExtractionGuide(definition: TemplateDefinition): string {
     `{${keys}}`,
     ...rules,
     "- Champs inconnus : chaîne vide (tableau vide pour les listes).",
+    "- Si une valeur ne correspond à aucune option, choisis « Autre » si elle existe et conserve le détail dans le champ texte adapté ; sinon laisse vide.",
     "- Ne réponds PAS au visiteur et n'écris aucun texte : ta seule sortie est le JSON.",
     "- Réponds UNIQUEMENT avec le JSON.",
   ].join("\n");
@@ -76,12 +83,11 @@ function normalizeDraft(definition: TemplateDefinition, parsed: unknown): Record
     if (field.type === "file") continue;
     const value = source[field.name];
     if (field.type === "multi") {
-      if (Array.isArray(value)) {
-        const list = value.filter(
-          (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
-        );
-        if (list.length > 0) draft[field.name] = list;
-      }
+      const list = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+      const cleaned = list.filter(
+        (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
+      );
+      if (cleaned.length > 0) draft[field.name] = cleaned;
       continue;
     }
     if (typeof value === "string" && value.trim() !== "") {

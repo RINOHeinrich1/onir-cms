@@ -6,6 +6,8 @@ import {
   type ChatbotConfig,
   type FicheDefinition,
 } from "@/domain/entities/chatbot-config";
+import { buildFieldsGuide } from "@/domain/field-guide";
+import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 
 /** Configuration courante d'un lien (ADR-0049), lue via `current_config_id`. */
 export async function resolveCurrentConfig(
@@ -40,11 +42,9 @@ export function normalizeFicheData(
     if (value === null || value === undefined) continue;
     if (field.type === "file") continue;
     if (field.type === "multi") {
-      const list = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
-      const normalized = list
-        .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry).trim()))
-        .filter((entry) => entry !== "");
-      if (normalized.length > 0) output[field.name] = normalized;
+      const { values, invalid } = canonicalMultiValue(field, value);
+      const merged = [...values, ...invalid];
+      if (merged.length > 0) output[field.name] = merged;
       continue;
     }
     const normalized =
@@ -53,23 +53,20 @@ export function normalizeFicheData(
         : typeof value === "number" || typeof value === "boolean"
           ? String(value)
           : "";
-    if (normalized !== "") output[field.name] = normalized;
+    if (normalized === "") continue;
+    if (field.type === "select") {
+      output[field.name] = canonicalOption(field, normalized) ?? normalized;
+      continue;
+    }
+    output[field.name] = normalized;
   }
   return output;
 }
 
 function fieldsGuide(fiche: FicheDefinition): string {
-  const fields = fiche.fields.filter((field) => field.type !== "file");
-  if (fields.length === 0) return "";
-  const lines = fields.map((field) => {
-    const required = field.required ? " (obligatoire)" : "";
-    const example =
-      field.example !== undefined && field.example.trim() !== ""
-        ? ` — exemple : ${field.example.trim()}`
-        : "";
-    return `- ${field.label} [${field.name}]${required}${example}`;
+  return buildFieldsGuide(fiche.fields, {
+    label: "Informations à collecter pour cette fiche :",
   });
-  return ["Informations à collecter pour cette fiche :", ...lines].join("\n");
 }
 
 /**
@@ -113,7 +110,8 @@ export function ficheToDefinition(
   if (fiche.intent.trim() !== "") ficheBlock.push(`Intention : ${fiche.intent.trim()}`);
   if (fiche.instructions.trim() !== "") ficheBlock.push(fiche.instructions.trim());
   const guide = fieldsGuide(fiche);
-  if (guide !== "") ficheBlock.push(guide);
+  const hasGuidePlaceholder = basePrompt.includes("{{champs_guide}}");
+  if (!hasGuidePlaceholder && guide !== "") ficheBlock.push(guide);
   blocks.push(ficheBlock.join("\n"));
 
   return {
