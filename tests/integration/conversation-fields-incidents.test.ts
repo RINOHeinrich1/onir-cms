@@ -106,6 +106,10 @@ describe("conversation fields & incidents repositories", () => {
     expect(open[0]?.occurrences).toBe(2);
     expect(open[0]?.detail).toBe("Jean — erreur 2");
     expect(await incidents.countOpen(orgId, null)).toBe(1);
+    expect(await incidents.countOpenUnhandledByKind(orgId, "ai_reply_failed", null)).toBe(1);
+
+    await pgConversationRepository(pool).takeOverConversation(orgId, conversationId, userId);
+    expect(await incidents.countOpenUnhandledByKind(orgId, "ai_reply_failed", null)).toBe(0);
 
     const incidentId = open[0]?.id;
     if (incidentId === undefined) throw new Error("Incident attendu");

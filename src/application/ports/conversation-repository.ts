@@ -8,6 +8,7 @@ import type {
   StatutConversation,
   VisitorContact,
 } from "@/domain/entities/chat";
+import type { ConversationIncidentKind } from "@/domain/entities/conversation-incident";
 
 export type CreateConversationInput = {
   linkId: string;
@@ -54,6 +55,10 @@ export type ConversationSummary = {
   lastOperatorName: string | null;
   /** Vrai si un visiteur attend une réponse humaine. */
   awaitingOperator: boolean;
+  /** Date de la première prise en main humaine (null = personne ne s'en charge). */
+  humanTakeoverAt: string | null;
+  /** Types d'incidents ouverts sur la conversation. */
+  incidentKinds: ConversationIncidentKind[];
 };
 
 export interface ConversationRepository {

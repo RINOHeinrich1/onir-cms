@@ -20,6 +20,7 @@ import {
   isStatutConversation,
   type VisitorContact,
 } from "@/domain/entities/chat";
+import type { ConversationIncidentKind } from "@/domain/entities/conversation-incident";
 import { isTypeMedia } from "@/domain/entities/media";
 
 type ConversationRow = {
@@ -318,12 +319,19 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
         last_operator_user_id: string | null;
         last_visitor_message_at: Date | null;
         last_operator_message_at: Date | null;
+        human_takeover_at: Date | null;
+        incident_kinds: string[] | null;
         created_at: Date;
       }>(
         `SELECT cv.id, cv.visitor_nom, cv.visitor_email, cv.link_id, cv.prospect_id, cv.statut,
                 cv.last_message_at, cv.archivee, cv.created_at,
                 cv.intervention_mode, cv.assigned_user_id, cv.last_operator_user_id,
-                cv.last_visitor_message_at, cv.last_operator_message_at,
+                cv.last_visitor_message_at, cv.last_operator_message_at, cv.human_takeover_at,
+                ARRAY(
+                  SELECT DISTINCT i.kind
+                    FROM conversation_incidents i
+                   WHERE i.conversation_id = cv.id AND i.status = 'open'
+                ) AS incident_kinds,
                 l.label AS link_label, l.type AS link_type,
                 (SELECT count(*)::int FROM chat_messages m WHERE m.conversation_id = cv.id) AS message_count
          FROM conversations cv
@@ -370,6 +378,14 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
               ? null
               : (names.get(row.last_operator_user_id) ?? null),
           awaitingOperator,
+          humanTakeoverAt:
+            row.human_takeover_at === null ? null : row.human_takeover_at.toISOString(),
+          incidentKinds: (row.incident_kinds ?? []).filter(
+            (kind): kind is ConversationIncidentKind =>
+              kind === "ai_reply_failed" ||
+              kind === "fiche_generation_failed" ||
+              kind === "field_extraction_failed",
+          ),
         };
       });
     },

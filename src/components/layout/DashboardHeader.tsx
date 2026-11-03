@@ -211,7 +211,7 @@ const ITEMS: readonly NavItem[] = [
   {
     href: "/configuration",
     label: "Configuration",
-    action: "organizations:list",
+    action: "organizations:update",
     icon: "configuration",
   },
 ];

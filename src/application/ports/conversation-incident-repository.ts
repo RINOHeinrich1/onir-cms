@@ -35,6 +35,12 @@ export interface ConversationIncidentRepository {
     allowedLinkIds: string[] | null,
   ): Promise<ConversationIncidentRecord[]>;
   countOpen(organizationId: string, allowedLinkIds: string[] | null): Promise<number>;
+  /** Conversations distinctes avec une erreur ouverte, non archivées et sans prise en main. */
+  countOpenUnhandledByKind(
+    organizationId: string,
+    kind: ConversationIncidentKind,
+    allowedLinkIds: string[] | null,
+  ): Promise<number>;
   listForConversation(
     organizationId: string,
     conversationId: string,
