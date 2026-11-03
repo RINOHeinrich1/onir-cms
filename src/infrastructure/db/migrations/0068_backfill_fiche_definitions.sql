@@ -5,8 +5,7 @@
 -- Idempotent : ne touche que les fiches dont `definition` est NULL.
 
 UPDATE fiches f
-SET definition = v.definition,
-    updated_at = now()
+SET definition = v.definition
 FROM chat_templates t
 JOIN chat_template_versions v ON v.template_id = t.id
 WHERE f.definition IS NULL
