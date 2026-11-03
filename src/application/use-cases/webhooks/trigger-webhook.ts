@@ -3,7 +3,6 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, UnprocessableError, ValidationError } from "@/application/errors";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -35,7 +34,6 @@ import { buildSampleData } from "@/domain/template-preview";
 export type WebhookExecutionDependencies = {
   endpoints: WebhookEndpointRepository;
   deliveries: WebhookDeliveryRepository;
-  templates: ChatTemplateRepository;
   configs: ChatbotConfigRepository;
   fiches: FicheRepository;
   prospects: ProspectRepository;
@@ -70,9 +68,6 @@ async function loadFicheForOrganization(
 
 /** Vrai si l'endpoint cible le périmètre de la fiche (modèle legacy ou chatbot). */
 function matchesScope(endpoint: WebhookEndpoint, fiche: Fiche): boolean {
-  if (endpoint.templateKey !== null) {
-    return fiche.templateKey === endpoint.templateKey;
-  }
   if (endpoint.chatLinkId !== null) {
     const links = fiche.chatLinkIds ?? [];
     if (!links.includes(endpoint.chatLinkId)) return false;
@@ -108,11 +103,6 @@ export async function listWebhookEndpointsForFiche(
   const fiche = await loadFiche(deps, actor, ficheId);
   const organizationId = organizationOf(actor);
   const collected: WebhookEndpoint[] = [];
-  if (fiche.templateKey !== null) {
-    collected.push(
-      ...(await deps.endpoints.list(organizationId, { templateKey: fiche.templateKey })),
-    );
-  }
   for (const linkId of fiche.chatLinkIds ?? []) {
     collected.push(...(await deps.endpoints.list(organizationId, { chatLinkId: linkId })));
   }
@@ -254,10 +244,6 @@ export async function testWebhook(
       config.id,
       endpoint.chatLinkId,
     );
-  } else if (endpoint.templateKey !== null) {
-    const current = await deps.templates.currentVersion(organizationId, endpoint.templateKey);
-    if (current === null) throw new ValidationError("Modèle de raisonnement introuvable");
-    fiche = sampleFiche(endpoint, current.definition, current.version, null, null, null);
   } else {
     throw new ValidationError("Webhook sans périmètre");
   }

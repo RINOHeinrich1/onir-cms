@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { buildWebhookRequest } from "@/application/use-cases/webhooks/build-webhook-request";
 import type { FicheAttachment } from "@/domain/entities/attachment";
@@ -29,8 +28,9 @@ const FICHE: Fiche = {
   conversationId: null,
   prospectId: "33333333-3333-4333-8333-333333333333",
   createdBy: null,
-  templateKey: "lead-demo",
-  templateVersion: 2,
+  templateKey: null,
+  templateVersion: null,
+  definition: DEFINITION,
   data: { contact: "Rino", budget: "10k" },
   plateformes: [],
   description: "",
@@ -121,9 +121,6 @@ function endpoint(overrides: Partial<WebhookEndpoint> = {}): WebhookEndpoint {
 
 function dependencies(attachments: FicheAttachment[] = []) {
   return {
-    templates: {
-      findVersion: async () => ({ version: 2, definition: DEFINITION }),
-    } as unknown as ChatTemplateRepository,
     prospects: {
       findById: async () => PROSPECT,
     } as unknown as ProspectRepository,

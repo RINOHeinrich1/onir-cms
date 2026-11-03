@@ -4,14 +4,12 @@ import { actorCan } from "@/application/actor";
 import {
   listWebhookChatbotCatalog,
   listWebhookEndpoints,
-  listWebhookTemplateCatalog,
 } from "@/application/use-cases/webhooks/manage-webhooks";
 import { listWebhookDeliveries } from "@/application/use-cases/webhooks/trigger-webhook";
 import { WebhooksPanel } from "@/components/webhooks/WebhooksPanel";
 import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -45,19 +43,16 @@ export default async function WebhooksPage() {
   const pool = getPool();
   const management = {
     endpoints: pgWebhookEndpointRepository(pool),
-    templates: pgChatTemplateRepository(pool),
     configs: pgChatbotConfigRepository(pool),
     links: pgChatLinkRepository(pool),
   };
-  const [endpoints, templates, chatbots, deliveries] = await Promise.all([
+  const [endpoints, chatbots, deliveries] = await Promise.all([
     listWebhookEndpoints(management, context.actor),
-    listWebhookTemplateCatalog(management, context.actor),
     listWebhookChatbotCatalog(management, context.actor),
     listWebhookDeliveries(
       {
         endpoints: management.endpoints,
         deliveries: pgWebhookDeliveryRepository(pool),
-        templates: management.templates,
         configs: management.configs,
         fiches: pgFicheRepository(pool),
         prospects: pgProspectRepository(pool),
@@ -94,12 +89,6 @@ export default async function WebhooksPage() {
       <WebhooksPanel
         initialEndpoints={endpoints}
         initialDeliveries={deliveries}
-        templates={templates.map((template) => ({
-          key: template.key,
-          label: template.label,
-          version: template.version,
-          fields: template.fields,
-        }))}
         chatbots={chatbots.map((chatbot) => ({
           chatLinkId: chatbot.chatLinkId,
           label: chatbot.label,

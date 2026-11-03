@@ -5,13 +5,6 @@ import type {
 
 export type { WebhookDeliveryDto, WebhookEndpointAdminDto };
 
-export type WebhookTemplateOption = {
-  key: string;
-  label: string;
-  version: number;
-  fields: Array<{ name: string; label: string; type: string }>;
-};
-
 export type WebhookChatbotFicheOption = {
   key: string;
   label: string;

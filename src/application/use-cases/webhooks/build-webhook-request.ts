@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import { UnprocessableError, ValidationError } from "@/application/errors";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type { WebhookHttpRequest } from "@/application/ports/webhook-sender";
 import type { FicheAttachment } from "@/domain/entities/attachment";
@@ -20,7 +19,6 @@ import { signedAttachmentUrl } from "@/lib/attachment-token";
 import { appUrl } from "@/lib/env";
 
 export type BuildWebhookRequestDependencies = {
-  templates: ChatTemplateRepository;
   prospects: ProspectRepository;
   attachments: AttachmentRepository;
   storage: AttachmentStorage;
@@ -356,21 +354,9 @@ function buildCookedHeaders(
  * Les valeurs sont figées dans le snapshot d'audit, mais l'authentification est
  * appliquée au moment de l'envoi par le `WebhookSender`.
  */
-async function resolveDefinition(
-  deps: BuildWebhookRequestDependencies,
-  organizationId: string,
-  fiche: Fiche,
-): Promise<TemplateDefinition> {
+function resolveDefinition(fiche: Fiche): TemplateDefinition {
   if (fiche.definition !== undefined && fiche.definition !== null) {
     return fiche.definition;
-  }
-  if (fiche.templateKey !== null && fiche.templateVersion !== null) {
-    const template = await deps.templates.findVersion(
-      organizationId,
-      fiche.templateKey,
-      fiche.templateVersion,
-    );
-    if (template !== null) return template.definition;
   }
   throw new ValidationError("Définition de fiche introuvable");
 }
@@ -380,7 +366,7 @@ export async function buildWebhookRequest(
   endpoint: WebhookEndpoint,
   fiche: Fiche,
 ): Promise<BuiltWebhookRequest> {
-  const definition = await resolveDefinition(deps, endpoint.organizationId, fiche);
+  const definition = resolveDefinition(fiche);
 
   const prospect =
     fiche.prospectId === null

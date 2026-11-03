@@ -4,12 +4,7 @@ import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import type {
-  WebhookChatbotOption,
-  WebhookDeliveryDto,
-  WebhookEndpointAdminDto,
-  WebhookTemplateOption,
-} from "./types";
+import type { WebhookChatbotOption, WebhookDeliveryDto, WebhookEndpointAdminDto } from "./types";
 import { WebhookForm } from "./WebhookForm";
 
 function formatDate(value: string | null): string {
@@ -25,12 +20,10 @@ function statusBadge(status: WebhookDeliveryDto["status"]): string {
 export function WebhooksPanel({
   initialEndpoints,
   initialDeliveries,
-  templates,
   chatbots,
 }: {
   initialEndpoints: WebhookEndpointAdminDto[];
   initialDeliveries: WebhookDeliveryDto[];
-  templates: WebhookTemplateOption[];
   chatbots: WebhookChatbotOption[];
 }) {
   const [endpoints, setEndpoints] = useState(initialEndpoints);
@@ -179,8 +172,8 @@ export function WebhooksPanel({
                     ) : null}
                   </td>
                   <td data-label="Périmètre">
-                    {endpoint.templateKey !== null ? (
-                      <code>{endpoint.templateKey}</code>
+                    {endpoint.chatLinkId === null ? (
+                      <span className="muted-text">—</span>
                     ) : (
                       <span>
                         {chatbots.find((bot) => bot.chatLinkId === endpoint.chatLinkId)?.label ??
@@ -316,7 +309,6 @@ export function WebhooksPanel({
         >
           <WebhookForm
             endpoint={editing}
-            templates={templates}
             chatbots={chatbots}
             onSaved={(endpoint) => {
               setEndpoints((previous) => {
