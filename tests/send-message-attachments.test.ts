@@ -3,7 +3,9 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -12,6 +14,8 @@ import { sendMessage } from "@/application/use-cases/chat/send-message";
 import type { Attachment } from "@/domain/entities/attachment";
 import type { ChatMessage } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
+import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
+import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
 
 const DEFINITION: TemplateDefinition = {
   key: "demo",
@@ -28,6 +32,53 @@ const DEFINITION: TemplateDefinition = {
     },
   ],
   renderTemplate: "# CIN\n\n{{cin}}\n",
+};
+
+const FICHE = {
+  key: DEFINITION.key,
+  label: DEFINITION.label,
+  description: DEFINITION.description,
+  intent: "",
+  fields: DEFINITION.fields,
+  renderTemplate: DEFINITION.renderTemplate,
+  instructions: "",
+};
+
+const CONFIG: ChatbotConfig = {
+  id: "cfg-1",
+  organizationId: "org-1",
+  chatLinkId: "link-1",
+  version: 1,
+  behaviorMode: "expert",
+  systemPrompt: DEFINITION.systemPrompt,
+  simple: {
+    role: "assistant",
+    objective: "",
+    language: { mode: "auto" },
+    tone: "",
+    guardrails: [],
+    extraInstructions: "",
+  },
+  fiches: [FICHE],
+  dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
+  createdBy: null,
+  createdAt: new Date(0).toISOString(),
+};
+
+const INSTANCE: ConversationFicheInstance = {
+  id: "inst-1",
+  organizationId: "org-1",
+  conversationId: "conv-1",
+  configId: CONFIG.id,
+  ficheKey: FICHE.key,
+  instanceKey: "default",
+  status: "active",
+  data: {},
+  missingFields: [],
+  abandonReason: null,
+  detectedAt: new Date(0).toISOString(),
+  completedAt: null,
+  updatedAt: new Date(0).toISOString(),
 };
 
 const ATTACHMENT: Attachment = {
@@ -97,8 +148,11 @@ function deps() {
           id: "link-1",
           organizationId: "org-1",
           actif: true,
+          currentConfigId: "cfg-1",
           templateKey: "demo",
           templateVersion: 1,
+          type: "standard",
+          sources: { connaissances: false, phototheque: false, lien: false },
           aiProviderId: null,
           aiModel: null,
         }),
@@ -117,6 +171,19 @@ function deps() {
       templates: {
         findVersion: async () => ({ definition: DEFINITION }),
       } as unknown as ChatTemplateRepository,
+      configs: {
+        findById: async () => CONFIG,
+        currentForLink: async () => CONFIG,
+        listVersions: async () => [CONFIG],
+        createVersion: async () => CONFIG,
+      } as unknown as ChatbotConfigRepository,
+      ficheInstances: {
+        listByConversation: async () => [],
+        findById: async () => null,
+        upsert: async () => INSTANCE,
+        update: async () => INSTANCE,
+        activate: async () => INSTANCE,
+      } as unknown as ConversationFicheInstanceRepository,
       connaissances: {} as ConnaissanceRepository,
       medias: {} as MediaRepository,
       attachments: {
@@ -175,6 +242,7 @@ describe("sendMessage — rappel de langue du mode Simple", () => {
           id: "link-1",
           organizationId: "org-1",
           actif: true,
+          currentConfigId: "cfg-1",
           templateKey: "demo",
           templateVersion: 1,
           type: "libre",
@@ -186,6 +254,20 @@ describe("sendMessage — rappel de langue du mode Simple", () => {
       templates: {
         findVersion: async () => ({ definition }),
       } as unknown as ChatTemplateRepository,
+      configs: {
+        findById: async () => ({
+          ...CONFIG,
+          simple: definition.simple ?? CONFIG.simple,
+          fiches: [{ ...FICHE, fields: [], renderTemplate: definition.renderTemplate }],
+        }),
+        currentForLink: async () => ({
+          ...CONFIG,
+          simple: definition.simple ?? CONFIG.simple,
+          fiches: [{ ...FICHE, fields: [], renderTemplate: definition.renderTemplate }],
+        }),
+        listVersions: async () => [CONFIG],
+        createVersion: async () => CONFIG,
+      } as unknown as ChatbotConfigRepository,
       conversations: {
         ...base.deps.conversations,
         listMessages: async () => [],

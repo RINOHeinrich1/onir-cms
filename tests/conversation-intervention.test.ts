@@ -7,7 +7,9 @@ import type { AttachmentRepository } from "@/application/ports/attachment-reposi
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -19,6 +21,8 @@ import {
   takeOverConversation,
 } from "@/application/use-cases/conversations/intervene";
 import type { ChatLink, ChatMessage, Conversation } from "@/domain/entities/chat";
+import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
+import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
 
 const OPERATEUR: Actor = {
   id: "op-1",
@@ -90,6 +94,7 @@ function link(): ChatLink {
     createdBy: null,
     actif: true,
     expiresAt: null,
+    currentConfigId: "cfg-1",
     templateKey: "fiche-projet",
     templateVersion: 1,
     sources: { connaissances: false, phototheque: false, lien: false },
@@ -239,6 +244,50 @@ function sendDeps(
     appendMessage,
     listMessages: async () => [message()],
   } as unknown as ConversationRepository;
+  const fiche = {
+    key: "fiche-projet",
+    label: "Fiche",
+    description: "",
+    intent: "",
+    fields: [],
+    renderTemplate: "x",
+    instructions: "",
+  };
+  const config: ChatbotConfig = {
+    id: "cfg-1",
+    organizationId: "org-1",
+    chatLinkId: "l1",
+    version: 1,
+    behaviorMode: "expert",
+    systemPrompt: "x",
+    simple: {
+      role: "assistant",
+      objective: "",
+      language: { mode: "auto" },
+      tone: "",
+      guardrails: [],
+      extraInstructions: "",
+    },
+    fiches: [fiche],
+    dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
+    createdBy: null,
+    createdAt: new Date(0).toISOString(),
+  };
+  const instance: ConversationFicheInstance = {
+    id: "inst-1",
+    organizationId: "org-1",
+    conversationId: "c1",
+    configId: config.id,
+    ficheKey: fiche.key,
+    instanceKey: "default",
+    status: "active",
+    data: {},
+    missingFields: [],
+    abandonReason: null,
+    detectedAt: new Date(0).toISOString(),
+    completedAt: null,
+    updatedAt: new Date(0).toISOString(),
+  };
   return {
     appendMessage,
     deps: {
@@ -272,6 +321,19 @@ function sendDeps(
           createdAt: new Date(0).toISOString(),
         }),
       } as unknown as ChatTemplateRepository,
+      configs: {
+        findById: async () => config,
+        currentForLink: async () => config,
+        listVersions: async () => [config],
+        createVersion: async () => config,
+      } as unknown as ChatbotConfigRepository,
+      ficheInstances: {
+        listByConversation: async () => [],
+        findById: async () => null,
+        upsert: async () => instance,
+        update: async () => instance,
+        activate: async () => instance,
+      } as unknown as ConversationFicheInstanceRepository,
       connaissances: { listActives: async () => [] } as unknown as ConnaissanceRepository,
       medias: {
         listActivesByType: async () => [],

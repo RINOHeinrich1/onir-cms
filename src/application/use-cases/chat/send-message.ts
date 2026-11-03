@@ -1,4 +1,10 @@
-import { AppError, BadGatewayError, NotFoundError, ValidationError } from "@/application/errors";
+import {
+  AppError,
+  BadGatewayError,
+  NotFoundError,
+  UnprocessableError,
+  ValidationError,
+} from "@/application/errors";
 import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
@@ -278,16 +284,7 @@ export async function sendMessage(
         ? (config.fiches[0]?.fields ?? [])
         : config.fiches.flatMap((fiche) => fiche.fields);
   } else {
-    const template = await deps.templates.findVersion(
-      organizationId,
-      link.templateKey,
-      link.templateVersion,
-    );
-    if (template === null) {
-      throw new NotFoundError("Modèle de raisonnement introuvable");
-    }
-    templateDefinition = template.definition;
-    attachmentFields = template.definition.fields;
+    throw new UnprocessableError("Ce chatbot doit être configuré avec une fiche de collecte");
   }
 
   await validateAttachments(deps, organizationId, conversation.id, attachmentFields, attachmentIds);

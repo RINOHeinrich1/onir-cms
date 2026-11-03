@@ -656,12 +656,5 @@ export async function finishConversation(
     });
   }
 
-  const result = await buildFicheFromConversation(deps, conversation, null);
-  await deps.conversations.setOutcome?.(
-    conversation.organizationId,
-    conversation.id,
-    result.outcome,
-  );
-  await deps.conversations.markFinalisee(conversation.organizationId, conversation.id);
-  return result;
+  throw new UnprocessableError("Ce chatbot doit être configuré avec une fiche de collecte");
 }
