@@ -2,12 +2,13 @@
  * CLI autonome de maintenance de la base.
  * Utilisé par l'image Docker `migrate` (bundle esbuild, sans sources).
  *
- * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|backup|audit-legacy-chatbots [--format=json]|plan-legacy-chatbot --link-id=<uuid> [--format=json]|migrate-legacy-chatbot --link-id=<uuid> [--execute] [--allow-open]|reset-all-chatbot-data [--execute]]
+ * Usage : node dist/db-cli.mjs [migrate|seed|migrate-and-seed|backup|audit-legacy-chatbots [--format=json]|plan-legacy-chatbot --link-id=<uuid> [--format=json]|migrate-legacy-chatbot --link-id=<uuid> [--execute] [--allow-open]|migrate-all-legacy-chatbots [--execute] [--allow-open] [--format=json]|reset-all-chatbot-data [--execute]]
  */
 
 import { auditLegacyChatbots, formatLegacyChatbotAudit } from "./audit-legacy-chatbots";
 import { backupDatabase } from "./backup-database";
 import { migrate } from "./migrate";
+import { formatLegacyBatchResult, migrateAllLegacyChatbots } from "./migrate-all-legacy-chatbots";
 import { formatLegacyMigrationResult, migrateLegacyChatbot } from "./migrate-legacy-chatbot";
 import {
   formatLegacyMigrationPlan,
@@ -25,6 +26,7 @@ type Command =
   | "audit-legacy-chatbots"
   | "plan-legacy-chatbot"
   | "migrate-legacy-chatbot"
+  | "migrate-all-legacy-chatbots"
   | "reset-all-chatbot-data";
 
 const COMMANDS: readonly Command[] = [
@@ -35,6 +37,7 @@ const COMMANDS: readonly Command[] = [
   "audit-legacy-chatbots",
   "plan-legacy-chatbot",
   "migrate-legacy-chatbot",
+  "migrate-all-legacy-chatbots",
   "reset-all-chatbot-data",
 ];
 
@@ -95,6 +98,19 @@ async function main(): Promise<void> {
         process.argv.includes("--format=json")
           ? `${JSON.stringify(result, null, 2)}\n`
           : `${formatLegacyMigrationResult(result)}\n`,
+      );
+      return;
+    }
+
+    if (command === "migrate-all-legacy-chatbots") {
+      const result = await migrateAllLegacyChatbots(pool, {
+        execute: process.argv.includes("--execute"),
+        allowOpenConversations: process.argv.includes("--allow-open"),
+      });
+      process.stdout.write(
+        process.argv.includes("--format=json")
+          ? `${JSON.stringify(result, null, 2)}\n`
+          : `${formatLegacyBatchResult(result)}\n`,
       );
       return;
     }
