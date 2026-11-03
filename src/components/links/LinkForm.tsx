@@ -2,6 +2,8 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatbotAiGenerationDto } from "@/components/chatbots/ai-types";
+import { ChatbotAiAssistPanel } from "@/components/chatbots/ChatbotAiAssistPanel";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -18,6 +20,7 @@ import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
+  chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   guidedPromptFromDraft,
 } from "./chatbot-config-draft";
@@ -48,6 +51,7 @@ import type {
 } from "./types";
 import { UserStateField } from "./UserStateField";
 import {
+  defaultsForSchema,
   parseVisualTemplateSelection,
   widgetDisplayForSelection,
 } from "./visual-template-selection";
@@ -107,6 +111,9 @@ export function LinkForm({
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
+  const [aiAssistOpen, setAiAssistOpen] = useState(false);
+  const [aiSources, setAiSources] = useState<ChatbotAiGenerationDto["sources"] | null>(null);
+  const [aiKnowledgeCount, setAiKnowledgeCount] = useState(0);
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
@@ -563,6 +570,60 @@ export function LinkForm({
     }
   };
 
+  const onAiGenerated = (result: ChatbotAiGenerationDto): void => {
+    const next = chatbotConfigDraftFromAi(result.draft);
+    const staged = result.draft.knowledge.map((item, index) => ({
+      id: `ai-${result.generationId}-${index + 1}`,
+      titre: item.titre,
+      contenu: item.contenu,
+    }));
+
+    let widgetSelection = "";
+    let widgetParams: Record<string, string | number | boolean> = {};
+    let widgetPosition: ChannelDrafts["widget"]["widgetPosition"] = "bottom-right";
+    for (const template of visualTemplates) {
+      const version = template.versions.find((entry) => entry.widget !== null);
+      if (version === undefined || version.widget === null) continue;
+      widgetSelection = `${template.id}@${version.version}`;
+      widgetParams = defaultsForSchema(version.params);
+      widgetPosition = version.widget.defaultPosition;
+      break;
+    }
+
+    setConfig(next);
+    setLabel(result.draft.label);
+    setDataDraft((current) => ({
+      ...current,
+      connaissances: [...current.connaissances, ...staged],
+    }));
+    setChannels((current) => ({
+      page: {
+        ...current.page,
+        enabled: true,
+        identificationMode: "contact",
+      },
+      widget:
+        widgetSelection === ""
+          ? { ...current.widget, enabled: false, visualTemplate: "" }
+          : {
+              ...current.widget,
+              enabled: true,
+              identificationMode: "anonymous",
+              visualTemplate: widgetSelection,
+              params: widgetParams,
+              widgetPosition,
+            },
+    }));
+    setSources((current) => ({ ...current, phototheque: false, lien: false }));
+    setAiSources(result.sources);
+    setAiKnowledgeCount(staged.length);
+    toast.success(
+      widgetSelection === ""
+        ? "Brouillon appliqué. Aucun template widget compatible : le widget est désactivé."
+        : "Brouillon appliqué et template widget sélectionné.",
+    );
+  };
+
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     // La création est déclenchée uniquement par le bouton final : un clic sur
     // « Suivant » ne doit jamais pouvoir soumettre le formulaire pendant la
@@ -634,6 +695,39 @@ export function LinkForm({
             Reprise du brouillon : toutes les données enregistrées (configuration, canaux, sélection
             de données, connaissances, liens et photos) ont été restaurées.
           </p>
+        ) : null}
+
+        {step === 0 && !resumed ? (
+          <section className="chatbot-form-section">
+            <button
+              type="button"
+              className="btn ghost small"
+              onClick={() => setAiAssistOpen((current) => !current)}
+            >
+              {aiAssistOpen ? "Masquer l’assistant IA" : "Créer avec l’IA"}
+            </button>
+            {aiAssistOpen ? (
+              <div className="template-ai-panel">
+                <ChatbotAiAssistPanel
+                  endpoint="/api/chatbots/ai/generate"
+                  modelsEndpoint="/api/chatbots/ai/models"
+                  submitLabel="Générer le chatbot"
+                  onGenerated={onAiGenerated}
+                />
+                {aiSources !== null ? (
+                  <p className="hint">
+                    Sources : {aiSources.pages.length} page(s), {aiSources.files.length}{" "}
+                    document(s), {aiSources.chars.toLocaleString("fr-FR")} caractères extraits.
+                  </p>
+                ) : null}
+                {aiKnowledgeCount > 0 ? (
+                  <p className="hint">
+                    {aiKnowledgeCount} connaissance(s) ajoutée(s) au brouillon du chatbot.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         {step === 0 ? (
