@@ -2,7 +2,6 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -16,7 +15,6 @@ import { attachmentMarkdownLink } from "@/lib/attachment-links";
 
 export type RenderFicheDependencies = {
   fiches: FicheRepository;
-  templates: ChatTemplateRepository;
   prospects: ProspectRepository;
   attachments: AttachmentRepository;
 };
@@ -50,14 +48,8 @@ export async function renderFicheDocument(
   organizationId: string,
   fiche: Fiche,
 ): Promise<RenderedFiche> {
-  const definition =
-    fiche.definition ??
-    (fiche.templateKey === null || fiche.templateVersion === null
-      ? null
-      : ((
-          await deps.templates.findVersion(organizationId, fiche.templateKey, fiche.templateVersion)
-        )?.definition ?? null));
-  if (definition === null) {
+  const definition = fiche.definition;
+  if (definition === null || definition === undefined) {
     throw new NotFoundError("Définition de fiche introuvable");
   }
 

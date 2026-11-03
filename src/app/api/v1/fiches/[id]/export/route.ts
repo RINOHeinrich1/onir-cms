@@ -1,7 +1,6 @@
 import { readActor } from "@/application/public-api/principal";
 import { renderFiche } from "@/application/use-cases/fiche/render-fiche";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -18,7 +17,6 @@ export const GET = withApiKey("fiches:read", async ({ request, requestId, princi
   const { fiche, markdown } = await renderFiche(
     {
       fiches: pgFicheRepository(pool),
-      templates: pgChatTemplateRepository(pool),
       prospects: pgProspectRepository(pool),
       attachments: pgAttachmentRepository(pool),
     },

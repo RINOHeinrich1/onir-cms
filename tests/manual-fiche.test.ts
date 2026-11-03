@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/application/actor";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -123,16 +122,10 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
     ).rejects.toThrow(/Description du projet/);
   });
 
-  it("rend une fiche depuis son snapshot sans appeler chat_templates", async () => {
-    const templates = {
-      findVersion: vi.fn(async () => {
-        throw new Error("chat_templates ne doit pas être appelé");
-      }),
-    } as unknown as ChatTemplateRepository;
+  it("rend une fiche depuis son snapshot", async () => {
     const rendered = await renderFicheDocument(
       {
         fiches: {} as FicheRepository,
-        templates,
         prospects: { findById: async () => null } as unknown as ProspectRepository,
         attachments: { listByFiche: async () => [] } as unknown as AttachmentRepository,
       },
@@ -141,6 +134,5 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
     );
     expect(rendered.markdown).toContain("Refonte du site");
     expect(rendered.markdown).toContain("10 000 €");
-    expect(templates.findVersion).not.toHaveBeenCalled();
   });
 });
