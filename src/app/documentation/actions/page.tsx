@@ -438,8 +438,8 @@ offState(); offRes(); // désabonnement`}</Code>
         <dt>La réponse arrive sans photo.</dt>
         <dd>
           Vérifiez les sources du lien (<code>photothèque</code>/<code>lien</code>) et les médias
-          actifs du <code>templateKey</code>. <code>mediaPending</code> n&apos;est vrai que si des
-          médias éligibles existent.
+          actifs du chatbot. <code>mediaPending</code> n&apos;est vrai que si des médias éligibles
+          existent.
         </dd>
         <dt>Les connaissances ne sont pas visibles.</dt>
         <dd>

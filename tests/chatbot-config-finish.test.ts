@@ -3,7 +3,6 @@ import type { AiClient } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
@@ -83,8 +82,6 @@ const LINK: ChatLink = {
   createdBy: null,
   actif: true,
   expiresAt: null,
-  templateKey: "",
-  templateVersion: 0,
   currentConfigId: "cfg-1",
   sources: { connaissances: true, phototheque: true, lien: true },
   confidentialiteId: null,
@@ -341,8 +338,7 @@ function makeDeps(input: {
         conversationId: entry.conversationId,
         prospectId: entry.prospectId,
         createdBy: entry.createdBy,
-        templateKey: entry.templateKey,
-        templateVersion: entry.templateVersion,
+        definition: entry.definition ?? null,
         data: entry.data,
         plateformes: [],
         description: "",
@@ -380,7 +376,6 @@ function makeDeps(input: {
       conversations,
       prospects,
       fiches,
-      templates: {} as unknown as ChatTemplateRepository,
       attachments: {
         listByConversation: async () => [],
         attachToFiche: async () => undefined,

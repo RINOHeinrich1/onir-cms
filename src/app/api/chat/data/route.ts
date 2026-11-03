@@ -8,7 +8,6 @@ import {
 import { channelsForLink, isChatLinkSurface } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -97,7 +96,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         visualTemplates: pgVisualTemplateRepository(pool),
         medias: pgMediaRepository(pool),
-        templates: pgChatTemplateRepository(pool),
       },
       link,
       channelKind,

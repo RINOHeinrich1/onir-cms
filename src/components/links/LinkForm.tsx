@@ -2,11 +2,6 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  TemplateAiGenerationDto,
-  TemplateAiKnowledgeDto,
-} from "@/components/templates/ai-types";
-import { TemplateAiAssistPanel } from "@/components/templates/TemplateAiAssistPanel";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -23,7 +18,6 @@ import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import {
   type ChatbotConfigDraft,
-  chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   guidedPromptFromDraft,
 } from "./chatbot-config-draft";
@@ -114,13 +108,6 @@ export function LinkForm({
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
-  const [aiAssistOpen, setAiAssistOpen] = useState(false);
-  const [stagedKnowledge, setStagedKnowledge] = useState<TemplateAiKnowledgeDto[]>(
-    initial.stagedKnowledge,
-  );
-  const [aiSources, setAiSources] = useState<TemplateAiGenerationDto["sources"] | null>(
-    initial.aiSources,
-  );
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
   const [activeChannel, setActiveChannel] = useState<ChatLinkSurface>(initial.activeChannel);
@@ -174,8 +161,6 @@ export function LinkForm({
       ai,
       aiUsage,
       dataDraft,
-      stagedKnowledge,
-      aiSources,
     }),
     [
       step,
@@ -193,8 +178,6 @@ export function LinkForm({
       ai,
       aiUsage,
       dataDraft,
-      stagedKnowledge,
-      aiSources,
     ],
   );
   const draftSignature = useMemo(() => chatbotDraftStateSignature(draftState), [draftState]);
@@ -497,18 +480,6 @@ export function LinkForm({
             widget: channelApiPayload(channels.widget),
           },
           dataBindings,
-          ...(stagedKnowledge.length === 0
-            ? {}
-            : {
-                knowledge:
-                  config.dataSelection.mode === "selected"
-                    ? stagedKnowledge.filter(
-                        (item) =>
-                          item.id !== undefined &&
-                          config.dataSelection.connaissanceIds.includes(item.id),
-                      )
-                    : stagedKnowledge,
-              }),
         }),
       });
       const json = (await response.json()) as CreatedLink & { error?: string };
@@ -592,43 +563,6 @@ export function LinkForm({
     }
   };
 
-  const onAiGenerated = (result: TemplateAiGenerationDto): void => {
-    const next = chatbotConfigDraftFromAi(result.draft);
-    const staged = result.draft.knowledge.map((item, index) => ({
-      ...item,
-      id: `staged-${result.generationId}-${index + 1}`,
-    }));
-    setConfig({
-      ...next,
-      dataSelection: {
-        mode: "selected",
-        connaissanceIds: staged.map((item) => item.id),
-        mediaIds: [],
-      },
-    });
-    setLabel(result.draft.label);
-    setChannels((current) => ({
-      page: {
-        ...current.page,
-        enabled: true,
-        identificationMode: "contact",
-      },
-      widget: {
-        ...current.widget,
-        enabled: true,
-        identificationMode: "anonymous",
-      },
-    }));
-    setStagedKnowledge(staged);
-    setAiSources(result.sources);
-    setSources((current) => ({ ...current, phototheque: false, lien: false }));
-    const fields = result.draft.fields.length;
-    const questions = result.draft.fallback.questions.length;
-    toast.success(
-      `Brouillon appliqué : ${fields} champ(s), ${questions} question(s) de secours, ${result.draft.knowledge.length} connaissance(s).`,
-    );
-  };
-
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     // La création est déclenchée uniquement par le bouton final : un clic sur
     // « Suivant » ne doit jamais pouvoir soumettre le formulaire pendant la
@@ -700,46 +634,6 @@ export function LinkForm({
             Reprise du brouillon : toutes les données enregistrées (configuration, canaux, sélection
             de données, connaissances, liens et photos) ont été restaurées.
           </p>
-        ) : null}
-
-        {step === 0 && !resumed ? (
-          <section className="chatbot-form-section">
-            <button
-              type="button"
-              className="btn ghost small"
-              onClick={() => setAiAssistOpen((current) => !current)}
-            >
-              {aiAssistOpen ? "Masquer l’assistant IA" : "Créer avec l’IA"}
-            </button>
-            {aiAssistOpen ? (
-              <div className="template-ai-panel">
-                <TemplateAiAssistPanel
-                  templateKey={null}
-                  endpoint="/api/chatbots/ai/generate"
-                  modelsEndpoint="/api/chatbots/ai/models"
-                  submitLabel="Générer le chatbot"
-                  onGenerated={onAiGenerated}
-                />
-                {aiSources !== null ? (
-                  <p className="hint">
-                    Sources : {aiSources.pages.length} page(s), {aiSources.files.length}{" "}
-                    document(s), {aiSources.chars.toLocaleString("fr-FR")} caractères extraits.
-                  </p>
-                ) : null}
-                {stagedKnowledge.length > 0 ? (
-                  <div className="chatbot-ai-knowledge">
-                    <strong>{stagedKnowledge.length} connaissance(s) prête(s)</strong>
-                    <ul>
-                      {stagedKnowledge.slice(0, 6).map((item) => (
-                        <li key={item.titre}>{item.titre}</li>
-                      ))}
-                    </ul>
-                    <p className="hint">Elles seront rattachées à ce chatbot après création.</p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
         ) : null}
 
         {step === 0 ? (
@@ -833,7 +727,6 @@ export function LinkForm({
               onGlobalCountsChange={setGlobalDataCounts}
               onUploadPhoto={uploadDraftPhoto}
               onRemovePhoto={removeDraftPhoto}
-              pendingKnowledge={stagedKnowledge}
             />
           </section>
         ) : null}

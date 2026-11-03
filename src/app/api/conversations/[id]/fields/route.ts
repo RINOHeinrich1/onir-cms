@@ -8,7 +8,6 @@ import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
@@ -28,7 +27,6 @@ function deps(): ConversationFieldsDependencies {
     conversations: pgConversationRepository(pool),
     operatorScopes: pgChatOperatorScopeRepository(pool),
     links: pgChatLinkRepository(pool),
-    templates: pgChatTemplateRepository(pool),
     configs: pgChatbotConfigRepository(pool),
     ficheInstances: pgConversationFicheInstanceRepository(pool),
     attachments: pgAttachmentRepository(pool),

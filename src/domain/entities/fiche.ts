@@ -4,10 +4,10 @@ import type { TemplateDefinition } from "@/domain/entities/chat-template";
  * Entité métier `Fiche` (B040) — fiche de prospection livrable.
  * RM-FICHE-001 : plateformes (multi), description, budget, durée, contact,
  * statut (initier/reprendre), contraintes techno si reprise, lien doc spec.
- * Depuis les modèles DB-driven : snapshot (`templateKey`/`templateVersion`)
- * + valeurs génériques (`data`, clés = field.name). `statut` nullable pour
- * les modèles sans statut ; les colonnes historiques restent alimentées
- * pour `fiche-projet` (compatibilité).
+ * Chaque fiche porte un snapshot de définition (`definition`) et des valeurs
+ * génériques (`data`, clés = field.name). `statut` nullable pour les
+ * définitions sans statut ; les colonnes historiques restent alimentées
+ * depuis `data` (compatibilité d'affichage).
  */
 
 export const STATUTS_FICHE = ["initier", "reprendre"] as const;
@@ -99,9 +99,6 @@ export type Fiche = {
   createdBy: string | null;
   /** Snapshot de la définition utilisée (ADR-0055). */
   definition?: TemplateDefinition | null;
-  /** Ancien modèle de raisonnement, conservé pour les fiches historiques. */
-  templateKey: string | null;
-  templateVersion: number | null;
   data: Record<string, unknown>;
   plateformes: string[];
   description: string;

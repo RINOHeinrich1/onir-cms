@@ -1,3 +1,7 @@
+> **Obsolète** : le stack « modèles de raisonnement » a été supprimé par la
+> migration 0069 et l’ADR-0062 (`docs/adr/0062-suppression-legacy-modeles-raisonnement.md`).
+> Ce document ne décrit plus l’état cible ; il reste comme historique de migration.
+
 # Passage en production — anciens chatbots et landing
 
 Ce document prépare la bascule sans casser les liens déjà diffusés. Il ne

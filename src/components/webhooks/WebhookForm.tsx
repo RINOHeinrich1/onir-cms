@@ -341,7 +341,6 @@ export function WebhookForm({
           body: JSON.stringify({
             name,
             description,
-            templateKey: null,
             chatLinkId: scope.chatLinkId === "" ? null : scope.chatLinkId,
             ficheKey: scope.ficheKey === "" ? null : scope.ficheKey,
             enabled,

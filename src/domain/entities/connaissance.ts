@@ -13,11 +13,8 @@ export type Connaissance = {
   contenu: string;
   /** Portée : vide = tous les chatbots (global), sinon identifiants de chatbots. */
   chatLinkIds: string[];
-  /** Provenance : saisie manuelle ou assistance IA (ADR-0038). */
+  /** Provenance : saisie manuelle ou création assistée. */
   origin?: "manual" | "ai";
-  /** Modèle à l'origine d'une connaissance IA (provenance, pas portée). */
-  sourceTemplateKey?: string | null;
-  aiGenerationId?: string | null;
   actif: boolean;
   createdBy: string | null;
   createdAt: string;

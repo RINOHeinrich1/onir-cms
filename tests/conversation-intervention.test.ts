@@ -6,7 +6,6 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
@@ -95,8 +94,6 @@ function link(): ChatLink {
     actif: true,
     expiresAt: null,
     currentConfigId: "cfg-1",
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: false, phototheque: false, lien: false },
     confidentialiteId: null,
     userStateEnabled: false,
@@ -304,23 +301,6 @@ function sendDeps(
       links: { findById: async () => link() } as unknown as ChatLinkRepository,
       conversations,
       prospects: { findById: async () => null } as unknown as ProspectRepository,
-      templates: {
-        findVersion: async () => ({
-          id: "v1",
-          templateId: "t1",
-          version: 1,
-          definition: {
-            key: "fiche-projet",
-            label: "Fiche",
-            description: "",
-            systemPrompt: "x",
-            fields: [],
-            renderTemplate: "x",
-          },
-          createdBy: null,
-          createdAt: new Date(0).toISOString(),
-        }),
-      } as unknown as ChatTemplateRepository,
       configs: {
         findById: async () => config,
         currentForLink: async () => config,

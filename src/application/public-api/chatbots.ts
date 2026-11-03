@@ -30,7 +30,7 @@ function matches(link: ChatLink, criteria: ChatbotListCriteria): boolean {
   if (criteria.active !== null && link.actif !== criteria.active) return false;
   if (criteria.q !== null) {
     const needle = criteria.q.toLowerCase();
-    if (!`${link.label} ${link.templateKey}`.toLowerCase().includes(needle)) return false;
+    if (!link.label.toLowerCase().includes(needle)) return false;
   }
   return true;
 }

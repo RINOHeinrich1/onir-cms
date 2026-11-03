@@ -5,9 +5,7 @@ export type CreateFicheInput = {
   conversationId: string | null;
   prospectId: string | null;
   createdBy: string | null;
-  templateKey: string | null;
-  templateVersion: number | null;
-  /** Snapshot de définition, indépendant du modèle de raisonnement. */
+  /** Snapshot de définition de la fiche. */
   definition?: TemplateDefinition | null;
   /** Chatbots associés (0..N). */
   chatLinkIds?: string[];

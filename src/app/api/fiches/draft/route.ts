@@ -7,7 +7,6 @@ import {
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -48,19 +47,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       link,
     );
     const fiche = config === null ? null : primaryFiche(config);
-    const definition =
-      config !== null && fiche !== null
-        ? ficheToDefinition(config, fiche)
-        : ((
-            await pgChatTemplateRepository(pool).findVersion(
-              organizationId,
-              link.templateKey,
-              link.templateVersion,
-            )
-          )?.definition ?? null);
-    if (definition === null) {
+    if (config === null || fiche === null) {
       return NextResponse.json({ error: "Définition de fiche introuvable" }, { status: 404 });
     }
+    const definition = ficheToDefinition(config, fiche);
     const target = {
       organizationId,
       aiProviderId: link.aiProviderId,

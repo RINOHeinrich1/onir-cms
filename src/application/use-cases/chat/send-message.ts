@@ -9,7 +9,6 @@ import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
@@ -106,12 +105,11 @@ export type SendMessageDependencies = {
   links: ChatLinkRepository;
   conversations: ConversationRepository;
   prospects: ProspectRepository;
-  templates: ChatTemplateRepository;
   connaissances: ConnaissanceRepository;
   medias: MediaRepository;
   attachments: AttachmentRepository;
   ai: AiClientFactory;
-  /** Configuration chatbot autonome (ADR-0049) ; absent = legacy uniquement. */
+  /** Configuration chatbot autonome (ADR-0049). */
   configs?: ChatbotConfigRepository;
   ficheInstances?: ConversationFicheInstanceRepository;
 };

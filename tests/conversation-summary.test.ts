@@ -94,8 +94,6 @@ function link(overrides: Partial<ChatLink> = {}): ChatLink {
     createdBy: null,
     actif: true,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: false, phototheque: false, lien: false },
     confidentialiteId: null,
     userStateEnabled: false,

@@ -13,8 +13,6 @@ type FicheRow = {
   conversation_id: string | null;
   prospect_id: string | null;
   created_by: string | null;
-  template_key: string | null;
-  template_version: number | null;
   definition: unknown;
   data: unknown;
   plateformes: string[];
@@ -31,7 +29,7 @@ type FicheRow = {
 };
 
 const COLUMNS = `f.id, f.organization_id, f.conversation_id, f.prospect_id, f.created_by,
-  f.template_key, f.template_version, f.definition, f.data, f.plateformes, f.description,
+  f.definition, f.data, f.plateformes, f.description,
   f.budget, f.duree, f.contact, f.statut, f.contraintes_techno, f.lien_doc_spec,
   f.archivee, f.created_at,
   (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[])
@@ -56,8 +54,6 @@ function toFiche(row: FicheRow): Fiche {
       !Array.isArray(row.definition)
         ? (row.definition as TemplateDefinition)
         : null,
-    templateKey: row.template_key,
-    templateVersion: row.template_version,
     data,
     plateformes: row.plateformes,
     description: row.description,
@@ -94,12 +90,6 @@ export function pgFicheSearchRepository(pool: Pool): FicheSearchRepository {
       if (criteria.q !== null) {
         const p = add(criteria.q);
         where.push(`to_tsvector('simple', f.data::text) @@ websearch_to_tsquery('simple', ${p})`);
-      }
-      if (criteria.templateKey !== null) {
-        where.push(`f.template_key = ${add(criteria.templateKey)}`);
-      }
-      if (criteria.templateVersion !== null) {
-        where.push(`f.template_version = ${add(criteria.templateVersion)}`);
       }
       if (criteria.createdFrom !== null) {
         where.push(`f.created_at >= ${add(criteria.createdFrom)}`);

@@ -21,7 +21,6 @@ const TABLES = [
   "webhook_endpoints",
   "chatbot_drafts",
   "fiche_collectes",
-  "chat_templates",
 ] as const;
 
 function quote(identifier: string): string {

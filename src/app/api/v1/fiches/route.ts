@@ -1,4 +1,3 @@
-import { ValidationError } from "@/application/errors";
 import type { FicheSearchCriteria } from "@/application/ports/fiche-search-repository";
 import { ficheDto } from "@/application/public-api/dto";
 import { encodeApiCursor } from "@/application/public-api/pagination";
@@ -18,17 +17,10 @@ export const dynamic = "force-dynamic";
 
 function parseQuery(request: Request): FicheSearchCriteria {
   const params = new URL(request.url).searchParams;
-  const templateVersionRaw = queryString(params, "templateVersion");
-  const templateVersion = templateVersionRaw === null ? null : Number(templateVersionRaw);
-  if (templateVersion !== null && (!Number.isInteger(templateVersion) || templateVersion < 1)) {
-    throw new ValidationError("templateVersion invalide");
-  }
   const includeArchived = queryString(params, "includeArchived") === "true";
   const cursor = parseCursor(params);
   return {
     q: queryString(params, "q"),
-    templateKey: queryString(params, "templateKey"),
-    templateVersion,
     createdFrom: parseDate(params, "createdFrom"),
     createdTo: parseDate(params, "createdTo"),
     prospectId: parseUuid(params, "prospectId"),

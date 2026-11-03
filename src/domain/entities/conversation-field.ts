@@ -47,11 +47,11 @@ export type ConversationFieldsView = {
   conversationId: string;
   /** Configuration chatbot courante (null = champs legacy mono-modèle). */
   configId?: string | null;
-  /** Fiches de collecte (config-only / multi-fiches). Absent = legacy. */
+  /** Fiches de collecte (config-only / multi-fiches). */
   fiches?: ConversationFicheView[];
-  templateKey: string;
-  templateVersion: number;
-  templateLabel: string;
+  ficheKey: string;
+  ficheVersion: number;
+  ficheLabel: string;
   fields: ConversationFieldView[];
   requiredTotal: number;
   requiredCollected: number;

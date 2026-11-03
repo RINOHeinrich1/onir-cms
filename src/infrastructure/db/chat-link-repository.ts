@@ -35,8 +35,6 @@ type ChatLinkRow = {
   created_by: string | null;
   actif: boolean;
   expires_at: Date | null;
-  template_key: string;
-  template_version: number;
   current_config_id: string | null;
   sources: unknown;
   confidentialite_id: string | null;
@@ -74,7 +72,7 @@ type ChannelRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, template_key, template_version, current_config_id, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, max_fiches, max_tokens, token_reset_mode, token_reset_days, tokens_used, token_period_started_at, fiches_generated, created_at";
+  "id, organization_id, label, type, surface, identification_mode, prospect_id, created_by, actif, expires_at, current_config_id, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, visit_count, last_visit_at, max_fiches, max_tokens, token_reset_mode, token_reset_days, tokens_used, token_period_started_at, fiches_generated, created_at";
 
 const CHANNEL_COLUMNS =
   "link_id, channel, enabled, identification_mode, confidentialite_id, visual_template_id, visual_template_version, visual_template_config, visual_template_params, channel_config";
@@ -172,8 +170,6 @@ function toEntity(row: ChatLinkRow, channels: ChatLinkChannels): ChatLink {
     createdBy: row.created_by,
     actif: row.actif,
     expiresAt: row.expires_at ? row.expires_at.toISOString() : null,
-    templateKey: row.template_key,
-    templateVersion: row.template_version,
     currentConfigId: row.current_config_id,
     sources: parseLinkSources(row.sources),
     confidentialiteId: summary.confidentialiteId,
@@ -344,8 +340,8 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       try {
         await client.query("BEGIN");
         const { rows } = await client.query<ChatLinkRow>(
-          `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, template_key, template_version, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, max_fiches, max_tokens, token_reset_mode, token_reset_days)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+          `INSERT INTO chat_links (organization_id, token_hash, token_enc, label, type, surface, identification_mode, prospect_id, created_by, expires_at, sources, confidentialite_id, user_state_enabled, visual_template_id, visual_template_version, visual_template_config, visual_template_params, widget_config, ai_provider_id, ai_model, max_fiches, max_tokens, token_reset_mode, token_reset_days)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -358,8 +354,6 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
             input.prospectId,
             input.createdBy,
             input.expiresAt,
-            input.templateKey,
-            input.templateVersion,
             JSON.stringify(input.sources),
             summary.confidentialiteId,
             input.userStateEnabled,

@@ -21,27 +21,9 @@ afterAll(async () => {
 });
 
 describe("provisioning d'organisation vide (ADR-0025 §7/§9)", () => {
-  it("clone 3 modèles + versions + politique par défaut et assigne les templates visuels", async () => {
+  it("crée la politique par défaut et assigne les templates visuels", async () => {
     const organizationId = await makeOrganization(pool, "Nouvelle org");
     await provisionOrganizationDefaults(pool, organizationId);
-
-    const templates = await pool.query<{ key: string }>(
-      "SELECT key FROM chat_templates WHERE organization_id = $1 ORDER BY key",
-      [organizationId],
-    );
-    expect(templates.rows.map((row) => row.key)).toEqual([
-      "fiche-projet",
-      "investisseur",
-      "presentation",
-    ]);
-    const versions = await pool.query<{ count: number }>(
-      `SELECT count(*)::int AS count
-         FROM chat_template_versions v
-         JOIN chat_templates t ON t.id = v.template_id
-        WHERE t.organization_id = $1`,
-      [organizationId],
-    );
-    expect(versions.rows[0]?.count).toBe(3);
 
     const policies = await pool.query<{ count: number }>(
       "SELECT count(*)::int AS count FROM confidentialites WHERE organization_id = $1",
@@ -77,10 +59,10 @@ describe("provisioning d'organisation vide (ADR-0025 §7/§9)", () => {
     await provisionOrganizationDefaults(pool, organizationId);
     await provisionOrganizationDefaults(pool, organizationId);
     const { rows } = await pool.query<{ count: number }>(
-      "SELECT count(*)::int AS count FROM chat_templates WHERE organization_id = $1",
+      "SELECT count(*)::int AS count FROM confidentialites WHERE organization_id = $1",
       [organizationId],
     );
-    expect(rows[0]?.count).toBe(3);
+    expect(rows[0]?.count).toBe(1);
   });
 
   it("l'organisation legacy Onirtech existe et porte les données seedées", async () => {

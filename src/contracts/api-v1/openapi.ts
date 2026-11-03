@@ -107,8 +107,6 @@ const ficheListParameters = [
   createdTo,
   updatedFrom,
   updatedTo,
-  query("templateKey", { type: "string" }),
-  query("templateVersion", { type: "integer", minimum: 1 }),
   query("prospectId", { type: "string", format: "uuid" }),
   query("conversationId", { type: "string", format: "uuid" }),
   query("chatbotId", { type: "string", format: "uuid" }),
@@ -570,13 +568,9 @@ export function openapiDocument(): JsonSchema {
         ),
       },
       "/webhooks": {
-        get: operation(
-          "Webhooks",
-          "listWebhooks",
-          ["webhooks:read"],
-          { "200": single({ type: "array", items: ref("WebhookEndpoint") }, "Webhooks") },
-          { parameters: [query("templateKey", { type: "string" })] },
-        ),
+        get: operation("Webhooks", "listWebhooks", ["webhooks:read"], {
+          "200": single({ type: "array", items: ref("WebhookEndpoint") }, "Webhooks"),
+        }),
         post: createOperation(
           "Webhooks",
           "createWebhook",
@@ -716,13 +710,6 @@ export function openapiDocument(): JsonSchema {
           properties: {
             id: { type: "string", format: "uuid" },
             createdAt: { type: "string", format: "date-time" },
-            template: {
-              type: "object",
-              properties: {
-                key: { type: "string" },
-                version: { type: "integer" },
-              },
-            },
             prospectId: { type: ["string", "null"], format: "uuid" },
             conversationId: { type: ["string", "null"], format: "uuid" },
             archived: { type: "boolean" },
@@ -919,13 +906,6 @@ export function openapiDocument(): JsonSchema {
             active: { type: "boolean" },
             expiresAt: { type: ["string", "null"], format: "date-time" },
             prospectId: { type: ["string", "null"], format: "uuid" },
-            template: {
-              type: "object",
-              properties: {
-                key: { type: "string" },
-                version: { type: "integer" },
-              },
-            },
             sources: { type: "object", additionalProperties: true },
             channels: { type: "object", additionalProperties: true },
             ai: { type: "object", additionalProperties: true },
@@ -936,11 +916,11 @@ export function openapiDocument(): JsonSchema {
         },
         ChatbotCreate: {
           type: "object",
-          required: ["label", "type", "templateKey"],
+          required: ["label", "type", "config"],
           properties: {
             label: { type: "string", maxLength: 120 },
             type: { type: "string", enum: ["specifique", "standard"] },
-            templateKey: { type: "string" },
+            config: { type: "object", additionalProperties: true },
             prospectId: { type: ["string", "null"], format: "uuid" },
             expiresAt: { type: ["string", "null"], format: "date-time" },
             sources: { type: "object", additionalProperties: true },
@@ -980,9 +960,10 @@ export function openapiDocument(): JsonSchema {
         },
         WebhookEndpointCreate: {
           type: "object",
-          required: ["templateKey", "name", "url"],
+          required: ["chatLinkId", "name", "url"],
           properties: {
-            templateKey: { type: "string" },
+            chatLinkId: { type: "string", format: "uuid" },
+            ficheKey: { type: ["string", "null"] },
             name: { type: "string" },
             description: { type: "string" },
             enabled: { type: "boolean" },

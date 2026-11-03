@@ -129,10 +129,6 @@ function metaValue(fiche: Fiche, field: string): unknown {
       return fiche.id;
     case "createdAt":
       return fiche.createdAt;
-    case "templateKey":
-      return fiche.templateKey;
-    case "templateVersion":
-      return fiche.templateVersion;
     case "conversationId":
       return fiche.conversationId;
     case "prospectId":
@@ -187,15 +183,7 @@ function baseValues(
       values[field.name] = fiche.data[field.name];
     }
   }
-  for (const field of [
-    "id",
-    "createdAt",
-    "templateKey",
-    "templateVersion",
-    "conversationId",
-    "prospectId",
-    "archivee",
-  ]) {
+  for (const field of ["id", "createdAt", "conversationId", "prospectId", "archivee"]) {
     values[field] = metaValue(fiche, field);
   }
   for (const field of [

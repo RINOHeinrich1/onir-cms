@@ -60,8 +60,6 @@ function linkRow(expiresAt: string | null): ChatLink {
     createdBy: "admin-1",
     actif: true,
     expiresAt,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,

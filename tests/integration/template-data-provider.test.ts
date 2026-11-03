@@ -26,17 +26,17 @@ describe("fournisseur SQL des templates (ADR-0026)", () => {
     orgA = await makeOrganization(pool, "Org A");
     orgB = await makeOrganization(pool, "Org B");
     await pool.query(
-      `INSERT INTO medias (organization_id, type, libelle, template_keys, actif, url)
-       VALUES ($1, 'lien', 'Lien A1', '{}', true, 'https://example.com/a1'),
-              ($1, 'lien', 'Lien A2', '{}', true, 'https://example.com/a2'),
-              ($1, 'lien', 'Lien A3', '{}', false, 'https://example.com/a3'),
-              ($2, 'lien', 'Lien B1', '{}', true, 'https://example.com/b1')`,
+      `INSERT INTO medias (organization_id, type, libelle, actif, url)
+       VALUES ($1, 'lien', 'Lien A1', true, 'https://example.com/a1'),
+              ($1, 'lien', 'Lien A2', true, 'https://example.com/a2'),
+              ($1, 'lien', 'Lien A3', false, 'https://example.com/a3'),
+              ($2, 'lien', 'Lien B1', true, 'https://example.com/b1')`,
       [orgA, orgB],
     );
     await pool.query(
-      `INSERT INTO base_connaissances (organization_id, titre, contenu, template_keys)
-       VALUES ($1, 'Tarifs', 'Grille tarifaire A', '{}'),
-              ($2, 'Tarifs', 'Grille tarifaire B', '{}')`,
+      `INSERT INTO base_connaissances (organization_id, titre, contenu)
+       VALUES ($1, 'Tarifs', 'Grille tarifaire A'),
+              ($2, 'Tarifs', 'Grille tarifaire B')`,
       [orgA, orgB],
     );
 

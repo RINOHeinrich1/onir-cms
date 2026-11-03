@@ -42,8 +42,6 @@ function linkInput(overrides: Partial<CreateChatLinkInput> = {}): CreateChatLink
     prospectId: null,
     createdBy: null,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,

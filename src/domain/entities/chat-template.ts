@@ -2,9 +2,10 @@ import type { FileFieldConstraints } from "@/domain/entities/attachment";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
 /**
- * Entités métier des modèles de raisonnement (A004) — pures, sans framework.
- * Un modèle décrit entièrement un comportement de prospection : prompt,
- * champs à extraire (dont champs fichier), rendu du livrable.
+ * Schéma de définition d'une fiche de collecte (pure, sans framework).
+ * Une définition décrit les champs à collecter (dont champs fichier), le
+ * prompt effectif et le rendu du livrable. Elle est portée par les snapshots
+ * `chatbot_configs.fiche_definitions` et `fiches.definition`.
  */
 
 export const TEMPLATE_FIELD_TYPES = [
@@ -53,24 +54,4 @@ export type TemplateDefinition = {
   /** Origine du snapshot, si la définition vient d'une fiche de collecte. */
   sourceFicheId?: string;
   sourceVersion?: number;
-};
-
-export type ChatTemplate = {
-  id: string;
-  organizationId: string;
-  key: string;
-  label: string;
-  description: string;
-  createdBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ChatTemplateVersion = {
-  id: string;
-  templateId: string;
-  version: number;
-  definition: TemplateDefinition;
-  createdBy: string | null;
-  createdAt: string;
 };

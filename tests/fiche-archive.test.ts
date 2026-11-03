@@ -27,8 +27,6 @@ function fiche(overrides: Partial<Fiche> = {}): Fiche {
     conversationId: null,
     prospectId: null,
     createdBy: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     data: {},
     plateformes: [],
     description: "",

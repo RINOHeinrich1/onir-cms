@@ -12,7 +12,6 @@ type MediaRow = {
   type: string;
   libelle: string;
   description: string;
-  template_keys: string[];
   chat_link_ids: string[];
   actif: boolean;
   fichier: string | null;
@@ -24,7 +23,7 @@ type MediaRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, type, libelle, description, template_keys, chat_link_ids, actif, fichier, mime, url, created_by, created_at, updated_at";
+  "id, organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, url, created_by, created_at, updated_at";
 
 function toEntity(row: MediaRow): Media {
   if (!isTypeMedia(row.type)) {

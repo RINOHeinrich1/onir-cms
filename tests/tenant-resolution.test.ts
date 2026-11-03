@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConfidentialiteRepository } from "@/application/ports/confidentialite-repository";
 import type { MembershipRepository } from "@/application/ports/membership-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -35,8 +35,6 @@ function link(organizationId: string): ChatLink {
     createdBy: "admin-a",
     actif: true,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,
@@ -56,7 +54,7 @@ function link(organizationId: string): ChatLink {
 function createDeps(created: { organizationId?: string }): {
   links: ChatLinkRepository;
   prospects: ProspectRepository;
-  templates: ChatTemplateRepository;
+  configs: ChatbotConfigRepository;
   confidentialites: ConfidentialiteRepository;
   visualTemplates: VisualTemplateRepository;
 } {
@@ -67,28 +65,14 @@ function createDeps(created: { organizationId?: string }): {
     }),
   } as unknown as ChatLinkRepository;
   const prospects = {} as ProspectRepository;
-  const templates = {
-    currentVersion: async () => ({
-      id: "v1",
-      templateId: "t1",
-      version: 1,
-      definition: {
-        key: "fiche-projet",
-        label: "",
-        description: "",
-        systemPrompt: "",
-        fields: [],
-        renderTemplate: "",
-      },
-      createdBy: null,
-      createdAt: new Date(0).toISOString(),
-    }),
-  } as unknown as ChatTemplateRepository;
   const confidentialites = {
     listActives: async () => [],
   } as unknown as ConfidentialiteRepository;
   const visualTemplates = {} as VisualTemplateRepository;
-  return { links, prospects, templates, confidentialites, visualTemplates };
+  const configs = {
+    createVersion: vi.fn(async () => ({ id: "cfg-1" })),
+  } as unknown as ChatbotConfigRepository;
+  return { links, prospects, configs, confidentialites, visualTemplates };
 }
 
 describe("résolution tenant — aucun organizationId client (ADR-0025 §4)", () => {
@@ -100,6 +84,28 @@ describe("résolution tenant — aucun organizationId client (ADR-0025 §4)", ()
       surface: "page",
       identificationMode: "contact",
       organizationId: "org-b",
+      config: {
+        systemPrompt: "x",
+        simple: {
+          role: "assistant",
+          objective: "",
+          language: { mode: "auto" },
+          tone: "",
+          guardrails: [],
+          extraInstructions: "",
+        },
+        fiches: [
+          {
+            key: "fiche",
+            label: "Fiche",
+            description: "",
+            intent: "",
+            fields: [{ name: "contact", label: "Contact", type: "text", required: true }],
+            renderTemplate: "# Fiche\n\n{{contact}}\n",
+            instructions: "",
+          },
+        ],
+      },
     });
     expect(created.organizationId).toBe("org-a");
   });

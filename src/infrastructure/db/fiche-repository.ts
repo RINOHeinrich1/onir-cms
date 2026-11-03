@@ -14,8 +14,6 @@ type FicheRow = {
   conversation_id: string | null;
   prospect_id: string | null;
   created_by: string | null;
-  template_key: string | null;
-  template_version: number | null;
   definition: unknown;
   data: unknown;
   plateformes: string[];
@@ -36,7 +34,7 @@ type FicheRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, conversation_id, prospect_id, created_by, template_key, template_version, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, created_at, (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[]) FROM fiche_chat_links fcl WHERE fcl.fiche_id = fiches.id) AS chat_link_ids";
+  "id, organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, created_at, (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[]) FROM fiche_chat_links fcl WHERE fcl.fiche_id = fiches.id) AS chat_link_ids";
 
 function toStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -48,13 +46,10 @@ function toText(value: unknown): string {
 }
 
 /**
- * Dérive les colonnes historiques depuis `data` pour `fiche-projet`
- * (compatibilité UI existante) ; lignes vides sinon.
+ * Dérive les colonnes historiques depuis `data` (compatibilité UI existante) ;
+ * lignes vides sinon.
  */
-function legacyColumns(
-  templateKey: string | null,
-  data: Record<string, unknown>,
-): {
+function legacyColumns(data: Record<string, unknown>): {
   plateformes: string[];
   description: string;
   budget: string;
@@ -64,18 +59,6 @@ function legacyColumns(
   contraintesTechno: string;
   lienDocSpec: string;
 } {
-  if (templateKey !== "fiche-projet") {
-    return {
-      plateformes: [],
-      description: "",
-      budget: "",
-      duree: "",
-      contact: "",
-      statut: null,
-      contraintesTechno: "",
-      lienDocSpec: "",
-    };
-  }
   const statutRaw = toText(data.statut);
   return {
     plateformes: toStringList(data.plateformes),
@@ -111,8 +94,6 @@ function toEntity(row: FicheRow): Fiche {
     prospectId: row.prospect_id,
     createdBy: row.created_by,
     definition: toDefinition(row.definition),
-    templateKey: row.template_key,
-    templateVersion: row.template_version,
     data,
     plateformes: row.plateformes,
     description: row.description,
@@ -200,23 +181,21 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
     },
 
     async create(organizationId, input: CreateFicheInput): Promise<Fiche> {
-      const legacy = legacyColumns(input.templateKey, input.data);
+      const legacy = legacyColumns(input.data);
       const chatLinkIds = [...new Set(input.chatLinkIds ?? [])];
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO fiches
-             (organization_id, conversation_id, prospect_id, created_by, template_key, template_version, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+             (organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
            RETURNING id`,
           [
             organizationId,
             input.conversationId,
             input.prospectId,
             input.createdBy,
-            input.templateKey,
-            input.templateVersion,
             input.definition === undefined || input.definition === null
               ? null
               : JSON.stringify(input.definition),

@@ -9,7 +9,7 @@ import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
 import type { Connaissance } from "@/domain/entities/connaissance";
 import type { Media } from "@/domain/entities/media";
 
-const LINK = { id: "chat-1", templateKey: "legacy" };
+const LINK = { id: "chat-1" };
 
 function connaissance(id: string, chatLinkIds: string[] = [], titre = id): Connaissance {
   return {
@@ -19,8 +19,6 @@ function connaissance(id: string, chatLinkIds: string[] = [], titre = id): Conna
     contenu: "",
     chatLinkIds,
     origin: "manual",
-    sourceTemplateKey: null,
-    aiGenerationId: null,
     actif: true,
     createdBy: null,
     createdAt: new Date(0).toISOString(),

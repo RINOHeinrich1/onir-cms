@@ -22,9 +22,6 @@ export type CreateChatLinkInput = {
   prospectId: string | null;
   createdBy: string | null;
   expiresAt: string | null;
-  /** Modèle figé à la création (snapshot key+version, défaut `fiche-projet`). */
-  templateKey: string;
-  templateVersion: number;
   /** Sources recherchées à la génération (connaissances / photothèque / liens). */
   sources: ChatLinkSources;
   /** Politique de confidentialité rattachée (optionnelle). */

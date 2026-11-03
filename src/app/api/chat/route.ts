@@ -10,7 +10,6 @@ import { recordConversationIncident } from "@/application/use-cases/conversation
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
@@ -62,7 +61,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         links: pgChatLinkRepository(pool),
         conversations: pgConversationRepository(pool),
         prospects: pgProspectRepository(pool),
-        templates: pgChatTemplateRepository(pool),
         connaissances: pgConnaissanceRepository(pool),
         medias: pgMediaRepository(pool),
         attachments: pgAttachmentRepository(pool),

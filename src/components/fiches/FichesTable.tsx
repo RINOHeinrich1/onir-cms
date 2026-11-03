@@ -10,7 +10,6 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 
-import type { FicheCollecte } from "@/domain/entities/fiche-collecte";
 import { FicheForm } from "./FicheForm";
 import type { FicheDto } from "./types";
 
@@ -31,7 +30,6 @@ export function FichesTable({
   lien,
   linkLabels,
   chatLinks,
-  fichesCollecte,
 }: {
   initialFiches: FicheDto[];
   prospectsById: Record<string, ProspectSummary>;
@@ -40,7 +38,6 @@ export function FichesTable({
   lien: readonly string[];
   linkLabels: string[];
   chatLinks: readonly { id: string; label: string }[];
-  fichesCollecte: readonly FicheCollecte[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -50,7 +47,7 @@ export function FichesTable({
   const visibleFiches = initialFiches.filter((fiche) => {
     if (query === "") return true;
     const prospect = fiche.prospectId === null ? null : (prospectsById[fiche.prospectId] ?? null);
-    return [prospect?.nom ?? "", fiche.definition?.label ?? fiche.templateKey ?? ""]
+    return [prospect?.nom ?? "", fiche.definition?.label ?? ""]
       .join(" ")
       .toLocaleLowerCase("fr")
       .includes(query);
@@ -173,11 +170,8 @@ export function FichesTable({
               </header>
               <div className="lead-card-model">
                 <span className="muted-text">Fiche</span>
-                <span
-                  className="badge muted"
-                  title={fiche.definition?.key ?? fiche.templateKey ?? "Fiche manuelle"}
-                >
-                  {fiche.definition?.label ?? fiche.templateKey ?? "Fiche manuelle"}
+                <span className="badge muted" title={fiche.definition?.key ?? "Fiche manuelle"}>
+                  {fiche.definition?.label ?? "Fiche manuelle"}
                 </span>
               </div>
               <div className="lead-card-model">
@@ -237,7 +231,6 @@ export function FichesTable({
         <Modal title="Nouvelle fiche de prospection" onClose={() => setCreating(false)}>
           <FicheForm
             links={chatLinks}
-            fichesCollecte={fichesCollecte}
             onSaved={() => {
               setCreating(false);
               refresh();

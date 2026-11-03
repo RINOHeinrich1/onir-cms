@@ -5,7 +5,6 @@ import {
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -53,7 +52,6 @@ export function chatbotWriteDeps() {
   return {
     links: pgChatLinkRepository(pool),
     prospects: pgProspectRepository(pool),
-    templates: pgChatTemplateRepository(pool),
     confidentialites: pgConfidentialiteRepository(pool),
     visualTemplates: pgVisualTemplateRepository(pool),
     bindings: pgTemplateDataBindingRepository(pool),

@@ -1,21 +1,23 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
-import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
-import type { TemplateDefinition } from "@/domain/entities/chat-template";
-import type { Fiche, FicheArchiveFilter } from "@/domain/entities/fiche";
+import {
+  type Fiche,
+  type FicheArchiveFilter,
+  MANUAL_FICHE_DEFINITION,
+  MANUAL_FICHE_KEY,
+} from "@/domain/entities/fiche";
 import { validateTemplateData } from "@/domain/validate-template-data";
 
 export type ManageFichesDependencies = {
   fiches: FicheRepository;
-  fichesCollecte: FicheCollecteRepository;
 };
 
 export type ReadFichesDependencies = {
   fiches: FicheRepository;
 };
 
-/** US-FICHE-001 — création manuelle d'une fiche (admin/marketeur, modèle piloté). */
+/** US-FICHE-001 — création manuelle d'une fiche (admin/marketeur). */
 export async function createFiche(
   deps: ManageFichesDependencies,
   actor: Actor,
@@ -28,35 +30,7 @@ export async function createFiche(
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
-  const ficheCollecteId =
-    typeof source.ficheCollecteId === "string" ? source.ficheCollecteId.trim() : "";
-  if (ficheCollecteId === "") {
-    throw new ValidationError("Choisissez une fiche de collecte");
-  }
-  const requestedVersion =
-    typeof source.ficheCollecteVersion === "number" &&
-    Number.isInteger(source.ficheCollecteVersion) &&
-    source.ficheCollecteVersion >= 1
-      ? source.ficheCollecteVersion
-      : null;
-  const selected =
-    requestedVersion === null
-      ? await deps.fichesCollecte.findById(organizationId, ficheCollecteId)
-      : await deps.fichesCollecte.findVersion(organizationId, ficheCollecteId, requestedVersion);
-  if (selected === null) {
-    throw new ValidationError("Fiche de collecte introuvable");
-  }
-  const sourceFicheId = "ficheCollecteId" in selected ? selected.ficheCollecteId : selected.id;
-  const definition: TemplateDefinition = {
-    key: selected.key,
-    label: selected.label,
-    description: selected.description,
-    systemPrompt: "",
-    fields: selected.fields,
-    renderTemplate: selected.renderTemplate,
-    sourceFicheId,
-    sourceVersion: selected.version,
-  };
+  const definition = MANUAL_FICHE_DEFINITION;
   const rawData =
     source.data !== null && typeof source.data === "object" && !Array.isArray(source.data)
       ? (source.data as Record<string, unknown>)
@@ -79,10 +53,8 @@ export async function createFiche(
     conversationId: null,
     prospectId: typeof source.prospectId === "string" ? source.prospectId : null,
     createdBy: actor.id,
-    templateKey: null,
-    templateVersion: null,
     definition,
-    ficheKey: selected.key,
+    ficheKey: MANUAL_FICHE_KEY,
     chatLinkIds,
     data: validated.value,
   });

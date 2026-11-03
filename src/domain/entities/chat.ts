@@ -250,13 +250,7 @@ export type ChatLink = {
   createdBy: string | null;
   actif: boolean;
   expiresAt: string | null;
-  /** Modèle de raisonnement figé à la création (snapshot key+version). */
-  templateKey: string;
-  templateVersion: number;
-  /**
-   * Configuration chatbot autonome courante (ADR-0049). Null = le lien
-   * fonctionne avec le modèle legacy (`templateKey`/`templateVersion`).
-   */
+  /** Configuration chatbot autonome courante (ADR-0049). */
   currentConfigId?: string | null;
   /** Sources recherchées à la génération (connaissances / photothèque / liens). */
   sources: ChatLinkSources;

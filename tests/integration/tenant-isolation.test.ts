@@ -1,9 +1,7 @@
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -16,17 +14,6 @@ let pool: Pool;
 let orgA: string;
 let orgB: string;
 
-function definition(key: string): TemplateDefinition {
-  return {
-    key,
-    label: key,
-    description: "",
-    systemPrompt: "x",
-    fields: [],
-    renderTemplate: "x",
-  };
-}
-
 function linkInput(tokenHash: string) {
   return {
     tokenHash,
@@ -38,8 +25,6 @@ function linkInput(tokenHash: string) {
     prospectId: null,
     createdBy: null,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,
@@ -341,16 +326,12 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
       conversationId: convA.id,
       prospectId: null,
       createdBy: null,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: {},
     });
     const ficheB = await fiches.create(orgB, {
       conversationId: convB.id,
       prospectId: null,
       createdBy: null,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: {},
     });
 
@@ -449,18 +430,6 @@ describe("isolation croisée SQL — fiches, médias, connaissances, confidentia
     expect((await confidentialites.findByTitre(orgA, "Politique"))?.id).toBe(pa.id);
     expect(await confidentialites.findById(orgA, pb.id)).toBeNull();
     expect(await confidentialites.delete(orgA, pb.id)).toBe(false);
-  });
-
-  it("modèles de raisonnement : clé locale, gardes de suppression locales", async () => {
-    const repo = pgChatTemplateRepository(pool);
-    const va = await repo.createTemplate(orgA, definition("partage"), null);
-    const vb = await repo.createTemplate(orgB, definition("partage"), null);
-    expect(va.version).toBe(1);
-    expect(vb.version).toBe(1);
-    expect((await repo.findByKey(orgA, "partage"))?.organizationId).toBe(orgA);
-    expect((await repo.currentVersion(orgA, "partage"))?.id).toBe(va.id);
-    expect(await repo.deleteTemplate(orgA, "partage")).toBe(true);
-    expect(await repo.findByKey(orgB, "partage")).not.toBeNull();
   });
 });
 

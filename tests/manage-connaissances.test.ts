@@ -44,7 +44,6 @@ function repo(current: Connaissance | null) {
     deleteMany: vi.fn(async (_organizationId: string, ids: string[]) =>
       current === null ? 0 : ids.filter((id) => id === current.id).length,
     ),
-    countAiByTemplate: async () => 0,
   } satisfies ConnaissanceRepository;
 }
 

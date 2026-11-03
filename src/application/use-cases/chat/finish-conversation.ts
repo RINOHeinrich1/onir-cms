@@ -3,7 +3,6 @@ import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
@@ -44,7 +43,6 @@ export type FinishConversationDependencies = {
   conversations: ConversationRepository;
   prospects: ProspectRepository;
   fiches: FicheRepository;
-  templates: ChatTemplateRepository;
   attachments: AttachmentRepository;
   ai: AiClientFactory;
   /** Valeurs collectées et éditées dans le panneau d'informations (ADR-0045). */
@@ -149,8 +147,6 @@ function assertNamedConversation(link: ChatLink, conversation: Conversation): vo
 }
 
 type FicheBuildMeta = {
-  templateKey: string | null;
-  templateVersion: number | null;
   definition: TemplateDefinition;
   configId?: string | null;
   ficheKey?: string | null;
@@ -284,8 +280,6 @@ async function buildFicheForDefinition(
     conversationId: conversation.id,
     prospectId: prospect?.id ?? null,
     createdBy,
-    templateKey: meta.templateKey,
-    templateVersion: meta.templateVersion,
     definition: meta.definition,
     chatLinkIds: [link.id],
     data: validated.value,
@@ -326,54 +320,14 @@ export async function buildFicheFromConversation(
   assertChatLinkAvailable(link);
   assertNamedConversation(link, conversation);
   const config = await resolveCurrentConfig(deps.configs, organizationId, link);
-  if (config !== null) {
-    return finishConfigConversation(deps, conversation, link, config, {
-      abandonPending: false,
-      createdBy,
-      finalize: false,
-    });
+  if (config === null) {
+    throw new UnprocessableError("Ce chatbot doit être configuré avec une fiche de collecte");
   }
-  const template = await deps.templates.findVersion(
-    organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
-  }
-
-  const reserved =
-    deps.links.reserveFiche === undefined
-      ? true
-      : await deps.links.reserveFiche(organizationId, link.id);
-  if (!reserved) {
-    throw new ChatbotBlockedError(
-      "Ce chatbot a atteint sa limite de fiches. Contactez l'équipe pour l'augmenter.",
-    );
-  }
-  try {
-    const built = await buildFicheForDefinition(
-      deps,
-      conversation,
-      link,
-      template.definition,
-      {
-        templateKey: link.templateKey,
-        templateVersion: link.templateVersion,
-        definition: template.definition,
-      },
-      createdBy,
-    );
-    return {
-      fiches: [built],
-      outcome: "fiches_creees",
-      fiche: built.fiche,
-      markdown: built.markdown,
-    };
-  } catch (error) {
-    await deps.links.releaseFiche?.(organizationId, link.id);
-    throw error;
-  }
+  return finishConfigConversation(deps, conversation, link, config, {
+    abandonPending: false,
+    createdBy,
+    finalize: false,
+  });
 }
 
 /** Réserve N fiches (atomique si le repository le permet). */
@@ -566,8 +520,6 @@ async function finishConfigConversation(
           link,
           definition,
           {
-            templateKey: null,
-            templateVersion: null,
             definition,
             configId: config.id,
             ficheKey: ficheDefinition.key,

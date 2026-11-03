@@ -94,7 +94,6 @@ describe("parseWebhookConfig", () => {
         fieldMappings: [{ source: "field", field: "contact", target: "contact" }],
       }),
     );
-    expect(parsed.templateKey).toBeNull();
     expect(parsed.chatLinkId).toBe("77777777-7777-4777-8777-777777777777");
     expect(parsed.ficheKey).toBe("partenaire");
   });

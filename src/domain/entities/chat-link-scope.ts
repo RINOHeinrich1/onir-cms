@@ -2,9 +2,7 @@
  * Portée d'un élément du mini-RAG (connaissance, média) : liste des chatbots
  * qui peuvent le voir. Liste vide = portée globale (tous les chatbots).
  *
- * Remplace l'ancienne portée par modèle de raisonnement (`templateKeys`).
- * La colonne `template_keys` reste en base pour le runtime legacy, mais elle
- * n'est plus exposée ni utilisée pour les nouveaux chatbots.
+ * Remplace l'ancienne portée par modèle de raisonnement.
  */
 
 /** Nombre maximal de chatbots référencés par une portée. */

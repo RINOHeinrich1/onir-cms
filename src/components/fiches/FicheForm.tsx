@@ -1,15 +1,14 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { TemplateField } from "@/domain/entities/chat-template";
-import type { FicheCollecte } from "@/domain/entities/fiche-collecte";
+import { MANUAL_FICHE_DEFINITION } from "@/domain/entities/fiche";
 
 type LinkedChatbot = { id: string; label: string };
 
 type FicheFormProps = {
   links: readonly LinkedChatbot[];
-  fichesCollecte: readonly FicheCollecte[];
   onSaved: () => void;
   onCancel: () => void;
 };
@@ -24,28 +23,16 @@ function initialValues(fields: readonly TemplateField[]): Record<string, unknown
   return Object.fromEntries(fields.map((field) => [field.name, field.type === "multi" ? [] : ""]));
 }
 
-/** Création manuelle d'une fiche à partir d'une fiche de collecte (ADR-0055). */
-export function FicheForm({ links, fichesCollecte, onSaved, onCancel }: FicheFormProps) {
+const FIELDS = MANUAL_FICHE_DEFINITION.fields;
+
+/** Création manuelle d'une fiche à partir de la définition intégrée (ADR-0055). */
+export function FicheForm({ links, onSaved, onCancel }: FicheFormProps) {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
-  const [ficheCollecteId, setFicheCollecteId] = useState("");
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [values, setValues] = useState<Record<string, unknown>>(() => initialValues(FIELDS));
   const [chatLinkIds, setChatLinkIds] = useState<string[]>([]);
-
-  const selected = useMemo(
-    () => fichesCollecte.find((fiche) => fiche.id === ficheCollecteId) ?? null,
-    [fichesCollecte, ficheCollecteId],
-  );
-  const fields = selected?.fields ?? [];
-
-  const selectFiche = (id: string): void => {
-    const next = fichesCollecte.find((fiche) => fiche.id === id) ?? null;
-    setFicheCollecteId(id);
-    setValues(next === null ? {} : initialValues(next.fields));
-    setError(null);
-  };
 
   const setField = (name: string, value: unknown): void => {
     setValues((current) => ({ ...current, [name]: value }));
@@ -53,22 +40,13 @@ export function FicheForm({ links, fichesCollecte, onSaved, onCancel }: FicheFor
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (selected === null) {
-      setError("Choisissez une fiche de collecte");
-      return;
-    }
     setPending(true);
     setError(null);
     try {
       const response = await fetch("/api/fiches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ficheCollecteId: selected.id,
-          ficheCollecteVersion: selected.version,
-          data: values,
-          chatLinkIds,
-        }),
+        body: JSON.stringify({ data: values, chatLinkIds }),
       });
       const json = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -165,8 +143,7 @@ export function FicheForm({ links, fichesCollecte, onSaved, onCancel }: FicheFor
             {field.required ? " *" : ""}
           </span>
           <p className="hint">
-            Les champs fichiers d’une fiche de collecte ne sont pas encore déposables depuis la
-            création manuelle.
+            Les champs fichiers ne sont pas encore déposables depuis la création manuelle.
           </p>
         </div>
       );
@@ -193,76 +170,39 @@ export function FicheForm({ links, fichesCollecte, onSaved, onCancel }: FicheFor
     <form className="form" onSubmit={onSubmit} noValidate>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <label className="field">
-        Fiche de collecte *
-        <select
-          value={ficheCollecteId}
-          disabled={pending}
-          onChange={(event) => selectFiche(event.target.value)}
-        >
-          <option value="">— Choisir une fiche —</option>
-          {fichesCollecte.map((fiche) => (
-            <option key={fiche.id} value={fiche.id}>
-              {fiche.label} (v{fiche.version})
-            </option>
-          ))}
-        </select>
-        {selected === null ? (
-          <span className="hint">
-            La fiche de collecte détermine les champs du formulaire et le rendu du lead.
-          </span>
+      <p className="hint">
+        La fiche utilise la définition de prospection intégrée : {MANUAL_FICHE_DEFINITION.label}.
+      </p>
+
+      {FIELDS.map(renderField)}
+
+      <fieldset className="field">
+        <legend>Chatbots associés (optionnel, 0..N)</legend>
+        {links.length === 0 ? (
+          <p className="hint">Aucun chatbot disponible. La fiche restera indépendante.</p>
         ) : (
-          <span className="hint">
-            {selected.description ||
-              `Version ${selected.version} — ${selected.fields.length} champ(s).`}
-          </span>
+          links.map((link) => (
+            <label key={link.id} className="check">
+              <input
+                type="checkbox"
+                checked={chatLinkIds.includes(link.id)}
+                disabled={pending}
+                onChange={() =>
+                  setChatLinkIds((current) =>
+                    current.includes(link.id)
+                      ? current.filter((id) => id !== link.id)
+                      : [...current, link.id],
+                  )
+                }
+              />{" "}
+              {link.label || "Chatbot sans nom"}
+            </label>
+          ))
         )}
-      </label>
-
-      {fichesCollecte.length === 0 ? (
-        <p className="hint">
-          Aucune fiche de collecte disponible.{" "}
-          <a href="/fiches-collecte/nouveau">Créer une fiche de collecte</a>.
-        </p>
-      ) : null}
-
-      {selected === null ? null : (
-        <>
-          {fields.length === 0 ? (
-            <p className="hint">Cette fiche de collecte ne déclare aucun champ.</p>
-          ) : (
-            fields.map(renderField)
-          )}
-
-          <fieldset className="field">
-            <legend>Chatbots associés (optionnel, 0..N)</legend>
-            {links.length === 0 ? (
-              <p className="hint">Aucun chatbot disponible. La fiche restera indépendante.</p>
-            ) : (
-              links.map((link) => (
-                <label key={link.id} className="check">
-                  <input
-                    type="checkbox"
-                    checked={chatLinkIds.includes(link.id)}
-                    disabled={pending}
-                    onChange={() =>
-                      setChatLinkIds((current) =>
-                        current.includes(link.id)
-                          ? current.filter((id) => id !== link.id)
-                          : [...current, link.id],
-                      )
-                    }
-                  />{" "}
-                  {link.label || "Chatbot sans nom"}
-                </label>
-              ))
-            )}
-          </fieldset>
-        </>
-      )}
+      </fieldset>
 
       <div className="tools">
-        <button type="submit" className="btn small" disabled={pending || selected === null}>
+        <button type="submit" className="btn small" disabled={pending}>
           {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
         <button type="button" className="btn ghost small" onClick={onCancel}>

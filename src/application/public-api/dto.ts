@@ -10,7 +10,6 @@ import {
   type Conversation,
   channelsForLink,
 } from "@/domain/entities/chat";
-import type { ChatTemplate, ChatTemplateVersion } from "@/domain/entities/chat-template";
 import type { Connaissance } from "@/domain/entities/connaissance";
 import type { Fiche } from "@/domain/entities/fiche";
 import type { Media } from "@/domain/entities/media";
@@ -23,8 +22,6 @@ export type ConversationSummaryDto = ReturnType<typeof conversationSummaryDto>;
 export type ConversationDto = ReturnType<typeof conversationDto>;
 export type MessageDto = ReturnType<typeof messageDto>;
 export type ChatbotDto = ReturnType<typeof chatbotDto>;
-export type TemplateDto = ReturnType<typeof templateDto>;
-export type TemplateVersionDto = ReturnType<typeof templateVersionDto>;
 export type MediaDto = ReturnType<typeof mediaDto>;
 export type ConnaissanceDto = ReturnType<typeof connaissanceDto>;
 
@@ -32,7 +29,6 @@ export function ficheDto(fiche: Fiche) {
   return {
     id: fiche.id,
     createdAt: fiche.createdAt,
-    template: { key: fiche.templateKey, version: fiche.templateVersion },
     prospectId: fiche.prospectId,
     conversationId: fiche.conversationId,
     archived: fiche.archivee,
@@ -147,7 +143,6 @@ export function chatbotDto(link: ChatLink & { url: string | null }) {
     active: link.actif,
     expiresAt: link.expiresAt,
     prospectId: link.prospectId,
-    template: { key: link.templateKey, version: link.templateVersion },
     sources: link.sources,
     channels: {
       page: {
@@ -170,33 +165,6 @@ export function chatbotDto(link: ChatLink & { url: string | null }) {
     visitCount: link.visitCount,
     lastVisitAt: link.lastVisitAt,
     createdAt: link.createdAt,
-  };
-}
-
-export function templateDto(template: ChatTemplate, current: ChatTemplateVersion | null) {
-  return {
-    key: template.key,
-    label: template.label,
-    description: template.description,
-    currentVersion: current?.version ?? 0,
-    fields:
-      current?.definition.fields.map((field) => ({
-        name: field.name,
-        label: field.label,
-        type: field.type,
-        required: field.required,
-      })) ?? [],
-    createdAt: template.createdAt,
-    updatedAt: template.updatedAt,
-  };
-}
-
-export function templateVersionDto(version: ChatTemplateVersion) {
-  return {
-    version: version.version,
-    createdAt: version.createdAt,
-    createdBy: version.createdBy,
-    definition: version.definition,
   };
 }
 
