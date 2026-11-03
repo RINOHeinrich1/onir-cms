@@ -29,12 +29,21 @@ function responseBody(buffer: Buffer, truncated: boolean): string {
 }
 
 function pickupAddresses(addresses: readonly ResolvedWebhookAddress[]): LookupFunction {
-  return ((_hostname, _options, callback) => {
+  return ((_hostname, options, callback) => {
     const first = addresses[0];
     if (first === undefined) {
       const error = new Error("Adresse de webhook indisponible") as NodeJS.ErrnoException;
       error.code = "ENOTFOUND";
       callback(error, "", 0);
+      return;
+    }
+    // Node 22 active Happy Eyeballs et appelle le lookup avec `{ all: true }` :
+    // il attend alors un tableau d'adresses, pas une adresse unique.
+    if (typeof options === "object" && options !== null && options.all === true) {
+      callback(
+        null,
+        addresses.map((entry) => ({ address: entry.address, family: entry.family })),
+      );
       return;
     }
     callback(null, first.address, first.family);
