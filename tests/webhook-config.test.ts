@@ -21,7 +21,8 @@ const DEFINITION: TemplateDefinition = {
 function input(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: "Stockage partenaire",
-    templateKey: "lead-demo",
+    chatLinkId: "77777777-7777-4777-8777-777777777777",
+    ficheKey: "lead-demo",
     url: "https://partner.example.com/hooks/leads",
     httpMethod: "POST",
     bodyMode: "json",
@@ -89,8 +90,6 @@ describe("parseWebhookConfig", () => {
   it("accepte un périmètre fiche de collecte", () => {
     const parsed = parseWebhookConfig(
       input({
-        templateKey: undefined,
-        chatLinkId: "77777777-7777-4777-8777-777777777777",
         ficheKey: "partenaire",
         fieldMappings: [{ source: "field", field: "contact", target: "contact" }],
       }),
@@ -100,8 +99,10 @@ describe("parseWebhookConfig", () => {
     expect(parsed.ficheKey).toBe("partenaire");
   });
 
-  it("refuse un endpoint sans périmètre", () => {
-    expect(() => parseWebhookConfig(input({ templateKey: undefined }))).toThrow(/périmètre/i);
+  it("refuse un endpoint sans chatbot", () => {
+    expect(() => parseWebhookConfig(input({ chatLinkId: undefined, ficheKey: undefined }))).toThrow(
+      /chatbot/i,
+    );
   });
 
   it("conserve les secrets non ressaisis lors d'une édition", () => {

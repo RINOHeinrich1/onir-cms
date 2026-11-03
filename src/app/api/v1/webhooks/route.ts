@@ -6,8 +6,8 @@ import { queryString, readJsonObject } from "../_lib/query";
 export const dynamic = "force-dynamic";
 
 export const GET = withApiKey("webhooks:read", async ({ request, requestId, principal }) => {
-  const templateKey = queryString(new URL(request.url).searchParams, "templateKey");
-  const data = await listWebhooksForApi(webhookReadDeps(), principal.organizationId, templateKey);
+  const chatLinkId = queryString(new URL(request.url).searchParams, "chatLinkId");
+  const data = await listWebhooksForApi(webhookReadDeps(), principal.organizationId, chatLinkId);
   return apiJson({ data }, requestId);
 });
 

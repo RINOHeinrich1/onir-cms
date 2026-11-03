@@ -1,7 +1,6 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type {
   WebhookEndpointRepository,
@@ -22,16 +21,8 @@ import type { WebhookEndpoint } from "@/domain/entities/webhook";
 
 export type WebhookManagementDependencies = {
   endpoints: WebhookEndpointRepository;
-  templates: ChatTemplateRepository;
   configs: ChatbotConfigRepository;
   links: ChatLinkRepository;
-};
-
-export type WebhookTemplateCatalog = {
-  key: string;
-  label: string;
-  version: number;
-  fields: Array<{ name: string; label: string; type: string }>;
 };
 
 export type WebhookChatbotFicheCatalog = {
@@ -46,18 +37,6 @@ export type WebhookChatbotCatalog = {
   fiches: WebhookChatbotFicheCatalog[];
 };
 
-async function definitionForTemplate(
-  deps: WebhookManagementDependencies,
-  organizationId: string,
-  key: string,
-): Promise<{ definition: TemplateDefinition; version: number }> {
-  const template = await deps.templates.findByKey(organizationId, key);
-  if (template === null) throw new ValidationError(`Modèle inconnu : ${key}`);
-  const current = await deps.templates.currentVersion(organizationId, key);
-  if (current === null) throw new ValidationError(`Modèle sans version : ${key}`);
-  return { definition: current.definition, version: current.version };
-}
-
 /** Transforme une fiche de collecte en définition exploitable par le moteur. */
 function ficheAsDefinition(fiche: FicheDefinition): TemplateDefinition {
   return {
@@ -70,16 +49,12 @@ function ficheAsDefinition(fiche: FicheDefinition): TemplateDefinition {
   };
 }
 
-/** Résout la définition selon le périmètre : modèle legacy ou fiche de collecte. */
+/** Résout la définition depuis la fiche de collecte du chatbot. */
 async function definitionForScope(
   deps: WebhookManagementDependencies,
   organizationId: string,
-  scope: { templateKey: string | null; chatLinkId: string | null; ficheKey: string | null },
+  scope: { chatLinkId: string | null; ficheKey: string | null },
 ): Promise<{ definition: TemplateDefinition; version: number | null }> {
-  if (scope.templateKey !== null) {
-    const resolved = await definitionForTemplate(deps, organizationId, scope.templateKey);
-    return { definition: resolved.definition, version: resolved.version };
-  }
   if (scope.chatLinkId === null) {
     throw new ValidationError("Périmètre du webhook invalide");
   }
@@ -97,7 +72,7 @@ async function definitionForScope(
   return { definition: ficheAsDefinition(fiche), version: null };
 }
 
-function fieldCatalog(fields: readonly TemplateField[]): WebhookTemplateCatalog["fields"] {
+function fieldCatalog(fields: readonly TemplateField[]): WebhookChatbotFicheCatalog["fields"] {
   return fields.map((field) => ({
     name: field.name,
     label: field.label,
@@ -129,28 +104,6 @@ export async function getWebhookEndpoint(
     throw new NotFoundError("Webhook introuvable");
   }
   return toWebhookEndpointAdminDto(endpoint);
-}
-
-/** Catalogue des modèles et de leurs champs courants (admin). */
-export async function listWebhookTemplateCatalog(
-  deps: WebhookManagementDependencies,
-  actor: Actor,
-): Promise<WebhookTemplateCatalog[]> {
-  assertCan(actor, "webhooks:update");
-  const organizationId = organizationOf(actor);
-  const templates = await deps.templates.list(organizationId);
-  const catalog: WebhookTemplateCatalog[] = [];
-  for (const template of templates) {
-    const current = await deps.templates.currentVersion(organizationId, template.key);
-    if (current === null) continue;
-    catalog.push({
-      key: template.key,
-      label: template.label,
-      version: current.version,
-      fields: fieldCatalog(current.definition.fields),
-    });
-  }
-  return catalog;
 }
 
 /** Catalogue des chatbots et de leurs fiches de collecte courantes (admin). */

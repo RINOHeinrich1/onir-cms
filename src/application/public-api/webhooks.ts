@@ -17,9 +17,9 @@ import { retryWebhookDeliveryForOrganization } from "@/application/use-cases/web
 export async function listWebhooksForApi(
   deps: { endpoints: WebhookEndpointRepository },
   organizationId: string,
-  templateKey: string | null,
+  chatLinkId: string | null,
 ) {
-  const endpoints = await deps.endpoints.list(organizationId, { templateKey });
+  const endpoints = await deps.endpoints.list(organizationId, { chatLinkId });
   return endpoints.filter((endpoint) => endpoint.deletedAt === null).map(webhookEndpointDto);
 }
 
