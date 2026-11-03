@@ -124,13 +124,14 @@ function build(options: {
     async (_organizationId: string, type: TypeMedia) => (type === "photo" ? photos : liens),
   );
 
+  const configOnly = options.configOnly !== false;
   const links = {
     findById: async () => ({
       ...link(options.linkSources),
-      currentConfigId: options.configOnly === true ? "cfg-1" : null,
+      currentConfigId: configOnly ? "cfg-1" : null,
     }),
   } as unknown as ChatLinkRepository;
-  const configs = options.configOnly
+  const configs = configOnly
     ? ({
         findById: async () => ({
           id: "cfg-1",
@@ -241,10 +242,12 @@ describe("selectChatMedia — mini-RAG médias asynchrone", () => {
   });
 
   it("respecte les sources du lien (photothèque décochée)", async () => {
-    const { deps, listActivesByType } = build({ linkSources: { phototheque: false } });
+    const { deps, listActivesByTypeForChatLink } = build({
+      linkSources: { phototheque: false },
+    });
     await selectChatMedia(deps, { conversationId: "c1", messageId: "m2" });
-    expect(listActivesByType).toHaveBeenCalledTimes(1);
-    expect(listActivesByType).toHaveBeenCalledWith("org-1", "lien", "fiche-projet");
+    expect(listActivesByTypeForChatLink).toHaveBeenCalledTimes(1);
+    expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "lien", "l1");
   });
 
   it("runtime config-only : utilise chat_link_ids + globales, pas template_keys", async () => {

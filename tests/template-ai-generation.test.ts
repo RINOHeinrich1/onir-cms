@@ -82,7 +82,6 @@ function connaissances(count = 0): ConnaissanceRepository {
     findById: missing,
     findByTitre: missing,
     list: async () => [],
-    listActives: async () => [],
     create: vi.fn(),
     countAiByTemplate: async () => count,
     update: missing,

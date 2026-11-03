@@ -45,7 +45,6 @@ function repo(current: Connaissance | null) {
       current === null ? 0 : ids.filter((id) => id === current.id).length,
     ),
     countAiByTemplate: async () => 0,
-    listActives: async () => (current === null ? [] : [current]),
   } satisfies ConnaissanceRepository;
 }
 

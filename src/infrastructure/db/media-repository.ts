@@ -87,17 +87,6 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
       return rows.map(toEntity);
     },
 
-    async listActivesByType(organizationId, type, templateKey): Promise<Media[]> {
-      const { rows } = await pool.query<MediaRow>(
-        `SELECT ${COLUMNS} FROM medias
-         WHERE organization_id = $1 AND actif AND type = $2
-           AND (cardinality(template_keys) = 0 OR $3 = ANY(template_keys))
-         ORDER BY updated_at DESC`,
-        [organizationId, type, templateKey],
-      );
-      return rows.map(toEntity);
-    },
-
     async listActivesByTypeForChatLink(organizationId, type, chatLinkId): Promise<Media[]> {
       const { rows } = await pool.query<MediaRow>(
         `SELECT ${COLUMNS} FROM medias
@@ -130,8 +119,8 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
 
     async create(organizationId, input: CreateMediaInput): Promise<Media> {
       const { rows } = await pool.query<MediaRow>(
-        `INSERT INTO medias (organization_id, type, libelle, description, chat_link_ids, template_keys, actif, fichier, mime, url, created_by)
-         VALUES ($1, $2, $3, $4, $5::uuid[], $6::text[], $7, $8, $9, $10, $11)
+        `INSERT INTO medias (organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, url, created_by)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -139,7 +128,6 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
           input.libelle,
           input.description,
           input.chatLinkIds,
-          input.legacyTemplateKeys ?? [],
           input.actif,
           input.fichier,
           input.mime,
@@ -163,9 +151,6 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
       if (patch.libelle !== undefined) push("libelle", patch.libelle);
       if (patch.description !== undefined) push("description", patch.description);
       if (patch.chatLinkIds !== undefined) push("chat_link_ids", patch.chatLinkIds, "uuid[]");
-      if (patch.legacyTemplateKeys !== undefined) {
-        push("template_keys", patch.legacyTemplateKeys, "text[]");
-      }
       if (patch.actif !== undefined) push("actif", patch.actif);
       if (patch.url !== undefined) push("url", patch.url);
 
