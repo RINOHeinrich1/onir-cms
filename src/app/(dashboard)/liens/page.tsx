@@ -8,12 +8,10 @@ import { linkListItems } from "@/application/use-cases/links/link-urls";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
 import { listProspects } from "@/application/use-cases/prospects/list-prospects";
 import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labels";
-import { listTemplates } from "@/application/use-cases/templates/list-templates";
 import { listVisualTemplates } from "@/application/use-cases/visual-templates/manage-visual-templates";
 import { LinksTable } from "@/components/links/LinksTable";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotDraftRepository } from "@/infrastructure/db/chatbot-draft-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
@@ -41,14 +39,13 @@ export default async function LiensPage() {
   const pool = getPool();
   const linkRepository = pgChatLinkRepository(pool);
   const visualTemplateRepo = pgVisualTemplateRepository(pool);
-  const [links, drafts, prospects, templates, confidentialites, visualTemplates, aiProviders] =
+  const [links, drafts, prospects, confidentialites, visualTemplates, aiProviders] =
     await Promise.all([
       listChatLinks({ links: linkRepository }, context.actor).then((items) =>
         linkListItems(linkRepository, items),
       ),
       listChatbotDrafts({ drafts: pgChatbotDraftRepository(pool) }, context.actor),
       listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
-      listTemplates({ templates: pgChatTemplateRepository(pool) }, context.actor),
       listConfidentialites({ confidentialites: pgConfidentialiteRepository(pool) }, context.actor),
       listVisualTemplates({ templates: visualTemplateRepo }, context.actor).then((items) =>
         Promise.all(
@@ -82,7 +79,6 @@ export default async function LiensPage() {
         initialLinks={linksWithCreators}
         initialDrafts={draftsWithCreators}
         prospects={prospects}
-        templates={templates.map((template) => ({ key: template.key, label: template.label }))}
         confidentialites={confidentialites
           .filter((item) => item.actif)
           .map((item) => ({ id: item.id, titre: item.titre }))}

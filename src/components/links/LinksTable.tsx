@@ -30,7 +30,6 @@ import type {
   ChatLinkRow,
   ConfidentialiteOption,
   ProspectOption,
-  TemplateOption,
   VisualTemplateOption,
 } from "./types";
 import { WidgetCodeModal } from "./WidgetCodeModal";
@@ -78,7 +77,6 @@ export function LinksTable({
   initialLinks,
   initialDrafts,
   prospects,
-  templates,
   confidentialites,
   visualTemplates,
   aiProviders,
@@ -88,7 +86,6 @@ export function LinksTable({
   initialLinks: ChatLinkRow[];
   initialDrafts: ChatbotDraftRow[];
   prospects: ProspectOption[];
-  templates: TemplateOption[];
   confidentialites: ConfidentialiteOption[];
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
@@ -127,10 +124,8 @@ export function LinksTable({
     .filter((link) => matchesCreator(link, creatorFilter))
     .filter((link) => {
       if (query === "") return true;
-      const template =
-        templates.find((entry) => entry.key === link.templateKey)?.label ?? link.templateKey;
       const provider = aiProviders.find((entry) => entry.id === link.aiProviderId)?.label ?? "";
-      return [link.label, link.url ?? "", link.aiModel ?? "", template, provider]
+      return [link.label, link.url ?? "", link.aiModel ?? "", provider]
         .join(" ")
         .toLocaleLowerCase("fr")
         .includes(query);
@@ -548,8 +543,7 @@ export function LinksTable({
                   <dd>
                     {link.currentConfigId !== null && link.currentConfigId !== undefined
                       ? "Chatbot autonome"
-                      : (templates.find((template) => template.key === link.templateKey)?.label ??
-                        link.templateKey)}
+                      : "Non configuré"}
                   </dd>
                 </div>
                 <div>
