@@ -54,12 +54,13 @@ function config(mode: "all" | "selected", connaissanceIds: string[], mediaIds: s
 }
 
 describe("runtime des données — connaissances", () => {
-  it("conserve le comportement legacy sans configuration", async () => {
-    const listActives = vi.fn(async () => [connaissance("legacy")]);
-    const deps = { connaissances: { listActives } as unknown as ConnaissanceRepository };
-    const result = await listRuntimeConnaissances(deps, "org-1", LINK, null);
-    expect(listActives).toHaveBeenCalledWith("org-1", "legacy");
-    expect(result.map((row) => row.id)).toEqual(["legacy"]);
+  it("refuse une configuration absente", async () => {
+    const deps = {
+      connaissances: { listActivesForChatLink: vi.fn() } as unknown as ConnaissanceRepository,
+    };
+    await expect(listRuntimeConnaissances(deps, "org-1", LINK, null)).rejects.toThrow(
+      /configuration/i,
+    );
   });
 
   it("mode all : globales + scopées au chatbot", async () => {

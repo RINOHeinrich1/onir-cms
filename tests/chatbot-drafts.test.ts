@@ -111,9 +111,6 @@ function memoryMedias(initial: Media[]): {
     async list(organizationId) {
       return [...store.values()].filter((entry) => entry.organizationId === organizationId);
     },
-    async listActivesByType() {
-      return [];
-    },
     async create() {
       throw new Error("non utilisé");
     },

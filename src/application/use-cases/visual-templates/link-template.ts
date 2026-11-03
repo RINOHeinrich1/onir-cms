@@ -125,10 +125,10 @@ export async function buildLinkContext(
   const caps = spec.capabilities;
   let media: TemplateContextPayload["resources"]["media"] = { photos: [], liens: [] };
   if (caps.includes("media")) {
-    const [photos, liens] = await Promise.all([
-      deps.medias.listActivesByType(link.organizationId, "photo", link.templateKey),
-      deps.medias.listActivesByType(link.organizationId, "lien", link.templateKey),
-    ]);
+    const listFor = (type: "photo" | "lien") =>
+      deps.medias.listActivesByTypeForChatLink?.(link.organizationId, type, link.id) ??
+      Promise.resolve([]);
+    const [photos, liens] = await Promise.all([listFor("photo"), listFor("lien")]);
     media = {
       photos: photos.map((m) => ({
         id: m.id,

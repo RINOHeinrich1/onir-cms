@@ -13,8 +13,6 @@ export type CreateMediaInput = {
   /** Lien : URL externe ; photo : null. */
   url: string | null;
   createdBy: string | null;
-  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
-  legacyTemplateKeys?: string[];
 };
 
 export type UpdateMediaInput = {
@@ -23,8 +21,6 @@ export type UpdateMediaInput = {
   chatLinkIds?: string[];
   actif?: boolean;
   url?: string;
-  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
-  legacyTemplateKeys?: string[];
 };
 
 export interface MediaRepository {
@@ -34,8 +30,6 @@ export interface MediaRepository {
   /** Recherche par libellé (insensible à la casse) au sein d'une nature (unicité). */
   findByLibelle(organizationId: string, type: TypeMedia, libelle: string): Promise<Media | null>;
   list(organizationId: string): Promise<Media[]>;
-  /** Médias actifs d'une nature visibles par un modèle (globaux + restreints). */
-  listActivesByType(organizationId: string, type: TypeMedia, templateKey: string): Promise<Media[]>;
   /** Médias actifs rattachés à un chatbot config-only (chat_link_ids + globaux). */
   listActivesByTypeForChatLink?(
     organizationId: string,

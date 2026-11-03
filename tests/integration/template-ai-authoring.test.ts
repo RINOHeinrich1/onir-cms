@@ -79,7 +79,6 @@ describe("template-ai authoring (ADR-0038)", () => {
       titre: "Manuel",
       contenu: "À conserver",
       chatLinkIds: [],
-      legacyTemplateKeys: ["ai-modele"],
       createdBy: null,
     });
 

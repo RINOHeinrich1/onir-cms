@@ -8,11 +8,6 @@ export type CreateConnaissanceInput = {
   origin?: "manual" | "ai";
   sourceTemplateKey?: string | null;
   aiGenerationId?: string | null;
-  /**
-   * @deprecated Compatibilité legacy uniquement : la colonne `template_keys`
-   * reste alimentée pour les anciens chatbots. Ne pas exposer dans l'UI.
-   */
-  legacyTemplateKeys?: string[];
 };
 
 export type UpdateConnaissanceInput = {
@@ -20,8 +15,6 @@ export type UpdateConnaissanceInput = {
   contenu?: string;
   chatLinkIds?: string[];
   actif?: boolean;
-  /** @deprecated Compatibilité legacy uniquement (anciens chatbots). */
-  legacyTemplateKeys?: string[];
 };
 
 export interface ConnaissanceRepository {
@@ -29,8 +22,6 @@ export interface ConnaissanceRepository {
   /** Recherche par titre (insensible à la casse) pour la garde d'unicité. */
   findByTitre(organizationId: string, titre: string): Promise<Connaissance | null>;
   list(organizationId: string): Promise<Connaissance[]>;
-  /** Entrées actives visibles par un modèle (globales + restreintes), récentes d'abord. */
-  listActives(organizationId: string, templateKey: string): Promise<Connaissance[]>;
   /** Entrées actives rattachées à un chatbot config-only (chat_link_ids + globales). */
   listActivesForChatLink?(organizationId: string, chatLinkId: string): Promise<Connaissance[]>;
   /**

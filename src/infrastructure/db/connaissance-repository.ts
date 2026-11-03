@@ -75,17 +75,6 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       return rows.map((row) => toEntity(row));
     },
 
-    async listActives(organizationId, templateKey): Promise<Connaissance[]> {
-      const { rows } = await pool.query<ConnaissanceRow>(
-        `SELECT ${COLUMNS} FROM base_connaissances
-         WHERE organization_id = $1 AND actif
-           AND (cardinality(template_keys) = 0 OR $2 = ANY(template_keys))
-         ORDER BY updated_at DESC`,
-        [organizationId, templateKey],
-      );
-      return rows.map((row) => toEntity(row));
-    },
-
     async listActivesForChatLink(organizationId, chatLinkId): Promise<Connaissance[]> {
       const { rows } = await pool.query<ConnaissanceRow>(
         `SELECT ${COLUMNS} FROM base_connaissances
@@ -118,15 +107,14 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
     async create(organizationId, input: CreateConnaissanceInput): Promise<Connaissance> {
       const { rows } = await pool.query<ConnaissanceRow>(
         `INSERT INTO base_connaissances
-           (organization_id, titre, contenu, chat_link_ids, template_keys, created_by, origin, source_template_key, ai_generation_id)
-         VALUES ($1, $2, $3, $4::uuid[], $5::text[], $6, $7, $8, $9)
+           (organization_id, titre, contenu, chat_link_ids, created_by, origin, source_template_key, ai_generation_id)
+         VALUES ($1, $2, $3, $4::uuid[], $5, $6, $7, $8)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
           input.titre,
           input.contenu,
           input.chatLinkIds,
-          input.legacyTemplateKeys ?? [],
           input.createdBy,
           input.origin ?? "manual",
           input.sourceTemplateKey ?? null,
@@ -149,9 +137,6 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       if (patch.titre !== undefined) push("titre", patch.titre);
       if (patch.contenu !== undefined) push("contenu", patch.contenu);
       if (patch.chatLinkIds !== undefined) push("chat_link_ids", patch.chatLinkIds, "uuid[]");
-      if (patch.legacyTemplateKeys !== undefined) {
-        push("template_keys", patch.legacyTemplateKeys, "text[]");
-      }
       if (patch.actif !== undefined) push("actif", patch.actif);
 
       if (sets.length === 0) {
