@@ -53,6 +53,7 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
   const [alertCount, setAlertCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [markingRead, setMarkingRead] = useState(false);
 
   const seenRef = useRef<Set<string>>(new Set());
   const seenOrderRef = useRef<string[]>([]);
@@ -88,19 +89,35 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
     setLimit(DEFAULT_LIMIT);
   }, []);
 
-  const markRead = useCallback(async (): Promise<void> => {
+  const markRead = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch("/api/notifications/read", { method: "POST" });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setError("Impossible de marquer les notifications comme lues.");
+        return false;
+      }
       const json = (await response.json()) as { lastReadAt?: string };
-      if (typeof json.lastReadAt !== "string") return;
+      if (typeof json.lastReadAt !== "string") {
+        setError("Impossible de marquer les notifications comme lues.");
+        return false;
+      }
       readVersionRef.current += 1;
       setUnreadCount(0);
       setItems((previous) => previous.map((item) => ({ ...item, read: true })));
+      setError(null);
+      return true;
     } catch {
-      // Le prochain polling réessaiera de refléter l'état serveur.
+      setError("Impossible de marquer les notifications comme lues.");
+      return false;
     }
   }, []);
+
+  const markAllRead = useCallback(async (): Promise<void> => {
+    if (markingRead || unreadCount === 0) return;
+    setMarkingRead(true);
+    await markRead();
+    setMarkingRead(false);
+  }, [markRead, markingRead, unreadCount]);
 
   const load = useCallback(async (): Promise<void> => {
     if (inFlightRef.current || document.visibilityState === "hidden") return;
@@ -210,7 +227,6 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
       return;
     }
     setOpen(true);
-    void markRead();
     void load();
   };
 
@@ -275,6 +291,17 @@ export function NotificationBell({ organizationId }: { organizationId: string | 
                 <span className="muted-text">À jour</span>
               )}
             </div>
+
+            {unreadCount > 0 ? (
+              <button
+                type="button"
+                className="activity-mark-all"
+                onClick={() => void markAllRead()}
+                disabled={markingRead}
+              >
+                {markingRead ? "Marquage…" : "Tout marquer comme lu"}
+              </button>
+            ) : null}
 
             {alerts.length === 0 && items.length === 0 ? (
               <p className="activity-empty">Aucune notification.</p>
