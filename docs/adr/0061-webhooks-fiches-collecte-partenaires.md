@@ -66,26 +66,27 @@ Le webhook sortant reste un mécanisme **générique** ; il est simplement rendu
 applicable aux fiches de collecte. Aucune notion « partenaire » n'entre dans
 ONIR-CMS.
 
-- **Scope d'endpoint** : `config_id` (obligatoire) + `fiche_key` (optionnel,
-  si la configuration porte plusieurs fiches de collecte). Le legacy
-  `template_key` devient **nullable** et reste supporté pour les endpoints
-  existants.
+- **Scope d'endpoint** : `chat_link_id` (chatbot, obligatoire) + `fiche_key`
+  (fiche de collecte, optionnel). Le chatbot est **stable entre les versions
+  de configuration** (`config_id` change à chaque version) : c'est donc la
+  bonne clé de rattachement. Le legacy `template_key` devient **nullable** et
+  reste supporté pour les endpoints existants.
 - **Éligibilité** : `listWebhookEndpointsForFiche` matche le scope
-  `fiche.config_id` / `fiche.fiche_key` (et, pour le legacy,
+  `fiche.chat_link_ids` / `fiche.fiche_key` (et, pour le legacy,
   `fiche.template_key`).
 - **Payload** : construction depuis le **snapshot `fiche.definition`** et
   `fiche.data`, plus les sources existantes `meta`, `prospect` et
   `attachment`. Le moteur de mapping ne change pas ; il reçoit simplement la
   définition de la fiche de collecte.
 - **Livraisons** : `webhook_deliveries.template_key` / `template_version`
-  deviennent nullables et sont complétés par `config_id` / `fiche_key`
-  (ou une clé de définition équivalente), pour l'audit et la relance.
+  deviennent nullables et sont complétés par `chat_link_id` / `fiche_key`,
+  pour l'audit et la relance.
 - **UI** : le sélecteur « modèle de raisonnement » devient « chatbot / fiche
   de collecte » ; le catalogue de champs mappables vient de la fiche de
   collecte.
 - **Test** : l'échantillon de test est construit depuis la fiche de collecte,
   sans modèle de raisonnement.
-- **API** : filtre `configId` / `ficheKey` sur la liste des endpoints.
+- **API** : filtre `chatLinkId` / `ficheKey` sur la liste des endpoints.
 
 Ce point est un **prérequis bloquant** de la publication des partenaires. Il
 reste générique et profite à toute fiche de collecte.
@@ -262,7 +263,7 @@ sont calculées côté landing.
 ## Plan de mise en œuvre
 
 1. Validation de cet ADR et mise à jour de l'index.
-2. ONIR-CMS : migration (scope `config_id` / `fiche_key`, colonnes nullables),
+2. ONIR-CMS : migration (scope `chat_link_id` / `fiche_key`, colonnes nullables),
    domaine et repository, trigger/preview/test, payload depuis
    `fiche.definition`, UI de configuration. RBAC inchangé.
 3. Nouveau dépôt `onir-partenaires-service` : squelette, schéma SQLite,
