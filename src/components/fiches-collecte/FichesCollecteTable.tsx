@@ -101,8 +101,8 @@ export function FichesCollecteTable({
             {items.length === 0 ? (
               <tr>
                 <td colSpan={canWrite ? 6 : 5}>
-                  Aucune fiche de collecte. Créez une fiche réutilisable pour l’importer dans vos
-                  chatbots.
+                  Aucune fiche réutilisable. Créez-en une, ou ouvrez un chatbot pour enregistrer une
+                  de ses fiches ici.
                 </td>
               </tr>
             ) : null}

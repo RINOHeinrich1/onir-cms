@@ -14,6 +14,7 @@ import {
   type FicheDraft,
   type FicheFieldDraft,
 } from "./chatbot-config-draft";
+import { SaveFicheCollecteButton } from "./SaveFicheCollecteButton";
 
 type Props = {
   value: ChatbotConfigDraft;
@@ -137,20 +138,33 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
         <div className="chatbot-fiche-card" key={fiche.id}>
           <div className="chatbot-fiche-head">
             <strong>Fiche {ficheIndex + 1}</strong>
-            {value.fiches.length > 1 ? (
-              <button
-                type="button"
-                className="btn ghost small"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    fiches: value.fiches.filter((_entry, current) => current !== ficheIndex),
-                  })
+            <div className="tools">
+              <SaveFicheCollecteButton
+                fiche={fiche}
+                onSaved={(saved) =>
+                  onChange(
+                    updateFiche(value, ficheIndex, {
+                      sourceFicheId: saved.id,
+                      sourceVersion: saved.version,
+                    }),
+                  )
                 }
-              >
-                Retirer
-              </button>
-            ) : null}
+              />
+              {value.fiches.length > 1 ? (
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  onClick={() =>
+                    onChange({
+                      ...value,
+                      fiches: value.fiches.filter((_entry, current) => current !== ficheIndex),
+                    })
+                  }
+                >
+                  Retirer
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <label className="field">
