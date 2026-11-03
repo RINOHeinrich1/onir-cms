@@ -1398,3 +1398,130 @@ body:has(.widget-page) {
   align-items: stretch;
   gap: 0.45rem;
 }
+
+/* ---------- Aperçu du widget sur un site hôte ---------- */
+.widget-preview-site {
+  min-height: 100dvh;
+  padding: 1.25rem clamp(1.25rem, 5vw, 4rem) 4rem;
+  background: #f4f7fb;
+  color: #102a43;
+  font-family: var(--font-montserrat), "Segoe UI", sans-serif;
+}
+
+.widget-preview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.widget-preview-brand {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.widget-preview-top nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: #486581;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.widget-preview-hero {
+  max-width: 46rem;
+  padding: clamp(2.5rem, 8vw, 5rem) 0 2.5rem;
+}
+
+.widget-preview-eyebrow {
+  color: #0b7285;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.widget-preview-hero h1 {
+  margin: 0.75rem 0 1rem;
+  font-size: clamp(2.1rem, 6vw, 4.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+}
+
+.widget-preview-hero p {
+  max-width: 38rem;
+  color: #486581;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.widget-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.widget-preview-button {
+  padding: 0.7rem 1.1rem;
+  border-radius: 999px;
+  background: #0b3b66;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.widget-preview-link {
+  color: #0b3b66;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.widget-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 62rem;
+}
+
+.widget-preview-grid article {
+  padding: 1.25rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.widget-preview-grid strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.widget-preview-grid p {
+  margin: 0;
+  color: #486581;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.widget-preview-note {
+  margin-top: 2rem;
+  color: #627d98;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .widget-preview-top nav {
+    display: none;
+  }
+
+  .widget-preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
