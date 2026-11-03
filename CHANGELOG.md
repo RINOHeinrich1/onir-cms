@@ -5,6 +5,38 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.21.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.3...v0.21.0) (2026-11-03)
+
+
+### Features
+
+* **chatbot:** restaurer l'assistant IA sans legacy ([#175](https://github.com/RINOHeinrich1/onir-cms/issues/175)) ([2d509dc](https://github.com/RINOHeinrich1/onir-cms/commit/2d509dc45146b349f03e33832f62c0e920dbfc5c))
+* **chatbots:** sélection multiple et suppression groupée ([#157](https://github.com/RINOHeinrich1/onir-cms/issues/157)) ([011042d](https://github.com/RINOHeinrich1/onir-cms/commit/011042deffed55eac6fd0c2d7b81eca1b6267d6a))
+* **connaissances:** cartes, détail et suppression groupée ([#151](https://github.com/RINOHeinrich1/onir-cms/issues/151)) ([139f003](https://github.com/RINOHeinrich1/onir-cms/commit/139f003bc38522fd2764c72cb71c84585b57028a))
+* **connaissances:** filtre par portée ([#156](https://github.com/RINOHeinrich1/onir-cms/issues/156)) ([8a41236](https://github.com/RINOHeinrich1/onir-cms/commit/8a41236340713eb34201d2f91d4f03beaa0bbf9e))
+* **dashboard:** alertes erreurs et expirations proches ([#173](https://github.com/RINOHeinrich1/onir-cms/issues/173)) ([7667c85](https://github.com/RINOHeinrich1/onir-cms/commit/7667c8573c3caed8b2a1d83282d92c85ca1f5d87))
+* **db:** backfill des définitions de fiches ([#169](https://github.com/RINOHeinrich1/onir-cms/issues/169)) ([1ba82c0](https://github.com/RINOHeinrich1/onir-cms/commit/1ba82c07fe008011292b5a7e56431df704cea4e0))
+* **db:** migration de masse des chatbots legacy ([#162](https://github.com/RINOHeinrich1/onir-cms/issues/162)) ([fd1bcf2](https://github.com/RINOHeinrich1/onir-cms/commit/fd1bcf2cd3de53b01c42668db73304b930400903))
+* **fiches:** enregistrer une fiche de chatbot comme fiche réutilisable ([#179](https://github.com/RINOHeinrich1/onir-cms/issues/179)) ([52d7f80](https://github.com/RINOHeinrich1/onir-cms/commit/52d7f80aca6387d95ba992588696e9ba50c898cd))
+* **fiches:** publier automatiquement les fiches des chatbots ([#180](https://github.com/RINOHeinrich1/onir-cms/issues/180)) ([fc58ba9](https://github.com/RINOHeinrich1/onir-cms/commit/fc58ba9b1977a92615b70373a938480fe1ee12e5))
+* **ui:** notifications lues + aperçu standalone ([#171](https://github.com/RINOHeinrich1/onir-cms/issues/171)) ([4ca4270](https://github.com/RINOHeinrich1/onir-cms/commit/4ca427059dc500193a364457c67e790718b18f60))
+* **webhooks:** webhooks sur fiches de collecte (ADR-0061) ([#159](https://github.com/RINOHeinrich1/onir-cms/issues/159)) ([ed15eb9](https://github.com/RINOHeinrich1/onir-cms/commit/ed15eb9a95ef203fc3fa1d0d435511a55850420c))
+
+
+### Bug Fixes
+
+* **chatbot-ai:** retenter avec plus de tokens et JSON structuré ([#178](https://github.com/RINOHeinrich1/onir-cms/issues/178)) ([cb152cb](https://github.com/RINOHeinrich1/onir-cms/commit/cb152cb855696bf69cce32fac82ed021b5afb58c))
+* **chat:** fiabiliser la collecte des fiches de collecte ([#161](https://github.com/RINOHeinrich1/onir-cms/issues/161)) ([8e63266](https://github.com/RINOHeinrich1/onir-cms/commit/8e63266061480982d1eb6ac409faa1ea980ab197))
+* **connaissances:** actions du détail accessibles ([#155](https://github.com/RINOHeinrich1/onir-cms/issues/155)) ([394989b](https://github.com/RINOHeinrich1/onir-cms/commit/394989b30adbc92ad560f387e0d9767a9883dd2c))
+* **connaissances:** contenir le détail sur mobile ([#152](https://github.com/RINOHeinrich1/onir-cms/issues/152)) ([0e0b2da](https://github.com/RINOHeinrich1/onir-cms/commit/0e0b2da0e834f32b977b0c51e5443e2fc39a8d2e))
+* **connaissances:** métadonnées du détail sur mobile ([#153](https://github.com/RINOHeinrich1/onir-cms/issues/153)) ([70f3abd](https://github.com/RINOHeinrich1/onir-cms/commit/70f3abd318c65fac2986e967de9d9ecbf57a5c4d))
+* **connaissances:** prioriser les métadonnées du détail ([#154](https://github.com/RINOHeinrich1/onir-cms/issues/154)) ([7766430](https://github.com/RINOHeinrich1/onir-cms/commit/7766430ccc19420dc48fdc1d41a29abdfe3e9b30))
+* **dashboard:** raccourcir les libellés des cartes d'erreur ([#174](https://github.com/RINOHeinrich1/onir-cms/issues/174)) ([fcc9556](https://github.com/RINOHeinrich1/onir-cms/commit/fcc9556708944bd2a658d91bba45a2fcfeac7eee))
+* **liens:** supprimer un chatbot avec ses conversations ([#176](https://github.com/RINOHeinrich1/onir-cms/issues/176)) ([620b574](https://github.com/RINOHeinrich1/onir-cms/commit/620b574c488a3155a0206f3b27050ee2946443e0))
+* **notifications:** inclure les alertes dans « Tout marquer comme lu » ([#172](https://github.com/RINOHeinrich1/onir-cms/issues/172)) ([1b44415](https://github.com/RINOHeinrich1/onir-cms/commit/1b444152735cbe20890c97bc8086f93f1bf6459c))
+* **webhooks:** gérer le lookup DNS all:true (Node 22) ([#160](https://github.com/RINOHeinrich1/onir-cms/issues/160)) ([1bc7087](https://github.com/RINOHeinrich1/onir-cms/commit/1bc7087021e58a8928af5198a306181ecfea5cbf))
+* **widget:** un aperçu fidèle sur un site hôte ([#177](https://github.com/RINOHeinrich1/onir-cms/issues/177)) ([bf262fb](https://github.com/RINOHeinrich1/onir-cms/commit/bf262fbef87050677f607d2c59d22a1535f27a4d))
+
 ## [0.20.3](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.2...v0.20.3) (2026-11-02)
 
 
