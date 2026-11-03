@@ -396,10 +396,10 @@ export default function HostDocsPage() {
       <ul>
         <li>
           <strong>Médias</strong> :{" "}
-          <code>listActivesByType(&quot;photo&quot;|&quot;lien&quot;, link.templateKey)</code>.
-          Seuls les médias <strong>actifs</strong> du <code>templateKey</code> du lien sont exposés.
-          Les photos passent par <code>/api/medias/:id/file</code> (proxy autorisé), jamais par une
-          URL directe.
+          <code>listActivesByTypeForChatLink(&quot;photo&quot;|&quot;lien&quot;, link.id)</code>.
+          Seuls les médias <strong>actifs</strong> rattachés au chatbot du lien sont exposés. Les
+          photos passent par <code>/api/medias/:id/file</code> (proxy autorisé), jamais par une URL
+          directe.
         </li>
         <li>
           <strong>Fiche modèle</strong> : champs de la version du modèle du template.
@@ -566,8 +566,8 @@ export default function HostDocsPage() {
           <code>resources.media</code> est vide.
         </dt>
         <dd>
-          La capacité <code>media</code> n&apos;est pas déclarée, ou aucun média actif ne porte le{" "}
-          <code>templateKey</code> du lien.
+          La capacité <code>media</code> n&apos;est pas déclarée, ou aucun média actif ne cible le
+          chatbot du lien.
         </dd>
         <dt>Les connaissances n&apos;apparaissent pas dans le contexte.</dt>
         <dd>

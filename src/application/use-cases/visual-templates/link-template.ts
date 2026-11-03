@@ -1,4 +1,3 @@
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
@@ -24,8 +23,7 @@ import { loadTemplateData, type TemplateDataDependencies } from "./load-template
 export type LinkTemplateDependencies = {
   visualTemplates: VisualTemplateRepository;
   medias: MediaRepository;
-  templates: ChatTemplateRepository;
-  /** Configuration chatbot config-only (fiches hors ancien template). */
+  /** Configuration chatbot (fiches de collecte). */
   configs?: ChatbotConfigRepository;
   /** Fournisseur de données (ADR-0026) — requis seulement pour les contrats `eager`. */
   data?: TemplateDataDependencies;
@@ -161,28 +159,6 @@ export async function buildLinkContext(
               maxBytes: field.file.maxBytes,
             }),
       }));
-    } else {
-      // Compatibilité avec les liens historiques portés par un template de raisonnement.
-      const template = await deps.templates.findVersion(
-        link.organizationId,
-        link.templateKey,
-        link.templateVersion,
-      );
-      modelForm =
-        template?.definition.fields.map((field) => ({
-          name: field.name,
-          label: field.label,
-          type: field.type,
-          required: field.required,
-          ...(field.options === undefined ? {} : { options: field.options }),
-          ...(field.file === undefined
-            ? {}
-            : {
-                accept: field.file.accept,
-                maxFiles: field.file.maxFiles,
-                maxBytes: field.file.maxBytes,
-              }),
-        })) ?? null;
     }
   }
   const surface = input.surface ?? link.surface;

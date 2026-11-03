@@ -28,8 +28,6 @@ const FICHE: Fiche = {
   conversationId: null,
   prospectId: "33333333-3333-4333-8333-333333333333",
   createdBy: null,
-  templateKey: null,
-  templateVersion: null,
   definition: DEFINITION,
   data: { contact: "Rino", budget: "10k" },
   plateformes: [],
@@ -67,7 +65,6 @@ function endpoint(overrides: Partial<WebhookEndpoint> = {}): WebhookEndpoint {
   return {
     id: "44444444-4444-4444-8444-444444444444",
     organizationId: FICHE.organizationId,
-    templateKey: "lead-demo",
     chatLinkId: null,
     ficheKey: null,
     name: "Partenaire",
@@ -190,7 +187,6 @@ describe("buildWebhookRequest", () => {
     const built = await buildWebhookRequest(
       dependencies(),
       endpoint({
-        templateKey: null,
         chatLinkId: "77777777-7777-4777-8777-777777777777",
         ficheKey: "partenaire",
         fieldMappings: [
@@ -206,8 +202,6 @@ describe("buildWebhookRequest", () => {
       }),
       {
         ...FICHE,
-        templateKey: null,
-        templateVersion: null,
         definition,
         configId: "88888888-8888-4888-8888-888888888888",
         ficheKey: "partenaire",

@@ -8,9 +8,10 @@ import {
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
+import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { detectAttachmentMime } from "@/domain/attachment-inspection";
 import {
   ATTACHMENT_MAX_BYTES,
@@ -28,7 +29,7 @@ export type AttachmentDependencies = {
   organizations: OrganizationRepository;
   links: ChatLinkRepository;
   conversations: ConversationRepository;
-  templates: ChatTemplateRepository;
+  configs: ChatbotConfigRepository;
   attachments: AttachmentRepository;
   storage: AttachmentStorage;
 };
@@ -42,10 +43,8 @@ export function toAttachmentDto(attachment: Attachment): AttachmentDto {
   };
 }
 
-function fileField(template: { definition: { fields: TemplateField[] } }, fieldName: string) {
-  return template.definition.fields.find(
-    (field) => field.name === fieldName && field.type === "file",
-  );
+function fileField(fields: readonly TemplateField[], fieldName: string): TemplateField | undefined {
+  return fields.find((field) => field.name === fieldName && field.type === "file");
 }
 
 /** Comptes de pièces par champ pour une conversation (ADR-0034). */
@@ -98,15 +97,12 @@ export async function storeConversationAttachment(
   if (link === null || !link.actif) {
     throw new NotFoundError("Lien invalide ou révoqué");
   }
-  const template = await deps.templates.findVersion(
-    conversation.organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Modèle de raisonnement introuvable");
+  const config = await resolveCurrentConfig(deps.configs, conversation.organizationId, link);
+  if (config === null) {
+    throw new UnprocessableError("Ce chatbot doit être configuré avec une fiche de collecte");
   }
-  const field = fileField(template, input.fieldName);
+  const fields = config.fiches.flatMap((fiche) => fiche.fields);
+  const field = fileField(fields, input.fieldName);
   if (field === undefined) {
     throw new ValidationError("Ce champ n'accepte pas de fichier");
   }

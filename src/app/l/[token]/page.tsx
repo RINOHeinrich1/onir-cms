@@ -21,7 +21,6 @@ import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import type { TemplateFormField } from "@/domain/template-contract";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
@@ -103,33 +102,28 @@ export default async function ChatPortalPage({ params }: PageProps) {
     return <ChatbotUnavailable reason={blockReason} />;
   }
 
-  const reasoning = await pgChatTemplateRepository(pool).findVersion(
-    link.organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
   const config = await resolveCurrentConfig(
     pgChatbotConfigRepository(pool),
     link.organizationId,
     link,
   );
-  const canFinish = reasoning !== null || (config?.fiches.length ?? 0) > 0;
-  const attachmentFields: TemplateFormField[] =
-    reasoning?.definition.fields
-      .filter((field) => field.type === "file")
-      .map((field) => ({
-        name: field.name,
-        label: field.label,
-        type: "file",
-        required: field.required,
-        ...(field.file === undefined
-          ? {}
-          : {
-              accept: field.file.accept,
-              maxFiles: field.file.maxFiles,
-              maxBytes: field.file.maxBytes,
-            }),
-      })) ?? [];
+  const canFinish = (config?.fiches.length ?? 0) > 0;
+  const attachmentFields: TemplateFormField[] = (config?.fiches ?? [])
+    .flatMap((fiche) => fiche.fields)
+    .filter((field) => field.type === "file")
+    .map((field) => ({
+      name: field.name,
+      label: field.label,
+      type: "file",
+      required: field.required,
+      ...(field.file === undefined
+        ? {}
+        : {
+            accept: field.file.accept,
+            maxFiles: field.file.maxFiles,
+            maxBytes: field.file.maxBytes,
+          }),
+    }));
 
   const requestHeaders = await headers();
   if (!isBotUserAgent(requestHeaders.get("user-agent"))) {
@@ -140,7 +134,6 @@ export default async function ChatPortalPage({ params }: PageProps) {
   const deps: LinkTemplateDependencies = {
     visualTemplates: pgVisualTemplateRepository(pool),
     medias: pgMediaRepository(pool),
-    templates: pgChatTemplateRepository(pool),
     configs: pgChatbotConfigRepository(pool),
   };
   const spec = await loadTemplateSpec(deps, link, "page", channel);

@@ -50,7 +50,7 @@ function build(count = 0) {
   return {
     deps: {
       organizations: { findById: async () => ({ suspendedAt: null }) },
-      links: { findById: async () => ({ actif: true, templateKey: "demo", templateVersion: 1 }) },
+      links: { findById: async () => ({ actif: true, currentConfigId: "cfg-1" }) },
       conversations: {
         findByIdPublic: async () => ({
           id: "conv-1",
@@ -59,8 +59,21 @@ function build(count = 0) {
           statut: "en_cours",
         }),
       },
-      templates: {
-        findVersion: async () => ({ definition: DEFINITION }),
+      configs: {
+        findById: async () => ({
+          id: "cfg-1",
+          fiches: [
+            {
+              key: DEFINITION.key,
+              label: DEFINITION.label,
+              description: DEFINITION.description,
+              intent: "",
+              fields: DEFINITION.fields,
+              renderTemplate: DEFINITION.renderTemplate,
+              instructions: "",
+            },
+          ],
+        }),
       },
       attachments,
       storage,

@@ -66,7 +66,7 @@ async function loadFicheForOrganization(
   return fiche;
 }
 
-/** Vrai si l'endpoint cible le périmètre de la fiche (modèle legacy ou chatbot). */
+/** Vrai si l'endpoint cible le périmètre de la fiche (chatbot + fiche de collecte). */
 function matchesScope(endpoint: WebhookEndpoint, fiche: Fiche): boolean {
   if (endpoint.chatLinkId !== null) {
     const links = fiche.chatLinkIds ?? [];
@@ -159,8 +159,6 @@ export async function triggerWebhook(
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: false,
@@ -175,7 +173,6 @@ export async function triggerWebhook(
 function sampleFiche(
   endpoint: WebhookEndpoint,
   definition: TemplateDefinition,
-  templateVersion: number | null,
   ficheKey: string | null,
   configId: string | null,
   chatLinkId: string | null,
@@ -187,8 +184,6 @@ function sampleFiche(
     conversationId: null,
     prospectId: null,
     createdBy: null,
-    templateKey: endpoint.templateKey,
-    templateVersion,
     definition,
     configId,
     ficheKey,
@@ -239,7 +234,6 @@ export async function testWebhook(
     fiche = sampleFiche(
       endpoint,
       definitionFromFiche(ficheDefinition),
-      null,
       ficheDefinition.key,
       config.id,
       endpoint.chatLinkId,
@@ -252,8 +246,6 @@ export async function testWebhook(
   let delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: ficheId,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: true,
@@ -376,8 +368,6 @@ export async function retryWebhookDeliveryForOrganization(
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: fiche.templateKey,
-    templateVersion: fiche.templateVersion,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: false,

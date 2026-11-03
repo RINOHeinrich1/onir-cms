@@ -92,8 +92,6 @@ const link: ChatLink = {
   createdBy: null,
   actif: true,
   expiresAt: null,
-  templateKey: "modele",
-  templateVersion: 1,
   sources: { connaissances: true, phototheque: true, lien: true },
   confidentialiteId: null,
   userStateEnabled: false,

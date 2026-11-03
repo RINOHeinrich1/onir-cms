@@ -329,7 +329,6 @@ export function parseWebhookConfig(
   }
 
   return {
-    templateKey: null,
     chatLinkId,
     ficheKey: ficheKey === "" ? null : ficheKey,
     name,

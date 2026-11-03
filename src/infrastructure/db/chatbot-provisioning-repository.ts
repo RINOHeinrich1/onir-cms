@@ -47,13 +47,13 @@ async function insertLink(
   const { rows } = await client.query<LinkRow>(
     `INSERT INTO chat_links
        (organization_id, token_hash, token_enc, label, type, surface,
-        identification_mode, prospect_id, created_by, expires_at, template_key,
-        template_version, sources, confidentialite_id, user_state_enabled,
-        visual_template_id, visual_template_version, visual_template_config,
-        visual_template_params, widget_config, ai_provider_id, ai_model,
-        max_fiches, max_tokens, token_reset_mode, token_reset_days)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-             $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        identification_mode, prospect_id, created_by, expires_at, sources,
+        confidentialite_id, user_state_enabled, visual_template_id,
+        visual_template_version, visual_template_config, visual_template_params,
+        widget_config, ai_provider_id, ai_model, max_fiches, max_tokens,
+        token_reset_mode, token_reset_days)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+             $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
      RETURNING id`,
     [
       input.organizationId,
@@ -66,8 +66,6 @@ async function insertLink(
       input.link.prospectId,
       input.link.createdBy,
       input.link.expiresAt,
-      input.link.templateKey,
-      input.link.templateVersion,
       JSON.stringify(input.link.sources),
       summary.confidentialiteId,
       input.link.userStateEnabled,
@@ -158,9 +156,8 @@ async function insertKnowledge(
     }
     const inserted = await client.query<{ id: string }>(
       `INSERT INTO base_connaissances
-         (organization_id, titre, contenu, chat_link_ids, template_keys,
-          created_by, origin)
-       VALUES ($1, $2, $3, ARRAY[$4]::uuid[], ARRAY[]::text[], $5, 'ai')
+         (organization_id, titre, contenu, chat_link_ids, created_by, origin)
+       VALUES ($1, $2, $3, ARRAY[$4]::uuid[], $5, 'ai')
        RETURNING id`,
       [organizationId, item.titre, item.contenu, linkId, input.createdBy],
     );

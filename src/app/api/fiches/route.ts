@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createFiche, listFiches } from "@/application/use-cases/fiche/manage-fiches";
 import { parseFicheArchiveFilter } from "@/domain/entities/fiche";
-import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../_lib/errors";
@@ -33,8 +32,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     }
     const pool = getPool();
-    // Le formulaire manuel poste des champs plats (fiche-projet) : ils
-    // constituent directement `data`. Un appel structuré peut passer `data`.
+    // Le formulaire manuel poste des champs plats : ils constituent
+    // directement `data`. Un appel structuré peut passer `data`.
     const input =
       body.data !== undefined &&
       body.data !== null &&
@@ -42,14 +41,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       !Array.isArray(body.data)
         ? body
         : { ...body, data: body };
-    const fiche = await createFiche(
-      {
-        fiches: pgFicheRepository(pool),
-        fichesCollecte: pgFicheCollecteRepository(pool),
-      },
-      actor,
-      input,
-    );
+    const fiche = await createFiche({ fiches: pgFicheRepository(pool) }, actor, input);
     return NextResponse.json({ fiche }, { status: 201 });
   } catch (error) {
     return errorResponse(error);

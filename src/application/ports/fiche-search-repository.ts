@@ -9,8 +9,6 @@ export type FicheSearchCursor = {
 
 export type FicheSearchCriteria = {
   q: string | null;
-  templateKey: string | null;
-  templateVersion: number | null;
   createdFrom: string | null;
   createdTo: string | null;
   prospectId: string | null;

@@ -11,7 +11,6 @@ export type WebhookAuthDto = WebhookAuth;
 
 export type WebhookEndpointAdminDto = {
   id: string;
-  templateKey: string | null;
   chatLinkId: string | null;
   ficheKey: string | null;
   name: string;
@@ -39,7 +38,6 @@ export type WebhookEndpointAdminDto = {
 
 export type WebhookEndpointPublicDto = {
   id: string;
-  templateKey: string | null;
   chatLinkId: string | null;
   ficheKey: string | null;
   name: string;
@@ -51,8 +49,6 @@ export type WebhookDeliveryDto = {
   id: string;
   endpointId: string;
   ficheId: string | null;
-  templateKey: string | null;
-  templateVersion: number | null;
   chatLinkId: string | null;
   ficheKey: string | null;
   isTest: boolean;
@@ -98,7 +94,6 @@ function maskAuth(auth: WebhookAuth): WebhookAuth {
 export function toWebhookEndpointAdminDto(endpoint: WebhookEndpoint): WebhookEndpointAdminDto {
   return {
     id: endpoint.id,
-    templateKey: endpoint.templateKey,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: endpoint.ficheKey,
     name: endpoint.name,
@@ -134,7 +129,6 @@ export function toWebhookEndpointAdminDto(endpoint: WebhookEndpoint): WebhookEnd
 export function toWebhookEndpointPublicDto(endpoint: WebhookEndpoint): WebhookEndpointPublicDto {
   return {
     id: endpoint.id,
-    templateKey: endpoint.templateKey,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: endpoint.ficheKey,
     name: endpoint.name,
@@ -148,8 +142,6 @@ export function toWebhookDeliveryDto(delivery: WebhookDelivery): WebhookDelivery
     id: delivery.id,
     endpointId: delivery.endpointId,
     ficheId: delivery.ficheId,
-    templateKey: delivery.templateKey,
-    templateVersion: delivery.templateVersion,
     chatLinkId: delivery.chatLinkId,
     ficheKey: delivery.ficheKey,
     isTest: delivery.isTest,

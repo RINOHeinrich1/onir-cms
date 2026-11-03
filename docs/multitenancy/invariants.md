@@ -24,7 +24,7 @@ override explicite.
 ## I3 — Filtrage systématique par `organization_id`
 
 Toute lecture de donnée métier (`prospects`, `chat_links`, `conversations`, `fiches`,
-`chat_templates`, `base_connaissances`, `medias`, `confidentialites`) filtre par
+`base_connaissances`, `medias`, `confidentialites`) filtre par
 `organization_id`. Les tables filles (`chat_messages`, versions d'assets) sont lues
 via un parent scoped.
 
@@ -61,8 +61,7 @@ scénario E2E de retrait.
 Les unicités métier sont locales à l'organisation :
 `base_connaissances(organization_id, lower(titre))`,
 `medias(organization_id, type, lower(libelle))`,
-`confidentialites(organization_id, lower(titre))`,
-`chat_templates(organization_id, lower(key))`.
+`confidentialites(organization_id, lower(titre))`.
 Les FK composites `(organization_id, id)` empêchent physiquement un croisement sur les
 relations critiques.
 

@@ -70,23 +70,6 @@ describe("RBAC — matrice des rôles (RM-ROLE-*)", () => {
     expect(can("lecteur", "users:list")).toBe(false);
   });
 
-  it("marketeur gère les modèles, lecteur lit seulement (templates:*)", () => {
-    for (const action of [
-      "templates:list",
-      "templates:read",
-      "templates:create",
-      "templates:update",
-      "templates:delete",
-    ] as const) {
-      expect(can("marketeur", action)).toBe(true);
-    }
-    expect(can("lecteur", "templates:list")).toBe(true);
-    expect(can("lecteur", "templates:read")).toBe(true);
-    expect(can("lecteur", "templates:create")).toBe(false);
-    expect(can("lecteur", "templates:update")).toBe(false);
-    expect(can("lecteur", "templates:delete")).toBe(false);
-  });
-
   it("marketeur gère la base de connaissances, lecteur lit seulement (connaissances:*)", () => {
     for (const action of [
       "connaissances:list",

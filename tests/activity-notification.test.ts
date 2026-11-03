@@ -51,7 +51,7 @@ describe("leadNotification", () => {
     const notification = leadNotification({
       id: "f1",
       createdAt: "2026-10-28T10:00:00.000Z",
-      templateKey: "fiche-projet",
+      ficheLabel: "Prospection",
       data: { entreprise: "ACME", description: "Refonte du site" },
       prospectNom: "Alice",
       prospectPrenom: "Martin",
@@ -61,24 +61,24 @@ describe("leadNotification", () => {
     expect(notification.href).toBe("/leads/f1");
   });
 
-  it("utilise le modèle quand aucune donnée lisible n'existe", () => {
+  it("utilise le libellé de fiche quand aucune donnée lisible n'existe", () => {
     expect(
       leadNotification({
         id: "f2",
         createdAt: "2026-10-28T10:00:00.000Z",
-        templateKey: "fiche-projet",
+        ficheLabel: "Prospection",
         data: {},
         prospectNom: null,
         prospectPrenom: null,
       }).detail,
-    ).toBe("fiche-projet");
+    ).toBe("Prospection");
   });
 
   it("tronque les libellés trop longs", () => {
     const notification = leadNotification({
       id: "f3",
       createdAt: "2026-10-28T10:00:00.000Z",
-      templateKey: "fiche-projet",
+      ficheLabel: "Prospection",
       data: { description: "x".repeat(300) },
       prospectNom: null,
       prospectPrenom: null,
@@ -101,7 +101,7 @@ describe("sortActivityNotifications", () => {
       leadNotification({
         id: "a",
         createdAt: "2026-10-28T10:00:00.000Z",
-        templateKey: "fiche-projet",
+        ficheLabel: "Prospection",
         data: {},
         prospectNom: null,
         prospectPrenom: null,

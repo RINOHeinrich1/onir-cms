@@ -8,7 +8,6 @@ import { channelsForLink } from "@/domain/entities/chat";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgChatbotProvisioningRepository } from "@/infrastructure/db/chatbot-provisioning-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
@@ -57,7 +56,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         links: pgChatLinkRepository(pool),
         prospects: pgProspectRepository(pool),
-        templates: pgChatTemplateRepository(pool),
         confidentialites: pgConfidentialiteRepository(pool),
         visualTemplates: pgVisualTemplateRepository(pool),
         bindings: pgTemplateDataBindingRepository(pool),

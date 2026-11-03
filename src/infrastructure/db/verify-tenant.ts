@@ -15,7 +15,6 @@ const TENANT_TABLES = [
   "chat_links",
   "conversations",
   "fiches",
-  "chat_templates",
   "base_connaissances",
   "medias",
   "confidentialites",
@@ -70,18 +69,6 @@ export async function verifyTenantIntegrity(pool: Pool): Promise<TenantIntegrity
   );
   if ((invalidRoles.rows[0]?.count ?? 0) > 0) {
     errors.push(`organization_members: ${invalidRoles.rows[0]?.count} rôle(s) invalide(s)`);
-  }
-
-  const duplicateLocalKeys = await pool.query<{ count: number }>(
-    `SELECT count(*)::int AS count FROM (
-       SELECT organization_id, lower(key) FROM chat_templates
-        GROUP BY organization_id, lower(key) HAVING count(*) > 1
-     ) duplicates`,
-  );
-  if ((duplicateLocalKeys.rows[0]?.count ?? 0) > 0) {
-    errors.push(
-      `chat_templates: ${duplicateLocalKeys.rows[0]?.count} clé(s) locale(s) dupliquée(s)`,
-    );
   }
 
   const superAdmins = await pool.query<{ count: number }>(

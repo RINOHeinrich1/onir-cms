@@ -89,12 +89,12 @@ export function pgActivityRepository(pool: Pool): ActivityRepository {
       const { rows } = await pool.query<{
         id: string;
         created_at: Date;
-        template_key: string;
+        fiche_label: string;
         data: unknown;
         prospect_nom: string | null;
         prospect_prenom: string | null;
       }>(
-        `SELECT f.id, f.created_at, f.template_key, f.data,
+        `SELECT f.id, f.created_at, COALESCE(f.definition->>'label', 'Fiche') AS fiche_label, f.data,
                 p.nom AS prospect_nom, p.prenom AS prospect_prenom
            FROM fiches f
            LEFT JOIN prospects p
@@ -107,7 +107,7 @@ export function pgActivityRepository(pool: Pool): ActivityRepository {
       return rows.map((row) => ({
         id: row.id,
         createdAt: row.created_at.toISOString(),
-        templateKey: row.template_key,
+        ficheLabel: row.fiche_label,
         data: toRecord(row.data),
         prospectNom: row.prospect_nom,
         prospectPrenom: row.prospect_prenom,

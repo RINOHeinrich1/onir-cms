@@ -23,8 +23,6 @@ function linkInput(tokenHash: string) {
     prospectId: null,
     createdBy: null,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,
@@ -103,24 +101,18 @@ describe("pgActivityRepository", () => {
       conversationId: null,
       prospectId: null,
       createdBy: userA,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: { entreprise: "Auto" },
     });
     const other = await fiches.create(orgA, {
       conversationId: null,
       prospectId: null,
       createdBy: userB,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: { entreprise: "ACME" },
     });
     await fiches.create(orgB, {
       conversationId: null,
       prospectId: null,
       createdBy: userB,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: { entreprise: "Hors org" },
     });
 
@@ -155,8 +147,6 @@ describe("pgActivityRepository", () => {
       conversationId: null,
       prospectId: null,
       createdBy: userA,
-      templateKey: "fiche-projet",
-      templateVersion: 1,
       data: { entreprise: "Nouveau lead" },
     });
 

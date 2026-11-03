@@ -9,7 +9,6 @@ import {
 import { loadTemplateData } from "@/application/use-cases/visual-templates/load-template-data";
 import type { ChatLink } from "@/domain/entities/chat";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgTemplateDataAuditRepository } from "@/infrastructure/db/template-data-audit-repository";
@@ -75,8 +74,8 @@ describe("runtime des ressources de données (ADR-0026)", () => {
     orgA = await makeOrganization(pool, "Org runtime A");
     orgB = await makeOrganization(pool, "Org runtime B");
     await pool.query(
-      `INSERT INTO base_connaissances (organization_id, titre, contenu, template_keys)
-       VALUES ($1, 'Alpha', 'a', '{}'), ($1, 'Beta', 'b', '{}'), ($2, 'Gamma', 'g', '{}')`,
+      `INSERT INTO base_connaissances (organization_id, titre, contenu)
+       VALUES ($1, 'Alpha', 'a'), ($1, 'Beta', 'b'), ($2, 'Gamma', 'g')`,
       [orgA, orgB],
     );
 
@@ -122,7 +121,6 @@ describe("runtime des ressources de données (ADR-0026)", () => {
     deps = {
       visualTemplates: pgVisualTemplateRepository(pool),
       medias: pgMediaRepository(pool),
-      templates: pgChatTemplateRepository(pool),
     };
   });
 

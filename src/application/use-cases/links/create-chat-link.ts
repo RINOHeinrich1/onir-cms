@@ -3,7 +3,6 @@ import { NotFoundError, ValidationError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type {
   ChatbotProvisioningRepository,
@@ -43,7 +42,6 @@ import { encryptLinkToken } from "@/lib/link-crypto";
 export type CreateChatLinkDependencies = {
   links: ChatLinkRepository;
   prospects: ProspectRepository;
-  templates: ChatTemplateRepository;
   confidentialites: ConfidentialiteRepository;
   visualTemplates: VisualTemplateRepository;
   /** Sources de données (ADR-0026) — optionnel hors panneau. */
@@ -156,30 +154,14 @@ export async function createChatLinkForOrganization(
   });
   const summary = legacyChannelFields(channels);
 
-  const configInput =
-    source.config !== undefined && source.config !== null
-      ? parseChatbotConfig(source.config)
-      : null;
-  if (configInput?.ok === false) {
+  if (source.config === undefined || source.config === null) {
+    throw new ValidationError("Une configuration de collecte est requise");
+  }
+  const configInput = parseChatbotConfig(source.config);
+  if (configInput.ok === false) {
     throw new ValidationError(configInput.errors.join(" ; "));
   }
-  const configMode = configInput?.ok === true;
   const knowledge = parseProvisioningKnowledge(source.knowledge);
-  if (knowledge.length > 0 && !configMode) {
-    throw new ValidationError("Les connaissances nécessitent une configuration chatbot");
-  }
-
-  let templateKey = "";
-  let templateVersion = 0;
-  if (!configMode) {
-    const rawTemplateKey = typeof source.templateKey === "string" ? source.templateKey.trim() : "";
-    templateKey = rawTemplateKey === "" ? "fiche-projet" : rawTemplateKey;
-    const template = await deps.templates.currentVersion(organizationId, templateKey);
-    if (template === null) {
-      throw new ValidationError(`Modèle inconnu : ${templateKey}`);
-    }
-    templateVersion = template.version;
-  }
 
   if (type === "specifique") {
     if (channels.page.identificationMode !== "contact") {
@@ -208,8 +190,6 @@ export async function createChatLinkForOrganization(
     prospectId: type === "specifique" ? rawProspectId : null,
     createdBy,
     expiresAt,
-    templateKey,
-    templateVersion,
     sources,
     userStateEnabled,
     channels,
@@ -219,7 +199,7 @@ export async function createChatLinkForOrganization(
   };
   let link: ChatLink;
   let knowledgeResult: { created: number; skipped: string[] } | undefined;
-  if (knowledge.length > 0 && configMode && configInput.ok) {
+  if (knowledge.length > 0 && configInput.ok) {
     if (deps.provisioner === undefined) {
       throw new ValidationError("Création transactionnelle indisponible");
     }
@@ -238,7 +218,7 @@ export async function createChatLinkForOrganization(
     const created = await deps.links.create(organizationId, linkInput);
     link = { ...created, channels };
   }
-  if (knowledgeResult === undefined && configMode && configInput.ok) {
+  if (knowledgeResult === undefined && configInput.ok) {
     if (deps.configs === undefined) {
       await deps.links.delete(organizationId, link.id);
       throw new ValidationError("Configuration chatbot indisponible");

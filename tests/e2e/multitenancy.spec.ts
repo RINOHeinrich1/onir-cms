@@ -119,6 +119,30 @@ test("lien public : l'organisation du lien est résolue, org suspendue = 404", a
       identificationMode: "contact",
       label: "E2E public",
       sources: { connaissances: true, phototheque: false, lien: false },
+      config: {
+        behaviorMode: "guided",
+        systemPrompt: "",
+        simple: {
+          role: "assistant",
+          objective: "",
+          language: { mode: "auto" },
+          tone: "",
+          guardrails: [],
+          extraInstructions: "",
+        },
+        fiches: [
+          {
+            key: "e2e",
+            label: "E2E",
+            description: "",
+            intent: "",
+            fields: [],
+            renderTemplate: "# E2E",
+            instructions: "",
+          },
+        ],
+        dataSelection: { mode: "all", connaissanceIds: [], mediaIds: [] },
+      },
     },
   });
   expect(created.status()).toBe(201);

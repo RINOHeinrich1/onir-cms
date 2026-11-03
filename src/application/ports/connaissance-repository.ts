@@ -6,8 +6,6 @@ export type CreateConnaissanceInput = {
   chatLinkIds: string[];
   createdBy: string | null;
   origin?: "manual" | "ai";
-  sourceTemplateKey?: string | null;
-  aiGenerationId?: string | null;
 };
 
 export type UpdateConnaissanceInput = {
@@ -34,8 +32,6 @@ export interface ConnaissanceRepository {
     globalIds: string[],
   ): Promise<Connaissance[]>;
   create(organizationId: string, input: CreateConnaissanceInput): Promise<Connaissance>;
-  /** Nombre de connaissances IA générées pour un modèle (provenance). */
-  countAiByTemplate(organizationId: string, templateKey: string): Promise<number>;
   update(
     organizationId: string,
     id: string,

@@ -80,14 +80,6 @@ describe("état de brouillon de chatbot", () => {
       liens: [{ id: "l1", libelle: "Lien", url: "https://example.com", description: "d" }],
       photos: [{ id: "p1", libelle: "Photo", description: "pd", mediaId: "media-1" }],
     };
-    state.stagedKnowledge = [{ titre: "Page site", contenu: "Contenu du site" }];
-    state.aiSources = {
-      pages: [{ url: "https://example.com", title: "Accueil", chars: 12 }],
-      files: [],
-      chars: 12,
-      truncated: false,
-    };
-
     const serialized = serializeChatbotDraftState(state);
     expect(JSON.stringify(serialized)).not.toContain('"fichier"');
     expect(serialized).toMatchObject({
@@ -139,8 +131,6 @@ describe("état de brouillon de chatbot", () => {
     expect(hydrated.dataBindings).toEqual({ "row-1": "id-1" });
     expect(hydrated.ai).toEqual({ aiProviderId: "provider-1", aiModel: "model-1" });
     expect(hydrated.dataDraft).toEqual(state.dataDraft);
-    expect(hydrated.stagedKnowledge).toEqual([{ ...state.stagedKnowledge[0], id: "staged-1" }]);
-    expect(hydrated.aiSources).toEqual(state.aiSources);
   });
 
   it("tolère un état partiel ou invalide", () => {

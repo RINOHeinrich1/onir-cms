@@ -50,7 +50,7 @@ function baseDeps() {
       {
         id: "f1",
         createdAt: "2026-10-28T09:01:00.000Z",
-        templateKey: "fiche-projet",
+        ficheLabel: "Prospection",
         data: { entreprise: "ACME" },
         prospectNom: "Alice",
         prospectPrenom: "Martin",
@@ -152,7 +152,7 @@ describe("listActivityNotifications", () => {
     const many = Array.from({ length: 7 }, (_, index) => ({
       id: `f${index}`,
       createdAt: `2026-10-28T09:0${index}:00.000Z`,
-      templateKey: "fiche-projet",
+      ficheLabel: "Prospection",
       data: {},
       prospectNom: null,
       prospectPrenom: null,

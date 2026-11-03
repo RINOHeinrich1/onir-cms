@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
@@ -149,8 +148,6 @@ function deps() {
           organizationId: "org-1",
           actif: true,
           currentConfigId: "cfg-1",
-          templateKey: "demo",
-          templateVersion: 1,
           type: "standard",
           sources: { connaissances: false, phototheque: false, lien: false },
           aiProviderId: null,
@@ -168,9 +165,6 @@ function deps() {
         appendMessage,
       } as unknown as ConversationRepository,
       prospects: {} as ProspectRepository,
-      templates: {
-        findVersion: async () => ({ definition: DEFINITION }),
-      } as unknown as ChatTemplateRepository,
       configs: {
         findById: async () => CONFIG,
         currentForLink: async () => CONFIG,
@@ -243,17 +237,12 @@ describe("sendMessage — rappel de langue du mode Simple", () => {
           organizationId: "org-1",
           actif: true,
           currentConfigId: "cfg-1",
-          templateKey: "demo",
-          templateVersion: 1,
           type: "libre",
           aiProviderId: null,
           aiModel: null,
           sources: { connaissances: false, phototheque: false, lien: false },
         }),
       } as unknown as ChatLinkRepository,
-      templates: {
-        findVersion: async () => ({ definition }),
-      } as unknown as ChatTemplateRepository,
       configs: {
         findById: async () => ({
           ...CONFIG,

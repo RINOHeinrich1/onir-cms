@@ -31,8 +31,6 @@ function link(sources: Partial<ChatLinkSources> = {}): ChatLink {
     createdBy: null,
     actif: true,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true, ...sources },
     confidentialiteId: null,
     userStateEnabled: false,
@@ -250,7 +248,7 @@ describe("selectChatMedia — mini-RAG médias asynchrone", () => {
     expect(listActivesByTypeForChatLink).toHaveBeenCalledWith("org-1", "lien", "l1");
   });
 
-  it("runtime config-only : utilise chat_link_ids + globales, pas template_keys", async () => {
+  it("runtime config-only : utilise chat_link_ids + globales, sans portée legacy", async () => {
     const { deps, listActivesByType, listActivesByTypeForChatLink } = build({
       configOnly: true,
     });

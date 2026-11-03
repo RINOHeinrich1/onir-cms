@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { TemplateAiKnowledgeDto } from "@/components/templates/ai-types";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import type {
@@ -35,7 +34,6 @@ export function ChatbotDataStep({
   chatLinkId,
   onUploadPhoto,
   onRemovePhoto,
-  pendingKnowledge = [],
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -54,8 +52,6 @@ export function ChatbotDataStep({
   }) => Promise<{ mediaId: string }>;
   /** Suppression du média temporaire quand la photo est retirée du brouillon. */
   onRemovePhoto?: (photo: { mediaId?: string }) => void;
-  /** Connaissances IA/site en attente de création avec le chatbot. */
-  pendingKnowledge?: TemplateAiKnowledgeDto[];
 }) {
   const [mode, setMode] = useState<"none" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
@@ -178,7 +174,6 @@ export function ChatbotDataStep({
           onChange={onSelectionChange}
           chatLinkId={chatLinkId}
           onCountsChange={onGlobalCountsChange}
-          pendingKnowledge={pendingKnowledge}
         />
 
         <div className="tools">

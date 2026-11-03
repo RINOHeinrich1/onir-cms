@@ -5,7 +5,7 @@ import {
 } from "@/application/use-cases/attachments/manage-attachments";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         organizations: pgOrganizationRepository(pool),
         links: pgChatLinkRepository(pool),
         conversations: pgConversationRepository(pool),
-        templates: pgChatTemplateRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
         attachments: pgAttachmentRepository(pool),
         storage: attachmentStorage(),
       },

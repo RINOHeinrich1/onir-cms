@@ -12,7 +12,6 @@ const SEARCH = `GET /api/v1/fiches
 Authorization: Bearer onir_live_...
 
 ?q=Antananarivo
-&templateKey=partenaires-onir-cms
 &createdFrom=2026-01-01T00:00:00.000Z
 &createdTo=2026-12-31T23:59:59.999Z
 &includeArchived=false
@@ -60,9 +59,6 @@ export default function ApiFichesPage() {
       <ul>
         <li>
           <code>q</code> : recherche plein texte dans les données de la fiche ;
-        </li>
-        <li>
-          <code>templateKey</code>, <code>templateVersion</code> : modèle de fiche ;
         </li>
         <li>
           <code>createdFrom</code>, <code>createdTo</code> : dates ISO 8601 ;

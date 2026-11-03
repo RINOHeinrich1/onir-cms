@@ -5,7 +5,6 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
@@ -32,7 +31,6 @@ export type ConversationFieldsDependencies = {
   conversations: ConversationRepository;
   operatorScopes: ChatOperatorScopeRepository;
   links: ChatLinkRepository;
-  templates: ChatTemplateRepository;
   configs: ChatbotConfigRepository;
   ficheInstances: ConversationFicheInstanceRepository;
   attachments: AttachmentRepository;
@@ -42,12 +40,11 @@ export type ConversationFieldsDependencies = {
 
 type Context = {
   conversation: Conversation;
-  /** Configuration chatbot courante (ADR-0049) ; null = mode legacy. */
-  config: ChatbotConfig | null;
-  definition: TemplateDefinition | null;
-  templateKey: string;
-  templateVersion: number;
-  templateLabel: string;
+  /** Configuration chatbot courante (ADR-0049). */
+  config: ChatbotConfig;
+  ficheKey: string;
+  ficheVersion: number;
+  ficheLabel: string;
   instances: ConversationFicheInstance[];
 };
 
@@ -106,38 +103,22 @@ async function loadContext(
   if (link === null) throw new NotFoundError("Lien introuvable");
 
   const configId = link.currentConfigId ?? null;
-  if (configId !== null && configId !== "") {
-    const config = await deps.configs.findById(organizationId, configId);
-    if (config !== null) {
-      const instances = await ensureConfigInstances(deps, organizationId, conversation.id, config);
-      const primary = config.fiches[0];
-      return {
-        conversation,
-        config,
-        definition: null,
-        templateKey: primary?.key ?? "",
-        templateVersion: config.version,
-        templateLabel: primary?.label ?? "",
-        instances,
-      };
-    }
+  if (configId === null || configId === "") {
+    throw new UnprocessableError("Ce chatbot doit être configuré avec une fiche de collecte");
   }
-
-  const template = await deps.templates.findVersion(
-    organizationId,
-    link.templateKey,
-    link.templateVersion,
-  );
-  if (template === null) throw new NotFoundError("Modèle de raisonnement introuvable");
-
+  const config = await deps.configs.findById(organizationId, configId);
+  if (config === null) {
+    throw new NotFoundError("Configuration du chatbot introuvable");
+  }
+  const instances = await ensureConfigInstances(deps, organizationId, conversation.id, config);
+  const primary = config.fiches[0];
   return {
     conversation,
-    config: null,
-    definition: template.definition,
-    templateKey: link.templateKey,
-    templateVersion: link.templateVersion,
-    templateLabel: template.definition.label,
-    instances: [],
+    config,
+    ficheKey: primary?.key ?? "",
+    ficheVersion: config.version,
+    ficheLabel: primary?.label ?? "",
+    instances,
   };
 }
 
@@ -226,8 +207,7 @@ async function buildSnapshot(
   canEdit: boolean,
 ): Promise<ConversationFieldsView> {
   const organizationId = organizationOf(actor);
-  const [stored, analysis, attachments] = await Promise.all([
-    deps.fields.list(organizationId, context.conversation.id),
+  const [analysis, attachments] = await Promise.all([
     deps.fields.getAnalysis(organizationId, context.conversation.id),
     deps.attachments.listByConversation(organizationId, context.conversation.id),
   ]);
@@ -248,64 +228,25 @@ async function buildSnapshot(
     (currentAnalysis.lastAnalyzedMessageAt === null ||
       context.conversation.lastMessageAt > currentAnalysis.lastAnalyzedMessageAt);
 
-  if (context.config !== null) {
-    const fiches = buildFicheViews(context.config, context.instances, attachmentCounts);
-    const active =
-      fiches.find((fiche) =>
-        context.instances.some(
-          (instance) => instance.id === fiche.instanceId && instance.status === "active",
-        ),
-      ) ??
-      fiches[0] ??
-      null;
-    const top = counters(active?.fields ?? []);
-    return {
-      conversationId: context.conversation.id,
-      configId: context.config.id,
-      templateKey: active?.ficheKey ?? context.templateKey,
-      templateVersion: context.config.version,
-      templateLabel: active?.label ?? context.templateLabel,
-      fields: active?.fields ?? [],
-      ...top,
-      fiches,
-      analysis: currentAnalysis,
-      stale,
-      canEdit,
-    };
-  }
-
-  const definition = context.definition;
-  if (definition === null) throw new NotFoundError("Modèle de raisonnement introuvable");
-
-  const byName = new Map(stored.map((entry) => [entry.fieldName, entry]));
-  const values: Record<string, unknown> = {};
-  for (const entry of stored) values[entry.fieldName] = entry.value;
-
-  const fields: ConversationFieldView[] = definition.fields.map((field) => {
-    const entry = byName.get(field.name);
-    const attachmentCount = attachmentCounts[field.name] ?? 0;
-    const requiredNow = isFieldRequired(field, values);
-    const missing =
-      field.type === "file" ? attachmentCount === 0 : isFieldEmpty(field, entry?.value ?? null);
-    return {
-      ...field,
-      value: entry?.value ?? null,
-      source: entry?.source ?? null,
-      updatedAt: entry?.updatedAt ?? null,
-      attachmentCount,
-      requiredNow,
-      missing,
-    };
-  });
-
+  const fiches = buildFicheViews(context.config, context.instances, attachmentCounts);
+  const active =
+    fiches.find((fiche) =>
+      context.instances.some(
+        (instance) => instance.id === fiche.instanceId && instance.status === "active",
+      ),
+    ) ??
+    fiches[0] ??
+    null;
+  const top = counters(active?.fields ?? []);
   return {
     conversationId: context.conversation.id,
-    configId: null,
-    templateKey: context.templateKey,
-    templateVersion: context.templateVersion,
-    templateLabel: context.templateLabel,
-    fields,
-    ...counters(fields),
+    configId: context.config.id,
+    ficheKey: active?.ficheKey ?? context.ficheKey,
+    ficheVersion: context.config.version,
+    ficheLabel: active?.label ?? context.ficheLabel,
+    fields: active?.fields ?? [],
+    ...top,
+    fiches,
     analysis: currentAnalysis,
     stale,
     canEdit,
@@ -321,7 +262,6 @@ function resolveConfigTarget(
   context: Context,
   ficheInstanceId: string | null,
 ): ConfigTarget | null {
-  if (context.config === null) return null;
   const instances = context.instances;
   if (ficheInstanceId !== null) {
     const exact = instances.find((instance) => instance.id === ficheInstanceId) ?? null;
@@ -370,7 +310,6 @@ async function persistFicheData(
   organizationId: string,
   values: Record<string, unknown>,
 ): Promise<void> {
-  if (context.config === null) return;
   const merged = { ...(target.instance?.data ?? {}), ...values };
   const fields = buildFieldViews(target.fiche.fields, merged, {});
   const missingFields = fields.filter((field) => field.missing).map((field) => field.name);
@@ -414,27 +353,11 @@ export async function updateConversationFields(
   const { values: source, ficheInstanceId } = parseUpdateInput(input);
   const organizationId = organizationOf(actor);
 
-  if (context.config !== null) {
-    const target = resolveConfigTarget(context, ficheInstanceId);
-    if (target === null) throw new NotFoundError("Fiche de collecte introuvable");
-    const definition = ficheToDefinition(context.config, target.fiche);
-    const allowed = new Set(
-      target.fiche.fields.filter((field) => field.type !== "file").map((field) => field.name),
-    );
-    const filtered: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(source)) {
-      if (allowed.has(key)) filtered[key] = value;
-    }
-    const validated = validatePartialTemplateData(definition, filtered);
-    if (!validated.ok) throw new UnprocessableError(validated.errors.join(" ; "));
-    await persistFicheData(deps, context, target, organizationId, validated.value);
-    return buildSnapshot(deps, actor, context, true);
-  }
-
-  const definition = context.definition;
-  if (definition === null) throw new NotFoundError("Modèle de raisonnement introuvable");
+  const target = resolveConfigTarget(context, ficheInstanceId);
+  if (target === null) throw new NotFoundError("Fiche de collecte introuvable");
+  const definition = ficheToDefinition(context.config, target.fiche);
   const allowed = new Set(
-    definition.fields.filter((field) => field.type !== "file").map((field) => field.name),
+    target.fiche.fields.filter((field) => field.type !== "file").map((field) => field.name),
   );
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(source)) {
@@ -442,17 +365,7 @@ export async function updateConversationFields(
   }
   const validated = validatePartialTemplateData(definition, filtered);
   if (!validated.ok) throw new UnprocessableError(validated.errors.join(" ; "));
-
-  await deps.fields.upsertManual(
-    organizationId,
-    conversationId,
-    Object.entries(validated.value).map(([fieldName, value]) => ({
-      fieldName,
-      value,
-      source: "manual" as const,
-      updatedBy: actor.id,
-    })),
-  );
+  await persistFicheData(deps, context, target, organizationId, validated.value);
   return buildSnapshot(deps, actor, context, true);
 }
 
@@ -518,41 +431,16 @@ export async function refreshConversationFields(
     const link = await deps.links.findById(organizationId, context.conversation.linkId);
     if (link === null) throw new NotFoundError("Lien introuvable");
 
-    if (context.config !== null) {
-      const target = resolveConfigTarget(context, ficheInstanceId ?? null);
-      if (target === null) throw new NotFoundError("Fiche de collecte introuvable");
-      const definition = ficheToDefinition(context.config, target.fiche);
-      const draft = await runExtraction(deps, organizationId, conversationId, link, definition);
-      const validated = validatePartialTemplateData(definition, draft);
-      if (!validated.ok) throw new UnprocessableError(validated.errors.join(" ; "));
-      const entries = Object.fromEntries(
-        Object.entries(validated.value).filter(([, value]) => hasAiValue(value)),
-      );
-      await persistFicheData(deps, context, target, organizationId, entries);
-      await deps.fields.saveAnalysis(organizationId, conversationId, {
-        lastAnalyzedMessageAt: lastMessageAt,
-        lastAnalyzedAt: new Date().toISOString(),
-        status: "ok",
-        error: null,
-      });
-      return buildSnapshot(deps, actor, context, true);
-    }
-
-    const definition = context.definition;
-    if (definition === null) throw new NotFoundError("Modèle de raisonnement introuvable");
+    const target = resolveConfigTarget(context, ficheInstanceId ?? null);
+    if (target === null) throw new NotFoundError("Fiche de collecte introuvable");
+    const definition = ficheToDefinition(context.config, target.fiche);
     const draft = await runExtraction(deps, organizationId, conversationId, link, definition);
     const validated = validatePartialTemplateData(definition, draft);
     if (!validated.ok) throw new UnprocessableError(validated.errors.join(" ; "));
-
-    const entries = Object.entries(validated.value)
-      .filter(([, value]) => hasAiValue(value))
-      .map(([fieldName, value]) => ({
-        fieldName,
-        value,
-        source: "ai" as const,
-        updatedBy: null,
-      }));
-    await deps.fields.upsertAi(organizationId, conversationId, entries);
+    const entries = Object.fromEntries(
+      Object.entries(validated.value).filter(([, value]) => hasAiValue(value)),
+    );
+    await persistFicheData(deps, context, target, organizationId, entries);
     await deps.fields.saveAnalysis(organizationId, conversationId, {
       lastAnalyzedMessageAt: lastMessageAt,
       lastAnalyzedAt: new Date().toISOString(),

@@ -32,8 +32,6 @@ function previewLink(organizationId: string): ChatLink {
     createdBy: null,
     actif: true,
     expiresAt: null,
-    templateKey: "",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,

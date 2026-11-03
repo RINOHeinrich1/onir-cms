@@ -22,8 +22,6 @@ function linkRow(overrides: Partial<ChatLink> = {}): ChatLink {
     createdBy: "admin-1",
     actif: true,
     expiresAt: null,
-    templateKey: "fiche-projet",
-    templateVersion: 1,
     sources: { connaissances: true, phototheque: true, lien: true },
     confidentialiteId: null,
     userStateEnabled: false,

@@ -75,8 +75,8 @@ Sans compte configuré (panneau ou variable), le runtime renvoie
 
 | Vue | Colonnes |
 | --- | --- |
-| `template_read.v_connaissances` | `id, organization_id, titre, contenu, template_keys, actif, created_at, updated_at` |
-| `template_read.v_medias` | `id, organization_id, type, libelle, template_keys, actif, mime, url, created_at, updated_at` |
+| `template_read.v_connaissances` | `id, organization_id, titre, contenu, chat_link_ids, actif, created_at, updated_at` |
+| `template_read.v_medias` | `id, organization_id, type, libelle, chat_link_ids, actif, mime, url, created_at, updated_at` |
 
 - Chaque vue est filtrée par
   `organization_id = current_setting('app.organization_id', true)::uuid`.

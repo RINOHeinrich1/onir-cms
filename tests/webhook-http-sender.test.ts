@@ -13,7 +13,6 @@ let baseUrl = "";
 const ENDPOINT: WebhookEndpoint = {
   id: "77777777-7777-4777-8777-777777777777",
   organizationId: "22222222-2222-4222-8222-222222222222",
-  templateKey: "lead-demo",
   chatLinkId: null,
   ficheKey: null,
   name: "Test local",

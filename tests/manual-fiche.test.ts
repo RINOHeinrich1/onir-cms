@@ -1,34 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/application/actor";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
-import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { createFiche } from "@/application/use-cases/fiche/manage-fiches";
 import { renderFicheDocument } from "@/application/use-cases/fiche/render-fiche";
-import { type Fiche, MANUAL_FICHE_DEFINITION } from "@/domain/entities/fiche";
+import { type Fiche, MANUAL_FICHE_DEFINITION, MANUAL_FICHE_KEY } from "@/domain/entities/fiche";
 
 const ACTOR: Actor = {
   id: "user-1",
   role: "admin",
   organizationId: "org-1",
   isSuperAdmin: false,
-};
-
-const COLLECTE = {
-  id: "collecte-1",
-  organizationId: "org-1",
-  key: "projet",
-  label: "Projet",
-  description: "Fiche projet",
-  intent: "",
-  fields: MANUAL_FICHE_DEFINITION.fields,
-  renderTemplate: MANUAL_FICHE_DEFINITION.renderTemplate,
-  instructions: "",
-  version: 1,
-  createdBy: "user-1",
-  createdAt: new Date(0).toISOString(),
-  updatedAt: new Date(0).toISOString(),
 };
 
 const DATA = {
@@ -50,8 +33,6 @@ function fiche(overrides: Partial<Fiche> = {}): Fiche {
     prospectId: null,
     createdBy: "user-1",
     definition: MANUAL_FICHE_DEFINITION,
-    templateKey: null,
-    templateVersion: null,
     data: DATA,
     plateformes: DATA.plateformes,
     description: DATA.description,
@@ -72,14 +53,8 @@ async function create(overrides: Record<string, unknown> = {}) {
   const create = vi.fn(async (_organizationId: string, _input: unknown) => fiche());
   const deps = {
     fiches: { create } as unknown as FicheRepository,
-    fichesCollecte: {
-      findById: async () => COLLECTE,
-      findVersion: async () => COLLECTE,
-    } as unknown as FicheCollecteRepository,
   };
   const result = await createFiche(deps, ACTOR, {
-    ficheCollecteId: COLLECTE.id,
-    ficheCollecteVersion: COLLECTE.version,
     data: DATA,
     chatLinkIds: ["link-1"],
     ...overrides,
@@ -88,16 +63,15 @@ async function create(overrides: Record<string, unknown> = {}) {
 }
 
 describe("fiche manuelle sans modèle de raisonnement", () => {
-  it("crée une fiche avec un snapshot local et 0..N chatbots", async () => {
+  it("crée une fiche avec la définition intégrée et 0..N chatbots", async () => {
     const { create: createMock } = await create();
     expect(createMock).toHaveBeenCalledWith(
       "org-1",
       expect.objectContaining({
-        templateKey: null,
-        templateVersion: null,
-        definition: expect.objectContaining({ key: "projet", sourceFicheId: "collecte-1" }),
-        ficheKey: "projet",
+        definition: MANUAL_FICHE_DEFINITION,
+        ficheKey: MANUAL_FICHE_KEY,
         chatLinkIds: ["link-1"],
+        data: expect.objectContaining({ description: "Refonte du site" }),
       }),
     );
   });
@@ -105,20 +79,9 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
   it("refuse une fiche manuelle incomplète", async () => {
     const create = vi.fn(async () => fiche());
     await expect(
-      createFiche(
-        {
-          fiches: { create } as unknown as FicheRepository,
-          fichesCollecte: {
-            findById: async () => COLLECTE,
-            findVersion: async () => COLLECTE,
-          } as unknown as FicheCollecteRepository,
-        },
-        ACTOR,
-        {
-          ficheCollecteId: COLLECTE.id,
-          data: { ...DATA, description: "" },
-        },
-      ),
+      createFiche({ fiches: { create } as unknown as FicheRepository }, ACTOR, {
+        data: { ...DATA, description: "" },
+      }),
     ).rejects.toThrow(/Description du projet/);
   });
 

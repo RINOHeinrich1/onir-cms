@@ -149,12 +149,14 @@ export default async function ConversationDetailPage({ params, searchParams }: P
               <li key={item.id}>
                 {canViewLeads ? (
                   <a className="link" href={`/leads/${item.id}`}>
-                    {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}
+                    {item.definition?.label ?? "Fiche"} ·{" "}
+                    {new Date(item.createdAt).toLocaleString("fr-FR")}
                     {item.archivee ? " · archivée" : ""}
                   </a>
                 ) : (
                   <span>
-                    {item.templateKey} · {new Date(item.createdAt).toLocaleString("fr-FR")}{" "}
+                    {item.definition?.label ?? "Fiche"} ·{" "}
+                    {new Date(item.createdAt).toLocaleString("fr-FR")}{" "}
                     <a
                       className="link"
                       href={`/api/conversations/${conversation.id}/fiches/${item.id}/download?format=pdf`}

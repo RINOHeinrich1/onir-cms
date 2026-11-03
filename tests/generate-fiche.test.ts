@@ -4,7 +4,8 @@ import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
-import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -61,8 +62,7 @@ const LINK: ChatLink = {
   createdBy: null,
   actif: true,
   expiresAt: null,
-  templateKey: "fiche-projet",
-  templateVersion: 1,
+  currentConfigId: "cfg-1",
   sources: { connaissances: true, phototheque: true, lien: true },
   confidentialiteId: null,
   userStateEnabled: false,
@@ -103,8 +103,6 @@ const FICHE: Fiche = {
   conversationId: "c1",
   prospectId: "p1",
   createdBy: "admin-1",
-  templateKey: "fiche-projet",
-  templateVersion: 1,
   data: { sujet: "Site" },
   plateformes: [],
   description: "",
@@ -122,9 +120,47 @@ const DEFINITION = {
   key: "fiche-projet",
   label: "Fiche",
   description: "",
-  systemPrompt: "x",
+  intent: "",
+  instructions: "",
   fields: [{ name: "sujet", label: "Sujet", type: "text" as const, required: false }],
   renderTemplate: "# Fiche\n\nSujet : {{sujet}}",
+};
+
+const CONFIG = {
+  id: "cfg-1",
+  organizationId: "org-1",
+  chatLinkId: "l1",
+  version: 1,
+  behaviorMode: "guided" as const,
+  systemPrompt: "x",
+  simple: {
+    role: "assistant",
+    objective: "",
+    language: { mode: "auto" as const },
+    tone: "",
+    guardrails: [],
+    extraInstructions: "",
+  },
+  fiches: [DEFINITION],
+  dataSelection: { mode: "all" as const, connaissanceIds: [], mediaIds: [] },
+  createdBy: null,
+  createdAt: new Date(0).toISOString(),
+};
+
+const INSTANCE = {
+  id: "inst-1",
+  organizationId: "org-1",
+  conversationId: "c1",
+  configId: "cfg-1",
+  ficheKey: "fiche-projet",
+  instanceKey: "default",
+  status: "complete" as const,
+  data: { sujet: "Site" },
+  missingFields: [],
+  abandonReason: null,
+  detectedAt: new Date(0).toISOString(),
+  completedAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
 };
 
 function deps() {
@@ -168,16 +204,16 @@ function deps() {
       } as unknown as ConversationRepository,
       prospects: { findById: async () => PROSPECT } as unknown as ProspectRepository,
       fiches: { create } as unknown as FicheRepository,
-      templates: {
-        findVersion: async () => ({
-          id: "v1",
-          templateId: "t1",
-          version: 1,
-          definition: DEFINITION,
-          createdBy: null,
-          createdAt: new Date(0).toISOString(),
-        }),
-      } as unknown as ChatTemplateRepository,
+      configs: {
+        findById: async () => CONFIG,
+        currentForLink: async () => CONFIG,
+      } as unknown as ChatbotConfigRepository,
+      ficheInstances: {
+        listByConversation: async () => [INSTANCE],
+        update: async () => INSTANCE,
+        upsert: async () => INSTANCE,
+        activate: async () => INSTANCE,
+      } as unknown as ConversationFicheInstanceRepository,
       attachments: {
         listByConversation: async () => [],
         attachToFiche: async () => undefined,

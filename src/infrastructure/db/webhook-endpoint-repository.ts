@@ -29,7 +29,6 @@ import {
 type EndpointRow = {
   id: string;
   organization_id: string;
-  template_key: string | null;
   chat_link_id: string | null;
   fiche_key: string | null;
   name: string;
@@ -58,7 +57,7 @@ type EndpointRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, template_key, chat_link_id, fiche_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
+  "id, organization_id, chat_link_id, fiche_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -140,7 +139,6 @@ function toEntity(row: EndpointRow): WebhookEndpoint {
   return {
     id: row.id,
     organizationId: row.organization_id,
-    templateKey: row.template_key,
     chatLinkId: row.chat_link_id,
     ficheKey: row.fiche_key,
     name: row.name,
@@ -170,7 +168,6 @@ function toEntity(row: EndpointRow): WebhookEndpoint {
 
 function writeParams(input: WebhookEndpointWriteInput): unknown[] {
   return [
-    input.templateKey,
     input.chatLinkId,
     input.ficheKey,
     input.name,
@@ -201,10 +198,6 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
     async list(organizationId, filter = {}) {
       const clauses = ["organization_id = $1", "deleted_at IS NULL"];
       const params: unknown[] = [organizationId];
-      if (filter.templateKey !== undefined && filter.templateKey !== null) {
-        params.push(filter.templateKey);
-        clauses.push(`template_key = $${params.length}`);
-      }
       if (filter.chatLinkId !== undefined && filter.chatLinkId !== null) {
         params.push(filter.chatLinkId);
         clauses.push(`chat_link_id = $${params.length}`);
@@ -231,13 +224,13 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
       const values = writeParams(input);
       const { rows } = await pool.query<EndpointRow>(
         `INSERT INTO webhook_endpoints
-           (organization_id, template_key, chat_link_id, fiche_key, name, description,
+           (organization_id, chat_link_id, fiche_key, name, description,
             enabled, http_method, url, query_params, headers, body_mode, body_template,
             field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts,
             retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http,
             allow_private_network, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                 $17, $18, $19, $20, $21, $22, $23, $24)
+                 $17, $18, $19, $20, $21, $22, $23)
          RETURNING ${COLUMNS}`,
         [organizationId, ...values, input.createdBy],
       );
@@ -250,13 +243,13 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
       const values = writeParams(input);
       const { rows } = await pool.query<EndpointRow>(
         `UPDATE webhook_endpoints
-            SET template_key = $3, chat_link_id = $4, fiche_key = $5, name = $6,
-                description = $7, enabled = $8, http_method = $9, url = $10,
-                query_params = $11, headers = $12, body_mode = $13, body_template = $14,
-                field_mappings = $15, auth_type = $16, auth_config_enc = $17,
-                timeout_ms = $18, max_attempts = $19, retry_backoff_ms = $20,
-                follow_redirects = $21, tls_verify = $22, allow_insecure_http = $23,
-                allow_private_network = $24, updated_at = now()
+            SET chat_link_id = $3, fiche_key = $4, name = $5,
+                description = $6, enabled = $7, http_method = $8, url = $9,
+                query_params = $10, headers = $11, body_mode = $12, body_template = $13,
+                field_mappings = $14, auth_type = $15, auth_config_enc = $16,
+                timeout_ms = $17, max_attempts = $18, retry_backoff_ms = $19,
+                follow_redirects = $20, tls_verify = $21, allow_insecure_http = $22,
+                allow_private_network = $23, updated_at = now()
           WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL
           RETURNING ${COLUMNS}`,
         [organizationId, id, ...values],
@@ -272,15 +265,6 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
         [organizationId, id],
       );
       return (result.rowCount ?? 0) > 0;
-    },
-
-    async listTemplateKeysReferenced(organizationId) {
-      const { rows } = await pool.query<{ template_key: string }>(
-        `SELECT DISTINCT template_key FROM webhook_endpoints
-          WHERE organization_id = $1 AND deleted_at IS NULL AND template_key IS NOT NULL`,
-        [organizationId],
-      );
-      return rows.map((row) => row.template_key);
     },
   };
 }

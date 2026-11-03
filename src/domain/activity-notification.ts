@@ -27,7 +27,7 @@ export type ActivityConversationSource = {
 export type ActivityLeadSource = {
   id: string;
   createdAt: string;
-  templateKey: string;
+  ficheLabel: string;
   data: Record<string, unknown>;
   prospectNom: string | null;
   prospectPrenom: string | null;
@@ -67,7 +67,7 @@ function leadLabel(source: ActivityLeadSource): string {
   }
   if (prospect !== "") return prospect;
   if (dataLabel !== "") return dataLabel;
-  return source.templateKey;
+  return source.ficheLabel;
 }
 
 export function conversationNotification(

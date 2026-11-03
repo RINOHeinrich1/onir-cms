@@ -1,7 +1,8 @@
 /**
- * Webhooks sortants (ADR-0035) — entités pures, sans dépendance framework.
- * Un endpoint est rattaché à un modèle de raisonnement ; une livraison est
- * l'exécution d'un endpoint sur une fiche.
+ * Webhooks sortants (ADR-0035, ADR-0061) — entités pures, sans dépendance
+ * framework. Un endpoint est rattaché à un chatbot (`chat_link_id`) et,
+ * optionnellement, à une fiche de collecte ; une livraison est l'exécution
+ * d'un endpoint sur une fiche.
  */
 
 export const WEBHOOK_HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
@@ -39,8 +40,6 @@ export type WebhookDeliveryStatus = (typeof WEBHOOK_DELIVERY_STATUSES)[number];
 const WEBHOOK_META_FIELDS = [
   "id",
   "createdAt",
-  "templateKey",
-  "templateVersion",
   "conversationId",
   "prospectId",
   "archivee",
@@ -104,8 +103,6 @@ export type WebhookAuth =
 export type WebhookEndpoint = {
   id: string;
   organizationId: string;
-  /** Scope legacy : modèle de raisonnement (nullable, déprécié). */
-  templateKey: string | null;
   /** Scope fiche de collecte : chatbot source (stable entre versions de config). */
   chatLinkId: string | null;
   /** Fiche de collecte ciblée dans le chatbot ; null = toutes ses fiches. */
@@ -148,9 +145,6 @@ export type WebhookDelivery = {
   organizationId: string;
   endpointId: string;
   ficheId: string | null;
-  /** Scope legacy (nullable) ; renseigné pour les fiches historiques. */
-  templateKey: string | null;
-  templateVersion: number | null;
   /** Scope fiche de collecte utilisé pour la livraison. */
   chatLinkId: string | null;
   ficheKey: string | null;
@@ -223,8 +217,6 @@ export { WEBHOOK_META_FIELDS, WEBHOOK_PROSPECT_FIELDS };
 export const WEBHOOK_META_FIELD_LABELS: Record<WebhookMetaField, string> = {
   id: "Identifiant de la fiche",
   createdAt: "Date de création",
-  templateKey: "Clé du modèle",
-  templateVersion: "Version du modèle",
   conversationId: "Identifiant de conversation",
   prospectId: "Identifiant du prospect",
   archivee: "Fiche archivée",

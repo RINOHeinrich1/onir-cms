@@ -194,11 +194,6 @@ describe("acceptation d'invitation", () => {
     expect(result.role).toBe("admin");
     expect(result.organizationName).toBe("Admin Personnel");
 
-    const templates = await pool.query<{ count: number }>(
-      "SELECT count(*)::int AS count FROM chat_templates WHERE organization_id = $1",
-      [result.organizationId],
-    );
-    expect(templates.rows[0]?.count).toBe(3);
     const membership = await pool.query<{ role: string }>(
       "SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2",
       [result.organizationId, result.userId],
