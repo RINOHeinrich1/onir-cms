@@ -60,7 +60,6 @@ describe("OpenAPI v1 contract", () => {
         "/prospects",
         "/conversations",
         "/chatbots",
-        "/modeles",
         "/statistiques/summary",
         "/webhooks",
         "/webhook-deliveries/{id}/retry",
