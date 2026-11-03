@@ -124,13 +124,13 @@ export default async function DashboardHomePage() {
     { href: "/leads", label: "Leads", value: fiches.length, warn: false },
     {
       href: "/conversations?filtre=toutes&incident=ai_reply_failed&prise_en_main=non",
-      label: "Conversations IA en erreur non prises en main",
+      label: "Conversations IA en erreur",
       value: aiErrors,
       warn: true,
     },
     {
       href: "/conversations?filtre=toutes&incident=fiche_generation_failed&prise_en_main=non",
-      label: "Générations de fiche en erreur non prises en main",
+      label: "Générations de fiche en erreur",
       value: ficheErrors,
       warn: true,
     },
