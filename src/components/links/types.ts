@@ -12,7 +12,6 @@ export type ChatLinkDto = ChatLink;
 export type ChatLinkRow = ChatLinkListItem;
 export type ProspectOption = Pick<Prospect, "id" | "nom" | "prenom" | "email">;
 /** Modèle proposé dans le sélecteur de création de lien. */
-export type TemplateOption = { key: string; label: string };
 /** Politique de confidentialité proposée au rattachement d'un lien. */
 export type ConfidentialiteOption = { id: string; titre: string };
 /** Fournisseur IA proposé dans le sélecteur d'un lien. */
