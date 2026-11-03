@@ -9,10 +9,12 @@ import type {
   ProvisioningKnowledgeInput,
 } from "@/application/ports/chatbot-provisioning-repository";
 import type { ConfidentialiteRepository } from "@/application/ports/confidentialite-repository";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { LinkDataBindingRepository } from "@/application/ports/link-data-binding-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type { TemplateDataBindingRepository } from "@/application/ports/template-data-binding-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
+import { publishChatbotFiches } from "@/application/use-cases/fiches-collecte/manage-fiche-collectes";
 import {
   assertAssignableProvider,
   parseAiAssignmentInput,
@@ -54,6 +56,8 @@ export type CreateChatLinkDependencies = {
   configs?: ChatbotConfigRepository;
   /** Création transactionnelle lien + config + connaissances (ADR-0060). */
   provisioner?: ChatbotProvisioningRepository;
+  /** Bibliothèque des fiches réutilisables (publication automatique). */
+  ficheCollectes?: FicheCollecteRepository;
 };
 
 export type CreatedChatLink = {
@@ -235,6 +239,21 @@ export async function createChatLinkForOrganization(
       // Compensation : aucun chatbot config-only orphelin si la config échoue.
       await deps.links.delete(organizationId, link.id);
       throw error;
+    }
+  }
+  if (configInput.ok && deps.ficheCollectes !== undefined) {
+    try {
+      await publishChatbotFiches(
+        { fiches: deps.ficheCollectes },
+        organizationId,
+        configInput.value.fiches,
+        createdBy,
+      );
+    } catch (error) {
+      console.error(
+        "[fiches-collecte] publication automatique impossible :",
+        error instanceof Error ? error.message : error,
+      );
     }
   }
   if (dataBindings !== null) {

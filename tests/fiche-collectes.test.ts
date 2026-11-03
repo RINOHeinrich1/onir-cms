@@ -7,6 +7,7 @@ import type {
 import {
   createFicheCollecte,
   listFicheCollecteVersions,
+  publishChatbotFiches,
   updateFicheCollecte,
 } from "@/application/use-cases/fiches-collecte/manage-fiche-collectes";
 import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
@@ -138,6 +139,24 @@ describe("fiches de collecte réutilisables", () => {
     const deps = { fiches: memoryRepository() };
     const created = await createFicheCollecte(deps, ACTOR, input({ key: "" }));
     expect(created.key).toBe("demande-d-hotel");
+  });
+
+  it("publie automatiquement les fiches d'un chatbot, sans doublon ni écrasement", async () => {
+    const deps = { fiches: memoryRepository() };
+    await publishChatbotFiches(deps, "org-1", [input()], "user-1");
+    expect(await deps.fiches.list("org-1")).toHaveLength(1);
+
+    await publishChatbotFiches(deps, "org-1", [input()], "user-1");
+    expect(await deps.fiches.list("org-1")).toHaveLength(1);
+
+    await publishChatbotFiches(
+      deps,
+      "org-1",
+      [input({ label: "Demande d'hébergement" })],
+      "user-1",
+    );
+    const all = await deps.fiches.list("org-1");
+    expect(all.map((fiche) => fiche.key)).toEqual(["hotel", "hotel-2"]);
   });
 
   it("produit un snapshot de fiche avec sourceFicheId/sourceVersion pour le chatbot", async () => {

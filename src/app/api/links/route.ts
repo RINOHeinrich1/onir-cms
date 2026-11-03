@@ -12,6 +12,7 @@ import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-re
 import { pgChatbotProvisioningRepository } from "@/infrastructure/db/chatbot-provisioning-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
+import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -64,6 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         aiModels: pgAiProviderModelRepository(pool),
         configs: pgChatbotConfigRepository(pool),
         provisioner: pgChatbotProvisioningRepository(pool),
+        ficheCollectes: pgFicheCollecteRepository(pool),
       },
       actor,
       body,

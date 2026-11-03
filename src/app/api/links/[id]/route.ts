@@ -7,6 +7,7 @@ import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-reposito
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
+import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgTemplateDataBindingRepository } from "@/infrastructure/db/template-data-binding-repository";
@@ -39,6 +40,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Ne
         aiProviders: pgAiProviderRepository(pool),
         aiModels: pgAiProviderModelRepository(pool),
         configs: pgChatbotConfigRepository(pool),
+        ficheCollectes: pgFicheCollecteRepository(pool),
       },
       actor,
       id,

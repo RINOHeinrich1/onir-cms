@@ -4,9 +4,11 @@ import type { AiProviderModelRepository } from "@/application/ports/ai-model-rep
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { LinkDataBindingRepository } from "@/application/ports/link-data-binding-repository";
 import type { TemplateDataBindingRepository } from "@/application/ports/template-data-binding-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
+import { publishChatbotFiches } from "@/application/use-cases/fiches-collecte/manage-fiche-collectes";
 import {
   assertAssignableProvider,
   parseAiAssignmentInput,
@@ -45,6 +47,8 @@ export type ManageChatLinksDependencies = ChatLinksDependencies & {
   aiModels?: AiProviderModelRepository;
   /** Configuration chatbot autonome (ADR-0049). */
   configs?: ChatbotConfigRepository;
+  /** Bibliothèque des fiches réutilisables (publication automatique). */
+  ficheCollectes?: FicheCollecteRepository;
 };
 
 /** US-LIENS-001 — liste des liens (admin/marketeur). */
@@ -236,6 +240,21 @@ export async function updateChatLinkForOrganization(
       parsed.value,
       updated.createdBy,
     );
+    if (deps.ficheCollectes !== undefined) {
+      try {
+        await publishChatbotFiches(
+          { fiches: deps.ficheCollectes },
+          organizationId,
+          parsed.value.fiches,
+          updated.createdBy,
+        );
+      } catch (error) {
+        console.error(
+          "[fiches-collecte] publication automatique impossible :",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
     return { ...updated, currentConfigId: config.id };
   }
   return updated;

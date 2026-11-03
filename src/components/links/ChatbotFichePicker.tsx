@@ -7,7 +7,6 @@ import { Modal } from "@/components/ui/Modal";
 import type { TemplateField } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
 import { draftFromFicheCollecte, type FicheDraft } from "./chatbot-config-draft";
-import { SaveFicheCollecteButton } from "./SaveFicheCollecteButton";
 
 export type FicheCollecteOption = {
   id: string;
@@ -202,22 +201,6 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
                 <span>
                   {fiche.label} <small>({fiche.key})</small>
                 </span>
-                <SaveFicheCollecteButton
-                  fiche={fiche}
-                  onSaved={(saved) =>
-                    onChange(
-                      value.map((entry) =>
-                        entry.id === fiche.id
-                          ? {
-                              ...entry,
-                              sourceFicheId: saved.id,
-                              sourceVersion: saved.version,
-                            }
-                          : entry,
-                      ),
-                    )
-                  }
-                />
                 <button
                   type="button"
                   className="btn danger ghost small"
