@@ -62,3 +62,6 @@ export const changePasswordLimiter = createRateLimiter({ limit: 10, windowMs: 10
 export const invitationLimiter = createRateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
 
 /** Assistance IA des modèles : 5 générations / minute par utilisateur. */
+
+/** Assistance IA de création de chatbot : 5 générations / minute par utilisateur. */
+export const chatbotAiLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 1000 });
