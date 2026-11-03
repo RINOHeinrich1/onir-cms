@@ -34,6 +34,8 @@ export const CHATBOT_AI_MAX_FILES = 5;
 export const CHATBOT_AI_MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const CHATBOT_AI_MAX_TOTAL_BYTES = 50 * 1024 * 1024;
 export const CHATBOT_AI_MAX_DESCRIPTION_CHARS = 4_000;
+/** Paliers de secours pour les modèles qui consomment le budget en raisonnement. */
+export const CHATBOT_AI_TOKEN_BUDGETS = [4_000, 8_000, 12_000] as const;
 export const CHATBOT_AI_DEFAULT_MAX_PAGES = 5;
 export const CHATBOT_AI_DEFAULT_MAX_DEPTH = 1;
 
@@ -284,21 +286,41 @@ export async function generateChatbotAiDraft(
     existing: null,
   });
 
-  let raw: string;
-  try {
-    raw = await client.complete({
-      system: prompt.system,
-      messages: [{ role: "user", content: prompt.user }],
-      maxTokens: 4_000,
-    });
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new BadGatewayError(error instanceof Error ? error.message : "La génération IA a échoué");
+  let json: Record<string, unknown> | null = null;
+  let lastError: unknown = null;
+  for (const maxTokens of CHATBOT_AI_TOKEN_BUDGETS) {
+    let raw: string;
+    try {
+      raw = await client.complete({
+        system: prompt.system,
+        messages: [{ role: "user", content: prompt.user }],
+        maxTokens,
+        structured: true,
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      const message = error instanceof Error ? error.message : "";
+      if (!/réponse ia vide|json|finish_reason|length|unexpected end/i.test(message)) {
+        throw new BadGatewayError(message === "" ? "La génération IA a échoué" : message);
+      }
+      lastError = error;
+      continue;
+    }
+
+    const candidate = extractAiJsonObject(raw);
+    if (candidate !== null && typeof candidate === "object" && !Array.isArray(candidate)) {
+      json = candidate as Record<string, unknown>;
+      break;
+    }
+    lastError = new BadGatewayError("L'IA n'a pas renvoyé un JSON exploitable. Réessayez.");
   }
 
-  const json = extractAiJsonObject(raw);
   if (json === null) {
-    throw new BadGatewayError("L'IA n'a pas renvoyé un JSON exploitable. Réessayez.");
+    throw new BadGatewayError(
+      lastError instanceof Error
+        ? `${lastError.message} (budget de raisonnement insuffisant après plusieurs tentatives)`
+        : "L'IA n'a pas renvoyé un JSON exploitable après plusieurs tentatives.",
+    );
   }
   const suggestedLabel = text((json as Record<string, unknown>).label);
   const key = toTemplateKey(suggestedLabel);
