@@ -62,3 +62,4 @@ ADR qui remplace la précédente.
 | [0059](./0059-fallback-heuristique-chatbot.md) | Fallback heuristique des chatbots — questions/réponses fermées et fiche existante | Accepté |
 | [0060](./0060-creation-chatbot-assistee-ia.md) | Création de chatbot assistée par IA — préremplissage supervisé | Accepté |
 | [0062](./0062-suppression-legacy-modeles-raisonnement.md) | Suppression du stack legacy « modèles de raisonnement » | Accepté |
+| [0063](./0063-couleurs-site-vers-variables-template.md) | Extraction et mapping des couleurs du site vers les variables de template | Proposé |
