@@ -18,8 +18,10 @@ type DeliveryRow = {
   organization_id: string;
   endpoint_id: string;
   fiche_id: string | null;
-  template_key: string;
-  template_version: number;
+  template_key: string | null;
+  template_version: number | null;
+  chat_link_id: string | null;
+  fiche_key: string | null;
   is_test: boolean;
   replay_of_id: string | null;
   status: string;
@@ -52,7 +54,7 @@ type AttemptRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, endpoint_id, fiche_id, template_key, template_version, is_test, replay_of_id, status, attempts, next_attempt_at, idempotency_key, request_snapshot, response_status, response_body, error_code, error_message, triggered_by, started_at, finished_at, created_at";
+  "id, organization_id, endpoint_id, fiche_id, template_key, template_version, chat_link_id, fiche_key, is_test, replay_of_id, status, attempts, next_attempt_at, idempotency_key, request_snapshot, response_status, response_body, error_code, error_message, triggered_by, started_at, finished_at, created_at";
 
 function toDelivery(row: DeliveryRow): WebhookDelivery {
   if (!isWebhookDeliveryStatus(row.status)) {
@@ -71,6 +73,8 @@ function toDelivery(row: DeliveryRow): WebhookDelivery {
     ficheId: row.fiche_id,
     templateKey: row.template_key,
     templateVersion: row.template_version,
+    chatLinkId: row.chat_link_id,
+    ficheKey: row.fiche_key,
     isTest: row.is_test,
     replayOfId: row.replay_of_id,
     status: row.status as WebhookDeliveryStatus,
@@ -121,9 +125,9 @@ export function pgWebhookDeliveryRepository(pool: Pool): WebhookDeliveryReposito
       const { rows } = await pool.query<DeliveryRow>(
         `INSERT INTO webhook_deliveries
            (organization_id, endpoint_id, fiche_id, template_key, template_version,
-            is_test, replay_of_id, status, attempts, next_attempt_at, idempotency_key,
-            request_snapshot, triggered_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'queued', 0, now(), $8, $9, $10)
+            chat_link_id, fiche_key, is_test, replay_of_id, status, attempts,
+            next_attempt_at, idempotency_key, request_snapshot, triggered_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'queued', 0, now(), $10, $11, $12)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -131,6 +135,8 @@ export function pgWebhookDeliveryRepository(pool: Pool): WebhookDeliveryReposito
           input.ficheId,
           input.templateKey,
           input.templateVersion,
+          input.chatLinkId,
+          input.ficheKey,
           input.isTest,
           input.replayOfId,
           input.idempotencyKey,

@@ -322,8 +322,23 @@ export function parseWebhookConfig(
     throw new ValidationError(`Le nom doit contenir au moins ${WEBHOOK_LIMITS.nameMin} caractères`);
   }
 
+  const templateKey = text(source.templateKey, "Modèle", 120);
+  const chatLinkId = text(source.chatLinkId, "Chatbot", 64);
+  const ficheKey = text(source.ficheKey, "Fiche de collecte", 120);
+  if ((templateKey === "") === (chatLinkId === "")) {
+    throw new ValidationError("Un périmètre est requis : modèle legacy ou chatbot");
+  }
+  if (templateKey !== "" && (chatLinkId !== "" || ficheKey !== "")) {
+    throw new ValidationError("Un endpoint ne peut pas cumuler un modèle et un chatbot");
+  }
+  if (chatLinkId === "" && ficheKey !== "") {
+    throw new ValidationError("Une fiche de collecte exige un chatbot");
+  }
+
   return {
-    templateKey: text(source.templateKey, "Modèle", 120, true),
+    templateKey: templateKey === "" ? null : templateKey,
+    chatLinkId: chatLinkId === "" ? null : chatLinkId,
+    ficheKey: ficheKey === "" ? null : ficheKey,
     name,
     description: text(source.description, "Description", WEBHOOK_LIMITS.descriptionMax),
     enabled: bool(source.enabled, true),

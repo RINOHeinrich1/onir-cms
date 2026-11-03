@@ -9,7 +9,12 @@ import type {
 } from "@/domain/entities/webhook";
 
 export type WebhookEndpointWriteInput = {
-  templateKey: string;
+  /** Scope legacy (nullable) : modèle de raisonnement déprécié. */
+  templateKey: string | null;
+  /** Scope fiche de collecte : chatbot source. */
+  chatLinkId: string | null;
+  /** Fiche de collecte ciblée ; null = toutes les fiches du chatbot. */
+  ficheKey: string | null;
   name: string;
   description: string;
   enabled: boolean;
@@ -31,9 +36,14 @@ export type WebhookEndpointWriteInput = {
   createdBy: string | null;
 };
 
+export type WebhookEndpointScopeFilter = {
+  templateKey?: string | null;
+  chatLinkId?: string | null;
+};
+
 export interface WebhookEndpointRepository {
-  /** Endpoints non supprimés, éventuellement filtrés par modèle. */
-  list(organizationId: string, templateKey?: string | null): Promise<WebhookEndpoint[]>;
+  /** Endpoints non supprimés, éventuellement filtrés par scope. */
+  list(organizationId: string, filter?: WebhookEndpointScopeFilter): Promise<WebhookEndpoint[]>;
   /** Trouve un endpoint, y compris supprimé logiquement (pour les livraisons en cours). */
   findById(organizationId: string, id: string): Promise<WebhookEndpoint | null>;
   create(organizationId: string, input: WebhookEndpointWriteInput): Promise<WebhookEndpoint>;

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { NotFoundError, UnprocessableError, ValidationError } from "@/application/errors";
+import { UnprocessableError, ValidationError } from "@/application/errors";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
@@ -356,25 +356,31 @@ function buildCookedHeaders(
  * Les valeurs sont figées dans le snapshot d'audit, mais l'authentification est
  * appliquée au moment de l'envoi par le `WebhookSender`.
  */
+async function resolveDefinition(
+  deps: BuildWebhookRequestDependencies,
+  organizationId: string,
+  fiche: Fiche,
+): Promise<TemplateDefinition> {
+  if (fiche.definition !== undefined && fiche.definition !== null) {
+    return fiche.definition;
+  }
+  if (fiche.templateKey !== null && fiche.templateVersion !== null) {
+    const template = await deps.templates.findVersion(
+      organizationId,
+      fiche.templateKey,
+      fiche.templateVersion,
+    );
+    if (template !== null) return template.definition;
+  }
+  throw new ValidationError("Définition de fiche introuvable");
+}
+
 export async function buildWebhookRequest(
   deps: BuildWebhookRequestDependencies,
   endpoint: WebhookEndpoint,
   fiche: Fiche,
 ): Promise<BuiltWebhookRequest> {
-  if (fiche.templateKey === null || fiche.templateVersion === null) {
-    throw new ValidationError("Cette fiche n'est pas liée à un modèle de raisonnement legacy");
-  }
-  const template = await deps.templates.findVersion(
-    endpoint.organizationId,
-    fiche.templateKey,
-    fiche.templateVersion,
-  );
-  if (template === null) {
-    throw new NotFoundError("Version du modèle de raisonnement introuvable");
-  }
-  if (fiche.templateKey !== endpoint.templateKey) {
-    throw new UnprocessableError("La fiche n'appartient pas au modèle du webhook");
-  }
+  const definition = await resolveDefinition(deps, endpoint.organizationId, fiche);
 
   const prospect =
     fiche.prospectId === null
@@ -382,7 +388,7 @@ export async function buildWebhookRequest(
       : await deps.prospects.findById(endpoint.organizationId, fiche.prospectId);
   const attachments = await deps.attachments.listByFiche(endpoint.organizationId, fiche.id);
   const groups = fieldGroups(attachments);
-  const values = baseValues(template.definition, fiche, prospect, attachments);
+  const values = baseValues(definition, fiche, prospect, attachments);
   const fields: Record<string, unknown> = {};
   const multipartParts: MultipartPart[] = [];
   let attachmentCount = 0;

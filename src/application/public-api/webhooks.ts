@@ -19,7 +19,7 @@ export async function listWebhooksForApi(
   organizationId: string,
   templateKey: string | null,
 ) {
-  const endpoints = await deps.endpoints.list(organizationId, templateKey);
+  const endpoints = await deps.endpoints.list(organizationId, { templateKey });
   return endpoints.filter((endpoint) => endpoint.deletedAt === null).map(webhookEndpointDto);
 }
 

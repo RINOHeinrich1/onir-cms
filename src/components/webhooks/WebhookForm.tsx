@@ -12,7 +12,12 @@ import {
   WEBHOOK_PROSPECT_FIELD_LABELS,
   WEBHOOK_PROSPECT_FIELDS,
 } from "@/domain/entities/webhook";
-import type { WebhookEndpointAdminDto, WebhookFieldOption, WebhookTemplateOption } from "./types";
+import type {
+  WebhookChatbotOption,
+  WebhookEndpointAdminDto,
+  WebhookFieldOption,
+  WebhookTemplateOption,
+} from "./types";
 
 type HeaderDraft = { uid: string; name: string; value: string; secret: boolean };
 type MappingDraft = {
@@ -93,9 +98,10 @@ function authDraft(auth: WebhookAuth | null): AuthDraft {
   return base;
 }
 
-function fieldOptions(template: WebhookTemplateOption | null): WebhookFieldOption[] {
-  if (template === null) return [];
-  const model: WebhookFieldOption[] = template.fields.map((field) => ({
+function fieldOptions(
+  fields: Array<{ name: string; label: string; type: string }>,
+): WebhookFieldOption[] {
+  const model: WebhookFieldOption[] = fields.map((field) => ({
     key: `${field.type === "file" ? "attachment" : "field"}:${field.name}`,
     source: field.type === "file" ? "attachment" : "field",
     field: field.name,
@@ -120,6 +126,62 @@ function fieldOptions(template: WebhookTemplateOption | null): WebhookFieldOptio
     file: false,
   }));
   return [...model, ...meta, ...prospect];
+}
+
+type ScopeDraft = { templateKey: string; chatLinkId: string; ficheKey: string };
+
+function initialScope(
+  endpoint: WebhookEndpointAdminDto | null,
+  templates: WebhookTemplateOption[],
+  chatbots: WebhookChatbotOption[],
+): ScopeDraft {
+  if (endpoint !== null) {
+    if (endpoint.templateKey !== null) {
+      return { templateKey: endpoint.templateKey, chatLinkId: "", ficheKey: "" };
+    }
+    if (endpoint.chatLinkId !== null) {
+      return {
+        templateKey: "",
+        chatLinkId: endpoint.chatLinkId,
+        ficheKey: endpoint.ficheKey ?? "",
+      };
+    }
+  }
+  if (templates.length > 0) {
+    return { templateKey: templates[0]?.key ?? "", chatLinkId: "", ficheKey: "" };
+  }
+  const bot = chatbots.find((candidate) => candidate.fiches.length > 0);
+  return {
+    templateKey: "",
+    chatLinkId: bot?.chatLinkId ?? "",
+    ficheKey: bot?.fiches[0]?.key ?? "",
+  };
+}
+
+function scopeValue(scope: ScopeDraft): string {
+  if (scope.templateKey !== "") return `template:${scope.templateKey}`;
+  return `chatbot:${scope.chatLinkId}:${scope.ficheKey}`;
+}
+
+function parseScope(value: string): ScopeDraft {
+  if (value.startsWith("template:")) {
+    return { templateKey: value.slice("template:".length), chatLinkId: "", ficheKey: "" };
+  }
+  const [, chatLinkId = "", ...ficheParts] = value.split(":");
+  return { templateKey: "", chatLinkId, ficheKey: ficheParts.join(":") };
+}
+
+function scopeFields(
+  scope: ScopeDraft,
+  templates: WebhookTemplateOption[],
+  chatbots: WebhookChatbotOption[],
+): Array<{ name: string; label: string; type: string }> {
+  if (scope.templateKey !== "") {
+    return templates.find((template) => template.key === scope.templateKey)?.fields ?? [];
+  }
+  const bot = chatbots.find((candidate) => candidate.chatLinkId === scope.chatLinkId);
+  const fiche = bot?.fiches.find((candidate) => candidate.key === scope.ficheKey);
+  return fiche?.fields ?? bot?.fiches[0]?.fields ?? [];
 }
 
 function KeyValueEditor({
@@ -196,17 +258,19 @@ function KeyValueEditor({
 export function WebhookForm({
   endpoint,
   templates,
+  chatbots,
   onSaved,
   onCancel,
 }: {
   endpoint: WebhookEndpointAdminDto | null;
   templates: WebhookTemplateOption[];
+  chatbots: WebhookChatbotOption[];
   onSaved: (endpoint: WebhookEndpointAdminDto) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(endpoint?.name ?? "");
   const [description, setDescription] = useState(endpoint?.description ?? "");
-  const [templateKey, setTemplateKey] = useState(endpoint?.templateKey ?? templates[0]?.key ?? "");
+  const [scope, setScope] = useState<ScopeDraft>(() => initialScope(endpoint, templates, chatbots));
   const [enabled, setEnabled] = useState(endpoint?.enabled ?? true);
   const [httpMethod, setHttpMethod] = useState(endpoint?.httpMethod ?? "POST");
   const [url, setUrl] = useState(endpoint?.url ?? "");
@@ -235,8 +299,7 @@ export function WebhookForm({
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
 
-  const selectedTemplate = templates.find((template) => template.key === templateKey) ?? null;
-  const options = fieldOptions(selectedTemplate);
+  const options = fieldOptions(scopeFields(scope, templates, chatbots));
 
   function mappingFor(option: WebhookFieldOption): MappingDraft | undefined {
     return mappings.find(
@@ -307,7 +370,9 @@ export function WebhookForm({
           body: JSON.stringify({
             name,
             description,
-            templateKey,
+            templateKey: scope.templateKey === "" ? null : scope.templateKey,
+            chatLinkId: scope.chatLinkId === "" ? null : scope.chatLinkId,
+            ficheKey: scope.ficheKey === "" ? null : scope.ficheKey,
             enabled,
             httpMethod,
             url,
@@ -575,20 +640,41 @@ export function WebhookForm({
           <input value={name} onChange={(event) => setName(event.target.value)} required />
         </label>
         <label className="field">
-          Clé de fiche (technique)
+          Périmètre
           <select
-            value={templateKey}
+            value={scopeValue(scope)}
             onChange={(event) => {
-              setTemplateKey(event.target.value);
+              setScope(parseScope(event.target.value));
               setMappings([]);
             }}
             required
           >
-            {templates.map((template) => (
-              <option key={template.key} value={template.key}>
-                {template.label} ({template.key})
-              </option>
-            ))}
+            {templates.length > 0 ? (
+              <optgroup label="Modèles (legacy)">
+                {templates.map((template) => (
+                  <option key={template.key} value={`template:${template.key}`}>
+                    {template.label} ({template.key})
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {chatbots.length > 0 ? (
+              <optgroup label="Chatbots / fiches de collecte">
+                {chatbots.flatMap((bot) => [
+                  <option key={`${bot.chatLinkId}:*`} value={`chatbot:${bot.chatLinkId}:`}>
+                    {bot.label} — toutes les fiches
+                  </option>,
+                  ...bot.fiches.map((fiche) => (
+                    <option
+                      key={`${bot.chatLinkId}:${fiche.key}`}
+                      value={`chatbot:${bot.chatLinkId}:${fiche.key}`}
+                    >
+                      {bot.label} — {fiche.label}
+                    </option>
+                  )),
+                ])}
+              </optgroup>
+            ) : null}
           </select>
         </label>
       </div>
@@ -756,7 +842,7 @@ export function WebhookForm({
           placeholder={'{"id": {{id}}, "contact": {{contact}}}'}
         />
         <span className="hint">
-          Placeholders disponibles : champs du modèle, prospect.* et métadonnées. En JSON, le
+          Placeholders disponibles : champs de la fiche, prospect.* et métadonnées. En JSON, le
           placeholder est remplacé par une valeur JSON (ne pas l&apos;entourer de guillemets).
         </span>
       </label>

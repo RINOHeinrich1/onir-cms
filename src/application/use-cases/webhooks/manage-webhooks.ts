@@ -1,7 +1,13 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
+import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
-import type { WebhookEndpointRepository } from "@/application/ports/webhook-endpoint-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type {
+  WebhookEndpointRepository,
+  WebhookEndpointScopeFilter,
+} from "@/application/ports/webhook-endpoint-repository";
+import { findFiche, primaryFiche } from "@/application/use-cases/chat/chatbot-config-runtime";
 import {
   assertMappingsForDefinition,
   parseWebhookConfig,
@@ -11,11 +17,14 @@ import {
   type WebhookEndpointAdminDto,
 } from "@/application/use-cases/webhooks/webhook-dto";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
+import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
 import type { WebhookEndpoint } from "@/domain/entities/webhook";
 
 export type WebhookManagementDependencies = {
   endpoints: WebhookEndpointRepository;
   templates: ChatTemplateRepository;
+  configs: ChatbotConfigRepository;
+  links: ChatLinkRepository;
 };
 
 export type WebhookTemplateCatalog = {
@@ -23,6 +32,18 @@ export type WebhookTemplateCatalog = {
   label: string;
   version: number;
   fields: Array<{ name: string; label: string; type: string }>;
+};
+
+export type WebhookChatbotFicheCatalog = {
+  key: string;
+  label: string;
+  fields: Array<{ name: string; label: string; type: string }>;
+};
+
+export type WebhookChatbotCatalog = {
+  chatLinkId: string;
+  label: string;
+  fiches: WebhookChatbotFicheCatalog[];
 };
 
 async function definitionForTemplate(
@@ -37,6 +58,45 @@ async function definitionForTemplate(
   return { definition: current.definition, version: current.version };
 }
 
+/** Transforme une fiche de collecte en définition exploitable par le moteur. */
+function ficheAsDefinition(fiche: FicheDefinition): TemplateDefinition {
+  return {
+    key: fiche.key,
+    label: fiche.label,
+    description: fiche.description,
+    systemPrompt: "",
+    fields: fiche.fields,
+    renderTemplate: fiche.renderTemplate,
+  };
+}
+
+/** Résout la définition selon le périmètre : modèle legacy ou fiche de collecte. */
+async function definitionForScope(
+  deps: WebhookManagementDependencies,
+  organizationId: string,
+  scope: { templateKey: string | null; chatLinkId: string | null; ficheKey: string | null },
+): Promise<{ definition: TemplateDefinition; version: number | null }> {
+  if (scope.templateKey !== null) {
+    const resolved = await definitionForTemplate(deps, organizationId, scope.templateKey);
+    return { definition: resolved.definition, version: resolved.version };
+  }
+  if (scope.chatLinkId === null) {
+    throw new ValidationError("Périmètre du webhook invalide");
+  }
+  const config: ChatbotConfig | null = await deps.configs.currentForLink(
+    organizationId,
+    scope.chatLinkId,
+  );
+  if (config === null) {
+    throw new ValidationError("Ce chatbot n'a pas de configuration de collecte");
+  }
+  const fiche = scope.ficheKey === null ? primaryFiche(config) : findFiche(config, scope.ficheKey);
+  if (fiche === null) {
+    throw new ValidationError(`Fiche de collecte inconnue : ${scope.ficheKey ?? ""}`);
+  }
+  return { definition: ficheAsDefinition(fiche), version: null };
+}
+
 function fieldCatalog(fields: readonly TemplateField[]): WebhookTemplateCatalog["fields"] {
   return fields.map((field) => ({
     name: field.name,
@@ -49,11 +109,11 @@ function fieldCatalog(fields: readonly TemplateField[]): WebhookTemplateCatalog[
 export async function listWebhookEndpoints(
   deps: WebhookManagementDependencies,
   actor: Actor,
-  templateKey: string | null = null,
+  filter: WebhookEndpointScopeFilter = {},
 ): Promise<WebhookEndpointAdminDto[]> {
   assertCan(actor, "webhooks:update");
   const organizationId = organizationOf(actor);
-  const endpoints = await deps.endpoints.list(organizationId, templateKey);
+  const endpoints = await deps.endpoints.list(organizationId, filter);
   return endpoints.filter((endpoint) => endpoint.deletedAt === null).map(toWebhookEndpointAdminDto);
 }
 
@@ -93,6 +153,31 @@ export async function listWebhookTemplateCatalog(
   return catalog;
 }
 
+/** Catalogue des chatbots et de leurs fiches de collecte courantes (admin). */
+export async function listWebhookChatbotCatalog(
+  deps: WebhookManagementDependencies,
+  actor: Actor,
+): Promise<WebhookChatbotCatalog[]> {
+  assertCan(actor, "webhooks:update");
+  const organizationId = organizationOf(actor);
+  const links = await deps.links.list(organizationId);
+  const catalog: WebhookChatbotCatalog[] = [];
+  for (const link of links) {
+    const config = await deps.configs.currentForLink(organizationId, link.id);
+    if (config === null || config.fiches.length === 0) continue;
+    catalog.push({
+      chatLinkId: link.id,
+      label: link.label.trim() === "" ? link.id : link.label,
+      fiches: config.fiches.map((fiche) => ({
+        key: fiche.key,
+        label: fiche.label.trim() === "" ? fiche.key : fiche.label,
+        fields: fieldCatalog(fiche.fields),
+      })),
+    });
+  }
+  return catalog;
+}
+
 export async function createWebhookEndpoint(
   deps: WebhookManagementDependencies,
   actor: Actor,
@@ -109,7 +194,7 @@ export async function createWebhookEndpointForOrganization(
   input: unknown,
 ): Promise<WebhookEndpointAdminDto> {
   const config = parseWebhookConfig(input);
-  const { definition } = await definitionForTemplate(deps, organizationId, config.templateKey);
+  const { definition } = await definitionForScope(deps, organizationId, config);
   assertMappingsForDefinition(config.fieldMappings, definition);
   const endpoint = await deps.endpoints.create(organizationId, {
     ...config,
@@ -139,7 +224,7 @@ export async function updateWebhookEndpointForOrganization(
     throw new NotFoundError("Webhook introuvable");
   }
   const config = parseWebhookConfig(input, existing);
-  const { definition } = await definitionForTemplate(deps, organizationId, config.templateKey);
+  const { definition } = await definitionForScope(deps, organizationId, config);
   assertMappingsForDefinition(config.fieldMappings, definition);
   const updated = await deps.endpoints.update(organizationId, id, {
     ...config,
@@ -168,7 +253,7 @@ export async function deleteWebhookEndpointForOrganization(
 }
 
 export async function loadWebhookEndpoint(
-  deps: WebhookManagementDependencies,
+  deps: Pick<WebhookManagementDependencies, "endpoints">,
   organizationId: string,
   id: string,
 ): Promise<WebhookEndpoint> {

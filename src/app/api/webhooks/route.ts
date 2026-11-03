@@ -14,12 +14,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const actor = await requireRole(request, "webhooks:update");
-    const templateKey = new URL(request.url).searchParams.get("templateKey");
-    const endpoints = await listWebhookEndpoints(
-      webhookManagementDependencies(),
-      actor,
-      templateKey === null || templateKey.trim() === "" ? null : templateKey.trim(),
-    );
+    const params = new URL(request.url).searchParams;
+    const templateKey = params.get("templateKey")?.trim() ?? "";
+    const chatLinkId = params.get("chatLinkId")?.trim() ?? "";
+    const endpoints = await listWebhookEndpoints(webhookManagementDependencies(), actor, {
+      templateKey: templateKey === "" ? null : templateKey,
+      chatLinkId: chatLinkId === "" ? null : chatLinkId,
+    });
     return NextResponse.json({ endpoints });
   } catch (error) {
     return errorResponse(error);

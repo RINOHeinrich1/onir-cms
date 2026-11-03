@@ -29,7 +29,9 @@ import {
 type EndpointRow = {
   id: string;
   organization_id: string;
-  template_key: string;
+  template_key: string | null;
+  chat_link_id: string | null;
+  fiche_key: string | null;
   name: string;
   description: string;
   enabled: boolean;
@@ -56,7 +58,7 @@ type EndpointRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, template_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
+  "id, organization_id, template_key, chat_link_id, fiche_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -139,6 +141,8 @@ function toEntity(row: EndpointRow): WebhookEndpoint {
     id: row.id,
     organizationId: row.organization_id,
     templateKey: row.template_key,
+    chatLinkId: row.chat_link_id,
+    ficheKey: row.fiche_key,
     name: row.name,
     description: row.description,
     enabled: row.enabled,
@@ -167,6 +171,8 @@ function toEntity(row: EndpointRow): WebhookEndpoint {
 function writeParams(input: WebhookEndpointWriteInput): unknown[] {
   return [
     input.templateKey,
+    input.chatLinkId,
+    input.ficheKey,
     input.name,
     input.description,
     input.enabled,
@@ -192,13 +198,20 @@ function writeParams(input: WebhookEndpointWriteInput): unknown[] {
 /** Adapter PostgreSQL des endpoints de webhooks, scopé organisation. */
 export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointRepository {
   return {
-    async list(organizationId, templateKey = null) {
+    async list(organizationId, filter = {}) {
+      const clauses = ["organization_id = $1", "deleted_at IS NULL"];
       const params: unknown[] = [organizationId];
-      const templateClause = templateKey === null ? "" : "AND template_key = $2";
-      if (templateKey !== null) params.push(templateKey);
+      if (filter.templateKey !== undefined && filter.templateKey !== null) {
+        params.push(filter.templateKey);
+        clauses.push(`template_key = $${params.length}`);
+      }
+      if (filter.chatLinkId !== undefined && filter.chatLinkId !== null) {
+        params.push(filter.chatLinkId);
+        clauses.push(`chat_link_id = $${params.length}`);
+      }
       const { rows } = await pool.query<EndpointRow>(
         `SELECT ${COLUMNS} FROM webhook_endpoints
-          WHERE organization_id = $1 AND deleted_at IS NULL ${templateClause}
+          WHERE ${clauses.join(" AND ")}
           ORDER BY created_at DESC`,
         params,
       );
@@ -218,12 +231,13 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
       const values = writeParams(input);
       const { rows } = await pool.query<EndpointRow>(
         `INSERT INTO webhook_endpoints
-           (organization_id, template_key, name, description, enabled, http_method, url,
-            query_params, headers, body_mode, body_template, field_mappings, auth_type,
-            auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects,
-            tls_verify, allow_insecure_http, allow_private_network, created_by)
+           (organization_id, template_key, chat_link_id, fiche_key, name, description,
+            enabled, http_method, url, query_params, headers, body_mode, body_template,
+            field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts,
+            retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http,
+            allow_private_network, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                 $17, $18, $19, $20, $21, $22)
+                 $17, $18, $19, $20, $21, $22, $23, $24)
          RETURNING ${COLUMNS}`,
         [organizationId, ...values, input.createdBy],
       );
@@ -236,13 +250,13 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
       const values = writeParams(input);
       const { rows } = await pool.query<EndpointRow>(
         `UPDATE webhook_endpoints
-            SET template_key = $3, name = $4, description = $5, enabled = $6,
-                http_method = $7, url = $8, query_params = $9, headers = $10,
-                body_mode = $11, body_template = $12, field_mappings = $13,
-                auth_type = $14, auth_config_enc = $15, timeout_ms = $16,
-                max_attempts = $17, retry_backoff_ms = $18, follow_redirects = $19,
-                tls_verify = $20, allow_insecure_http = $21,
-                allow_private_network = $22, updated_at = now()
+            SET template_key = $3, chat_link_id = $4, fiche_key = $5, name = $6,
+                description = $7, enabled = $8, http_method = $9, url = $10,
+                query_params = $11, headers = $12, body_mode = $13, body_template = $14,
+                field_mappings = $15, auth_type = $16, auth_config_enc = $17,
+                timeout_ms = $18, max_attempts = $19, retry_backoff_ms = $20,
+                follow_redirects = $21, tls_verify = $22, allow_insecure_http = $23,
+                allow_private_network = $24, updated_at = now()
           WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL
           RETURNING ${COLUMNS}`,
         [organizationId, id, ...values],
@@ -263,7 +277,7 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
     async listTemplateKeysReferenced(organizationId) {
       const { rows } = await pool.query<{ template_key: string }>(
         `SELECT DISTINCT template_key FROM webhook_endpoints
-          WHERE organization_id = $1 AND deleted_at IS NULL`,
+          WHERE organization_id = $1 AND deleted_at IS NULL AND template_key IS NOT NULL`,
         [organizationId],
       );
       return rows.map((row) => row.template_key);
