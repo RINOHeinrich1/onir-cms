@@ -418,6 +418,18 @@ describe("finishConversation — mode configuration autonome", () => {
     expect(base.isFinalisee()).toBe(true);
   });
 
+  it("mono-fiche : extrait les champs avant validation quand l'instance est vide", async () => {
+    const base = makeDeps({
+      instances: [],
+      aiAnswer: JSON.stringify({ ville: "Antananarivo" }),
+    });
+    const result = await finishConversation(base.deps, "conv-1");
+    expect(result.outcome).toBe("fiches_creees");
+    expect(result.fiches).toHaveLength(1);
+    expect(result.fiches[0]?.fiche.data.ville).toBe("Antananarivo");
+    expect(base.isFinalisee()).toBe(true);
+  });
+
   it("multi-fiches hôtel + voiture : génère N fiches (N=2)", async () => {
     const base = makeDeps({
       config: MULTI_CONFIG,

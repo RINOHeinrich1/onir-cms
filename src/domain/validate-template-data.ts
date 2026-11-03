@@ -7,6 +7,7 @@
 
 import { ATTACHMENT_MAX_FILES } from "@/domain/entities/attachment";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
+import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,9 +16,9 @@ function text(value: unknown): string {
 }
 
 function textList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
   const seen = new Set<string>();
-  for (const entry of value) {
+  for (const entry of raw) {
     if (typeof entry !== "string") continue;
     const cleaned = entry.trim();
     if (cleaned !== "") seen.add(cleaned);
@@ -49,17 +50,15 @@ function checkType(field: TemplateField, value: unknown): string | null {
       return null;
     }
     case "select": {
-      if (typeof value !== "string" || !(field.options ?? []).includes(value.trim())) {
+      if (typeof value !== "string" || canonicalOption(field, value) === null) {
         return `« ${field.label} » doit valoir : ${(field.options ?? []).join(", ")}`;
       }
       return null;
     }
     case "multi": {
-      const items = textList(value);
-      for (const item of items) {
-        if (!(field.options ?? []).includes(item)) {
-          return `« ${field.label} » : valeur inconnue (${item})`;
-        }
+      const { invalid } = canonicalMultiValue(field, value);
+      if (invalid.length > 0) {
+        return `« ${field.label} » : valeur inconnue (${invalid.join(", ")})`;
       }
       return null;
     }
@@ -74,7 +73,10 @@ function isEmpty(field: TemplateField, value: unknown): boolean {
 }
 
 function normalize(field: TemplateField, value: unknown): unknown {
-  if (field.type === "multi") return textList(value);
+  if (field.type === "multi") return canonicalMultiValue(field, value).values;
+  if (field.type === "select" && typeof value === "string") {
+    return canonicalOption(field, value) ?? value.trim();
+  }
   if (typeof value === "string") return value.trim();
   return value;
 }

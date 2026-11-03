@@ -15,6 +15,7 @@ describe("buildSystemPromptFromTemplate", () => {
       serverVars: { prospect_nom: "Rakoto" },
     });
     expect(prompt).toContain("Rakoto");
-    expect(prompt).toContain("- Budget (obligatoire)");
+    expect(prompt).toContain("- Budget [budget] — obligatoire — text");
+    expect(prompt).toContain("Ne dis jamais que tout est complet");
   });
 });

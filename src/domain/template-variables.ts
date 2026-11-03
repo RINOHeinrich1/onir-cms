@@ -8,6 +8,7 @@
 import type { Conversation } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { Prospect } from "@/domain/entities/prospect";
+import { buildFieldsGuide } from "@/domain/field-guide";
 import { prospectContext } from "@/domain/prospect-rules";
 
 export type ServerVariableContext = {
@@ -85,24 +86,9 @@ export function buildRenderVariables(
     }
   }
 
-  const labels = definition.fields.map((field) => {
-    const required = field.required
-      ? " (obligatoire)"
-      : field.requiredIf !== undefined
-        ? ` (obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »)`
-        : "";
-    const options =
-      field.options !== undefined && field.options.length > 0
-        ? ` — valeurs possibles : ${field.options.join(", ")}`
-        : "";
-    const example =
-      field.example !== undefined && field.example.trim() !== ""
-        ? ` — exemple : ${field.example.trim()}`
-        : "";
-    const fileHint = field.type === "file" ? " — pièce jointe à demander" : "";
-    return `- ${field.label}${required}${options}${example}${fileHint}`;
+  vars.champs_guide = buildFieldsGuide(definition.fields, {
+    label: "Informations à réunir :",
   });
-  vars.champs_guide = labels.join("\n");
 
   return vars;
 }
