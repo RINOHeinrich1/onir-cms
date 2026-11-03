@@ -1,7 +1,6 @@
 import { renderConversationFiche } from "@/application/use-cases/fiche/render-fiche";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
-import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -29,7 +28,6 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
         conversations: pgConversationRepository(pool),
         operatorScopes: pgChatOperatorScopeRepository(pool),
         fiches: pgFicheRepository(pool),
-        templates: pgChatTemplateRepository(pool),
         prospects: pgProspectRepository(pool),
         attachments: pgAttachmentRepository(pool),
       },
