@@ -4,7 +4,12 @@ import type {
   FicheCollecteRepository,
   FicheCollecteVersion,
 } from "@/application/ports/fiche-collecte-repository";
-import { type FicheCollecte, validateFicheCollecte } from "@/domain/entities/fiche-collecte";
+import type { FicheDefinition } from "@/domain/entities/chatbot-config";
+import {
+  type FicheCollecte,
+  type FicheCollecteInput,
+  validateFicheCollecte,
+} from "@/domain/entities/fiche-collecte";
 
 export type ManageFicheCollectesDependencies = {
   fiches: FicheCollecteRepository;
@@ -39,6 +44,53 @@ export async function listFicheCollecteVersions(
   const fiche = await deps.fiches.findById(organizationId, id);
   if (fiche === null) throw new NotFoundError("Fiche de collecte introuvable");
   return deps.fiches.listVersions(organizationId, id);
+}
+
+function sameFiche(existing: FicheCollecte, input: FicheCollecteInput): boolean {
+  return (
+    existing.label === input.label &&
+    existing.description === input.description &&
+    existing.intent === input.intent &&
+    existing.instructions === input.instructions &&
+    existing.renderTemplate === input.renderTemplate &&
+    JSON.stringify(existing.fields) === JSON.stringify(input.fields)
+  );
+}
+
+/**
+ * Publie les fiches d'un chatbot dans la bibliothèque réutilisable.
+ * Les doublons identiques sont ignorés ; une même clé avec un contenu
+ * différent reçoit un suffixe plutôt que d'écraser une fiche existante.
+ */
+export async function publishChatbotFiches(
+  deps: ManageFicheCollectesDependencies,
+  organizationId: string,
+  fiches: readonly FicheDefinition[],
+  createdBy: string | null,
+): Promise<void> {
+  for (const fiche of fiches) {
+    const input: FicheCollecteInput = {
+      key: fiche.key,
+      label: fiche.label,
+      description: fiche.description,
+      intent: fiche.intent,
+      fields: fiche.fields,
+      renderTemplate: fiche.renderTemplate,
+      instructions: fiche.instructions,
+    };
+    let key = input.key;
+    let suffix = 2;
+    for (;;) {
+      const existing = await deps.fiches.findByKey(organizationId, key);
+      if (existing === null) {
+        await deps.fiches.create(organizationId, { ...input, key }, createdBy);
+        break;
+      }
+      if (sameFiche(existing, input)) break;
+      key = `${input.key}-${suffix}`;
+      suffix += 1;
+    }
+  }
 }
 
 export async function createFicheCollecte(

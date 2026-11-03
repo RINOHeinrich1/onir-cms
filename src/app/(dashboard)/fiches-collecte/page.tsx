@@ -35,8 +35,8 @@ export default async function FichesCollectePage() {
       <p className="hint" style={{ marginBottom: "1.5rem" }}>
         Fiches réutilisables, indépendantes des chatbots. Une fiche importée dans un chatbot est
         copiée : les modifications ultérieures créent une nouvelle version sans affecter les
-        chatbots existants. Les fiches créées par un chatbot restent dans sa configuration ;
-        ouvrez-le pour les enregistrer ici.
+        chatbots existants. Toutes les fiches d’un chatbot sont automatiquement disponibles ici, y
+        compris celles générées par l’IA.
       </p>
       <FichesCollecteTable
         initialFiches={fiches}
