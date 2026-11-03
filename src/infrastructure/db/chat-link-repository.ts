@@ -288,6 +288,37 @@ async function upsertChannels(
 }
 
 /** Adapter PostgreSQL du port `ChatLinkRepository` (B018, scopé ADR-0025). */
+
+/**
+ * Supprime des chatbots et leurs conversations dans une même transaction.
+ * Les conversations doivent partir avant les `chatbot_configs` (FK RESTRICT
+ * depuis `conversations` et `conversation_fiche_instances`).
+ */
+async function deleteLinks(pool: Pool, organizationId: string, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `DELETE FROM conversations
+        WHERE organization_id = $1 AND link_id::text = ANY($2::text[])`,
+      [organizationId, ids],
+    );
+    const result = await client.query(
+      `DELETE FROM chat_links
+        WHERE organization_id = $1 AND id::text = ANY($2::text[])`,
+      [organizationId, ids],
+    );
+    await client.query("COMMIT");
+    return result.rowCount ?? 0;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
   return {
     async findById(organizationId, id): Promise<ChatLink | null> {
@@ -603,20 +634,11 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
     },
 
     async delete(organizationId, id): Promise<boolean> {
-      const result = await pool.query(
-        "DELETE FROM chat_links WHERE organization_id = $1 AND id = $2",
-        [organizationId, id],
-      );
-      return (result.rowCount ?? 0) > 0;
+      return (await deleteLinks(pool, organizationId, [id])) > 0;
     },
 
     async deleteMany(organizationId, ids): Promise<number> {
-      if (ids.length === 0) return 0;
-      const result = await pool.query(
-        "DELETE FROM chat_links WHERE organization_id = $1 AND id::text = ANY($2::text[])",
-        [organizationId, ids],
-      );
-      return result.rowCount ?? 0;
+      return deleteLinks(pool, organizationId, ids);
     },
   };
 }
