@@ -119,6 +119,28 @@ export function pgConversationIncidentRepository(pool: Pool): ConversationIncide
       return rows[0]?.count ?? 0;
     },
 
+    async countOpenUnhandledByKind(organizationId, kind, allowedLinkIds): Promise<number> {
+      const params: unknown[] = [organizationId, kind];
+      let scope = "";
+      if (allowedLinkIds !== null) {
+        params.push(allowedLinkIds);
+        scope = `AND cv.link_id = ANY($${params.length}::uuid[])`;
+      }
+      const { rows } = await pool.query<{ count: number }>(
+        `SELECT count(DISTINCT i.conversation_id)::int AS count
+           FROM conversation_incidents i
+           JOIN conversations cv ON cv.id = i.conversation_id AND cv.organization_id = i.organization_id
+          WHERE i.organization_id = $1
+            AND i.kind = $2
+            AND i.status = 'open'
+            AND cv.archivee = false
+            AND cv.human_takeover_at IS NULL
+            ${scope}`,
+        params,
+      );
+      return rows[0]?.count ?? 0;
+    },
+
     async listForConversation(
       organizationId,
       conversationId,

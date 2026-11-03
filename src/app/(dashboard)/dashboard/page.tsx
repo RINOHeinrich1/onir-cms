@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
+import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
 import { countConversations } from "@/application/use-cases/conversations/list-conversations";
 import { listFiches } from "@/application/use-cases/fiche/manage-fiches";
 import { listChatLinks } from "@/application/use-cases/links/manage-chat-links";
+import { getExpirationAlertDays } from "@/application/use-cases/organizations/manage-organization-settings";
 import { listProspects } from "@/application/use-cases/prospects/list-prospects";
 import { ROLE_LABELS } from "@/domain/entities/user";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
+import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
+import { pgOrganizationSettingsRepository } from "@/infrastructure/db/organization-settings-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -56,16 +61,51 @@ export default async function DashboardHomePage() {
   }
 
   const pool = getPool();
-  const [prospects, fiches, links, conversations] = await Promise.all([
-    listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
-    listFiches({ fiches: pgFicheRepository(pool) }, context.actor),
-    listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
-    countConversations({ conversations: pgConversationRepository(pool) }, context.actor),
-  ]);
+  const canIntervene = actorCan(context.actor, "conversations:intervene");
+  const allowedLinkIds = canIntervene
+    ? await resolveConversationLinkScope(pgChatOperatorScopeRepository(pool), context.actor)
+    : [];
+  const incidents = pgConversationIncidentRepository(pool);
+  const [prospects, fiches, links, conversations, aiErrors, ficheErrors, expirationAlertDays] =
+    await Promise.all([
+      listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
+      listFiches({ fiches: pgFicheRepository(pool) }, context.actor),
+      listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
+      countConversations({ conversations: pgConversationRepository(pool) }, context.actor),
+      canIntervene
+        ? incidents.countOpenUnhandledByKind(
+            context.actor.organizationId,
+            "ai_reply_failed",
+            allowedLinkIds,
+          )
+        : Promise.resolve(0),
+      canIntervene
+        ? incidents.countOpenUnhandledByKind(
+            context.actor.organizationId,
+            "fiche_generation_failed",
+            allowedLinkIds,
+          )
+        : Promise.resolve(0),
+      getExpirationAlertDays(
+        { settings: pgOrganizationSettingsRepository(pool) },
+        context.actor.organizationId,
+      ),
+    ]);
 
   const now = Date.now();
   const linksActifs = links.filter((link) => link.actif && !isExpired(link.expiresAt, now)).length;
   const liensExpires = links.filter((link) => isExpired(link.expiresAt, now)).length;
+  const expirationLimit = now + expirationAlertDays * 24 * 60 * 60 * 1000;
+  const liensProches =
+    expirationAlertDays === 0
+      ? 0
+      : links.filter(
+          (link) =>
+            link.actif &&
+            link.expiresAt !== null &&
+            !isExpired(link.expiresAt, now) &&
+            new Date(link.expiresAt).getTime() <= expirationLimit,
+        ).length;
 
   const stats = [
     { href: "/prospects", label: "Prospects", value: prospects.length, warn: false },
@@ -82,8 +122,29 @@ export default async function DashboardHomePage() {
       warn: false,
     },
     { href: "/leads", label: "Leads", value: fiches.length, warn: false },
+    {
+      href: "/conversations?filtre=toutes&incident=ai_reply_failed&prise_en_main=non",
+      label: "Conversations IA en erreur non prises en main",
+      value: aiErrors,
+      warn: true,
+    },
+    {
+      href: "/conversations?filtre=toutes&incident=fiche_generation_failed&prise_en_main=non",
+      label: "Générations de fiche en erreur non prises en main",
+      value: ficheErrors,
+      warn: true,
+    },
     { href: "/liens", label: "Liens actifs", value: linksActifs, warn: false },
     { href: "/liens", label: "Liens expirés", value: liensExpires, warn: true },
+    {
+      href: "/liens",
+      label:
+        expirationAlertDays === 0
+          ? "Expiration (alerte désactivée)"
+          : `Chatbots proches d’expiration (${expirationAlertDays} j)`,
+      value: liensProches,
+      warn: true,
+    },
   ] as const;
 
   return (

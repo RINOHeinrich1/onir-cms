@@ -74,7 +74,11 @@ export function ConversationsWorkspace({
       ? ["archivees"]
       : ["actives"];
   const liens = searchParams.getAll("lien");
+  const incidents = searchParams.getAll("incident").filter(Boolean);
+  const priseEnMain = searchParams.getAll("prise_en_main").filter(Boolean);
   const lienKey = liens.join("\u0000");
+  const incidentKey = incidents.join("\u0000");
+  const priseEnMainKey = priseEnMain.join("\u0000");
   const [conversations, setConversations] = useState<ConversationRowDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -133,6 +137,18 @@ export function ConversationsWorkspace({
       return false;
     }
     if (liens.length > 0 && !liens.includes(conversation.linkLabel)) return false;
+    if (
+      incidents.length > 0 &&
+      !conversation.incidentKinds.some((kind) => incidents.includes(kind))
+    ) {
+      return false;
+    }
+    if (
+      (priseEnMain.includes("non") && conversation.humanTakeoverAt !== null) ||
+      (priseEnMain.includes("oui") && conversation.humanTakeoverAt === null)
+    ) {
+      return false;
+    }
     if (query === "") return true;
     return [
       conversation.visitorNom,
@@ -148,7 +164,7 @@ export function ConversationsWorkspace({
   const pagination = usePagination(
     filtered,
     15,
-    `${search}|${statuses.join(",")}|${archives.join(",")}|${lienKey}`,
+    `${search}|${statuses.join(",")}|${archives.join(",")}|${lienKey}|${incidentKey}|${priseEnMainKey}`,
   );
   const nowIso = new Date().toISOString();
 
@@ -156,6 +172,8 @@ export function ConversationsWorkspace({
     statut: readonly string[];
     archive: readonly string[];
     lien: readonly string[];
+    incident: readonly string[];
+    prise_en_main: readonly string[];
   }): URLSearchParams => {
     const params = new URLSearchParams();
     if (values.statut.length === 0) params.append("statut", "");
@@ -163,6 +181,8 @@ export function ConversationsWorkspace({
     if (values.archive.length === 0) params.append("archive", "");
     for (const value of values.archive) params.append("archive", value);
     for (const value of values.lien) params.append("lien", value);
+    for (const value of values.incident) params.append("incident", value);
+    for (const value of values.prise_en_main) params.append("prise_en_main", value);
     return params;
   };
 
@@ -174,12 +194,14 @@ export function ConversationsWorkspace({
       statut: values.statut ?? [],
       archive: values.archive ?? [],
       lien: values.lien ?? [],
+      incident: values.incident ?? [],
+      prise_en_main: values.prise_en_main ?? [],
     });
     router.push(`${currentPath()}?${params.toString()}`, { scroll: false });
   };
 
   const detailHref = (id: string): string =>
-    `/conversations/${id}?${filterParams({ statut: statuses, archive: archives, lien: liens }).toString()}`;
+    `/conversations/${id}?${filterParams({ statut: statuses, archive: archives, lien: liens, incident: incidents, prise_en_main: priseEnMain }).toString()}`;
 
   const filterSections: FilterMenuSection[] = [
     {
@@ -208,6 +230,24 @@ export function ConversationsWorkspace({
         label: label === "" ? "Chatbot sans nom" : label,
       })),
       value: liens,
+    },
+    {
+      id: "incident",
+      label: "Erreurs",
+      options: [
+        { value: "ai_reply_failed", label: "Erreur IA" },
+        { value: "fiche_generation_failed", label: "Génération de fiche" },
+      ],
+      value: incidents,
+    },
+    {
+      id: "prise_en_main",
+      label: "Prise en main",
+      options: [
+        { value: "non", label: "Sans prise en main" },
+        { value: "oui", label: "Avec prise en main" },
+      ],
+      value: priseEnMain,
     },
   ];
 
