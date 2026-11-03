@@ -79,10 +79,6 @@ export function mediaWriteDeps() {
   };
 }
 
-export function templateDeps() {
-  return { templates: pgChatTemplateRepository(getPool()) };
-}
-
 export function statisticsDeps() {
   return { statistics: pgPublicStatisticsRepository(getPool()) };
 }

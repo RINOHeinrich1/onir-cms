@@ -18,7 +18,6 @@ const DEFAULT_SCOPES: ApiKeyScope[] = [
   "prospects:read",
   "conversations:read",
   "chatbots:read",
-  "modeles:read",
   "webhooks:read",
   "statistiques:read",
 ];

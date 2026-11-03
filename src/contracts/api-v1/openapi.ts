@@ -531,56 +531,6 @@ export function openapiDocument(): JsonSchema {
           { parameters: [pathId()] },
         ),
       },
-      "/modeles": {
-        get: operation(
-          "Modèles",
-          "listModeles",
-          ["modeles:read"],
-          { "200": page(ref("Template"), "Liste paginée de modèles") },
-          { parameters: [limit, cursor, sort, q] },
-        ),
-      },
-      "/modeles/{key}": {
-        get: operation(
-          "Modèles",
-          "getModele",
-          ["modeles:read"],
-          { "200": single(ref("TemplateDetail"), "Modèle et versions") },
-          {
-            parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
-          },
-        ),
-      },
-      "/modeles/{key}/versions": {
-        get: operation(
-          "Modèles",
-          "listModeleVersions",
-          ["modeles:read"],
-          { "200": single({ type: "array", items: ref("TemplateVersionSummary") }, "Versions") },
-          {
-            parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
-          },
-        ),
-      },
-      "/modeles/{key}/versions/{version}": {
-        get: operation(
-          "Modèles",
-          "getModeleVersion",
-          ["modeles:read"],
-          { "200": single(ref("TemplateVersion"), "Version du modèle") },
-          {
-            parameters: [
-              { name: "key", in: "path", required: true, schema: { type: "string" } },
-              {
-                name: "version",
-                in: "path",
-                required: true,
-                schema: { type: "integer", minimum: 1 },
-              },
-            ],
-          },
-        ),
-      },
       "/statistiques/summary": {
         get: operation(
           "Statistiques",
@@ -1005,46 +955,6 @@ export function openapiDocument(): JsonSchema {
             sources: { type: "object", additionalProperties: true },
             channels: { type: "object", additionalProperties: true },
             active: { type: "boolean" },
-          },
-        },
-        Template: {
-          type: "object",
-          properties: {
-            key: { type: "string" },
-            label: { type: "string" },
-            description: { type: "string" },
-            currentVersion: { type: "integer" },
-            fields: { type: "array", items: { type: "object", additionalProperties: true } },
-            createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" },
-          },
-        },
-        TemplateDetail: {
-          allOf: [
-            ref("Template"),
-            {
-              type: "object",
-              properties: {
-                versions: { type: "array", items: ref("TemplateVersionSummary") },
-              },
-            },
-          ],
-        },
-        TemplateVersionSummary: {
-          type: "object",
-          properties: {
-            version: { type: "integer" },
-            createdAt: { type: "string", format: "date-time" },
-            createdBy: { type: ["string", "null"], format: "uuid" },
-          },
-        },
-        TemplateVersion: {
-          type: "object",
-          properties: {
-            version: { type: "integer" },
-            createdAt: { type: "string", format: "date-time" },
-            createdBy: { type: ["string", "null"], format: "uuid" },
-            definition: { type: "object", additionalProperties: true },
           },
         },
         StatisticsSummary: {
