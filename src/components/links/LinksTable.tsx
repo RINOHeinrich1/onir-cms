@@ -630,6 +630,8 @@ export function LinksTable({
                 <a
                   className="btn ghost small"
                   href={`/liens/${link.id}/apercu?surface=${previewSurface}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   Aperçu
                 </a>

@@ -621,6 +621,30 @@
   font-size: 0.72rem;
 }
 
+.activity-mark-all {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.activity-mark-all:hover {
+  background: var(--surface);
+}
+
+.activity-mark-all:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .activity-more {
   display: block;
   width: 100%;

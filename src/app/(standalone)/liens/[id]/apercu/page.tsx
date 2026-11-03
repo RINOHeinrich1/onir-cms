@@ -114,49 +114,51 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
         });
 
   return (
-    <section>
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Aperçu</span>
-          <h1 className="text-title">Aperçu du template visuel</h1>
-          <p className="muted-text">
-            Lien « {link.label === "" ? "sans nom" : link.label} » · simulation locale (aucune
-            conversation créée)
-          </p>
+    <main className="wrap dashboard-main">
+      <section>
+        <div className="page-head">
+          <div>
+            <span className="eyebrow">Aperçu</span>
+            <h1 className="text-title">Aperçu du template visuel</h1>
+            <p className="muted-text">
+              Lien « {link.label === "" ? "sans nom" : link.label} » · simulation locale (aucune
+              conversation créée)
+            </p>
+          </div>
+          <div className="tools">
+            <a className="btn ghost small" href="/liens">
+              ← Liens
+            </a>
+          </div>
         </div>
-        <div className="tools">
-          <a className="btn ghost small" href="/liens">
-            ← Liens
-          </a>
-        </div>
-      </div>
 
-      {spec === null || context === null ? (
-        <section className="card" style={{ maxWidth: "34rem", margin: "1.5rem auto" }}>
-          <h2>Aucun template visuel rattaché</h2>
-          <p className="hint">
-            Ce lien utilise l&apos;interface par défaut. Modifiez le lien pour lui rattacher un
-            template visuel, puis revenez ici.
-          </p>
-        </section>
-      ) : (
-        <>
-          <div className="preview-banner">
-            Aperçu — template <strong>{spec.id}</strong>@{spec.version} ({spec.mode})
-          </div>
-          <div className="preview-frame">
-            <TemplateHost
-              token="apercu"
-              template={spec}
-              baseContext={context}
-              conversationId={null}
-              initialMessages={[]}
-              anonymous={surface === "widget" && link.type === "standard"}
-              preview
-            />
-          </div>
-        </>
-      )}
-    </section>
+        {spec === null || context === null ? (
+          <section className="card" style={{ maxWidth: "34rem", margin: "1.5rem auto" }}>
+            <h2>Aucun template visuel rattaché</h2>
+            <p className="hint">
+              Ce lien utilise l&apos;interface par défaut. Modifiez le lien pour lui rattacher un
+              template visuel, puis revenez ici.
+            </p>
+          </section>
+        ) : (
+          <>
+            <div className="preview-banner">
+              Aperçu — template <strong>{spec.id}</strong>@{spec.version} ({spec.mode})
+            </div>
+            <div className="preview-frame">
+              <TemplateHost
+                token="apercu"
+                template={spec}
+                baseContext={context}
+                conversationId={null}
+                initialMessages={[]}
+                anonymous={surface === "widget" && link.type === "standard"}
+                preview
+              />
+            </div>
+          </>
+        )}
+      </section>
+    </main>
   );
 }
