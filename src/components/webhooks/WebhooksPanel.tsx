@@ -4,7 +4,12 @@ import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import type { WebhookDeliveryDto, WebhookEndpointAdminDto, WebhookTemplateOption } from "./types";
+import type {
+  WebhookChatbotOption,
+  WebhookDeliveryDto,
+  WebhookEndpointAdminDto,
+  WebhookTemplateOption,
+} from "./types";
 import { WebhookForm } from "./WebhookForm";
 
 function formatDate(value: string | null): string {
@@ -21,10 +26,12 @@ export function WebhooksPanel({
   initialEndpoints,
   initialDeliveries,
   templates,
+  chatbots,
 }: {
   initialEndpoints: WebhookEndpointAdminDto[];
   initialDeliveries: WebhookDeliveryDto[];
   templates: WebhookTemplateOption[];
+  chatbots: WebhookChatbotOption[];
 }) {
   const [endpoints, setEndpoints] = useState(initialEndpoints);
   const [deliveries, setDeliveries] = useState(initialDeliveries);
@@ -148,7 +155,7 @@ export function WebhooksPanel({
           <thead>
             <tr>
               <th>Nom</th>
-              <th>Modèle</th>
+              <th>Périmètre</th>
               <th>Requête</th>
               <th>Auth</th>
               <th>État</th>
@@ -171,8 +178,16 @@ export function WebhooksPanel({
                       <div className="hint">{endpoint.description}</div>
                     ) : null}
                   </td>
-                  <td data-label="Modèle">
-                    <code>{endpoint.templateKey}</code>
+                  <td data-label="Périmètre">
+                    {endpoint.templateKey !== null ? (
+                      <code>{endpoint.templateKey}</code>
+                    ) : (
+                      <span>
+                        {chatbots.find((bot) => bot.chatLinkId === endpoint.chatLinkId)?.label ??
+                          endpoint.chatLinkId}
+                        {endpoint.ficheKey !== null ? ` / ${endpoint.ficheKey}` : ""}
+                      </span>
+                    )}
                   </td>
                   <td data-label="Requête">
                     <div>
@@ -302,6 +317,7 @@ export function WebhooksPanel({
           <WebhookForm
             endpoint={editing}
             templates={templates}
+            chatbots={chatbots}
             onSaved={(endpoint) => {
               setEndpoints((previous) => {
                 const exists = previous.some((item) => item.id === endpoint.id);

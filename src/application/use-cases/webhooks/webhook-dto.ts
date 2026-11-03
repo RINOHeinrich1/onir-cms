@@ -11,7 +11,9 @@ export type WebhookAuthDto = WebhookAuth;
 
 export type WebhookEndpointAdminDto = {
   id: string;
-  templateKey: string;
+  templateKey: string | null;
+  chatLinkId: string | null;
+  ficheKey: string | null;
   name: string;
   description: string;
   enabled: boolean;
@@ -37,7 +39,9 @@ export type WebhookEndpointAdminDto = {
 
 export type WebhookEndpointPublicDto = {
   id: string;
-  templateKey: string;
+  templateKey: string | null;
+  chatLinkId: string | null;
+  ficheKey: string | null;
   name: string;
   description: string;
   enabled: boolean;
@@ -47,8 +51,10 @@ export type WebhookDeliveryDto = {
   id: string;
   endpointId: string;
   ficheId: string | null;
-  templateKey: string;
-  templateVersion: number;
+  templateKey: string | null;
+  templateVersion: number | null;
+  chatLinkId: string | null;
+  ficheKey: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDelivery["status"];
@@ -93,6 +99,8 @@ export function toWebhookEndpointAdminDto(endpoint: WebhookEndpoint): WebhookEnd
   return {
     id: endpoint.id,
     templateKey: endpoint.templateKey,
+    chatLinkId: endpoint.chatLinkId,
+    ficheKey: endpoint.ficheKey,
     name: endpoint.name,
     description: endpoint.description,
     enabled: endpoint.enabled,
@@ -127,6 +135,8 @@ export function toWebhookEndpointPublicDto(endpoint: WebhookEndpoint): WebhookEn
   return {
     id: endpoint.id,
     templateKey: endpoint.templateKey,
+    chatLinkId: endpoint.chatLinkId,
+    ficheKey: endpoint.ficheKey,
     name: endpoint.name,
     description: endpoint.description,
     enabled: endpoint.enabled,
@@ -140,6 +150,8 @@ export function toWebhookDeliveryDto(delivery: WebhookDelivery): WebhookDelivery
     ficheId: delivery.ficheId,
     templateKey: delivery.templateKey,
     templateVersion: delivery.templateVersion,
+    chatLinkId: delivery.chatLinkId,
+    ficheKey: delivery.ficheKey,
     isTest: delivery.isTest,
     replayOfId: delivery.replayOfId,
     status: delivery.status,

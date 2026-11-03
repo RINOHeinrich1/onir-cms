@@ -1,7 +1,9 @@
 import type { WebhookManagementDependencies } from "@/application/use-cases/webhooks/manage-webhooks";
 import type { WebhookExecutionDependencies } from "@/application/use-cases/webhooks/trigger-webhook";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
+import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -15,6 +17,8 @@ export function webhookManagementDependencies(): WebhookManagementDependencies {
   return {
     endpoints: pgWebhookEndpointRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
+    links: pgChatLinkRepository(pool),
   };
 }
 
@@ -24,6 +28,7 @@ export function webhookExecutionDependencies(): WebhookExecutionDependencies {
     endpoints: pgWebhookEndpointRepository(pool),
     deliveries: pgWebhookDeliveryRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
     fiches: pgFicheRepository(pool),
     prospects: pgProspectRepository(pool),
     attachments: pgAttachmentRepository(pool),

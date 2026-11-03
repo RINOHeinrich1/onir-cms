@@ -86,6 +86,24 @@ describe("parseWebhookConfig", () => {
     ).toThrow(/multipart/);
   });
 
+  it("accepte un périmètre fiche de collecte", () => {
+    const parsed = parseWebhookConfig(
+      input({
+        templateKey: undefined,
+        chatLinkId: "77777777-7777-4777-8777-777777777777",
+        ficheKey: "partenaire",
+        fieldMappings: [{ source: "field", field: "contact", target: "contact" }],
+      }),
+    );
+    expect(parsed.templateKey).toBeNull();
+    expect(parsed.chatLinkId).toBe("77777777-7777-4777-8777-777777777777");
+    expect(parsed.ficheKey).toBe("partenaire");
+  });
+
+  it("refuse un endpoint sans périmètre", () => {
+    expect(() => parseWebhookConfig(input({ templateKey: undefined }))).toThrow(/périmètre/i);
+  });
+
   it("conserve les secrets non ressaisis lors d'une édition", () => {
     const existing = {
       auth: { type: "bearer", token: "ancien-token" },

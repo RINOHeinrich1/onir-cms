@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
 import {
+  listWebhookChatbotCatalog,
   listWebhookEndpoints,
   listWebhookTemplateCatalog,
 } from "@/application/use-cases/webhooks/manage-webhooks";
@@ -9,7 +10,9 @@ import { listWebhookDeliveries } from "@/application/use-cases/webhooks/trigger-
 import { WebhooksPanel } from "@/components/webhooks/WebhooksPanel";
 import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
+import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatTemplateRepository } from "@/infrastructure/db/chat-template-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -43,15 +46,19 @@ export default async function WebhooksPage() {
   const management = {
     endpoints: pgWebhookEndpointRepository(pool),
     templates: pgChatTemplateRepository(pool),
+    configs: pgChatbotConfigRepository(pool),
+    links: pgChatLinkRepository(pool),
   };
-  const [endpoints, templates, deliveries] = await Promise.all([
+  const [endpoints, templates, chatbots, deliveries] = await Promise.all([
     listWebhookEndpoints(management, context.actor),
     listWebhookTemplateCatalog(management, context.actor),
+    listWebhookChatbotCatalog(management, context.actor),
     listWebhookDeliveries(
       {
         endpoints: management.endpoints,
         deliveries: pgWebhookDeliveryRepository(pool),
         templates: management.templates,
+        configs: management.configs,
         fiches: pgFicheRepository(pool),
         prospects: pgProspectRepository(pool),
         attachments: pgAttachmentRepository(pool),
@@ -71,7 +78,8 @@ export default async function WebhooksPage() {
           <h1 className="text-title">Webhooks</h1>
           <p className="muted-text">
             Envoyez les champs d’une fiche vers un service HTTP externe, depuis une action sur la
-            fiche. Les endpoints sont rattachés à un modèle de raisonnement.
+            fiche. Un endpoint est rattaché à un chatbot et, optionnellement, à une fiche de
+            collecte (les modèles de raisonnement restent supportés pour l’existant).
           </p>
         </div>
       </div>
@@ -91,6 +99,11 @@ export default async function WebhooksPage() {
           label: template.label,
           version: template.version,
           fields: template.fields,
+        }))}
+        chatbots={chatbots.map((chatbot) => ({
+          chatLinkId: chatbot.chatLinkId,
+          label: chatbot.label,
+          fiches: chatbot.fiches,
         }))}
       />
     </section>

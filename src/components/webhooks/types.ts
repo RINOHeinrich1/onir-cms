@@ -12,6 +12,18 @@ export type WebhookTemplateOption = {
   fields: Array<{ name: string; label: string; type: string }>;
 };
 
+export type WebhookChatbotFicheOption = {
+  key: string;
+  label: string;
+  fields: Array<{ name: string; label: string; type: string }>;
+};
+
+export type WebhookChatbotOption = {
+  chatLinkId: string;
+  label: string;
+  fiches: WebhookChatbotFicheOption[];
+};
+
 export type WebhookFieldOption = {
   key: string;
   source: "field" | "meta" | "prospect" | "attachment";

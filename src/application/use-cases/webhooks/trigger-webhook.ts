@@ -4,6 +4,7 @@ import { NotFoundError, UnprocessableError, ValidationError } from "@/applicatio
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { ChatTemplateRepository } from "@/application/ports/chat-template-repository";
+import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type {
@@ -12,6 +13,7 @@ import type {
 } from "@/application/ports/webhook-delivery-repository";
 import type { WebhookEndpointRepository } from "@/application/ports/webhook-endpoint-repository";
 import type { WebhookSender } from "@/application/ports/webhook-sender";
+import { findFiche, primaryFiche } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { buildWebhookRequest } from "@/application/use-cases/webhooks/build-webhook-request";
 import { loadWebhookEndpoint } from "@/application/use-cases/webhooks/manage-webhooks";
 import {
@@ -20,6 +22,8 @@ import {
   type WebhookDeliveryDto,
   type WebhookEndpointPublicDto,
 } from "@/application/use-cases/webhooks/webhook-dto";
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
+import type { FicheDefinition } from "@/domain/entities/chatbot-config";
 import type { Fiche } from "@/domain/entities/fiche";
 import type {
   WebhookDelivery,
@@ -32,6 +36,7 @@ export type WebhookExecutionDependencies = {
   endpoints: WebhookEndpointRepository;
   deliveries: WebhookDeliveryRepository;
   templates: ChatTemplateRepository;
+  configs: ChatbotConfigRepository;
   fiches: FicheRepository;
   prospects: ProspectRepository;
   attachments: AttachmentRepository;
@@ -63,18 +68,34 @@ async function loadFicheForOrganization(
   return fiche;
 }
 
-function requiredTemplate(fiche: Fiche): { key: string; version: number } {
-  if (fiche.templateKey === null || fiche.templateVersion === null) {
-    throw new ValidationError("Cette fiche n'est pas liée à un modèle de raisonnement legacy");
+/** Vrai si l'endpoint cible le périmètre de la fiche (modèle legacy ou chatbot). */
+function matchesScope(endpoint: WebhookEndpoint, fiche: Fiche): boolean {
+  if (endpoint.templateKey !== null) {
+    return fiche.templateKey === endpoint.templateKey;
   }
-  return { key: fiche.templateKey, version: fiche.templateVersion };
+  if (endpoint.chatLinkId !== null) {
+    const links = fiche.chatLinkIds ?? [];
+    if (!links.includes(endpoint.chatLinkId)) return false;
+    return endpoint.ficheKey === null || endpoint.ficheKey === (fiche.ficheKey ?? null);
+  }
+  return false;
 }
 
-function assertSameTemplate(endpoint: WebhookEndpoint, fiche: Fiche): void {
-  const template = requiredTemplate(fiche);
-  if (endpoint.templateKey !== template.key) {
-    throw new ValidationError("Le webhook ne cible pas le modèle de cette fiche");
+function assertSameScope(endpoint: WebhookEndpoint, fiche: Fiche): void {
+  if (!matchesScope(endpoint, fiche)) {
+    throw new ValidationError("Le webhook ne cible pas le périmètre de cette fiche");
   }
+}
+
+function definitionFromFiche(fiche: FicheDefinition): TemplateDefinition {
+  return {
+    key: fiche.key,
+    label: fiche.label,
+    description: fiche.description,
+    systemPrompt: "",
+    fields: fiche.fields,
+    renderTemplate: fiche.renderTemplate,
+  };
 }
 
 /** Endpoints actifs proposés depuis une fiche (admin + marketeur). */
@@ -85,10 +106,25 @@ export async function listWebhookEndpointsForFiche(
 ): Promise<WebhookEndpointPublicDto[]> {
   assertCan(actor, "webhooks:trigger");
   const fiche = await loadFiche(deps, actor, ficheId);
-  if (fiche.templateKey === null) return [];
-  const endpoints = await deps.endpoints.list(organizationOf(actor), fiche.templateKey);
-  return endpoints
-    .filter((endpoint) => endpoint.enabled && endpoint.deletedAt === null)
+  const organizationId = organizationOf(actor);
+  const collected: WebhookEndpoint[] = [];
+  if (fiche.templateKey !== null) {
+    collected.push(
+      ...(await deps.endpoints.list(organizationId, { templateKey: fiche.templateKey })),
+    );
+  }
+  for (const linkId of fiche.chatLinkIds ?? []) {
+    collected.push(...(await deps.endpoints.list(organizationId, { chatLinkId: linkId })));
+  }
+  const seen = new Set<string>();
+  return collected
+    .filter((endpoint) => {
+      if (!endpoint.enabled || endpoint.deletedAt !== null) return false;
+      if (seen.has(endpoint.id)) return false;
+      if (!matchesScope(endpoint, fiche)) return false;
+      seen.add(endpoint.id);
+      return true;
+    })
     .map(toWebhookEndpointPublicDto);
 }
 
@@ -108,7 +144,7 @@ export async function previewWebhook(
   const fiche = await loadFiche(deps, actor, ficheId);
   const endpoint = await loadWebhookEndpoint(deps, organizationId, endpointId);
   assertEndpointUsable(endpoint);
-  assertSameTemplate(endpoint, fiche);
+  assertSameScope(endpoint, fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   return {
     endpoint: toWebhookEndpointPublicDto(endpoint),
@@ -128,14 +164,15 @@ export async function triggerWebhook(
   const fiche = await loadFiche(deps, actor, ficheId);
   const endpoint = await loadWebhookEndpoint(deps, organizationId, endpointId);
   assertEndpointUsable(endpoint);
-  assertSameTemplate(endpoint, fiche);
-  const template = requiredTemplate(fiche);
+  assertSameScope(endpoint, fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: template.key,
-    templateVersion: template.version,
+    templateKey: fiche.templateKey,
+    templateVersion: fiche.templateVersion,
+    chatLinkId: endpoint.chatLinkId,
+    ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: false,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -147,9 +184,12 @@ export async function triggerWebhook(
 
 function sampleFiche(
   endpoint: WebhookEndpoint,
-  definition: Awaited<ReturnType<ChatTemplateRepository["currentVersion"]>>,
+  definition: TemplateDefinition,
+  templateVersion: number | null,
+  ficheKey: string | null,
+  configId: string | null,
+  chatLinkId: string | null,
 ): Fiche {
-  if (definition === null) throw new ValidationError("Modèle de raisonnement introuvable");
   const now = new Date().toISOString();
   return {
     id: randomUUID(),
@@ -158,10 +198,12 @@ function sampleFiche(
     prospectId: null,
     createdBy: null,
     templateKey: endpoint.templateKey,
-    templateVersion: definition.version,
-    definition: definition.definition,
-    chatLinkIds: [],
-    data: buildSampleData(definition.definition.fields),
+    templateVersion,
+    definition,
+    configId,
+    ficheKey,
+    chatLinkIds: chatLinkId === null ? [] : [chatLinkId],
+    data: buildSampleData(definition.fields),
     plateformes: [],
     description: "",
     budget: "",
@@ -193,21 +235,41 @@ export async function testWebhook(
   const organizationId = organizationOf(actor);
   const endpoint = await loadWebhookEndpoint(deps, organizationId, endpointId);
   assertEndpointUsable(endpoint);
-  const fiche =
-    ficheId === null
-      ? sampleFiche(
-          endpoint,
-          await deps.templates.currentVersion(organizationId, endpoint.templateKey),
-        )
-      : await loadFiche(deps, actor, ficheId);
-  assertSameTemplate(endpoint, fiche);
-  const template = requiredTemplate(fiche);
+  let fiche: Fiche;
+  if (ficheId !== null) {
+    fiche = await loadFiche(deps, actor, ficheId);
+  } else if (endpoint.chatLinkId !== null) {
+    const config = await deps.configs.currentForLink(organizationId, endpoint.chatLinkId);
+    if (config === null) {
+      throw new ValidationError("Ce chatbot n'a pas de configuration de collecte");
+    }
+    const ficheDefinition =
+      endpoint.ficheKey === null ? primaryFiche(config) : findFiche(config, endpoint.ficheKey);
+    if (ficheDefinition === null) throw new ValidationError("Fiche de collecte introuvable");
+    fiche = sampleFiche(
+      endpoint,
+      definitionFromFiche(ficheDefinition),
+      null,
+      ficheDefinition.key,
+      config.id,
+      endpoint.chatLinkId,
+    );
+  } else if (endpoint.templateKey !== null) {
+    const current = await deps.templates.currentVersion(organizationId, endpoint.templateKey);
+    if (current === null) throw new ValidationError("Modèle de raisonnement introuvable");
+    fiche = sampleFiche(endpoint, current.definition, current.version, null, null, null);
+  } else {
+    throw new ValidationError("Webhook sans périmètre");
+  }
+  assertSameScope(endpoint, fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   let delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: ficheId,
-    templateKey: template.key,
-    templateVersion: template.version,
+    templateKey: fiche.templateKey,
+    templateVersion: fiche.templateVersion,
+    chatLinkId: endpoint.chatLinkId,
+    ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: true,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -323,14 +385,15 @@ export async function retryWebhookDeliveryForOrganization(
   const fiche = await loadFicheForOrganization(deps, organizationId, previous.ficheId);
   const endpoint = await loadWebhookEndpoint(deps, organizationId, previous.endpointId);
   assertEndpointUsable(endpoint);
-  assertSameTemplate(endpoint, fiche);
-  const template = requiredTemplate(fiche);
+  assertSameScope(endpoint, fiche);
   const built = await buildWebhookRequest(deps, endpoint, fiche);
   const delivery = await deps.deliveries.create(organizationId, {
     endpointId: endpoint.id,
     ficheId: fiche.id,
-    templateKey: template.key,
-    templateVersion: template.version,
+    templateKey: fiche.templateKey,
+    templateVersion: fiche.templateVersion,
+    chatLinkId: endpoint.chatLinkId,
+    ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
     isTest: false,
     replayOfId: previous.id,
     idempotencyKey: randomUUID(),

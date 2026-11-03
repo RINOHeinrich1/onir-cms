@@ -104,7 +104,12 @@ export type WebhookAuth =
 export type WebhookEndpoint = {
   id: string;
   organizationId: string;
-  templateKey: string;
+  /** Scope legacy : modèle de raisonnement (nullable, déprécié). */
+  templateKey: string | null;
+  /** Scope fiche de collecte : chatbot source (stable entre versions de config). */
+  chatLinkId: string | null;
+  /** Fiche de collecte ciblée dans le chatbot ; null = toutes ses fiches. */
+  ficheKey: string | null;
   name: string;
   description: string;
   enabled: boolean;
@@ -143,8 +148,12 @@ export type WebhookDelivery = {
   organizationId: string;
   endpointId: string;
   ficheId: string | null;
-  templateKey: string;
-  templateVersion: number;
+  /** Scope legacy (nullable) ; renseigné pour les fiches historiques. */
+  templateKey: string | null;
+  templateVersion: number | null;
+  /** Scope fiche de collecte utilisé pour la livraison. */
+  chatLinkId: string | null;
+  ficheKey: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDeliveryStatus;

@@ -8,8 +8,10 @@ import type {
 export type CreateWebhookDeliveryInput = {
   endpointId: string;
   ficheId: string | null;
-  templateKey: string;
-  templateVersion: number;
+  templateKey: string | null;
+  templateVersion: number | null;
+  chatLinkId: string | null;
+  ficheKey: string | null;
   isTest: boolean;
   replayOfId: string | null;
   idempotencyKey: string;

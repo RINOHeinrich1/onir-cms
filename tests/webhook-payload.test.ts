@@ -68,6 +68,8 @@ function endpoint(overrides: Partial<WebhookEndpoint> = {}): WebhookEndpoint {
     id: "44444444-4444-4444-8444-444444444444",
     organizationId: FICHE.organizationId,
     templateKey: "lead-demo",
+    chatLinkId: null,
+    ficheKey: null,
     name: "Partenaire",
     description: "",
     enabled: true,
@@ -174,6 +176,51 @@ describe("buildWebhookRequest", () => {
         { ...FICHE, data: {} },
       ),
     ).rejects.toThrow(/contact/);
+  });
+
+  it("construit le payload depuis le snapshot d'une fiche de collecte", async () => {
+    const definition: TemplateDefinition = {
+      key: "partenaire",
+      label: "Partenaire",
+      description: "",
+      systemPrompt: "",
+      fields: [
+        { name: "nom", label: "Nom", type: "text", required: true },
+        { name: "types", label: "Types", type: "multi", required: false },
+      ],
+      renderTemplate: "# {{nom}}",
+    };
+    const built = await buildWebhookRequest(
+      dependencies(),
+      endpoint({
+        templateKey: null,
+        chatLinkId: "77777777-7777-4777-8777-777777777777",
+        ficheKey: "partenaire",
+        fieldMappings: [
+          { source: "field", field: "nom", target: "nom", required: true, fileMode: "signed_url" },
+          {
+            source: "field",
+            field: "types",
+            target: "types",
+            required: false,
+            fileMode: "signed_url",
+          },
+        ],
+      }),
+      {
+        ...FICHE,
+        templateKey: null,
+        templateVersion: null,
+        definition,
+        configId: "88888888-8888-4888-8888-888888888888",
+        ficheKey: "partenaire",
+        chatLinkIds: ["77777777-7777-4777-8777-777777777777"],
+        data: { nom: "ACME", types: ["Financier", "Expertise"] },
+      },
+    );
+    const body = JSON.parse(built.request.body.toString("utf8")) as Record<string, unknown>;
+    expect(body.nom).toBe("ACME");
+    expect(body.types).toEqual(["Financier", "Expertise"]);
   });
 
   it("construit une requête multipart avec une pièce jointe", async () => {
