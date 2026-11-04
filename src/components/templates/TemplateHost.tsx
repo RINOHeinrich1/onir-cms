@@ -185,6 +185,7 @@ export function TemplateHost({
   );
   /** Messages optimistes en attente du message serveur correspondant. */
   const optimisticUserMessagesRef = useRef<Array<{ id: string; content: string }>>([]);
+  const localMessageSequenceRef = useRef(0);
   const allowAttachments = template.capabilities.includes("attachments");
 
   const receiveMessages = useCallback((incoming: TemplateMessage[]): void => {
@@ -504,7 +505,8 @@ export function TemplateHost({
         }
         void (async () => {
           setError(null);
-          const userId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          localMessageSequenceRef.current += 1;
+          const userId = `local-${Date.now()}-${localMessageSequenceRef.current}`;
           optimisticUserMessagesRef.current.push({ id: userId, content: text });
           setMessages((prev) => {
             // Le SSE a pu déjà réconcilier ce message avant ce rendu.
