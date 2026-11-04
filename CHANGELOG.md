@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.22.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.21.0...v0.22.0) (2026-11-04)
+
+
+### Features
+
+* **chatbot-ai:** préremplir les paramètres statiques du template ([#181](https://github.com/RINOHeinrich1/onir-cms/issues/181)) ([58dcb6e](https://github.com/RINOHeinrich1/onir-cms/commit/58dcb6e849e01b4c484cbcbd11213a3e26956f59))
+
 ## [0.21.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.20.3...v0.21.0) (2026-11-03)
 
 
