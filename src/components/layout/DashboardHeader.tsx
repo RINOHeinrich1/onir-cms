@@ -198,19 +198,12 @@ const ITEMS: readonly NavItem[] = [
     action: "visualtemplates:list",
     icon: "templates",
   },
-  { href: "/parametres/ia", label: "Paramètres IA", action: "ai:list", icon: "ai" },
   { href: "/parametres/webhooks", label: "Webhooks", action: "webhooks:create", icon: "webhooks" },
   {
     href: "/documentation",
     label: "Documentation",
     action: "dashboard:view",
     icon: "documentation",
-  },
-  {
-    href: "/configuration",
-    label: "Configuration",
-    action: "organizations:update",
-    icon: "configuration",
   },
 ];
 

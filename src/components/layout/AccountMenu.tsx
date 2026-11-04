@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { ROLE_LABELS, type Role } from "@/domain/entities/user";
+import { type Action, can } from "@/domain/rbac";
 import { LogoutButton } from "./LogoutButton";
 
 type SettingsItem = {
   href: string;
   label: string;
+  action?: Action;
   icon: ReactNode;
 };
 
@@ -20,6 +22,29 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21a8 8 0 0 1 16 0" />
         <path d="M19 3l1 1M4 3L3 4" />
+      </>
+    ),
+  },
+  {
+    href: "/parametres/ia",
+    label: "Paramètres IA",
+    action: "ai:list",
+    icon: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <rect x="9" y="9" width="6" height="6" />
+        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" />
+      </>
+    ),
+  },
+  {
+    href: "/configuration",
+    label: "Configuration",
+    action: "organizations:update",
+    icon: (
+      <>
+        <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" />
+        <path d="M1 14h6M9 8h6M17 16h6" />
       </>
     ),
   },
@@ -42,7 +67,10 @@ export function AccountMenu({
 }) {
   const [open, setOpen] = useState(false);
   const initials = email.trim().slice(0, 2).toUpperCase() || "?";
-  const settings = SETTINGS_ITEMS;
+  const settings = SETTINGS_ITEMS.filter(
+    (item) =>
+      item.action === undefined || isSuperAdmin || (role !== null && can(role, item.action)),
+  );
 
   useEffect(() => {
     if (!open) return;
