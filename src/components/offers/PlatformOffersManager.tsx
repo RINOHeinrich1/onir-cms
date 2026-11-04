@@ -272,7 +272,7 @@ export function PlatformOffersManager() {
             />
           </label>
           <label className="field">
-            Budget global de tokens
+            Plafond global de tokens (optionnel)
             <input
               type="number"
               min="0"
@@ -316,6 +316,10 @@ export function PlatformOffersManager() {
         </label>
 
         <h4 style={{ marginTop: "1.2rem" }}>Ressources autorisées</h4>
+        <p className="hint">
+          La première ressource ajoutée devient la ressource par défaut pour tous les usages IA de
+          l’organisation invitée.
+        </p>
         <label className="field">
           Modèle ou cluster
           <select value={resource} onChange={(event) => setResource(event.target.value)}>

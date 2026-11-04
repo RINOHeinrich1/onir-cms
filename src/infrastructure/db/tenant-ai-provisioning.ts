@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { AI_USAGES } from "@/domain/entities/ai-usage";
 import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
 
 /**
@@ -74,7 +75,13 @@ export async function provisionInvitationAiWithClient(
     );
   }
 
-  for (const entry of provisioning.defaults) {
+  const firstAllocation = provisioning.allocations[0];
+  const defaults =
+    provisioning.defaults.length === 0 && firstAllocation !== undefined
+      ? AI_USAGES.map((usage) => ({ usage, target: firstAllocation.target }))
+      : provisioning.defaults;
+
+  for (const entry of defaults) {
     await client.query(
       `INSERT INTO organization_ai_usage_defaults
          (organization_id, usage, target_kind, provider_id, model, cluster_id, updated_by)

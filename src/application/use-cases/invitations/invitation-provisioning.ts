@@ -161,6 +161,12 @@ export function parseInvitationProvisioning(
   }
   const source = value as Record<string, unknown>;
   const allocations = parseAllocations(source.allocations, catalog);
+  const parsedDefaults = parseDefaults(source.defaults, allocations, catalog);
+  const firstAllocation = allocations[0];
+  const defaults =
+    parsedDefaults.length === 0 && firstAllocation !== undefined
+      ? AI_USAGES.map((usage) => ({ usage, target: firstAllocation.target }))
+      : parsedDefaults;
   const reset = parseReset(source);
   return {
     maxChatbots: has(source, "maxChatbots")
@@ -172,6 +178,6 @@ export function parseInvitationProvisioning(
     tokenResetMode: reset.mode,
     tokenResetDays: reset.days,
     allocations,
-    defaults: parseDefaults(source.defaults, allocations, catalog),
+    defaults,
   };
 }

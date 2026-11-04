@@ -239,7 +239,7 @@ export function OrganizationAiLimitsPanel({
           <span className="hint">{limits?.chatbotsCount ?? 0} chatbot(s) existant(s).</span>
         </label>
         <label className="field">
-          Budget global de tokens
+          Plafond global de tokens (optionnel)
           <input
             type="number"
             min="0"
@@ -252,6 +252,7 @@ export function OrganizationAiLimitsPanel({
             {limits?.budget?.maxTokens === null || limits?.budget?.maxTokens === undefined
               ? ""
               : ` / ${limits.budget.maxTokens}`}
+            . Ce plafond couvre aussi l’assistant, les tests et les appels sans quota cible.
           </span>
         </label>
         <label className="field">
