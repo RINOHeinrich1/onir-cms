@@ -186,3 +186,71 @@ describe("resolveFieldName — compatibilité des clés existantes", () => {
     expect(resolveFieldName("Statut de lancement", "")).toBe("statut_de_lancement");
   });
 });
+
+describe("validateTemplateDefinition — champs number, date et image (ADR-0067)", () => {
+  it("accepte number avec unité et normalise l'unité", () => {
+    const result = validateTemplateDefinition(
+      base({
+        fields: [{ name: "loyer", label: "Loyer", type: "number", required: true, unit: "  €  " }],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.fields[0]?.type).toBe("number");
+      expect(result.value.fields[0]?.unit).toBe("€");
+    }
+  });
+
+  it("accepte date et image", () => {
+    const result = validateTemplateDefinition(
+      base({
+        fields: [
+          { name: "disponible_le", label: "Disponible le", type: "date", required: false },
+          { name: "photo", label: "Photo", type: "image", required: false },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("refuse une unité sur un champ non number", () => {
+    const result = validateTemplateDefinition(
+      base({
+        fields: [{ name: "titre", label: "Titre", type: "text", required: false, unit: "€" }],
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuse une unité trop longue", () => {
+    const result = validateTemplateDefinition(
+      base({
+        fields: [
+          { name: "loyer", label: "Loyer", type: "number", required: true, unit: "123456789" },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuse des options sur un champ number ou image", () => {
+    expect(
+      validateTemplateDefinition(
+        base({
+          fields: [
+            { name: "loyer", label: "Loyer", type: "number", required: true, options: ["a"] },
+          ],
+        }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      validateTemplateDefinition(
+        base({
+          fields: [
+            { name: "photo", label: "Photo", type: "image", required: false, options: ["a"] },
+          ],
+        }),
+      ).ok,
+    ).toBe(false);
+  });
+});

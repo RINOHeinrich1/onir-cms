@@ -1,4 +1,5 @@
 import type { FileFieldConstraints } from "@/domain/entities/attachment";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
 /**
@@ -15,6 +16,9 @@ export const TEMPLATE_FIELD_TYPES = [
   "multi",
   "url",
   "email",
+  "number",
+  "date",
+  "image",
   "file",
 ] as const;
 
@@ -40,6 +44,8 @@ export type TemplateField = {
   example?: string;
   /** Contraintes d'un champ `file` (ADR-0034). */
   file?: FileFieldConstraints;
+  /** Unité d'affichage d'un champ `number` (ex. "€", "Ar"). */
+  unit?: string;
 };
 
 export type TemplateDefinition = {
@@ -51,6 +57,8 @@ export type TemplateDefinition = {
   renderTemplate: string;
   /** Réglages du mode Simple (facultatif : anciens modèles sans ce bloc). */
   simple?: TemplateSimpleSettings;
+  /** Statuts de qualification versionnés avec le snapshot (ADR-0067). */
+  statuses?: FicheStatusDefinition[];
   /** Origine du snapshot, si la définition vient d'une fiche de collecte. */
   sourceFicheId?: string;
   sourceVersion?: number;

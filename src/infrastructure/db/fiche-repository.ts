@@ -29,12 +29,15 @@ type FicheRow = {
   fiche_key: string | null;
   fiche_instance_key: string | null;
   conversation_fiche_instance_id: string | null;
+  qualification_status_key: string | null;
+  qualification_status_updated_at: Date | null;
+  qualification_status_updated_by: string | null;
   chat_link_ids: string[];
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, created_at, (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[]) FROM fiche_chat_links fcl WHERE fcl.fiche_id = fiches.id) AS chat_link_ids";
+  "id, organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, archivee, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, qualification_status_key, qualification_status_updated_at, qualification_status_updated_by, created_at, (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[]) FROM fiche_chat_links fcl WHERE fcl.fiche_id = fiches.id) AS chat_link_ids";
 
 function toStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -108,6 +111,12 @@ function toEntity(row: FicheRow): Fiche {
     ficheKey: row.fiche_key,
     ficheInstanceKey: row.fiche_instance_key,
     conversationFicheInstanceId: row.conversation_fiche_instance_id,
+    qualificationStatusKey: row.qualification_status_key,
+    qualificationStatusUpdatedAt:
+      row.qualification_status_updated_at === null
+        ? null
+        : row.qualification_status_updated_at.toISOString(),
+    qualificationStatusUpdatedBy: row.qualification_status_updated_by,
     chatLinkIds: row.chat_link_ids ?? [],
     createdAt: row.created_at.toISOString(),
   };
@@ -139,6 +148,7 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
       organizationId,
       filter: FicheArchiveFilter,
       linkLabel: string | string[] | null = null,
+      statusKeys: string[] | null = null,
     ): Promise<Fiche[]> {
       const clause =
         filter === "actives"
@@ -167,13 +177,22 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
                    AND l.label = ANY($2::text[])
                )
              )`;
-      const params =
+      const params: unknown[] =
         linkLabels === null || linkLabels.length === 0
           ? [organizationId]
           : [organizationId, linkLabels];
+      const normalizedStatuses =
+        statusKeys === null || statusKeys.length === 0
+          ? null
+          : [...new Set(statusKeys.filter((key) => typeof key === "string" && key !== ""))];
+      const statusClause =
+        normalizedStatuses === null
+          ? ""
+          : `AND qualification_status_key = ANY($${params.length + 1}::text[])`;
+      if (normalizedStatuses !== null) params.push(normalizedStatuses);
       const { rows } = await pool.query<FicheRow>(
         `SELECT ${COLUMNS} FROM fiches
-          WHERE organization_id = $1 ${clause} ${linkClause}
+          WHERE organization_id = $1 ${clause} ${linkClause} ${statusClause}
           ORDER BY created_at DESC`,
         params,
       );
@@ -188,8 +207,8 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
         await client.query("BEGIN");
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO fiches
-             (organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+             (organization_id, conversation_id, prospect_id, created_by, definition, data, plateformes, description, budget, duree, contact, statut, contraintes_techno, lien_doc_spec, config_id, fiche_key, fiche_instance_key, conversation_fiche_instance_id, qualification_status_key, qualification_status_updated_at, qualification_status_updated_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CASE WHEN $19::text IS NULL THEN NULL ELSE now() END, CASE WHEN $19::text IS NULL THEN NULL ELSE $4::uuid END)
            RETURNING id`,
           [
             organizationId,
@@ -212,6 +231,7 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
             input.ficheKey ?? null,
             input.ficheInstanceKey ?? null,
             input.conversationFicheInstanceId ?? null,
+            input.qualificationStatusKey ?? null,
           ],
         );
         const id = inserted.rows[0]?.id;
@@ -263,6 +283,20 @@ export function pgFicheRepository(pool: Pool): FicheRepository {
           WHERE organization_id = $2 AND id = $3
           RETURNING ${COLUMNS}`,
         [archivee, organizationId, id],
+      );
+      const row = rows[0];
+      return row ? toEntity(row) : null;
+    },
+
+    async setQualificationStatus(organizationId, id, key, updatedBy): Promise<Fiche | null> {
+      const { rows } = await pool.query<FicheRow>(
+        `UPDATE fiches SET
+           qualification_status_key = $1,
+           qualification_status_updated_at = CASE WHEN $1::text IS NULL THEN NULL ELSE now() END,
+           qualification_status_updated_by = CASE WHEN $1::text IS NULL THEN NULL ELSE $2::uuid END
+         WHERE organization_id = $3 AND id = $4
+         RETURNING ${COLUMNS}`,
+        [key, updatedBy, organizationId, id],
       );
       const row = rows[0];
       return row ? toEntity(row) : null;

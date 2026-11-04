@@ -73,6 +73,7 @@ function deps() {
     findById: async () => null,
     listByConversation: async () => [],
     setArchivee: async () => null,
+    setQualificationStatus: async () => null,
     create: async () => ({}) as Fiche,
     list: async () => [
       {

@@ -96,3 +96,33 @@ describe("renderTemplate", () => {
     expect(out).toBe("# Démo\n");
   });
 });
+
+describe("buildRenderVariables — valeurs typées (ADR-0067)", () => {
+  it("rend un nombre 0 et une date", async () => {
+    const { buildRenderVariables } = await import("@/domain/template-variables");
+    const typed: TemplateDefinition = {
+      key: "typed",
+      label: "Typed",
+      description: "",
+      systemPrompt: "x",
+      fields: [
+        { name: "loyer", label: "Loyer", type: "number", required: true, unit: "€" },
+        { name: "disponible_le", label: "Disponible le", type: "date", required: false },
+        { name: "photo", label: "Photo", type: "image", required: false },
+      ],
+      renderTemplate: "{{loyer}} {{disponible_le}} {{photo}}",
+    };
+    const vars = buildRenderVariables(
+      typed,
+      {
+        loyer: 0,
+        disponible_le: "2026-01-01",
+        photo: "https://exemple.mg/photo.jpg",
+      },
+      {},
+    );
+    expect(vars.loyer).toBe("0");
+    expect(vars.disponible_le).toBe("2026-01-01");
+    expect(vars.photo).toBe("https://exemple.mg/photo.jpg");
+  });
+});

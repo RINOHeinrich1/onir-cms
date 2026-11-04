@@ -151,6 +151,7 @@ export async function buildLinkContext(
         type: field.type,
         required: field.required,
         ...(field.options === undefined ? {} : { options: field.options }),
+        ...(field.unit === undefined ? {} : { unit: field.unit }),
         ...(field.file === undefined
           ? {}
           : {

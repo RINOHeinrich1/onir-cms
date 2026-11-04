@@ -23,6 +23,7 @@ import {
   instanceForFiche,
 } from "@/application/use-cases/chat/fiche-instances";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
+import { defaultStatusKeyFor } from "@/application/use-cases/fiche/manage-fiche-status";
 import { type ChatLink, type Conversation, channelsForLink } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
@@ -285,6 +286,7 @@ async function buildFicheForDefinition(
     data: validated.value,
     ...(meta.configId === undefined ? {} : { configId: meta.configId }),
     ...(meta.ficheKey === undefined ? {} : { ficheKey: meta.ficheKey }),
+    qualificationStatusKey: defaultStatusKeyFor(definition),
     ...(meta.ficheInstanceKey === undefined ? {} : { ficheInstanceKey: meta.ficheInstanceKey }),
     ...(meta.conversationFicheInstanceId === undefined
       ? {}

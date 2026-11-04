@@ -93,9 +93,21 @@ export type TemplateMediaItem = { id: string; libelle: string; url: string };
 export type TemplateFormField = {
   name: string;
   label: string;
-  type: "text" | "textarea" | "select" | "multi" | "url" | "email" | "file";
+  type:
+    | "text"
+    | "textarea"
+    | "select"
+    | "multi"
+    | "url"
+    | "email"
+    | "number"
+    | "date"
+    | "image"
+    | "file";
   required: boolean;
   options?: string[];
+  /** Unité d'affichage d'un champ `number`. */
+  unit?: string;
   /** Champ `file` uniquement (ADR-0034). */
   accept?: string[];
   maxFiles?: number;

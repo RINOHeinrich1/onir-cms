@@ -31,6 +31,7 @@ export type FicheFieldDraft = {
   required: boolean;
   options: string;
   example: string;
+  unit: string;
   /** Règle conditionnelle conservée lors d'un import/édition. */
   requiredIf?: TemplateRequiredIf;
   /** Contraintes fichier conservées lors d'un import/édition. */
@@ -88,6 +89,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     required: field.required,
     options: field.options?.join(", ") ?? "",
     example: field.example ?? "",
+    unit: "",
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
   }));
@@ -138,6 +140,7 @@ export function emptyField(): FicheFieldDraft {
     required: false,
     options: "",
     example: "",
+    unit: "",
   };
 }
 
@@ -159,6 +162,7 @@ export function emptyFiche(index: number): FicheDraft {
         required: true,
         options: "",
         example: "Nom et coordonnées",
+        unit: "",
       },
     ],
   };
@@ -233,8 +237,11 @@ function fieldPayload(field: FicheFieldDraft, name: string): Record<string, unkn
         ? "text"
         : field.type,
     required: field.required,
-    ...(options.length === 0 ? {} : { options }),
+    ...((field.type === "select" || field.type === "multi") && options.length > 0
+      ? { options }
+      : {}),
     ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
+    ...(field.type === "number" && field.unit.trim() !== "" ? { unit: field.unit.trim() } : {}),
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
   };
@@ -325,6 +332,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           ? field.options.filter((item): item is string => typeof item === "string").join(", ")
           : "",
         example: typeof field.example === "string" ? field.example : "",
+        unit: typeof field.unit === "string" ? field.unit : "",
         ...(field.requiredIf !== null &&
         typeof field.requiredIf === "object" &&
         !Array.isArray(field.requiredIf) &&
@@ -430,6 +438,7 @@ export function draftFromFicheCollecte(input: {
       required: field.required,
       options: field.options?.join(", ") ?? "",
       example: field.example ?? "",
+      unit: field.unit ?? "",
       ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
       ...(field.file === undefined ? {} : { file: field.file }),
     })),
@@ -445,5 +454,6 @@ export function draftFieldsToTemplateFields(fields: FicheFieldDraft[]): Template
       label: field.label.trim(),
       type: field.type,
       required: field.required,
+      ...(field.unit.trim() === "" ? {} : { unit: field.unit.trim() }),
     }));
 }

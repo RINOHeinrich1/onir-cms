@@ -1,4 +1,5 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 
 const FICHE_KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -30,6 +31,7 @@ export type FicheCollecte = {
   description: string;
   intent: string;
   fields: TemplateField[];
+  statuses: FicheStatusDefinition[];
   renderTemplate: string;
   instructions: string;
   version: number;
@@ -44,6 +46,7 @@ export type FicheCollecteInput = {
   description: string;
   intent: string;
   fields: TemplateField[];
+  statuses: FicheStatusDefinition[];
   renderTemplate: string;
   instructions: string;
 };
@@ -81,6 +84,7 @@ export function validateFicheCollecte(
     description: text(source.description),
     systemPrompt: "validation",
     fields: source.fields,
+    statuses: source.statuses,
     renderTemplate,
   });
   if (!validated.ok) errors.push(...validated.errors);
@@ -94,6 +98,7 @@ export function validateFicheCollecte(
       description: text(source.description).slice(0, MAX_TEXT),
       intent: text(source.intent).slice(0, MAX_TEXT),
       fields: validated.ok ? validated.value.fields : [],
+      statuses: validated.ok ? (validated.value.statuses ?? []) : [],
       renderTemplate,
       instructions: text(source.instructions).slice(0, MAX_TEXT),
     },
@@ -110,6 +115,7 @@ export function ficheToDefinitionSnapshot(
     description: fiche.description,
     intent: fiche.intent,
     fields: fiche.fields,
+    statuses: fiche.statuses,
     renderTemplate: fiche.renderTemplate,
     instructions: fiche.instructions,
     sourceFicheId: fiche.id,

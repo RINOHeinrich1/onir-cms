@@ -1,4 +1,5 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import { buildDefaultSystemPrompt } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 import {
@@ -57,6 +58,7 @@ export type FicheDefinition = {
   description: string;
   intent: string;
   fields: TemplateField[];
+  statuses?: FicheStatusDefinition[];
   renderTemplate: string;
   instructions: string;
   /** Fiche réutilisable d'origine (snapshot, optionnel). */
@@ -294,6 +296,7 @@ function parseFiche(
       description: validated.value.description,
       intent: text(raw.intent),
       fields: validated.value.fields,
+      ...(validated.value.statuses === undefined ? {} : { statuses: validated.value.statuses }),
       renderTemplate: validated.value.renderTemplate,
       instructions: text(raw.instructions).slice(0, 4000),
       ...(text(raw.sourceFicheId) === ""

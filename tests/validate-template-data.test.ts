@@ -108,3 +108,51 @@ describe("validatePartialTemplateData — édition des champs collectés", () =>
     expect(result.ok).toBe(false);
   });
 });
+
+describe("validateTemplateData — champs number, date et image (ADR-0067)", () => {
+  const TYPED: TemplateDefinition = {
+    key: "typed",
+    label: "Typed",
+    description: "",
+    systemPrompt: "x",
+    fields: [
+      { name: "loyer", label: "Loyer", type: "number", required: true, unit: "€" },
+      { name: "disponible_le", label: "Disponible le", type: "date", required: false },
+      { name: "photo", label: "Photo", type: "image", required: false },
+    ],
+    renderTemplate: "# {{loyer}}",
+  };
+
+  it("accepte un nombre et normalise une chaîne numérique", () => {
+    const result = validateTemplateData(TYPED, { loyer: " 5 " });
+    expect(result).toEqual({ ok: true, value: { loyer: 5 } });
+  });
+
+  it("ne considère pas 0 comme vide", () => {
+    const result = validateTemplateData(TYPED, { loyer: 0 });
+    expect(result).toEqual({ ok: true, value: { loyer: 0 } });
+  });
+
+  it("refuse un nombre invalide", () => {
+    expect(validateTemplateData(TYPED, { loyer: "abc" }).ok).toBe(false);
+    expect(validateTemplateData(TYPED, { loyer: "" }).ok).toBe(false);
+  });
+
+  it("accepte une date calendrier valide et refuse une date impossible", () => {
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "2026-02-28" }).ok).toBe(true);
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "2026-02-30" }).ok).toBe(false);
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "01/02/2026" }).ok).toBe(false);
+  });
+
+  it("accepte une image http(s) et refuse une valeur non URL", () => {
+    expect(
+      validateTemplateData(TYPED, { loyer: 1, photo: "https://exemple.mg/photo.jpg" }).ok,
+    ).toBe(true);
+    expect(validateTemplateData(TYPED, { loyer: 1, photo: "photo.jpg" }).ok).toBe(false);
+  });
+
+  it("normalise l'effacement partiel d'un nombre en chaîne vide", () => {
+    const result = validatePartialTemplateData(TYPED, { loyer: "" });
+    expect(result).toEqual({ ok: true, value: { loyer: "" } });
+  });
+});

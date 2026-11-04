@@ -28,6 +28,7 @@ type PageProps = {
     filtre?: string;
     archive?: string | string[];
     lien?: string | string[];
+    statut?: string | string[];
   }>;
 };
 
@@ -67,6 +68,11 @@ export default async function LeadsPage({ searchParams }: PageProps) {
     : typeof params.lien === "string"
       ? [params.lien]
       : [];
+  const statuts = Array.isArray(params.statut)
+    ? params.statut.filter(Boolean)
+    : typeof params.statut === "string" && params.statut !== ""
+      ? [params.statut]
+      : [];
   const pool = getPool();
 
   const fichesData =
@@ -77,6 +83,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
             context.actor,
             filtre,
             liens.length > 0 ? liens : null,
+            statuts.length > 0 ? statuts : null,
           ),
           listProspects({ prospects: pgProspectRepository(pool) }, context.actor),
           listChatLinks({ links: pgChatLinkRepository(pool) }, context.actor),
@@ -132,6 +139,7 @@ export default async function LeadsPage({ searchParams }: PageProps) {
               canWrite={actorCan(context.actor, "project:write")}
               archive={archiveValues}
               lien={liens}
+              statut={statuts}
               linkLabels={distinctChatLinkLabels(links)}
               chatLinks={links.map((link) => ({ id: link.id, label: link.label }))}
             />

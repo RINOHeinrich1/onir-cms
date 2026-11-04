@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
+import { findFicheStatus } from "@/domain/entities/fiche-status";
 
 import { FicheForm } from "./FicheForm";
 import type { FicheDto } from "./types";
@@ -28,6 +29,7 @@ export function FichesTable({
   canWrite,
   archive,
   lien,
+  statut,
   linkLabels,
   chatLinks,
 }: {
@@ -36,6 +38,7 @@ export function FichesTable({
   canWrite: boolean;
   archive: readonly string[];
   lien: readonly string[];
+  statut: readonly string[];
   linkLabels: string[];
   chatLinks: readonly { id: string; label: string }[];
 }) {
@@ -55,7 +58,7 @@ export function FichesTable({
   const pagination = usePagination(
     visibleFiches,
     9,
-    `${search}|${archive.join(",")}|${lien.join(",")}`,
+    `${search}|${archive.join(",")}|${lien.join(",")}|${statut.join(",")}`,
   );
   const toast = useToast();
   useToastOnMessage(error);
@@ -125,6 +128,21 @@ export function FichesTable({
                 })),
                 value: lien,
               },
+              {
+                id: "statut",
+                label: "Statut de qualification",
+                options: [
+                  ...new Map(
+                    initialFiches.flatMap((fiche) =>
+                      (fiche.definition?.statuses ?? []).map((status) => [
+                        status.key,
+                        status.label,
+                      ]),
+                    ),
+                  ).entries(),
+                ].map(([value, label]) => ({ value, label })),
+                value: statut,
+              },
             ] satisfies FilterMenuSection[]
           }
           onApply={(values) => {
@@ -132,6 +150,7 @@ export function FichesTable({
             if ((values.archive ?? []).length === 0) params.append("archive", "");
             for (const value of values.archive ?? []) params.append("archive", value);
             for (const value of values.lien ?? []) params.append("lien", value);
+            for (const value of values.statut ?? []) params.append("statut", value);
             router.push(`/leads?${params.toString()}`);
           }}
         />
@@ -173,6 +192,25 @@ export function FichesTable({
                 <span className="badge muted" title={fiche.definition?.key ?? "Fiche manuelle"}>
                   {fiche.definition?.label ?? "Fiche manuelle"}
                 </span>
+              </div>
+              <div className="lead-card-model">
+                <span className="muted-text">Qualification</span>
+                {(() => {
+                  const status = findFicheStatus(
+                    fiche.definition?.statuses,
+                    fiche.qualificationStatusKey,
+                  );
+                  return status === null ? (
+                    <span className="badge muted">Non qualifiée</span>
+                  ) : (
+                    <span
+                      className="badge"
+                      style={status.color ? { color: status.color } : undefined}
+                    >
+                      {status.label}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="lead-card-model">
                 <span className="muted-text">Chatbots</span>

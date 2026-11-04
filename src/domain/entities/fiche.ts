@@ -119,5 +119,9 @@ export type Fiche = {
   conversationFicheInstanceId?: string | null;
   /** Chatbots associés (0..N, ADR-0055). */
   chatLinkIds?: string[];
+  /** Clé du statut de qualification (métadonnée, ADR-0067). */
+  qualificationStatusKey?: string | null;
+  qualificationStatusUpdatedAt?: string | null;
+  qualificationStatusUpdatedBy?: string | null;
   createdAt: string;
 };

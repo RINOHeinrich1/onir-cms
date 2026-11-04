@@ -97,6 +97,7 @@ describe("brouillon de configuration chatbot", () => {
             type: "select",
             required: false,
             options: "",
+            unit: "",
             example: "3 à 6 mois",
           },
         ],

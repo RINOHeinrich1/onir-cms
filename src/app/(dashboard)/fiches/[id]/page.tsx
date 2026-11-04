@@ -4,6 +4,7 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { renderFiche } from "@/application/use-cases/fiche/render-fiche";
 import { listWebhookEndpointsForFiche } from "@/application/use-cases/webhooks/trigger-webhook";
+import { FicheStatusSelect } from "@/components/fiches/FicheStatusSelect";
 import { FicheWebhookActions } from "@/components/fiches/FicheWebhookActions";
 import { MarkdownReport } from "@/components/fiches/MarkdownReport";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
@@ -82,6 +83,17 @@ export default async function FicheLecturePage({ params }: PageProps) {
             {titreProspect} · <strong>{fiche.definition?.label ?? "Fiche manuelle"}</strong> ·{" "}
             {new Date(fiche.createdAt).toLocaleDateString("fr-FR")}
           </p>
+          <div style={{ marginTop: "0.75rem" }}>
+            {actorCan(context.actor, "project:write") ? (
+              <FicheStatusSelect
+                ficheId={fiche.id}
+                statuses={fiche.definition?.statuses ?? []}
+                value={fiche.qualificationStatusKey ?? null}
+              />
+            ) : (
+              <span className="badge muted">Non qualifiée</span>
+            )}
+          </div>
         </div>
         <div className="tools">
           <a className="btn ghost small" href="/leads">

@@ -328,6 +328,7 @@ function makeDeps(input: {
     findById: async () => null,
     listByConversation: async () => [],
     setArchivee: async () => null,
+    setQualificationStatus: async () => null,
     list: async () => [],
     findByInstance: async (_org, instanceId) =>
       createdFiches.find((fiche) => fiche.conversationFicheInstanceId === instanceId) ?? null,

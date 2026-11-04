@@ -76,7 +76,14 @@ export function isFieldEmpty(field: TemplateField, value: unknown): boolean {
       !Array.isArray(value) || value.every((item) => typeof item !== "string" || item.trim() === "")
     );
   }
-  return typeof value !== "string" || value.trim() === "";
+  if (field.type === "number") {
+    return (
+      value === null || value === undefined || (typeof value === "string" && value.trim() === "")
+    );
+  }
+  return (
+    value === null || value === undefined || (typeof value === "string" && value.trim() === "")
+  );
 }
 
 export function isFieldRequired(

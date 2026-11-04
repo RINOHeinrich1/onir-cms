@@ -13,6 +13,8 @@ export type CreateFicheInput = {
   data: Record<string, unknown>;
   /** Configuration chatbot source (ADR-0049). */
   configId?: string | null;
+  /** Statut de qualification initial (métadonnée, ADR-0067). */
+  qualificationStatusKey?: string | null;
   ficheKey?: string | null;
   ficheInstanceKey?: string | null;
   conversationFicheInstanceId?: string | null;
@@ -27,10 +29,18 @@ export interface FicheRepository {
     organizationId: string,
     filter: FicheArchiveFilter,
     linkLabel?: string | string[] | null,
+    statusKeys?: string[] | null,
   ): Promise<Fiche[]>;
   create(organizationId: string, input: CreateFicheInput): Promise<Fiche>;
   /** Archive / désarchive une fiche ; null si introuvable. */
   setArchivee(organizationId: string, id: string, archivee: boolean): Promise<Fiche | null>;
+  /** Met à jour le statut de qualification ; null si introuvable. */
+  setQualificationStatus(
+    organizationId: string,
+    id: string,
+    key: string | null,
+    updatedBy: string | null,
+  ): Promise<Fiche | null>;
   /** Indique qu'une instance a déjà produit sa fiche (unicité). */
   findByInstance?(
     organizationId: string,

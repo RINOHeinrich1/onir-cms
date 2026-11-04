@@ -36,7 +36,14 @@ export function buildSampleData(fields: readonly TemplateField[]): Record<string
   const sample: Record<string, unknown> = {};
   for (const field of fields) {
     if (field.example !== undefined && field.example.trim() !== "") {
-      sample[field.name] = field.type === "multi" ? [field.example.trim()] : field.example.trim();
+      if (field.type === "multi") {
+        sample[field.name] = [field.example.trim()];
+      } else if (field.type === "number") {
+        const numeric = Number(field.example.trim());
+        sample[field.name] = Number.isFinite(numeric) ? numeric : 0;
+      } else {
+        sample[field.name] = field.example.trim();
+      }
       continue;
     }
     if (field.type === "multi") {
@@ -51,8 +58,20 @@ export function buildSampleData(fields: readonly TemplateField[]): Record<string
       sample[field.name] = "https://exemple.com";
       continue;
     }
+    if (field.type === "image") {
+      sample[field.name] = "https://exemple.com/image.jpg";
+      continue;
+    }
     if (field.type === "email") {
       sample[field.name] = "visiteur@exemple.mg";
+      continue;
+    }
+    if (field.type === "number") {
+      sample[field.name] = 0;
+      continue;
+    }
+    if (field.type === "date") {
+      sample[field.name] = "2026-01-01";
       continue;
     }
     sample[field.name] = field.type === "textarea" ? "Exemple de réponse" : "Exemple";
