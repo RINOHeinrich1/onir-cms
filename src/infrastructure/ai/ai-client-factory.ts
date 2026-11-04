@@ -43,7 +43,10 @@ async function resolveProviderTarget(
   source: "link" | "organization",
   clusterId: string | null,
 ): Promise<ResolvedAiTarget> {
-  const provider = await deps.providers.findById(organizationId, providerId);
+  const provider =
+    clusterId === null
+      ? await deps.providers.findById(organizationId, providerId)
+      : await deps.providers.findByIdForCluster(organizationId, clusterId, providerId);
   if (provider === null || provider.archivedAt !== null) {
     throw unavailable(
       source === "link"
@@ -51,7 +54,10 @@ async function resolveProviderTarget(
         : "Fournisseur IA par défaut indisponible — corrigez la configuration",
     );
   }
-  const modelRow = await deps.models.findByModelId(organizationId, providerId, model);
+  const modelRow =
+    clusterId === null
+      ? await deps.models.findByModelId(organizationId, providerId, model)
+      : await deps.models.findByModelIdForCluster(organizationId, clusterId, providerId, model);
   if (modelRow === null || !modelRow.enabled) {
     throw unavailable(
       source === "link"
@@ -189,7 +195,14 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     }
 
     if (resolved.providerId === null) throw new AiNotConfiguredError();
-    const provider = await deps.providers.findById(resolved.organizationId, resolved.providerId);
+    const provider =
+      resolved.clusterId === null || resolved.clusterId === undefined
+        ? await deps.providers.findById(resolved.organizationId, resolved.providerId)
+        : await deps.providers.findByIdForCluster(
+            resolved.organizationId,
+            resolved.clusterId,
+            resolved.providerId,
+          );
     if (provider === null || provider.archivedAt !== null) {
       throw unavailable("Fournisseur IA introuvable ou archivé — réaffectez le lien");
     }
