@@ -252,6 +252,7 @@ function configComparable(config: ChatbotConfigDraft): string {
       renderTemplate: fiche.renderTemplate,
       sourceFicheId: fiche.sourceFicheId ?? null,
       sourceVersion: fiche.sourceVersion ?? null,
+      statuses: fiche.statuses ?? null,
       fields: fiche.fields.map((field) => ({
         name: field.name,
         label: field.label,
@@ -265,6 +266,7 @@ function configComparable(config: ChatbotConfigDraft): string {
     })),
     dataSelection: config.dataSelection,
     fallback: config.fallback,
+    searchTool: config.searchTool,
   });
 }
 

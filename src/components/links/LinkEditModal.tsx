@@ -10,15 +10,18 @@ import {
   type ChatLinkSurface,
   channelsForLink,
   chatLinkQuota,
+  isPublicChatLink,
 } from "@/domain/entities/chat";
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
+import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
   draftFromConfig,
+  searchToolDraftViolations,
 } from "./chatbot-config-draft";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
@@ -118,6 +121,7 @@ export function LinkEditModal({
   useToastOnMessage(stepError);
   const activeTemplate = parseVisualTemplateSelection(channels[activeChannel].visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
+  const publicLink = isPublicChatLink(channels);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -166,6 +170,10 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
+    if (index === 0 && config !== null) {
+      const violations = searchToolDraftViolations(config.searchTool, publicLink);
+      if (violations.length > 0) return violations.join(" · ");
+    }
     if (index === 2 && config !== null) {
       if (
         config.fallback.enabled &&
@@ -239,7 +247,7 @@ export function LinkEditModal({
             widget: channelApiPayload(channels.widget),
           },
           ...(dataBindingsLoaded ? { dataBindings } : {}),
-          ...(config === null ? {} : { config: chatbotConfigPayload(config) }),
+          ...(config === null ? {} : { config: chatbotConfigPayload(config, { publicLink }) }),
         }),
       });
       const json = (await response.json()) as { link?: ChatLinkRow; error?: string };
@@ -376,6 +384,18 @@ export function LinkEditModal({
                   </label>
                   {config !== null ? (
                     <ChatbotBehaviorFields value={config} onChange={setConfig} />
+                  ) : null}
+                  {config !== null ? (
+                    <ChatbotSearchToolFields
+                      value={config.searchTool}
+                      onChange={(searchTool) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, searchTool },
+                        )
+                      }
+                      fiches={config.fiches}
+                      publicLink={publicLink}
+                    />
                   ) : null}
                   <CategoryPicker contentType="link" contentId={link.id} />
                 </section>

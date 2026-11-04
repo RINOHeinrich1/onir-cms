@@ -14,6 +14,7 @@ import {
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
+  isPublicChatLink,
 } from "@/domain/entities/chat";
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
@@ -21,11 +22,13 @@ import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
+import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   guidedPromptFromDraft,
+  searchToolDraftViolations,
 } from "./chatbot-config-draft";
 import {
   type ChatbotDataDraft,
@@ -151,6 +154,7 @@ export function LinkForm({
   const enabledChannels = (["page", "widget"] as const).filter(
     (channel) => channels[channel].enabled,
   );
+  const publicLink = isPublicChatLink(channels);
   const guidedPrompt = guidedPromptFromDraft(config);
   const pendingDataCount = chatbotDataDraftCount(dataDraft);
 
@@ -384,6 +388,8 @@ export function LinkForm({
       return null;
     }
     if (index === 1) {
+      const violations = searchToolDraftViolations(config.searchTool, publicLink);
+      if (violations.length > 0) return violations.join(" · ");
       return null;
     }
     if (index === 5) {
@@ -469,7 +475,7 @@ export function LinkForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          config: chatbotConfigPayload(config),
+          config: chatbotConfigPayload(config, { publicLink }),
           type,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
@@ -876,6 +882,12 @@ export function LinkForm({
             <ChatbotFichePicker
               value={config.fiches}
               onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
+            />
+            <ChatbotSearchToolFields
+              value={config.searchTool}
+              onChange={(searchTool) => setConfig((current) => ({ ...current, searchTool }))}
+              fiches={config.fiches}
+              publicLink={publicLink}
             />
           </section>
         ) : null}

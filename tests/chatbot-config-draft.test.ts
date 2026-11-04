@@ -116,4 +116,85 @@ describe("brouillon de configuration chatbot", () => {
     expect(payload.behaviorMode).toBe("expert");
     expect(payload.systemPrompt).toBe("Prompt expert personnalisé");
   });
+
+  it("porte la configuration de l'outil de recherche avec des valeurs sûres par défaut", () => {
+    const draft = defaultChatbotConfigDraft();
+    expect(draft.searchTool).toEqual({
+      ficheTypes: [],
+      statusMode: "hidden_fixed",
+      fixedStatusKeys: [],
+      sortMode: "fair_rotation",
+      scope: "chat_link",
+    });
+    expect(chatbotConfigPayload(draft).searchTool).toEqual(draft.searchTool);
+  });
+
+  it("sérialise puis relit searchTool sans perte", () => {
+    const draft = defaultChatbotConfigDraft();
+    draft.searchTool = {
+      ficheTypes: ["fournisseur", "partenaire"],
+      statusMode: "hidden_fixed",
+      fixedStatusKeys: ["publie"],
+      sortMode: "created_at",
+      scope: "chat_link",
+    };
+    const payload = chatbotConfigPayload(draft);
+    const reloaded = draftFromConfig(payload);
+    expect(reloaded?.searchTool).toEqual(draft.searchTool);
+    expect(chatbotConfigPayload(reloaded ?? draft).searchTool).toEqual(draft.searchTool);
+  });
+
+  it("tolère une configuration d'outil absente ou invalide en revenant aux défauts", () => {
+    const absent = draftFromConfig({ fiches: [] });
+    expect(absent?.searchTool.statusMode).toBe("hidden_fixed");
+    const invalid = draftFromConfig({ fiches: [], searchTool: { statusMode: "bogus" } });
+    expect(invalid?.searchTool).toEqual({
+      ficheTypes: [],
+      statusMode: "hidden_fixed",
+      fixedStatusKeys: [],
+      sortMode: "fair_rotation",
+      scope: "chat_link",
+    });
+  });
+
+  it("conserve les statuts de qualification du snapshot de fiche", () => {
+    const statuses = [
+      {
+        key: "publie",
+        label: "Publié",
+        order: 0,
+        isDefault: true,
+        archivedAt: null,
+        updatedAt: "2026-11-04T12:00:00.000Z",
+      },
+    ];
+    const draft = defaultChatbotConfigDraft();
+    draft.fiches = [
+      {
+        id: "f1",
+        key: "fournisseur",
+        label: "Fournisseur",
+        description: "",
+        intent: "",
+        instructions: "",
+        renderTemplate: "# Fournisseur\n",
+        fields: [
+          {
+            id: "field-1",
+            name: "nom",
+            label: "Nom",
+            type: "text",
+            required: true,
+            options: "",
+            unit: "",
+            example: "",
+          },
+        ],
+        statuses,
+      },
+    ];
+    const payload = chatbotConfigPayload(draft);
+    const reloaded = draftFromConfig(payload);
+    expect(reloaded?.fiches[0]?.statuses).toEqual(statuses);
+  });
 });

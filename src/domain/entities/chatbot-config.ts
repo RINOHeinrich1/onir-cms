@@ -284,6 +284,8 @@ function parseFiche(
     description: text(raw.description),
     systemPrompt: "validation",
     fields: raw.fields,
+    // ADR-0067 §2.2 : les statuts sont versionnés avec le snapshot de la fiche.
+    ...(raw.statuses === undefined ? {} : { statuses: raw.statuses }),
     renderTemplate,
   });
   if (!validated.ok) {

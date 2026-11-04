@@ -90,12 +90,24 @@ export function channelsForLink(link: ChatLink): ChatLinkChannels {
   };
 }
 
+/** Sous-ensemble structurel d'un canal suffisant pour décider de la publicité. */
+export type PublicChannelState = {
+  enabled: boolean;
+  identificationMode: string;
+};
+
 /**
  * Un lien est public dès qu'au moins un canal activé est ouvert à un visiteur
  * non interne. Un lien sans canal activé est considéré public par défaut : une
  * configuration backoffice ne doit jamais pouvoir y être préparée (ADR-0067 §2.5).
+ *
+ * La signature est volontairement structurelle : les formulaires d'édition
+ * (brouillons de canaux) et les canaux persistés peuvent la réutiliser.
  */
-export function isPublicChatLink(channels: ChatLinkChannels): boolean {
+export function isPublicChatLink(channels: {
+  page: PublicChannelState;
+  widget: PublicChannelState;
+}): boolean {
   const enabled = [channels.page, channels.widget].filter((channel) => channel.enabled);
   if (enabled.length === 0) return true;
   // Le type actif n'expose pas encore `internal`, mais la colonne le réserve :
