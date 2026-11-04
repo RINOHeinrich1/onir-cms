@@ -136,6 +136,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             structured: input.structured === true,
             capabilities: resolved.capabilities,
             onUsage: input.onUsage,
+            onFinishReason: input.onFinishReason,
           });
         },
       };
@@ -170,6 +171,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           structured: input.structured === true,
           capabilities: resolved.capabilities,
           onUsage: input.onUsage,
+          onFinishReason: input.onFinishReason,
         });
       },
     };

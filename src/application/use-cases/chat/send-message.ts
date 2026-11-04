@@ -38,6 +38,10 @@ import {
   instanceForFiche,
 } from "@/application/use-cases/chat/fiche-instances";
 import {
+  interruptedAnswerMarker,
+  replyLengthGuardrail,
+} from "@/application/use-cases/chat/reply-length";
+import {
   buildContexteInterne,
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
@@ -49,7 +53,11 @@ import type {
   ConversationInterventionMode,
 } from "@/domain/entities/chat";
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
-import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
+import {
+  type ChatbotConfig,
+  DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
+  type FicheDefinition,
+} from "@/domain/entities/chatbot-config";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
 import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-field";
@@ -380,6 +388,7 @@ export async function sendMessage(
     prospect = await deps.prospects.findById(organizationId, link.prospectId);
   }
 
+  const replyMaxTokens = config?.replyMaxTokens ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS;
   const system = buildSystemPromptFromTemplate({
     definition,
     serverVars: buildServerVariables({ mode: link.type, prospect, conversation }),
@@ -429,20 +438,48 @@ ${attachmentContext}`;
   if (definition.simple !== undefined) {
     systemEnrichi = `${systemEnrichi}\n\n${languageReminder(definition.simple.language)}`;
   }
+  systemEnrichi = `${systemEnrichi}\n\n${replyLengthGuardrail(replyMaxTokens)}`;
 
+  const replyAi = withAiUsage(ai, recordUsage, "chat_reply");
+  const messages = history.map((message) => ({
+    role: toAiRole(message.role),
+    content: message.content,
+  }));
+  let finishReason: string | null = null;
   let answer: string;
   try {
-    answer = await withAiUsage(ai, recordUsage, "chat_reply").complete({
+    answer = await replyAi.complete({
       system: systemEnrichi,
-      messages: history.map((message) => ({
-        role: toAiRole(message.role),
-        content: message.content,
-      })),
-      maxTokens: 400,
+      messages,
+      maxTokens: replyMaxTokens,
+      onFinishReason: (reason) => {
+        finishReason = reason;
+      },
     });
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new BadGatewayError("Service IA momentanément indisponible, réessayez");
+  }
+
+  if (finishReason === "length") {
+    try {
+      let retryFinishReason: string | null = null;
+      const compact = await replyAi.complete({
+        system: `${systemEnrichi}\n\nLa tentative précédente a été coupée. Produis maintenant une réponse complète et plus concise, sans dépasser la limite.`,
+        messages,
+        maxTokens: replyMaxTokens,
+        onFinishReason: (reason) => {
+          retryFinishReason = reason;
+        },
+      });
+      if (compact.trim() !== "") {
+        answer = compact;
+        finishReason = retryFinishReason;
+      }
+    } catch {
+      // On conserve la première réponse et le marqueur ci-dessous.
+    }
+    if (finishReason === "length") answer = `${answer.trim()}${interruptedAnswerMarker()}`;
   }
 
   // Course IA/opérateur : si un humain a pris la main pendant la génération,
