@@ -1,5 +1,7 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
 import type { ChatbotFallback } from "@/domain/entities/chatbot-config";
+import type { SitePalette } from "@/domain/site-palette";
+import type { TemplateParamValues } from "@/domain/template-params";
 import type { TemplateLanguagePolicy, TemplateSimpleSettings } from "@/domain/template-settings";
 
 export type ChatbotAiKnowledgeDto = {
@@ -40,7 +42,14 @@ export type ChatbotAiGenerationDto = {
   warnings: string[];
   existingAiKnowledgeCount: number;
   providerLabel: string;
+  providerId: string | null;
   model: string;
+  sitePalette: SitePalette;
+};
+
+export type ChatbotTemplateParamsDto = {
+  params: TemplateParamValues;
+  warnings: string[];
 };
 
 export type ChatbotAiModelsDto = {

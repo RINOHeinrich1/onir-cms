@@ -22,12 +22,14 @@ import {
   buildChatbotAiPrompt,
   CHATBOT_AI_MAX_CONTEXT_CHARS,
 } from "@/application/use-cases/chatbots/chatbot-ai-prompt";
+import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
 import {
   type ChatbotAiDraft,
   type ChatbotAiKnowledgeCandidate,
   extractAiJsonObject,
   parseChatbotAiDraft,
 } from "@/domain/chatbot-ai-draft";
+import { EMPTY_SITE_PALETTE, type SitePalette } from "@/domain/site-palette";
 import { toTemplateKey } from "@/domain/template-defaults";
 
 export const CHATBOT_AI_MAX_FILES = 5;
@@ -72,7 +74,9 @@ export type ChatbotAiGenerationResult = {
   warnings: string[];
   existingAiKnowledgeCount: number;
   providerLabel: string;
+  providerId: string | null;
   model: string;
+  sitePalette: SitePalette;
 };
 
 export type ChatbotAiGenerationDependencies = {
@@ -219,12 +223,14 @@ export async function generateChatbotAiDraft(
   let websitePages: Array<{ url: string; title: string; text: string }> = [];
   let websiteSummary: ChatbotAiGenerationSourceSummary["pages"] = [];
   let websiteTruncated = false;
+  let sitePalette: SitePalette = EMPTY_SITE_PALETTE;
   const websiteUrl = text(input.websiteUrl);
   if (websiteUrl !== "") {
     try {
       const crawled = await deps.websites.read(websiteUrl, clampCrawl(input.crawl));
       warnings.push(...crawled.warnings);
       websitePages = crawled.pages;
+      sitePalette = crawled.palette;
       website = crawled.pages
         .map((page) => `--- PAGE : ${page.url} ---\n${page.text}`)
         .join("\n\n");
@@ -286,42 +292,11 @@ export async function generateChatbotAiDraft(
     existing: null,
   });
 
-  let json: Record<string, unknown> | null = null;
-  let lastError: unknown = null;
-  for (const maxTokens of CHATBOT_AI_TOKEN_BUDGETS) {
-    let raw: string;
-    try {
-      raw = await client.complete({
-        system: prompt.system,
-        messages: [{ role: "user", content: prompt.user }],
-        maxTokens,
-        structured: true,
-      });
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      const message = error instanceof Error ? error.message : "";
-      if (!/réponse ia vide|json|finish_reason|length|unexpected end/i.test(message)) {
-        throw new BadGatewayError(message === "" ? "La génération IA a échoué" : message);
-      }
-      lastError = error;
-      continue;
-    }
+  const json = await callStructuredAi(client, {
+    system: prompt.system,
+    user: prompt.user,
+  });
 
-    const candidate = extractAiJsonObject(raw);
-    if (candidate !== null && typeof candidate === "object" && !Array.isArray(candidate)) {
-      json = candidate as Record<string, unknown>;
-      break;
-    }
-    lastError = new BadGatewayError("L'IA n'a pas renvoyé un JSON exploitable. Réessayez.");
-  }
-
-  if (json === null) {
-    throw new BadGatewayError(
-      lastError instanceof Error
-        ? `${lastError.message} (budget de raisonnement insuffisant après plusieurs tentatives)`
-        : "L'IA n'a pas renvoyé un JSON exploitable après plusieurs tentatives.",
-    );
-  }
   const suggestedLabel = text((json as Record<string, unknown>).label);
   const key = toTemplateKey(suggestedLabel);
 
@@ -368,6 +343,8 @@ export async function generateChatbotAiDraft(
     warnings: allWarnings,
     existingAiKnowledgeCount,
     providerLabel: resolved.providerLabel,
+    providerId: resolved.providerId,
     model: resolved.model,
+    sitePalette,
   };
 }

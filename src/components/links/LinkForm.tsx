@@ -2,7 +2,10 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChatbotAiGenerationDto } from "@/components/chatbots/ai-types";
+import type {
+  ChatbotAiGenerationDto,
+  ChatbotTemplateParamsDto,
+} from "@/components/chatbots/ai-types";
 import { ChatbotAiAssistPanel } from "@/components/chatbots/ChatbotAiAssistPanel";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
@@ -581,12 +584,18 @@ export function LinkForm({
     let widgetSelection = "";
     let widgetParams: Record<string, string | number | boolean> = {};
     let widgetPosition: ChannelDrafts["widget"]["widgetPosition"] = "bottom-right";
+    let selectedTemplateId = "";
+    let selectedTemplateVersion = "";
+    let selectedParamsSchema: (typeof visualTemplates)[number]["versions"][number]["params"] = [];
     for (const template of visualTemplates) {
       const version = template.versions.find((entry) => entry.widget !== null);
       if (version === undefined || version.widget === null) continue;
       widgetSelection = `${template.id}@${version.version}`;
       widgetParams = defaultsForSchema(version.params);
       widgetPosition = version.widget.defaultPosition;
+      selectedTemplateId = template.id;
+      selectedTemplateVersion = version.version;
+      selectedParamsSchema = version.params;
       break;
     }
 
@@ -617,11 +626,73 @@ export function LinkForm({
     setSources((current) => ({ ...current, phototheque: false, lien: false }));
     setAiSources(result.sources);
     setAiKnowledgeCount(staged.length);
-    toast.success(
-      widgetSelection === ""
-        ? "Brouillon appliqué. Aucun template widget compatible : le widget est désactivé."
-        : "Brouillon appliqué et template widget sélectionné.",
-    );
+
+    if (widgetSelection === "") {
+      toast.success(
+        "Brouillon appliqué. Aucun template widget compatible : le widget est désactivé.",
+      );
+      return;
+    }
+    if (selectedParamsSchema.length === 0) {
+      toast.success("Brouillon appliqué et template widget sélectionné.");
+      return;
+    }
+
+    toast.success("Brouillon appliqué. Préremplissage des paramètres du template…");
+    void (async () => {
+      try {
+        const response = await fetch("/api/chatbots/ai/template-params", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            templateId: selectedTemplateId,
+            templateVersion: selectedTemplateVersion,
+            chatbot: {
+              label: result.draft.label,
+              description: result.draft.description,
+              role: result.draft.role,
+              objective: result.draft.objective,
+              tone: result.draft.tone,
+              extraInstructions: result.draft.extraInstructions,
+            },
+            knowledge: result.draft.knowledge.map((item) => ({
+              titre: item.titre,
+              contenu: item.contenu,
+            })),
+            palette: result.sitePalette,
+            ...(result.providerId === null ? {} : { providerId: result.providerId }),
+            ...(result.model === "" ? {} : { model: result.model }),
+          }),
+        });
+        const json = (await response.json()) as Partial<ChatbotTemplateParamsDto> & {
+          error?: string;
+        };
+        if (!response.ok || json.params === undefined) {
+          throw new Error(json.error ?? "Préremplissage impossible");
+        }
+        setChannels((current) => {
+          if (current.widget.visualTemplate !== widgetSelection) return current;
+          // Ne pas écraser les valeurs si l'utilisateur les a déjà modifiées.
+          if (JSON.stringify(current.widget.params) !== JSON.stringify(widgetParams))
+            return current;
+          return {
+            ...current,
+            widget: {
+              ...current.widget,
+              params: json.params as Record<string, string | number | boolean>,
+            },
+          };
+        });
+        for (const warning of json.warnings ?? []) toast.warning(warning);
+        toast.success("Paramètres du template préremplis par l’IA.");
+      } catch (error) {
+        toast.warning(
+          error instanceof Error
+            ? `${error.message}. Paramètres du template laissés par défaut.`
+            : "Paramètres du template laissés par défaut.",
+        );
+      }
+    })();
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
