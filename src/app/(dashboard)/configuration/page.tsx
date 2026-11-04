@@ -5,6 +5,7 @@ import { listAiProviders } from "@/application/use-cases/ai/manage-ai-providers"
 import { AiProvidersPanel } from "@/components/ai/AiProvidersPanel";
 import type { AiProviderDto } from "@/components/ai/types";
 import { AppSecretsPanel } from "@/components/app-secrets/AppSecretsPanel";
+import { DatabaseReaderAccount } from "@/components/database/DatabaseReaderAccount";
 import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/app-secrets";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -17,14 +18,16 @@ export const metadata: Metadata = {
   title: "Configuration",
 };
 
-type ConfigurationTab = "ia" | "technique";
+type ConfigurationTab = "ia" | "database" | "secrets";
 
 function selectedTab(
   requested: string | undefined,
   available: readonly ConfigurationTab[],
 ): ConfigurationTab {
-  return available.includes(requested as ConfigurationTab)
-    ? (requested as ConfigurationTab)
+  const normalized =
+    requested === "technique" || requested === "base-de-donnees" ? "database" : requested;
+  return available.includes(normalized as ConfigurationTab)
+    ? (normalized as ConfigurationTab)
     : (available[0] ?? "ia");
 }
 
@@ -61,7 +64,7 @@ export default async function ConfigurationPage({
 
   const availableTabs: ConfigurationTab[] = [
     ...(canManageAi ? (["ia"] as const) : []),
-    ...(context.actor.isSuperAdmin ? (["technique"] as const) : []),
+    ...(context.actor.isSuperAdmin ? (["database", "secrets"] as const) : []),
   ];
   const tab = selectedTab(params.tab, availableTabs);
 
@@ -71,7 +74,9 @@ export default async function ConfigurationPage({
         <div>
           <span className="eyebrow">Administration</span>
           <h1 className="text-title">Configuration</h1>
-          <p className="muted-text">Fournisseurs IA et paramètres techniques réunis ici.</p>
+          <p className="muted-text">
+            Intelligence artificielle, base de données et secrets applicatifs réunis ici.
+          </p>
         </div>
       </div>
 
@@ -90,10 +95,20 @@ export default async function ConfigurationPage({
           <a
             className="channel-tab"
             role="tab"
-            aria-selected={tab === "technique"}
-            href="/configuration?tab=technique"
+            aria-selected={tab === "database"}
+            href="/configuration?tab=database"
           >
-            Technique
+            Base de données
+          </a>
+        ) : null}
+        {context.actor.isSuperAdmin ? (
+          <a
+            className="channel-tab"
+            role="tab"
+            aria-selected={tab === "secrets"}
+            href="/configuration?tab=secrets"
+          >
+            Secrets applicatifs
           </a>
         ) : null}
       </div>
@@ -103,8 +118,9 @@ export default async function ConfigurationPage({
           {!aiKeyReady ? (
             <p className="alert error">
               La clé de chiffrement des fournisseurs IA n’est pas disponible. Un super-admin doit la
-              configurer dans <a href="/configuration?tab=technique">Configuration → Technique</a>.
-              Le chat legacy continue de fonctionner.
+              configurer dans{" "}
+              <a href="/configuration?tab=secrets">Configuration → Secrets applicatifs</a>. Le chat
+              legacy continue de fonctionner.
             </p>
           ) : null}
           <div className="page-head" style={{ marginBottom: "1rem" }}>
@@ -128,23 +144,55 @@ export default async function ConfigurationPage({
         </section>
       ) : null}
 
-      {tab === "technique" && context.actor.isSuperAdmin ? (
+      {tab === "database" && context.actor.isSuperAdmin ? (
         <section>
-          <div className="grid-2">
-            <a
-              className="card"
-              href="/configuration/base-de-donnees"
-              style={{ textDecoration: "none" }}
-            >
-              <h2 className="text-title" style={{ fontSize: "1.05rem" }}>
+          <div className="page-head" style={{ marginBottom: "1rem" }}>
+            <div>
+              <h2 className="text-title" style={{ fontSize: "1.35rem" }}>
                 Base de données
               </h2>
               <p className="hint">
-                Compte de lecture en lecture seule utilisé par les fonctionnalités qui lisent des
-                données : état, test et rotation du mot de passe.
+                Compte PostgreSQL de lecture, partagé par les fonctionnalités qui lisent des
+                données.
               </p>
-              <span className="btn ghost small">Ouvrir</span>
-            </a>
+            </div>
+          </div>
+          <DatabaseReaderAccount />
+          <section className="card" style={{ marginTop: "1rem" }}>
+            <h2 className="text-title" style={{ fontSize: "1rem" }}>
+              Bon à savoir
+            </h2>
+            <ul className="hint" style={{ paddingLeft: "1.1rem" }}>
+              <li>
+                Le rôle <code>template_reader</code> (historique) reste le rôle porteur des droits :
+                <code>USAGE</code> uniquement sur <code>template_read</code> et <code>SELECT</code>{" "}
+                sur ses vues.
+              </li>
+              <li>
+                La rotation reconstruit la connexion au prochain chargement ; aucun redémarrage.
+              </li>
+              <li>
+                <code>TEMPLATE_DATABASE_URL</code> (si définie) reste prioritaire et désactive la
+                rotation depuis cette page.
+              </li>
+              <li>
+                La création des rôles nécessite que le compte applicatif ait <code>CREATEROLE</code>
+                (ou soit superutilisateur).
+              </li>
+            </ul>
+          </section>
+        </section>
+      ) : null}
+
+      {tab === "secrets" && context.actor.isSuperAdmin ? (
+        <section>
+          <div className="page-head" style={{ marginBottom: "1rem" }}>
+            <div>
+              <h2 className="text-title" style={{ fontSize: "1.35rem" }}>
+                Secrets applicatifs
+              </h2>
+              <p className="hint">Clés de chiffrement et secrets techniques de la plateforme.</p>
+            </div>
           </div>
           <AppSecretsPanel />
         </section>
