@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -22,32 +23,8 @@ export type InvitationDto = {
 };
 
 type OrganizationOption = { id: string; name: string };
-
-type CreateResponse = {
-  invitation?: InvitationDto;
-  error?: string;
-};
-
-type CatalogModel = { modelId: string; label: string; enabled: boolean };
-type CatalogProvider = {
-  id: string;
-  label: string;
-  organizationName: string;
-  models: CatalogModel[];
-};
-type CatalogCluster = { id: string; label: string; organizationName: string; actif: boolean };
-type Catalog = { providers: CatalogProvider[]; clusters: CatalogCluster[] };
-type OfferOption = { id: string; name: string; description: string };
-
-type AllocationTarget =
-  | { kind: "model"; providerId: string; model: string }
-  | { kind: "cluster"; clusterId: string };
-
-type AllocationDraft = {
-  key: string;
-  target: AllocationTarget;
-  maxTokens: string;
-};
+type ProfileOption = { id: string; name: string; description: string; active: boolean };
+type CreateResponse = { invitation?: InvitationDto; error?: string };
 
 const STATUS_LABELS: Record<InvitationStatus, string> = {
   pending: "En attente",
@@ -70,7 +47,6 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-/** Gestion des invitations : création de lien, copie, révocation. */
 export function InvitationsManager({
   initialInvitations,
   organizations,
@@ -86,46 +62,24 @@ export function InvitationsManager({
   const [invitations, setInvitations] = useState(initialInvitations);
   const [role, setRole] = useState<Role>(initialOrganizationId === "" ? "admin" : "lecteur");
   const [organizationId, setOrganizationId] = useState(initialOrganizationId);
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [profileId, setProfileId] = useState("");
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [offers, setOffers] = useState<OfferOption[]>([]);
-  const [selectedOfferId, setSelectedOfferId] = useState("");
-  const [maxChatbots, setMaxChatbots] = useState("");
-  const [maxTokens, setMaxTokens] = useState("");
-  const [resetMode, setResetMode] = useState<"manual" | "duration">("manual");
-  const [resetDays, setResetDays] = useState("");
-  const [allocations, setAllocations] = useState<AllocationDraft[]>([]);
-  const [resource, setResource] = useState("");
 
   useEffect(() => {
     if (!isSuperAdmin || organizationId !== "") return;
     let active = true;
-    void Promise.all([
-      fetch("/api/admin/ai/catalog", { cache: "no-store" }),
-      fetch("/api/platform/offers", { cache: "no-store" }),
-    ])
-      .then(async ([catalogResponse, offersResponse]) => {
-        const catalogJson = (await catalogResponse.json()) as Catalog & { error?: string };
-        const offersJson = (await offersResponse.json()) as {
-          offers?: OfferOption[];
-          error?: string;
-        };
-        if (!catalogResponse.ok) {
-          throw new Error(catalogJson.error ?? "Catalogue IA indisponible");
-        }
-        if (!offersResponse.ok) {
-          throw new Error(offersJson.error ?? "Offres indisponibles");
-        }
-        if (active) {
-          setCatalog(catalogJson);
-          setOffers(offersJson.offers ?? []);
-        }
+    void fetch("/api/platform/limit-profiles", { cache: "no-store" })
+      .then(async (response) => {
+        const json = (await response.json()) as { profiles?: ProfileOption[]; error?: string };
+        if (!response.ok) throw new Error(json.error ?? "Profils indisponibles");
+        if (active) setProfiles(json.profiles ?? []);
       })
       .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Catalogue IA indisponible");
+        if (active) setError(cause instanceof Error ? cause.message : "Profils indisponibles");
       });
     return () => {
       active = false;
@@ -135,74 +89,25 @@ export function InvitationsManager({
   const onOrganizationChange = (value: string): void => {
     setOrganizationId(value);
     if (value === "") setRole("admin");
-  };
-
-  const resourceOptions = (): { value: string; label: string }[] => {
-    if (catalog === null) return [];
-    return [
-      ...catalog.providers.flatMap((provider) =>
-        provider.models
-          .filter((model) => model.enabled)
-          .map((model) => ({
-            value: JSON.stringify({
-              kind: "model",
-              providerId: provider.id,
-              model: model.modelId,
-            }),
-            label: `${provider.organizationName} · ${provider.label} · ${model.label}`,
-          })),
-      ),
-      ...catalog.clusters
-        .filter((cluster) => cluster.actif)
-        .map((cluster) => ({
-          value: JSON.stringify({ kind: "cluster", clusterId: cluster.id }),
-          label: `${cluster.organizationName} · Cluster ${cluster.label}`,
-        })),
-    ];
-  };
-
-  const addAllocation = (): void => {
-    if (resource === "") return;
-    const target = JSON.parse(resource) as AllocationTarget;
-    const key = `${target.kind}:${target.kind === "model" ? `${target.providerId}:${target.model}` : target.clusterId}`;
-    if (allocations.some((entry) => entry.key === key)) return;
-    setAllocations((current) => [...current, { key, target, maxTokens: "" }]);
-    setResource("");
+    setProfileId("");
   };
 
   const onCreate = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (organizationId === "" && profileId === "") {
+      setError("Choisissez un profil de limites");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
-      const usingOffer = organizationId === "" && selectedOfferId !== "";
-      const provisioning =
-        !usingOffer &&
-        organizationId === "" &&
-        (maxChatbots !== "" ||
-          maxTokens !== "" ||
-          allocations.length > 0 ||
-          resetMode === "duration")
-          ? {
-              maxChatbots: maxChatbots === "" ? null : Number(maxChatbots),
-              maxTokens: maxTokens === "" ? null : Number(maxTokens),
-              tokenResetMode: resetMode,
-              tokenResetDays: resetMode === "duration" ? Number(resetDays) : null,
-              allocations: allocations.map((entry) => ({
-                target: entry.target,
-                maxTokens: entry.maxTokens === "" ? null : Number(entry.maxTokens),
-              })),
-              defaults: [],
-            }
-          : null;
       const response = await fetch("/api/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId,
           role,
-          provisioning,
-          offerId: usingOffer ? selectedOfferId : undefined,
+          limitProfileId: organizationId === "" ? profileId : undefined,
         }),
       });
       const json = (await response.json()) as CreateResponse;
@@ -212,12 +117,7 @@ export function InvitationsManager({
       }
       setInvitations((current) => [json.invitation as InvitationDto, ...current]);
       setRole(organizationId === "" ? "admin" : "lecteur");
-      setMaxChatbots("");
-      setMaxTokens("");
-      setResetMode("manual");
-      setResetDays("");
-      setAllocations([]);
-      setSelectedOfferId("");
+      setProfileId("");
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -286,139 +186,26 @@ export function InvitationsManager({
         ) : null}
 
         {isSuperAdmin && organizationId === "" ? (
-          <div>
-            <h4>Paramétrage de l&apos;organisation invitée</h4>
-            <label className="field">
-              Offre (optionnel)
-              <select
-                value={selectedOfferId}
-                onChange={(event) => setSelectedOfferId(event.target.value)}
-              >
-                <option value="">Personnalisé</option>
-                {offers.map((offer) => (
-                  <option key={offer.id} value={offer.id}>
-                    {offer.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hint">
-                Une offre applique son snapshot de limites à l&apos;acceptation.
-              </span>
-            </label>
-            {selectedOfferId === "" ? (
-              <>
-                <div className="grid-2">
-                  <label className="field">
-                    Nombre maximal de chatbots
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Illimité"
-                      value={maxChatbots}
-                      onChange={(event) => setMaxChatbots(event.target.value)}
-                    />
-                  </label>
-                  <label className="field">
-                    Budget global de tokens
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Illimité"
-                      value={maxTokens}
-                      onChange={(event) => setMaxTokens(event.target.value)}
-                    />
-                  </label>
-                  <label className="field">
-                    Réinitialisation
-                    <select
-                      value={resetMode}
-                      onChange={(event) =>
-                        setResetMode(event.target.value === "duration" ? "duration" : "manual")
-                      }
-                    >
-                      <option value="manual">Manuelle</option>
-                      <option value="duration">Automatique</option>
-                    </select>
-                  </label>
-                  {resetMode === "duration" ? (
-                    <label className="field">
-                      Durée (jours)
-                      <input
-                        type="number"
-                        min="1"
-                        max="3650"
-                        value={resetDays}
-                        onChange={(event) => setResetDays(event.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                </div>
-
-                <p className="hint">
-                  La première ressource ajoutée devient la ressource par défaut pour tous les usages
-                  IA de l’organisation invitée.
-                </p>
-                <label className="field">
-                  Modèle ou cluster disponible
-                  <select value={resource} onChange={(event) => setResource(event.target.value)}>
-                    <option value="">— Choisir une ressource partagée —</option>
-                    {resourceOptions().map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="tools">
-                  <button type="button" className="btn ghost small" onClick={addAllocation}>
-                    Ajouter cette ressource
-                  </button>
-                </div>
-                {allocations.map((entry, index) => (
-                  <div className="field-row" key={entry.key}>
-                    <div className="grid-2">
-                      <span className="hint">
-                        {entry.target.kind === "model"
-                          ? `${entry.target.providerId} · ${entry.target.model}`
-                          : `Cluster · ${entry.target.clusterId}`}
-                      </span>
-                      <label className="field">
-                        Budget de tokens
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="Illimité"
-                          value={entry.maxTokens}
-                          onChange={(event) =>
-                            setAllocations((current) =>
-                              current.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...item, maxTokens: event.target.value }
-                                  : item,
-                              ),
-                            )
-                          }
-                        />
-                      </label>
-                    </div>
-                    <div className="tools">
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        onClick={() =>
-                          setAllocations((current) =>
-                            current.filter((_, itemIndex) => itemIndex !== index),
-                          )
-                        }
-                      >
-                        Retirer
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </>
-            ) : null}
-          </div>
+          <label className="field">
+            Profil de limites
+            <select
+              name="limitProfileId"
+              value={profileId}
+              onChange={(event) => setProfileId(event.target.value)}
+            >
+              <option value="">— Choisir un profil —</option>
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                  {profile.active ? "" : " (inactif)"}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              Le profil pilote les limites, les ressources IA et les défauts.{" "}
+              <Link href="/profils">Gérer les profils</Link>.
+            </span>
+          </label>
         ) : null}
 
         <label className="field">
@@ -438,7 +225,11 @@ export function InvitationsManager({
         </label>
 
         <div className="tools">
-          <button type="submit" className="btn small" disabled={pending}>
+          <button
+            type="submit"
+            className="btn small"
+            disabled={pending || (isSuperAdmin && organizationId === "" && profileId === "")}
+          >
             {pending ? "Création…" : "Créer le lien"}
           </button>
         </div>

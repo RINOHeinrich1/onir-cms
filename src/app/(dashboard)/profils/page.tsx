@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PlatformOffersManager } from "@/components/offers/PlatformOffersManager";
+import { LimitProfilesManager } from "@/components/limit-profiles/LimitProfilesManager";
 import { getSessionContext } from "@/infrastructure/session/current-user";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Offres",
+  title: "Profils de limites",
 };
 
-export default async function OffersPage() {
+export default async function LimitProfilesPage() {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
   if (!context.actor.isSuperAdmin) redirect("/dashboard");
@@ -18,14 +18,14 @@ export default async function OffersPage() {
       <div className="page-head">
         <div>
           <span className="eyebrow">Plateforme</span>
-          <h1 className="text-title">Offres</h1>
+          <h1 className="text-title">Profils de limites</h1>
           <p className="hint">
             Préréglages réutilisables pour les invitations : chatbots, budgets IA et ressources
             autorisées.
           </p>
         </div>
       </div>
-      <PlatformOffersManager />
+      <LimitProfilesManager />
     </section>
   );
 }

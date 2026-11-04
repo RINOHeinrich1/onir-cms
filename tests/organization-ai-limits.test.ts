@@ -18,6 +18,7 @@ const orgAdmin: Actor = { ...superAdmin, isSuperAdmin: false };
 const existing: OrganizationLimits = {
   organizationId: "org-1",
   maxChatbots: 2,
+  limitProfileId: null,
   chatbotsCount: 1,
   budget: {
     organizationId: "org-1",

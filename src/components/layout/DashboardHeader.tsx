@@ -216,8 +216,8 @@ const ITEMS: readonly NavItem[] = [
   { href: "/utilisateurs", label: "Utilisateurs", action: "users:list", icon: "utilisateurs" },
   { href: "/invitations", label: "Invitations", action: "invitations:list", icon: "invitations" },
   {
-    href: "/offres",
-    label: "Offres",
+    href: "/profils",
+    label: "Profils de limites",
     action: "organizations:update",
     icon: "offers",
     superAdminOnly: true,

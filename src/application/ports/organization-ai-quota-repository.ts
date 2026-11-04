@@ -9,6 +9,7 @@ import type {
 export type OrganizationLimits = {
   organizationId: string;
   maxChatbots: number | null;
+  limitProfileId: string | null;
   chatbotsCount: number;
   budget: OrganizationAiBudget | null;
   allocations: OrganizationAiQuotaState["allocations"];

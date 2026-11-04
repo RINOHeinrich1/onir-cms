@@ -10,13 +10,13 @@ export type CreateInvitationInput = {
   invitedBy: string;
   expiresAt: Date;
   provisioning?: OrganizationProvisioning | null;
-  offerId?: string | null;
+  limitProfileId?: string | null;
 };
 
 export type InvitationRecord = Invitation & {
   organizationName: string | null;
   provisioning?: OrganizationProvisioning | null;
-  offerId?: string | null;
+  limitProfileId?: string | null;
   invitedByEmail: string;
   /** Jeton clair déchiffré pour affichage/copie (admin uniquement). */
   token: string | null;

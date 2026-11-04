@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
-import { pgPlatformOfferRepository } from "@/infrastructure/db/platform-offer-repository";
+import { pgLimitProfileRepository } from "@/infrastructure/db/limit-profile-repository";
 import { makeOrganization, makeUser, setupDb } from "./helpers/db";
 
 let pool: Pool;
@@ -53,7 +53,7 @@ function provisioning(): OrganizationProvisioning {
 
 describe("offres plateforme", () => {
   it("crée, liste, modifie et supprime une offre", async () => {
-    const repo = pgPlatformOfferRepository(pool);
+    const repo = pgLimitProfileRepository(pool);
     const created = await repo.create({
       name: "Offre Essentiel",
       description: "Une offre test",
