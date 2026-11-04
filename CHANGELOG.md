@@ -5,6 +5,18 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.23.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.22.0...v0.23.0) (2026-11-04)
+
+
+### Features
+
+* **chat:** longueur des réponses par chatbot ([#183](https://github.com/RINOHeinrich1/onir-cms/issues/183)) ([9f83dac](https://github.com/RINOHeinrich1/onir-cms/commit/9f83dacf1bad48f02bb9cd66dcf9fb5d50ff9fc9))
+
+
+### Bug Fixes
+
+* **widget:** supprimer le doublon du premier message ([#186](https://github.com/RINOHeinrich1/onir-cms/issues/186)) ([253f654](https://github.com/RINOHeinrich1/onir-cms/commit/253f65462bfd7d84363ed61efe9f1c5f26c77d1d))
+
 ## [0.22.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.21.0...v0.22.0) (2026-11-04)
 
 
