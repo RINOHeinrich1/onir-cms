@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
 
@@ -70,6 +71,7 @@ export function LimitProfilesManager() {
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     setError(null);
@@ -99,6 +101,7 @@ export function LimitProfilesManager() {
   }, [load]);
 
   const resetForm = (): void => {
+    setFormOpen(false);
     setEditingId(null);
     setName("");
     setDescription("");
@@ -112,7 +115,13 @@ export function LimitProfilesManager() {
     setResource("");
   };
 
+  const openCreate = (): void => {
+    resetForm();
+    setFormOpen(true);
+  };
+
   const edit = (offer: Offer): void => {
+    setFormOpen(true);
     setEditingId(offer.id);
     setName(offer.name);
     setDescription(offer.description);
@@ -238,157 +247,177 @@ export function LimitProfilesManager() {
   return (
     <div>
       {error !== null ? <p className="alert error">{error}</p> : null}
-      <form
-        className="form card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <h3>
-          {editingId === null ? "Nouveau profil de limites" : "Modifier le profil de limites"}
-        </h3>
-        <div className="grid-2">
-          <label className="field">
-            Nom
-            <input
-              type="text"
-              maxLength={120}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            Description
-            <input
-              type="text"
-              maxLength={2000}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            Nombre maximal de chatbots
-            <input
-              type="number"
-              min="0"
-              placeholder="Illimité"
-              value={maxChatbots}
-              onChange={(event) => setMaxChatbots(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            Plafond global de tokens (optionnel)
-            <input
-              type="number"
-              min="0"
-              placeholder="Illimité"
-              value={maxTokens}
-              onChange={(event) => setMaxTokens(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            Réinitialisation
-            <select
-              value={resetMode}
-              onChange={(event) =>
-                setResetMode(event.target.value === "duration" ? "duration" : "manual")
-              }
-            >
-              <option value="manual">Manuelle</option>
-              <option value="duration">Automatique</option>
-            </select>
-          </label>
-          {resetMode === "duration" ? (
-            <label className="field">
-              Durée (jours)
-              <input
-                type="number"
-                min="1"
-                max="3650"
-                value={resetDays}
-                onChange={(event) => setResetDays(event.target.value)}
-              />
-            </label>
-          ) : null}
-        </div>
-        <label className="hint" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-          />
-          Profil actif et sélectionnable dans les invitations
-        </label>
-
-        <h4 style={{ marginTop: "1.2rem" }}>Ressources autorisées</h4>
-        <p className="hint">
-          La première ressource ajoutée devient la ressource par défaut pour tous les usages IA de
-          l’organisation invitée.
-        </p>
-        <label className="field">
-          Modèle ou cluster
-          <select value={resource} onChange={(event) => setResource(event.target.value)}>
-            <option value="">— Choisir une ressource —</option>
-            {resourceOptions().map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="tools">
-          <button type="button" className="btn ghost small" onClick={addAllocation}>
-            Ajouter la ressource
-          </button>
-        </div>
-        {allocations.map((entry, index) => (
-          <div className="field-row" key={entry.key}>
+      {formOpen ? (
+        <Modal
+          title={editingId === null ? "Nouveau profil de limites" : "Modifier le profil de limites"}
+          onClose={resetForm}
+          wide
+        >
+          <form
+            className="form card"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save();
+            }}
+          >
             <div className="grid-2">
-              <span className="hint">{targetLabel(entry.target)}</span>
               <label className="field">
-                Budget de tokens
+                Nom
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Description
+                <input
+                  type="text"
+                  maxLength={2000}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Nombre maximal de chatbots
                 <input
                   type="number"
                   min="0"
                   placeholder="Illimité"
-                  value={entry.maxTokens}
-                  onChange={(event) =>
-                    setAllocations((current) =>
-                      current.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, maxTokens: event.target.value } : item,
-                      ),
-                    )
-                  }
+                  value={maxChatbots}
+                  onChange={(event) => setMaxChatbots(event.target.value)}
                 />
               </label>
+              <label className="field">
+                Plafond global de tokens (optionnel)
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Illimité"
+                  value={maxTokens}
+                  onChange={(event) => setMaxTokens(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Réinitialisation
+                <select
+                  value={resetMode}
+                  onChange={(event) =>
+                    setResetMode(event.target.value === "duration" ? "duration" : "manual")
+                  }
+                >
+                  <option value="manual">Manuelle</option>
+                  <option value="duration">Automatique</option>
+                </select>
+              </label>
+              {resetMode === "duration" ? (
+                <label className="field">
+                  Durée (jours)
+                  <input
+                    type="number"
+                    min="1"
+                    max="3650"
+                    value={resetDays}
+                    onChange={(event) => setResetDays(event.target.value)}
+                  />
+                </label>
+              ) : null}
             </div>
+            <label
+              className="hint"
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={(event) => setActive(event.target.checked)}
+              />
+              Profil actif et sélectionnable dans les invitations
+            </label>
+
+            <h4 style={{ marginTop: "1.2rem" }}>Ressources autorisées</h4>
+            <p className="hint">
+              La première ressource ajoutée devient la ressource par défaut pour tous les usages IA
+              de l’organisation invitée.
+            </p>
+            <label className="field">
+              Modèle ou cluster
+              <select value={resource} onChange={(event) => setResource(event.target.value)}>
+                <option value="">— Choisir une ressource —</option>
+                {resourceOptions().map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="tools">
-              <button
-                type="button"
-                className="btn ghost small"
-                onClick={() =>
-                  setAllocations((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                }
-              >
-                Retirer
+              <button type="button" className="btn ghost small" onClick={addAllocation}>
+                Ajouter la ressource
               </button>
             </div>
-          </div>
-        ))}
-        <div className="tools">
-          <button type="submit" className="btn small" disabled={pending}>
-            {pending ? "Enregistrement…" : editingId === null ? "Créer le profil" : "Enregistrer"}
-          </button>
-          {editingId !== null ? (
-            <button type="button" className="btn ghost small" onClick={resetForm}>
-              Annuler
-            </button>
-          ) : null}
-        </div>
-      </form>
+            {allocations.map((entry, index) => (
+              <div className="field-row" key={entry.key}>
+                <div className="grid-2">
+                  <span className="hint">{targetLabel(entry.target)}</span>
+                  <label className="field">
+                    Budget de tokens
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Illimité"
+                      value={entry.maxTokens}
+                      onChange={(event) =>
+                        setAllocations((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, maxTokens: event.target.value } : item,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="tools">
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    onClick={() =>
+                      setAllocations((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  >
+                    Retirer
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="tools">
+              <button type="submit" className="btn small" disabled={pending}>
+                {pending
+                  ? "Enregistrement…"
+                  : editingId === null
+                    ? "Créer le profil"
+                    : "Enregistrer"}
+              </button>
+              {editingId !== null ? (
+                <button type="button" className="btn ghost small" onClick={resetForm}>
+                  Annuler
+                </button>
+              ) : null}
+            </div>
+          </form>
+        </Modal>
+      ) : null}
 
-      <div className="table-scroll" style={{ marginTop: "2rem" }}>
+      <div className="tools" style={{ marginTop: "1rem", marginBottom: "1.5rem" }}>
+        <button type="button" className="btn small" onClick={openCreate}>
+          Nouveau profil de limites
+        </button>
+      </div>
+
+      <div className="table-scroll">
         <table className="table table-cards">
           <thead>
             <tr>
