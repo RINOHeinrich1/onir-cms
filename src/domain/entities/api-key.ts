@@ -28,7 +28,7 @@ export const API_KEY_SCOPE_LABELS: Record<ApiKeyScope, string> = {
   "prospects:read": "Lire les prospects",
   "prospects:write": "Créer/modifier les prospects",
   "conversations:read": "Lire les conversations",
-  "conversations:write": "Clôturer les conversations",
+  "conversations:write": "Créer des conversations, envoyer des messages et clôturer",
   "chatbots:read": "Lire les chatbots",
   "chatbots:write": "Créer/modifier les chatbots",
   "webhooks:read": "Lire les webhooks",

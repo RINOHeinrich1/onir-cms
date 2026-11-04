@@ -121,6 +121,47 @@ GET    /api/v1/connaissances/:id
 PATCH  /api/v1/connaissances/:id
 DELETE /api/v1/connaissances/:id`}</DocCode>
 
+      <h2 id="conversations">Conversations et chat</h2>
+      <p>
+        Scopes : <code>conversations:read</code> pour lire, <code>conversations:write</code> pour
+        créer une conversation, envoyer des messages ou clôturer.
+      </p>
+      <DocCode>{`POST /api/v1/chatbots/:chatbotId/conversations
+Authorization: Bearer onir_live_...
+Content-Type: application/json
+
+{
+  "channel": "page",
+  "visitor": {
+    "nom": "Aina",
+    "email": "aina@example.mg",
+    "contacts": [{ "type": "whatsapp", "valeur": "+261..." }]
+  },
+  "consentement": true
+}
+
+POST /api/v1/conversations/:conversationId/messages
+Authorization: Bearer onir_live_...
+Content-Type: application/json
+
+{ "content": "Bonjour, je souhaite un devis." }`}</DocCode>
+      <p>
+        Le premier appel crée ou reprend la conversation du visiteur et renvoie son
+        <code>conversationId</code>. Le second enregistre le message visiteur et renvoie
+        <code>userMessage</code>, la réponse éventuelle <code>message</code>, les connaissances
+        utilisées et <code>mode</code> (<code>ai</code> ou <code>human</code>).
+      </p>
+      <p>
+        Pour un chatbot en identification contact, <code>visitor.nom</code> et
+        <code>visitor.email</code> sont requis. Si une politique de confidentialité est associée au
+        canal, <code>consentement: true</code> est requis. Les pièces jointes sont transmises via{" "}
+        <code>attachmentIds</code> (25 maximum).
+      </p>
+      <p>
+        La création peut aussi reprendre une conversation ouverte existante pour le même prospect et
+        le même canal : la réponse contient alors <code>resumed: true</code>.
+      </p>
+
       <h2 id="isolation">Isolation et limites</h2>
       <p>
         Toutes les requêtes sont automatiquement filtrées par l’organisation de la clé. Un accès à
