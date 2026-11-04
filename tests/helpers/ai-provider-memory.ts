@@ -33,6 +33,9 @@ export function memoryAiProviderRepository() {
         ) ?? null
       );
     },
+    async findByIdForCluster(organizationId, _clusterId, id) {
+      return this.findById(organizationId, id);
+    },
     async create(organizationId, input) {
       if (
         providers.some(

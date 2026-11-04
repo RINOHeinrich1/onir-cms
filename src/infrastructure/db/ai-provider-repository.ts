@@ -48,12 +48,6 @@ const ACCESS_SQL = `(
     SELECT 1 FROM ai_model_grants g
      WHERE g.organization_id = $1 AND g.provider_id = p.id
   )
-  OR EXISTS (
-    SELECT 1
-      FROM ai_cluster_grants cg
-      JOIN ai_cluster_members cm ON cm.cluster_id = cg.cluster_id
-     WHERE cg.organization_id = $1 AND cm.provider_id = p.id
-  )
 )`;
 
 function toEntity(row: Row): AiProvider {
@@ -123,6 +117,21 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
       const { rows } = await pool.query<Row>(
         `SELECT ${COLUMNS} FROM ai_providers p WHERE ${ACCESS_SQL} AND p.id = $2`,
         [organizationId, id],
+      );
+      return rows[0] ? toEntity(rows[0]) : null;
+    },
+
+    async findByIdForCluster(organizationId, clusterId, id) {
+      const { rows } = await pool.query<Row>(
+        `SELECT ${COLUMNS}
+           FROM ai_providers p
+          WHERE p.id = $3
+            AND ai_cluster_accessible($1, $2)
+            AND EXISTS (
+              SELECT 1 FROM ai_cluster_members cm
+               WHERE cm.cluster_id = $2 AND cm.provider_id = p.id
+            )`,
+        [organizationId, clusterId, id],
       );
       return rows[0] ? toEntity(rows[0]) : null;
     },

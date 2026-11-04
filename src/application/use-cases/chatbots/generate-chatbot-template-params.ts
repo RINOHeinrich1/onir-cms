@@ -106,7 +106,12 @@ export async function generateChatbotTemplateParams(
   const resolvedTarget =
     resolved.providerId === null
       ? target
-      : { organizationId, aiProviderId: resolved.providerId, aiModel: resolved.model };
+      : {
+          organizationId,
+          aiProviderId: resolved.providerId,
+          aiModel: resolved.model,
+          aiClusterId: resolved.clusterId ?? null,
+        };
   const client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
 
   const prompt = buildChatbotTemplateParamsPrompt({

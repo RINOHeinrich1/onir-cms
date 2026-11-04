@@ -200,11 +200,26 @@ describe("partage du catalogue IA", () => {
     expect((await pgAiUsageRepository(pool).listClusters(targetOrg)).map((c) => c.id)).toContain(
       clusterId,
     );
+    expect(await pgAiProviderRepository(pool).findById(targetOrg, providerId)).toBeNull();
+    expect(
+      await pgAiProviderModelRepository(pool).findByModelId(targetOrg, providerId, "model-granted"),
+    ).toBeNull();
+    expect(
+      await pgAiProviderRepository(pool).findByIdForCluster(targetOrg, clusterId, providerId),
+    ).not.toBeNull();
+    expect(
+      await pgAiProviderModelRepository(pool).findByModelIdForCluster(
+        targetOrg,
+        clusterId,
+        providerId,
+        "model-granted",
+      ),
+    ).not.toBeNull();
     await expect(
       pgChatLinkRepository(pool).create(
         targetOrg,
         linkInput({ aiProviderId: providerId, aiModel: "model-granted" }),
       ),
-    ).resolves.toMatchObject({ aiProviderId: providerId });
+    ).rejects.toMatchObject({ code: "23503" });
   });
 });
