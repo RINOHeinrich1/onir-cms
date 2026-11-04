@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.24.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.23.0...v0.24.0) (2026-11-04)
+
+
+### Features
+
+* **api-v1:** conversation et messages chatbot ([#187](https://github.com/RINOHeinrich1/onir-cms/issues/187)) ([55dee0b](https://github.com/RINOHeinrich1/onir-cms/commit/55dee0b2a350d6c0ae71e09239abce73e32150d7))
+
 ## [0.23.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.22.0...v0.23.0) (2026-11-04)
 
 
