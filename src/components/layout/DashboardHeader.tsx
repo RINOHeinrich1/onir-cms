@@ -199,28 +199,12 @@ const ITEMS: readonly NavItem[] = [
     icon: "templates",
   },
   { href: "/parametres/ia", label: "Paramètres IA", action: "ai:list", icon: "ai" },
-  { href: "/parametres/api-keys", label: "Clés API", action: "api_keys:list", icon: "keys" },
   { href: "/parametres/webhooks", label: "Webhooks", action: "webhooks:create", icon: "webhooks" },
   {
     href: "/documentation",
     label: "Documentation",
     action: "dashboard:view",
     icon: "documentation",
-  },
-  {
-    href: "/organisations",
-    label: "Organisations",
-    action: "organizations:list",
-    icon: "organisations",
-  },
-  { href: "/utilisateurs", label: "Utilisateurs", action: "users:list", icon: "utilisateurs" },
-  { href: "/invitations", label: "Invitations", action: "invitations:list", icon: "invitations" },
-  {
-    href: "/profils",
-    label: "Profils de limites",
-    action: "organizations:update",
-    icon: "offers",
-    superAdminOnly: true,
   },
   {
     href: "/configuration",
