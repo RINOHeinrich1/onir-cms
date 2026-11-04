@@ -181,6 +181,67 @@ describe("partage du catalogue IA", () => {
     expect(events.rows[0]).toMatchObject({ organization_id: targetOrg, provider_id: providerId });
   });
 
+  it("utilise un cluster partagé sans exposer ses modèles directement", async () => {
+    const sealed = sealAiKey("cluster-secret");
+    const provider = await pool.query<{ id: string }>(
+      `INSERT INTO ai_providers
+         (organization_id, label, preset, dialect, base_url,
+          api_key_ciphertext, api_key_iv, api_key_tag, api_key_hint)
+       VALUES ($1, 'Provider cluster runtime', 'custom', 'openai',
+               'https://example.test/v1', $2, $3, $4, '••••1234')
+       RETURNING id`,
+      [ownerOrg, sealed.ciphertext, sealed.iv, sealed.tag],
+    );
+    const providerId = provider.rows[0]?.id;
+    if (providerId === undefined) throw new Error("provider");
+    await pool.query(
+      `INSERT INTO ai_provider_models
+         (organization_id, provider_id, model_id, label, source)
+       VALUES ($1, $2, 'cluster-runtime-model', 'Cluster runtime', 'manual')`,
+      [ownerOrg, providerId],
+    );
+    const cluster = await pool.query<{ id: string }>(
+      `INSERT INTO ai_clusters (organization_id, label) VALUES ($1, 'Cluster runtime') RETURNING id`,
+      [ownerOrg],
+    );
+    const clusterId = cluster.rows[0]?.id;
+    if (clusterId === undefined) throw new Error("cluster");
+    await pool.query(
+      `INSERT INTO ai_cluster_members
+         (cluster_id, organization_id, position, provider_id, model)
+       VALUES ($1, $2, 1, $3, 'cluster-runtime-model')`,
+      [clusterId, ownerOrg, providerId],
+    );
+    await pgAiGrantRepository(pool).grant(targetOrg, { kind: "cluster", clusterId }, grantor);
+    expect(await pgAiProviderRepository(pool).findById(targetOrg, providerId)).toBeNull();
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "cluster-ok" } }],
+            usage: { prompt_tokens: 4, completion_tokens: 2, total_tokens: 6 },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const client = await pgAiClientFactory(pool).forTarget({
+      organizationId: targetOrg,
+      aiProviderId: providerId,
+      aiModel: "cluster-runtime-model",
+      aiClusterId: clusterId,
+    });
+    await expect(
+      client.complete({ system: "sys", messages: [{ role: "user", content: "bonjour" }] }),
+    ).resolves.toBe("cluster-ok");
+    const events = await pool.query<{ cluster_id: string }>(
+      "SELECT cluster_id FROM ai_usage_events WHERE organization_id = $1 AND cluster_id IS NOT NULL",
+      [targetOrg],
+    );
+    expect(events.rows.map((row) => row.cluster_id)).toContain(clusterId);
+  });
+
   it("partage un cluster et ses membres", async () => {
     const { providerId } = await seedProvider();
     const cluster = await pool.query<{ id: string }>(
