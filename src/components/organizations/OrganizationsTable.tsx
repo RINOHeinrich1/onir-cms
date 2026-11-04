@@ -6,7 +6,6 @@ import type { MemberDto } from "@/application/use-cases/organizations/manage-mem
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Organization } from "@/domain/entities/organization";
 import { MembersTable } from "./MembersTable";
-import { OrganizationAiLimitsPanel } from "./OrganizationAiLimitsPanel";
 import { OrganizationAiSharingPanel } from "./OrganizationAiSharingPanel";
 import { OrganizationForm } from "./OrganizationForm";
 import { OrganizationLimitProfilePanel } from "./OrganizationLimitProfilePanel";
@@ -156,11 +155,7 @@ export function OrganizationsTable({
                 key={`profile:${selected.id}`}
                 organizationId={selected.id}
                 organizationName={selected.name}
-              />
-              <OrganizationAiLimitsPanel
-                key={`limits:${selected.id}`}
-                organizationId={selected.id}
-                organizationName={selected.name}
+                initialProfileId={selected.limitProfileId ?? null}
               />
               <OrganizationAiSharingPanel
                 key={`sharing:${selected.id}`}
