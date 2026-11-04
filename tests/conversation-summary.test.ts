@@ -74,6 +74,7 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     content: "Je veux un site.",
     medias: [],
     mediasComputed: false,
+    blocks: [],
     attachments: [],
     authorUserId: null,
     authorName: null,

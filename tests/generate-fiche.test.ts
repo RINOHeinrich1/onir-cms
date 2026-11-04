@@ -194,6 +194,7 @@ function deps() {
             content: "Je veux un site.",
             medias: [],
             mediasComputed: false,
+            blocks: [],
             authorUserId: null,
             authorName: null,
             attachments: [],

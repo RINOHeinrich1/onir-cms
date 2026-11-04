@@ -464,6 +464,7 @@ export function ChatWindow({
       role: "user",
       content,
       medias: [],
+      blocks: [],
       attachments,
       authorName: null,
       createdAt: new Date().toISOString(),

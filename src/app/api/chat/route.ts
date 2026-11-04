@@ -10,11 +10,13 @@ import { recordConversationIncident } from "@/application/use-cases/conversation
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatSearchSessionRepository } from "@/infrastructure/db/chat-search-session-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -55,6 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const pool = getPool();
+    const ficheTools = pgFicheToolRepository(pool);
     const result = await sendMessage(
       {
         organizations: pgOrganizationRepository(pool),
@@ -67,6 +70,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         ai: pgAiClientFactory(pool),
         configs: pgChatbotConfigRepository(pool),
         ficheInstances: pgConversationFicheInstanceRepository(pool),
+        ficheTools,
+        searchSessions: pgChatSearchSessionRepository(pool),
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );

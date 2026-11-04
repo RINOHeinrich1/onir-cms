@@ -127,6 +127,7 @@ export function messageDto(message: ChatMessage) {
     role: message.role,
     content: message.content,
     medias: message.medias,
+    blocks: message.blocks,
     attachments: message.attachments,
     createdAt: message.createdAt,
   };

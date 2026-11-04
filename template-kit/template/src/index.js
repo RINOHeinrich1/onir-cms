@@ -2,6 +2,12 @@
 // `onirtech.template-host.v1`. Aucune dépendance : DOM natif + Shadow DOM.
 // Le template NE PARLE PAS à l'API : il lit `ctx` et appelle `ctx.actions.*`.
 
+import {
+  formatToolFieldValue,
+  renderFallbackText,
+  resolveBlock,
+} from "./blocks.js";
+
 const ELEMENT = "onirtech-template-starter";
 
 function paramText(ctx, key, fallback) {
@@ -60,6 +66,92 @@ function appendInline(parent, text) {
     last = match.index + match[0].length;
   }
   if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+/** URL sûre : http(s) ou chemin relatif interne uniquement. */
+function safeUrl(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
+  return null;
+}
+
+/** Rendu générique des blocs, par type de champ — jamais par `ficheKey`. */
+function renderToolSearchResult(container, block) {
+  if (!Array.isArray(block.items) || block.items.length === 0) return 0;
+  const section = el("section", { class: "tool-results" });
+  for (const item of block.items) {
+    const card = el("div", { class: "tool-result" });
+    for (const field of item.fields) {
+      if (field.type === "image") {
+        const url = safeUrl(field.value);
+        if (url !== null) {
+          card.appendChild(el("img", { class: "tool-image", src: url, alt: field.label }));
+        }
+        continue;
+      }
+      const row = el("div", { class: "tool-field" });
+      row.appendChild(el("span", { class: "tool-label", text: field.label }));
+      if (field.type === "url" || field.type === "email") {
+        const href =
+          field.type === "email" && typeof field.value === "string"
+            ? `mailto:${field.value}`
+            : safeUrl(field.value);
+        row.appendChild(
+          href === null || href === undefined
+            ? el("span", { class: "tool-value", text: formatToolFieldValue(field) })
+            : el("a", {
+                class: "tool-value",
+                href,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                text: formatToolFieldValue(field),
+              }),
+        );
+      } else {
+        row.appendChild(
+          el("span", { class: "tool-value", text: formatToolFieldValue(field) }),
+        );
+      }
+      card.appendChild(row);
+    }
+    if (card.childNodes.length > 0) section.appendChild(card);
+  }
+  if (section.childNodes.length === 0) return 0;
+  container.appendChild(section);
+  return 1;
+}
+
+/**
+ * Affiche les blocs connus. Si aucun bloc exploitable (type ou
+ * `contractVersion` inconnus), retombe sur `content` — sans HTML brut.
+ */
+function appendMessageBlocks(container, message) {
+  const blocks = Array.isArray(message.blocks) ? message.blocks : [];
+  let rendered = 0;
+  for (const block of blocks) {
+    const resolved = resolveBlock(block);
+    if (resolved === null) continue;
+    if (resolved.type === "text") {
+      renderMarkdown(container, resolved.text);
+      rendered += 1;
+      continue;
+    }
+    if (resolved.type === "image") {
+      const url = safeUrl(resolved.url);
+      if (url === null) continue;
+      container.appendChild(el("img", { class: "block-image", src: url, alt: resolved.alt ?? "" }));
+      rendered += 1;
+      continue;
+    }
+    if (resolved.type === "tool_search_result") {
+      rendered += renderToolSearchResult(container, resolved);
+    }
+  }
+  if (rendered === 0) {
+    renderMarkdown(container, renderFallbackText(blocks, message.content));
+  }
 }
 
 function renderMarkdown(target, content) {
@@ -470,7 +562,7 @@ class StarterTemplate extends HTMLElement {
       if (message.role === "user") {
         content.textContent = message.content;
       } else {
-        renderMarkdown(content, message.content);
+        appendMessageBlocks(content, message);
       }
       const bubble = el("div", { class: "bubble" }, [
         ...(author === null ? [] : [author]),

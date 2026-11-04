@@ -3,6 +3,7 @@ import type { ConnaissanceRef } from "@/domain/entities/connaissance";
 import type { UserState } from "@/domain/entities/user-state";
 import { TEMPLATE_HOST_PROTOCOL, type TemplateCapability } from "@/domain/entities/visual-template";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type { MessageBlock } from "@/domain/tool-blocks";
 
 /**
  * Contrat hôte des templates visuels (version logique, transport-agnostique).
@@ -63,6 +64,8 @@ export type TemplateMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Représentation riche ordonnée (ADR-0067 §5) ; `content` reste le secours. */
+  blocks?: MessageBlock[];
   medias: TemplateMessageMedia[];
   /** Pièces jointes du message (capacité `attachments`, ADR-0034). */
   attachments?: TemplateAttachment[];
@@ -378,6 +381,7 @@ function sanitizeMessage(
     id: message.id,
     role: message.role,
     content: message.content,
+    ...(message.blocks !== undefined ? { blocks: message.blocks } : {}),
     medias: message.medias,
     at: message.at,
     ...(allowUserState && message.userState !== undefined ? { userState: message.userState } : {}),

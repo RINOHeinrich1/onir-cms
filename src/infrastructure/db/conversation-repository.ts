@@ -22,6 +22,7 @@ import {
 } from "@/domain/entities/chat";
 import type { ConversationIncidentKind } from "@/domain/entities/conversation-incident";
 import { isTypeMedia } from "@/domain/entities/media";
+import { parseMessageBlocks } from "@/domain/tool-blocks";
 
 type ConversationRow = {
   id: string;
@@ -58,15 +59,17 @@ type MessageRow = {
   role: string;
   content: string;
   medias: unknown;
+  blocks?: unknown;
   attachments?: unknown;
   author_user_id?: string | null;
   author_name?: string | null;
   created_at: Date;
 };
 
-const MESSAGE_COLUMNS = "id, conversation_id, role, content, medias, author_user_id, created_at";
+const MESSAGE_COLUMNS =
+  "id, conversation_id, role, content, medias, blocks, author_user_id, created_at";
 const MESSAGE_COLUMNS_M =
-  "m.id, m.conversation_id, m.role, m.content, m.medias, m.author_user_id, m.created_at";
+  "m.id, m.conversation_id, m.role, m.content, m.medias, m.blocks, m.author_user_id, m.created_at";
 const MESSAGE_COLUMNS_WITH_ATTACHMENTS = `${MESSAGE_COLUMNS_M}, COALESCE(att.items, '[]'::json) AS attachments`;
 const MESSAGE_AUTHOR_SELECT = "COALESCE(u.name, u.email) AS author_name";
 const MESSAGE_AUTHOR_JOIN = "LEFT JOIN users u ON u.id = m.author_user_id";
@@ -216,6 +219,7 @@ function toMessage(row: MessageRow): ChatMessage {
     content: row.content,
     medias: parseMedias(row.medias),
     mediasComputed: row.medias !== null && row.medias !== undefined,
+    blocks: parseMessageBlocks(row.blocks),
     attachments: parseAttachments(row.attachments),
     authorUserId: row.author_user_id ?? null,
     authorName: row.author_name ?? null,
@@ -467,6 +471,7 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
       content,
       attachmentIds = [],
       authorUserId = null,
+      blocks = [],
     ): Promise<ChatMessage> {
       // Message + rattachement des pièces dans une même transaction : un échec
       // de rattachement ne laisse pas de message partiel.
@@ -484,12 +489,12 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
           `WITH target AS (
              SELECT id FROM conversations WHERE organization_id = $1 AND id = $2
            ), inserted AS (
-             INSERT INTO chat_messages (conversation_id, role, content, author_user_id)
-             SELECT id, $3, $4, $5 FROM target
+             INSERT INTO chat_messages (conversation_id, role, content, author_user_id, blocks)
+             SELECT id, $3, $4, $5, $6::jsonb FROM target
              RETURNING ${MESSAGE_COLUMNS}
            )
            SELECT * FROM inserted`,
-          [organizationId, conversationId, role, content, authorUserId],
+          [organizationId, conversationId, role, content, authorUserId, JSON.stringify(blocks)],
         );
         row = rows[0];
         if (!row) throw new Error("Échec d'enregistrement du message");

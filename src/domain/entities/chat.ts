@@ -6,6 +6,7 @@
 
 import type { AttachmentView } from "@/domain/entities/attachment";
 import { normalizeTemplateParamValues, type TemplateParamValues } from "@/domain/template-params";
+import type { MessageBlock } from "@/domain/tool-blocks";
 import { type ChatLinkWidgetConfig, parseChatLinkWidgetConfig } from "@/domain/widget";
 
 export const CHAT_LINK_TYPES = ["specifique", "standard"] as const;
@@ -452,6 +453,8 @@ export type ChatMessage = {
   mediasComputed: boolean;
   /** Pièces jointes du message (champs fichier, ADR-0034). */
   attachments: AttachmentView[];
+  /** Représentation riche ordonnée (ADR-0067 §5) ; `content` reste le secours. */
+  blocks: MessageBlock[];
   /** Auteur humain d'un message opérateur (ADR-0043). */
   authorUserId: string | null;
   /** Nom lisible de l'auteur opérateur (dérivé). */

@@ -195,11 +195,68 @@ export type TemplateFallbackState = {
   showCollectionForm: boolean;
 };
 
+/** Type d'un champ de résultat d'outil (ADR-0067 §5). */
+export type ToolFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "url"
+  | "email"
+  | "image"
+  | "select"
+  | "multi";
+
+/** Valeur typée d'un champ de résultat d'outil. */
+export type ToolFieldValue = string | number | string[] | null;
+
+/** Champ typé transmis au template (jamais de métadonnée ni de fichier). */
+export type ToolField = {
+  key: string;
+  label: string;
+  type: ToolFieldType;
+  value: ToolFieldValue;
+  /** Unité d'affichage d'un nombre (ex. "€", "Ar"). */
+  unit?: string;
+};
+
+export type ToolSearchResultItem = {
+  fields: ToolField[];
+};
+
+export type TextMessageBlock = {
+  type: "text";
+  text: string;
+};
+
+export type ImageMessageBlock = {
+  type: "image";
+  url: string;
+  alt?: string;
+};
+
+export type ToolSearchResultBlock = {
+  type: "tool_search_result";
+  contractVersion: 1;
+  tool: string;
+  layout?: "card" | "list";
+  items: ToolSearchResultItem[];
+  meta?: {
+    total?: number;
+    hasMore?: boolean;
+  };
+};
+
+/** Bloc riche ordonné d'un message (ADR-0067 §5). */
+export type MessageBlock = TextMessageBlock | ImageMessageBlock | ToolSearchResultBlock;
+
 /** Message de la discussion. */
 export type TemplateMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Représentation riche ordonnée (ADR-0067 §5) ; `content` reste le secours. */
+  blocks?: MessageBlock[];
   medias: TemplateMessageMedia[];
   /** Présent si la capacité `attachments` (ADR-0034). */
   attachments?: TemplateAttachment[];

@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { chatCompletionForProvider } from "@/infrastructure/ai/openai-client";
+import {
+  chatCompletionForProvider,
+  chatCompletionWithToolsForProvider,
+} from "@/infrastructure/ai/openai-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -91,7 +94,7 @@ describe("openai-client — dialectes", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        async () =>
+        async (_url: string, _init: RequestInit) =>
           new Response(
             JSON.stringify({
               choices: [{ message: { content: "ok" } }],
@@ -129,5 +132,151 @@ describe("openai-client — dialectes", () => {
         messages,
       }),
     ).rejects.toThrow("Réponse IA vide");
+  });
+});
+
+describe("openai-client — tool calling natif (ADR-0067 §7.1)", () => {
+  const tools = [
+    {
+      name: "search_fiches",
+      description: "Recherche des fiches.",
+      parameters: { type: "object", properties: {} },
+    },
+  ];
+
+  it("envoie tools/tool_choice et parse les tool_calls", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: "",
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "search_fiches",
+                        arguments: '{"ficheTypes":["maison"]}',
+                      },
+                    },
+                  ],
+                },
+                finish_reason: "tool_calls",
+              },
+            ],
+            usage: { prompt_tokens: 4, completion_tokens: 2, total_tokens: 6 },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await chatCompletionWithToolsForProvider({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "secret",
+      model: "gpt-4o-mini",
+      dialect: "openai",
+      messages,
+      tools,
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "search_fiches",
+          description: "Recherche des fiches.",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ]);
+    expect(body.tool_choice).toBe("auto");
+    expect(result.toolCalls).toEqual([
+      { id: "call_1", name: "search_fiches", arguments: '{"ficheTypes":["maison"]}' },
+    ]);
+    expect(result.finishReason).toBe("tool_calls");
+  });
+
+  it("normalise des arguments objet et conserve le contenu final", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (_url: string, _init: RequestInit) =>
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Réponse finale",
+                    tool_calls: [
+                      { id: "c2", function: { name: "search_fiches", arguments: { limit: 5 } } },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+    const result = await chatCompletionWithToolsForProvider({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "secret",
+      model: "gpt-4o-mini",
+      dialect: "openai",
+      messages,
+      tools,
+    });
+    expect(result.content).toBe("Réponse finale");
+    expect(result.toolCalls[0]?.arguments).toBe('{"limit":5}');
+  });
+
+  it("accepte une réponse vide si un outil est appelé, et n'envoie pas tools sans outils", async () => {
+    const fetchMock = vi
+      .fn<(url: string, init: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: null,
+                  tool_calls: [{ id: "c", function: { name: "list", arguments: "{}" } }],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(completion("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await chatCompletionWithToolsForProvider({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "secret",
+      model: "gpt-4o-mini",
+      dialect: "openai",
+      messages,
+      tools,
+    });
+    expect(result.content).toBe("");
+    expect(result.toolCalls).toHaveLength(1);
+
+    await chatCompletionForProvider({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "secret",
+      model: "gpt-4o-mini",
+      dialect: "openai",
+      messages,
+    });
+    const second = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<
+      string,
+      unknown
+    >;
+    expect(second.tools).toBeUndefined();
+    expect(second.tool_choice).toBeUndefined();
   });
 });

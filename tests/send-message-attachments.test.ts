@@ -109,6 +109,7 @@ function deps() {
       content,
       medias: [],
       mediasComputed: false,
+      blocks: [],
       authorUserId: null,
       authorName: null,
       attachments:
