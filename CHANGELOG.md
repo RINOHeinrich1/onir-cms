@@ -5,6 +5,29 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.25.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.24.0...v0.25.0) (2026-11-04)
+
+
+### Features
+
+* **ai:** profils de limites vivants ([#194](https://github.com/RINOHeinrich1/onir-cms/issues/194)) ([89bca86](https://github.com/RINOHeinrich1/onir-cms/commit/89bca8630f14ea6406b593a6f0f849608e105f62))
+* **ai:** quotas, partage et offres plateforme ([#189](https://github.com/RINOHeinrich1/onir-cms/issues/189)) ([5db2ca7](https://github.com/RINOHeinrich1/onir-cms/commit/5db2ca780142338ee6d2ef299466b8cc8e95ea6b))
+* **ui:** fusionner Configuration et Paramètres IA ([#201](https://github.com/RINOHeinrich1/onir-cms/issues/201)) ([ec55d74](https://github.com/RINOHeinrich1/onir-cms/commit/ec55d74bdbb6d60849301c261d4acf4f50e36b20))
+* **ui:** IA et configuration dans le menu compte ([#200](https://github.com/RINOHeinrich1/onir-cms/issues/200)) ([f9dad60](https://github.com/RINOHeinrich1/onir-cms/commit/f9dad6045130ffd0ea873ca0a71d0adb90b2518d))
+* **ui:** liens membres et modale organisation ([#199](https://github.com/RINOHeinrich1/onir-cms/issues/199)) ([f62bed4](https://github.com/RINOHeinrich1/onir-cms/commit/f62bed4cfc051086978b0c88538f0c8d0766ce2c))
+* **ui:** modale profils et action membre ([#197](https://github.com/RINOHeinrich1/onir-cms/issues/197)) ([1f114b0](https://github.com/RINOHeinrich1/onir-cms/commit/1f114b029ce4b123ec33409b8d49cf2faa05c0df))
+* **ui:** organisations, membres et profils de limites ([#196](https://github.com/RINOHeinrich1/onir-cms/issues/196)) ([85dfabd](https://github.com/RINOHeinrich1/onir-cms/commit/85dfabd8a4bfd17dc109b3ae04b2f81ad5ad746e))
+* **ui:** paramètres du compte unifiés ([#198](https://github.com/RINOHeinrich1/onir-cms/issues/198)) ([8c081f2](https://github.com/RINOHeinrich1/onir-cms/commit/8c081f271412ea4ea044b66495c4da8b53bddbe6))
+* **ui:** trois onglets de configuration ([#202](https://github.com/RINOHeinrich1/onir-cms/issues/202)) ([8a21215](https://github.com/RINOHeinrich1/onir-cms/commit/8a21215dd005bf689c4d90c84a12aba9720d57f9))
+
+
+### Bug Fixes
+
+* **ai:** accès runtime des clusters opaques ([#193](https://github.com/RINOHeinrich1/onir-cms/issues/193)) ([6e11de9](https://github.com/RINOHeinrich1/onir-cms/commit/6e11de9a06d23015e816f3e2a3a107a9b702ea55))
+* **ai:** clusters opaques et modèles explicitement partagés ([#192](https://github.com/RINOHeinrich1/onir-cms/issues/192)) ([1f567db](https://github.com/RINOHeinrich1/onir-cms/commit/1f567dbc85424a8cec21406294e9367abb0b70bb))
+* **ai:** défauts de provisioning et plafond global ([#191](https://github.com/RINOHeinrich1/onir-cms/issues/191)) ([8acd628](https://github.com/RINOHeinrich1/onir-cms/commit/8acd628d9fac0781ee7e1bc40419c66bc1b12fca))
+* **ai:** profil de limites comme seule source de vérité ([#195](https://github.com/RINOHeinrich1/onir-cms/issues/195)) ([7e7f2d4](https://github.com/RINOHeinrich1/onir-cms/commit/7e7f2d4931d7c7c9abb8aca2ef3b19cfbc18f04d))
+
 ## [0.24.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.23.0...v0.24.0) (2026-11-04)
 
 
