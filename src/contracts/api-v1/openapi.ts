@@ -176,7 +176,7 @@ export function openapiDocument(): JsonSchema {
     openapi: "3.1.0",
     info: {
       title: "ONIR CMS API",
-      version: "1.0.0-alpha.1",
+      version: "1.0.0-alpha.2",
       description:
         "API server-to-server ONIR CMS. Les requêtes sont isolées par l’organisation de la clé API. Utilisez Authorize avec une clé `onir_live_...`.",
     },
@@ -461,6 +461,21 @@ export function openapiDocument(): JsonSchema {
             ],
           },
         ),
+        post: operation(
+          "Conversations",
+          "sendConversationMessage",
+          ["conversations:write"],
+          {
+            "200": single(
+              ref("ConversationMessageResult"),
+              "Message enregistré et réponse éventuelle du chatbot",
+            ),
+          },
+          {
+            parameters: [pathId()],
+            requestBody: { required: true, content: json(ref("ConversationMessageCreate")) },
+          },
+        ),
       },
       "/conversations/{id}/fiches": {
         get: operation(
@@ -527,6 +542,20 @@ export function openapiDocument(): JsonSchema {
           ["chatbots:write"],
           { "200": noContent("Chatbot supprimé") },
           { parameters: [pathId()] },
+        ),
+      },
+      "/chatbots/{id}/conversations": {
+        post: operation(
+          "Conversations",
+          "createChatbotConversation",
+          ["conversations:write"],
+          {
+            "201": single(ref("ConversationStarted"), "Conversation créée ou reprise"),
+          },
+          {
+            parameters: [pathId()],
+            requestBody: { required: true, content: json(ref("ChatbotConversationCreate")) },
+          },
         ),
       },
       "/statistiques/summary": {
@@ -837,6 +866,74 @@ export function openapiDocument(): JsonSchema {
             activite: { type: "string" },
             fonction: { type: "string" },
             detail: { type: "string" },
+          },
+        },
+        ChatbotConversationCreate: {
+          type: "object",
+          properties: {
+            channel: { type: "string", enum: ["page", "widget"] },
+            consentement: { type: "boolean" },
+            visitor: {
+              type: "object",
+              properties: {
+                nom: { type: "string", maxLength: 200 },
+                email: { type: "string", format: "email" },
+                contacts: {
+                  type: "array",
+                  maxItems: 5,
+                  items: {
+                    type: "object",
+                    required: ["type", "valeur"],
+                    properties: {
+                      type: {
+                        type: "string",
+                        enum: ["téléphone", "whatsapp", "site web", "autre"],
+                      },
+                      valeur: { type: "string", maxLength: 200 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        ConversationStarted: {
+          allOf: [
+            ref("ConversationDetail"),
+            {
+              type: "object",
+              properties: {
+                resumed: { type: "boolean" },
+              },
+            },
+          ],
+        },
+        ConversationMessageCreate: {
+          type: "object",
+          required: ["content"],
+          properties: {
+            content: { type: "string", minLength: 1, maxLength: 4000 },
+            attachmentIds: {
+              type: "array",
+              maxItems: 25,
+              items: { type: "string", format: "uuid" },
+            },
+          },
+        },
+        ConversationMessageResult: {
+          type: "object",
+          required: ["userMessage", "message", "mediaPending", "mode"],
+          properties: {
+            userMessage: ref("Message"),
+            message: {
+              anyOf: [ref("Message"), { type: "null" }],
+            },
+            connaissances: {
+              type: "array",
+              items: { type: "object", additionalProperties: true },
+            },
+            mediaPending: { type: "boolean" },
+            mode: { type: "string", enum: ["ai", "human"] },
           },
         },
         ConversationSummary: {
