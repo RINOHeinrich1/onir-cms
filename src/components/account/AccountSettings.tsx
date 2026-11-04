@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
 import { ApiKeysPanel } from "@/components/api-keys/ApiKeysPanel";
+import { ExpirationAlertSettings } from "@/components/configuration/ExpirationAlertSettings";
 import {
   type InvitationDto,
   InvitationsManager,
@@ -35,6 +36,7 @@ export function AccountSettings({
   canUsers,
   canInvitations,
   canApiKeys,
+  expirationAlertDays,
 }: {
   email: string;
   role: Role | null;
@@ -51,6 +53,7 @@ export function AccountSettings({
   canUsers: boolean;
   canInvitations: boolean;
   canApiKeys: boolean;
+  expirationAlertDays: number | null;
 }) {
   const tabs: { id: AccountTab; label: string }[] = [
     { id: "compte", label: "Mon compte" },
@@ -133,20 +136,28 @@ export function AccountSettings({
       ) : null}
 
       {tab === "organisation" && canOrganizations ? (
-        <OrganizationsAdminTable
-          key={organizations.map((organization) => organization.id).join("|")}
-          initialOrganizations={organizations.map((organization) => ({
-            ...organization,
-            membersCount: organization.members.length,
-          }))}
-          isSuperAdmin={isSuperAdmin}
-          activeOrganizationId={activeOrganizationId}
-          onOpenMembers={(organizationId) => {
-            setSelectedOrganizationId(organizationId);
-            setPeopleTab("membres");
-            setTab("utilisateurs");
-          }}
-        />
+        <>
+          {expirationAlertDays !== null ? (
+            <ExpirationAlertSettings
+              initialDays={expirationAlertDays}
+              organizationName={organizationName ?? "l’organisation active"}
+            />
+          ) : null}
+          <OrganizationsAdminTable
+            key={organizations.map((organization) => organization.id).join("|")}
+            initialOrganizations={organizations.map((organization) => ({
+              ...organization,
+              membersCount: organization.members.length,
+            }))}
+            isSuperAdmin={isSuperAdmin}
+            activeOrganizationId={activeOrganizationId}
+            onOpenMembers={(organizationId) => {
+              setSelectedOrganizationId(organizationId);
+              setPeopleTab("membres");
+              setTab("utilisateurs");
+            }}
+          />
+        </>
       ) : null}
 
       {tab === "utilisateurs" && (canUsers || canInvitations) ? (

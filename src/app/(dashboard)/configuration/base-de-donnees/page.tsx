@@ -27,7 +27,7 @@ export default async function DatabaseSettingsPage() {
           </p>
         </div>
         <div className="tools">
-          <a className="btn ghost small" href="/configuration">
+          <a className="btn ghost small" href="/configuration?tab=technique">
             Retour
           </a>
         </div>
