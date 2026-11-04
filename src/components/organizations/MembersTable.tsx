@@ -100,6 +100,12 @@ export function MembersTable({
   return (
     <div>
       {error !== null ? <p className="alert error">{error}</p> : null}
+      <div className="tools" style={{ marginBottom: "1rem" }}>
+        <button type="button" className="btn small" onClick={() => setCreating(true)}>
+          Rattacher / créer un utilisateur
+        </button>
+      </div>
+
       <div className="table-scroll">
         <table className="table table-cards">
           <thead>
@@ -149,12 +155,6 @@ export function MembersTable({
             ) : null}
           </tbody>
         </table>
-      </div>
-
-      <div className="tools" style={{ marginTop: "1rem" }}>
-        <button type="button" className="btn small" onClick={() => setCreating(true)}>
-          Rattacher / créer un utilisateur
-        </button>
       </div>
 
       {creating ? (
