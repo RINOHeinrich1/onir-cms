@@ -5,8 +5,8 @@ import type {
   InvitationRecord,
   InvitationRepository,
 } from "@/application/ports/invitation-repository";
+import type { LimitProfileRepository } from "@/application/ports/limit-profile-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
-import type { PlatformOfferRepository } from "@/application/ports/platform-offer-repository";
 import { parseInvitationProvisioning } from "@/application/use-cases/invitations/invitation-provisioning";
 import { invitationExpiry, isInvitationScopeValid } from "@/domain/entities/invitation";
 import { isRole, type Role } from "@/domain/entities/user";
@@ -17,14 +17,14 @@ export type CreateInvitationCommand = {
   organizationId?: unknown;
   role?: unknown;
   provisioning?: unknown;
-  offerId?: unknown;
+  limitProfileId?: unknown;
 };
 
 export type CreateInvitationDependencies = {
   invitations: InvitationRepository;
   organizations: OrganizationRepository;
   grants?: AiGrantRepository;
-  offers?: PlatformOfferRepository;
+  profiles?: LimitProfileRepository;
 };
 
 function parseInvitationRole(value: unknown): Role {
@@ -75,21 +75,27 @@ export async function createInvitation(
   if (organizationId !== null && input.provisioning !== undefined && input.provisioning !== null) {
     throw new ValidationError("Le provisioning IA est réservé à une invitation sans organisation");
   }
-  const rawOfferId = typeof input.offerId === "string" ? input.offerId.trim() : "";
-  const offerId = rawOfferId === "" ? null : rawOfferId;
-  if (organizationId !== null && offerId !== null) {
-    throw new ValidationError("Une offre est réservée à une invitation sans organisation");
+  const rawOfferId = typeof input.limitProfileId === "string" ? input.limitProfileId.trim() : "";
+  const limitProfileId = rawOfferId === "" ? null : rawOfferId;
+  if (organizationId !== null && limitProfileId !== null) {
+    throw new ValidationError(
+      "Un profil de limites est réservé à une invitation sans organisation",
+    );
   }
-  if (offerId !== null && input.provisioning !== undefined && input.provisioning !== null) {
-    throw new ValidationError("Choisissez une offre ou un provisioning personnalisé, pas les deux");
+  if (limitProfileId !== null && input.provisioning !== undefined && input.provisioning !== null) {
+    throw new ValidationError(
+      "Choisissez un profil de limites ou un provisioning personnalisé, pas les deux",
+    );
   }
 
   let provisioning: Awaited<ReturnType<typeof parseInvitationProvisioning>> = null;
-  if (organizationId === null && offerId !== null) {
-    if (deps.offers === undefined) throw new ValidationError("Offres indisponibles");
-    const offer = await deps.offers.findById(offerId);
-    if (offer === null || !offer.active) throw new NotFoundError("Offre introuvable ou inactive");
-    provisioning = offer.provisioning;
+  if (organizationId === null && limitProfileId !== null) {
+    if (deps.profiles === undefined) throw new ValidationError("Profils de limites indisponibles");
+    const profile = await deps.profiles.findById(limitProfileId);
+    if (profile === null || !profile.active) {
+      throw new NotFoundError("Profil de limites introuvable ou inactif");
+    }
+    provisioning = null;
   } else if (organizationId === null) {
     provisioning = parseInvitationProvisioning(
       input.provisioning,
@@ -106,7 +112,7 @@ export async function createInvitation(
     invitedBy: actor.id,
     expiresAt: invitationExpiry(),
     provisioning,
-    offerId,
+    limitProfileId,
   });
 
   return { invitation, token };

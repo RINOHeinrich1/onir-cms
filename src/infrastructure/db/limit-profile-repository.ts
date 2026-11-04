@@ -1,11 +1,15 @@
 import type { Pool } from "pg";
 import type {
-  CreatePlatformOfferInput,
-  PlatformOffer,
-  PlatformOfferRepository,
-  UpdatePlatformOfferInput,
-} from "@/application/ports/platform-offer-repository";
+  CreateLimitProfileInput,
+  LimitProfile,
+  LimitProfileRepository,
+  UpdateLimitProfileInput,
+} from "@/application/ports/limit-profile-repository";
 import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
+import {
+  applyLimitProfileToOrganization,
+  syncLimitProfileToOrganizations,
+} from "./limit-profile-sync";
 
 type OfferRow = {
   id: string;
@@ -19,7 +23,7 @@ type OfferRow = {
 
 const COLUMNS = "id, name, description, provisioning, active, created_at, updated_at";
 
-function toOffer(row: OfferRow): PlatformOffer {
+function toOffer(row: OfferRow): LimitProfile {
   return {
     id: row.id,
     name: row.name,
@@ -32,28 +36,28 @@ function toOffer(row: OfferRow): PlatformOffer {
 }
 
 /** Adapter PostgreSQL des offres réutilisables (ADR-0065). */
-export function pgPlatformOfferRepository(pool: Pool): PlatformOfferRepository {
+export function pgLimitProfileRepository(pool: Pool): LimitProfileRepository {
   return {
-    async list(includeInactive = false): Promise<PlatformOffer[]> {
+    async list(includeInactive = false): Promise<LimitProfile[]> {
       const { rows } = await pool.query<OfferRow>(
-        `SELECT ${COLUMNS} FROM platform_offers
+        `SELECT ${COLUMNS} FROM limit_profiles
           ${includeInactive ? "" : "WHERE active = true"}
           ORDER BY lower(name)`,
       );
       return rows.map(toOffer);
     },
 
-    async findById(id: string): Promise<PlatformOffer | null> {
+    async findById(id: string): Promise<LimitProfile | null> {
       const { rows } = await pool.query<OfferRow>(
-        `SELECT ${COLUMNS} FROM platform_offers WHERE id = $1`,
+        `SELECT ${COLUMNS} FROM limit_profiles WHERE id = $1`,
         [id],
       );
       return rows[0] ? toOffer(rows[0]) : null;
     },
 
-    async create(input: CreatePlatformOfferInput): Promise<PlatformOffer> {
+    async create(input: CreateLimitProfileInput): Promise<LimitProfile> {
       const { rows } = await pool.query<OfferRow>(
-        `INSERT INTO platform_offers
+        `INSERT INTO limit_profiles
            (name, description, provisioning, active, created_by)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING ${COLUMNS}`,
@@ -70,7 +74,7 @@ export function pgPlatformOfferRepository(pool: Pool): PlatformOfferRepository {
       return toOffer(row);
     },
 
-    async update(id: string, input: UpdatePlatformOfferInput): Promise<PlatformOffer | null> {
+    async update(id: string, input: UpdateLimitProfileInput): Promise<LimitProfile | null> {
       const sets: string[] = [];
       const values: unknown[] = [];
       const push = (column: string, value: unknown): void => {
@@ -85,7 +89,7 @@ export function pgPlatformOfferRepository(pool: Pool): PlatformOfferRepository {
       if (sets.length === 0) return this.findById(id);
       values.push(id);
       const { rows } = await pool.query<OfferRow>(
-        `UPDATE platform_offers SET ${sets.join(", ")}, updated_at = now()
+        `UPDATE limit_profiles SET ${sets.join(", ")}, updated_at = now()
           WHERE id = $${values.length}
           RETURNING ${COLUMNS}`,
         values,
@@ -94,8 +98,23 @@ export function pgPlatformOfferRepository(pool: Pool): PlatformOfferRepository {
     },
 
     async delete(id: string): Promise<boolean> {
-      const result = await pool.query("DELETE FROM platform_offers WHERE id = $1", [id]);
+      const result = await pool.query("DELETE FROM limit_profiles WHERE id = $1", [id]);
       return (result.rowCount ?? 0) > 0;
+    },
+
+    async syncToOrganizations(profile: LimitProfile, appliedBy: string): Promise<void> {
+      await syncLimitProfileToOrganizations(pool, profile, appliedBy);
+    },
+
+    async applyToOrganization(
+      organizationId: string,
+      profileId: string,
+      appliedBy: string,
+    ): Promise<LimitProfile | null> {
+      const profile = await this.findById(profileId);
+      if (profile === null) return null;
+      await applyLimitProfileToOrganization(pool, organizationId, profile, appliedBy);
+      return profile;
     },
   };
 }

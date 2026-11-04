@@ -10,6 +10,7 @@ import type { OrganizationProvisioning } from "@/domain/entities/organization-pr
 import { normalizeEmail, parseRole, type Role } from "@/domain/entities/user";
 import { hashPassword, verifyPassword } from "@/domain/password";
 import { decryptLinkToken } from "@/lib/link-crypto";
+import { applyLimitProfileWithClient, loadLimitProfileWithClient } from "./limit-profile-sync";
 import { provisionInvitationAiWithClient } from "./tenant-ai-provisioning";
 import { provisionOrganizationDefaultsWithClient } from "./tenant-provisioning";
 
@@ -18,7 +19,7 @@ type InvitationRow = {
   token_hash: string;
   token_enc: string;
   organization_id: string | null;
-  offer_id: string | null;
+  limit_profile_id: string | null;
   role: string;
   invited_by: string;
   expires_at: Date;
@@ -44,7 +45,7 @@ type UserRow = {
 };
 
 const INVITATION_COLUMNS = `
-  i.id, i.token_hash, i.token_enc, i.organization_id, i.offer_id, i.role, i.invited_by,
+  i.id, i.token_hash, i.token_enc, i.organization_id, i.limit_profile_id, i.role, i.invited_by,
   i.expires_at, i.accepted_at, i.accepted_by, i.accepted_email, i.accepted_name,
   i.revoked_at, i.created_at, i.provisioning,
   o.name AS organization_name,
@@ -72,7 +73,7 @@ function toRecord(row: InvitationRow): InvitationRecord {
     revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
     organizationName: row.organization_name,
-    offerId: row.offer_id,
+    limitProfileId: row.limit_profile_id,
     provisioning:
       row.provisioning === null || row.provisioning === undefined
         ? null
@@ -113,14 +114,14 @@ export function pgInvitationRepository(pool: Pool): InvitationRepository {
     async create(input: CreateInvitationInput): Promise<InvitationRecord> {
       const { rows } = await pool.query<{ id: string }>(
         `INSERT INTO organization_invitations
-           (token_hash, token_enc, organization_id, offer_id, role, invited_by, expires_at, provisioning)
+           (token_hash, token_enc, organization_id, limit_profile_id, role, invited_by, expires_at, provisioning)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id`,
         [
           input.tokenHash,
           input.tokenEnc,
           input.organizationId,
-          input.offerId ?? null,
+          input.limitProfileId ?? null,
           input.role,
           input.invitedBy,
           input.expiresAt,
@@ -318,14 +319,25 @@ export function pgInvitationRepository(pool: Pool): InvitationRepository {
 
         if (invitation.organization_id === null) {
           await provisionOrganizationDefaultsWithClient(client, organizationId);
-          await provisionInvitationAiWithClient(
-            client,
-            organizationId,
-            invitation.provisioning === null || invitation.provisioning === undefined
-              ? null
-              : (invitation.provisioning as OrganizationProvisioning),
-            invitation.invited_by,
-          );
+          if (invitation.limit_profile_id !== null) {
+            const profile = await loadLimitProfileWithClient(client, invitation.limit_profile_id);
+            if (profile === null) throw new Error("Profil de limites introuvable");
+            await applyLimitProfileWithClient(
+              client,
+              organizationId,
+              profile,
+              invitation.invited_by,
+            );
+          } else {
+            await provisionInvitationAiWithClient(
+              client,
+              organizationId,
+              invitation.provisioning === null || invitation.provisioning === undefined
+                ? null
+                : (invitation.provisioning as OrganizationProvisioning),
+              invitation.invited_by,
+            );
+          }
         }
 
         await client.query(

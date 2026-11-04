@@ -65,3 +65,4 @@ ADR qui remplace la précédente.
 | [0063](./0063-couleurs-site-vers-variables-template.md) | Extraction et mapping des couleurs du site vers les variables de template | Remplacé |
 | [0064](./0064-remplissage-ia-parametres-statiques.md) | Remplissage assisté des paramètres statiques de template | Proposé |
 | [0065](./0065-catalogue-ia-partage-quotas-organisation.md) | Catalogue IA partagé, quotas par organisation et provisioning des invitations | Accepté |
+| [0066](./0066-profils-de-limites-vivants.md) | Profils de limites vivants | Accepté |

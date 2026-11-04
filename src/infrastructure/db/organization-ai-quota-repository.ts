@@ -37,6 +37,7 @@ type AllocationRow = {
 
 type OrganizationRow = {
   max_chatbots: number | null;
+  limit_profile_id: string | null;
   chatbots_count: number;
 };
 
@@ -147,7 +148,7 @@ async function getLimitsWithClient(
   organizationId: string,
 ): Promise<OrganizationLimits | null> {
   const organization = await client.query<OrganizationRow>(
-    `SELECT o.max_chatbots,
+    `SELECT o.max_chatbots, o.limit_profile_id,
             (SELECT count(*)::int FROM chat_links l WHERE l.organization_id = o.id) AS chatbots_count
        FROM organizations o
       WHERE o.id = $1`,
@@ -159,6 +160,7 @@ async function getLimitsWithClient(
   return {
     organizationId,
     maxChatbots: row.max_chatbots,
+    limitProfileId: row.limit_profile_id,
     chatbotsCount: row.chatbots_count,
     budget: state.budget,
     allocations: state.allocations,

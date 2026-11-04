@@ -9,6 +9,7 @@ import { MembersTable } from "./MembersTable";
 import { OrganizationAiLimitsPanel } from "./OrganizationAiLimitsPanel";
 import { OrganizationAiSharingPanel } from "./OrganizationAiSharingPanel";
 import { OrganizationForm } from "./OrganizationForm";
+import { OrganizationLimitProfilePanel } from "./OrganizationLimitProfilePanel";
 
 type OrganizationWithMembers = Organization & { members: MemberDto[] };
 
@@ -151,6 +152,11 @@ export function OrganizationsTable({
           />
           {isSuperAdmin ? (
             <>
+              <OrganizationLimitProfilePanel
+                key={`profile:${selected.id}`}
+                organizationId={selected.id}
+                organizationName={selected.name}
+              />
               <OrganizationAiLimitsPanel
                 key={`limits:${selected.id}`}
                 organizationId={selected.id}

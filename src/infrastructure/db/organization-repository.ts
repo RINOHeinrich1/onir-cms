@@ -11,12 +11,14 @@ type Row = {
   name: string;
   suspended_at: Date | null;
   max_chatbots: number | null;
+  limit_profile_id: string | null;
   created_by: string | null;
   created_at: Date;
   updated_at: Date;
 };
 
-const COLUMNS = "id, name, suspended_at, max_chatbots, created_by, created_at, updated_at";
+const COLUMNS =
+  "id, name, suspended_at, max_chatbots, limit_profile_id, created_by, created_at, updated_at";
 
 function toEntity(row: Row): Organization {
   return {
@@ -24,6 +26,7 @@ function toEntity(row: Row): Organization {
     name: row.name,
     suspendedAt: row.suspended_at ? row.suspended_at.toISOString() : null,
     maxChatbots: row.max_chatbots,
+    limitProfileId: row.limit_profile_id,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

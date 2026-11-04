@@ -53,7 +53,7 @@ function draftFrom(provisioning: OrganizationProvisioning): AllocationDraft[] {
   }));
 }
 
-export function PlatformOffersManager() {
+export function LimitProfilesManager() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ providers: [], clusters: [] });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,16 +75,16 @@ export function PlatformOffersManager() {
     setError(null);
     try {
       const [offersResponse, catalogResponse] = await Promise.all([
-        fetch("/api/platform/offers?includeInactive=1", { cache: "no-store" }),
+        fetch("/api/platform/limit-profiles?includeInactive=1", { cache: "no-store" }),
         fetch("/api/admin/ai/catalog", { cache: "no-store" }),
       ]);
-      const offersJson = (await offersResponse.json()) as { offers?: Offer[]; error?: string };
+      const offersJson = (await offersResponse.json()) as { profiles?: Offer[]; error?: string };
       const catalogJson = (await catalogResponse.json()) as Catalog & { error?: string };
       if (!offersResponse.ok) {
-        setError(offersJson.error ?? "Offres indisponibles");
+        setError(offersJson.error ?? "Profils indisponibles");
         return;
       }
-      setOffers(offersJson.offers ?? []);
+      setOffers(offersJson.profiles ?? []);
       setCatalog({
         providers: catalogJson.providers ?? [],
         clusters: catalogJson.clusters ?? [],
@@ -188,7 +188,9 @@ export function PlatformOffersManager() {
         defaults: defaults.filter((entry) => allocationKeys.has(targetKey(entry.target))),
       };
       const response = await fetch(
-        editingId === null ? "/api/platform/offers" : `/api/platform/offers/${editingId}`,
+        editingId === null
+          ? "/api/platform/limit-profiles"
+          : `/api/platform/limit-profiles/${editingId}`,
         {
           method: editingId === null ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -200,8 +202,8 @@ export function PlatformOffersManager() {
           }),
         },
       );
-      const json = (await response.json()) as { offer?: Offer; error?: string };
-      if (!response.ok || json.offer === undefined) {
+      const json = (await response.json()) as { profile?: Offer; error?: string };
+      if (!response.ok || json.profile === undefined) {
         setError(json.error ?? "Enregistrement impossible");
         return;
       }
@@ -215,10 +217,12 @@ export function PlatformOffersManager() {
   };
 
   const remove = async (offer: Offer): Promise<void> => {
-    if (!(await confirmDialog(`Supprimer l'offre « ${offer.name} » ?`))) return;
+    if (!(await confirmDialog(`Supprimer le profil « ${offer.name} » ?`))) return;
     setError(null);
     try {
-      const response = await fetch(`/api/platform/offers/${offer.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/platform/limit-profiles/${offer.id}`, {
+        method: "DELETE",
+      });
       const json = (await response.json()) as { error?: string };
       if (!response.ok) {
         setError(json.error ?? "Suppression impossible");
@@ -241,7 +245,9 @@ export function PlatformOffersManager() {
           void save();
         }}
       >
-        <h3>{editingId === null ? "Nouvelle offre" : "Modifier l'offre"}</h3>
+        <h3>
+          {editingId === null ? "Nouveau profil de limites" : "Modifier le profil de limites"}
+        </h3>
         <div className="grid-2">
           <label className="field">
             Nom
@@ -312,7 +318,7 @@ export function PlatformOffersManager() {
             checked={active}
             onChange={(event) => setActive(event.target.checked)}
           />
-          Offre active et sélectionnable dans les invitations
+          Profil actif et sélectionnable dans les invitations
         </label>
 
         <h4 style={{ marginTop: "1.2rem" }}>Ressources autorisées</h4>
@@ -372,7 +378,7 @@ export function PlatformOffersManager() {
         ))}
         <div className="tools">
           <button type="submit" className="btn small" disabled={pending}>
-            {pending ? "Enregistrement…" : editingId === null ? "Créer l'offre" : "Enregistrer"}
+            {pending ? "Enregistrement…" : editingId === null ? "Créer le profil" : "Enregistrer"}
           </button>
           {editingId !== null ? (
             <button type="button" className="btn ghost small" onClick={resetForm}>
@@ -386,7 +392,7 @@ export function PlatformOffersManager() {
         <table className="table table-cards">
           <thead>
             <tr>
-              <th>Offre</th>
+              <th>Profil de limites</th>
               <th>Chatbots</th>
               <th>Budget global</th>
               <th>Ressources</th>
@@ -398,13 +404,13 @@ export function PlatformOffersManager() {
             {offers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="hint">
-                  Aucune offre.
+                  Aucun profil de limites.
                 </td>
               </tr>
             ) : (
               offers.map((offer) => (
                 <tr key={offer.id}>
-                  <td data-label="Offre">
+                  <td data-label="Profil de limites">
                     <strong>{offer.name}</strong>
                     {offer.description === "" ? null : (
                       <div className="hint">{offer.description}</div>

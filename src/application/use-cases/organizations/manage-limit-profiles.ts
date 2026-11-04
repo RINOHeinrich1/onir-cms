@@ -2,13 +2,13 @@ import { type Actor, assertSuperAdmin } from "@/application/actor";
 import { ConflictError, NotFoundError, ValidationError } from "@/application/errors";
 import type { AiGrantRepository } from "@/application/ports/ai-grant-repository";
 import type {
-  PlatformOffer,
-  PlatformOfferRepository,
-} from "@/application/ports/platform-offer-repository";
+  LimitProfile,
+  LimitProfileRepository,
+} from "@/application/ports/limit-profile-repository";
 import { parseInvitationProvisioning } from "@/application/use-cases/invitations/invitation-provisioning";
 
-export type PlatformOfferDependencies = {
-  offers: PlatformOfferRepository;
+export type LimitProfileDependencies = {
+  profiles: LimitProfileRepository;
   grants: AiGrantRepository;
 };
 
@@ -20,10 +20,10 @@ function sourceOf(value: unknown): Record<string, unknown> {
 }
 
 function parseName(value: unknown): string {
-  if (typeof value !== "string") throw new ValidationError("Nom de l'offre requis");
+  if (typeof value !== "string") throw new ValidationError("Nom du profil de limites requis");
   const name = value.trim();
   if (name.length < 1 || name.length > 120) {
-    throw new ValidationError("Nom de l'offre : 1 à 120 caractères");
+    throw new ValidationError("Nom du profil de limites : 1 à 120 caractères");
   }
   return name;
 }
@@ -40,34 +40,34 @@ function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: string }).code === "23505";
 }
 
-async function parseProvisioning(deps: PlatformOfferDependencies, value: unknown) {
+async function parseProvisioning(deps: LimitProfileDependencies, value: unknown) {
   const catalog = await deps.grants.listCatalog();
   const provisioning = parseInvitationProvisioning(value, catalog);
-  if (provisioning === null) throw new ValidationError("Provisioning de l'offre requis");
+  if (provisioning === null) throw new ValidationError("Provisioning du profil de limites requis");
   return provisioning;
 }
 
-/** Liste les offres (super-admin). */
-export async function listPlatformOffers(
-  deps: Pick<PlatformOfferDependencies, "offers">,
+/** Liste les profils de limites (super-admin). */
+export async function listLimitProfiles(
+  deps: Pick<LimitProfileDependencies, "profiles">,
   actor: Actor,
   includeInactive = false,
-): Promise<PlatformOffer[]> {
+): Promise<LimitProfile[]> {
   assertSuperAdmin(actor);
-  return deps.offers.list(includeInactive);
+  return deps.profiles.list(includeInactive);
 }
 
-/** Crée une offre à partir d'un snapshot de provisioning (super-admin). */
-export async function createPlatformOffer(
-  deps: PlatformOfferDependencies,
+/** Crée un profil de limites à partir d'un snapshot de provisioning (super-admin). */
+export async function createLimitProfile(
+  deps: LimitProfileDependencies,
   actor: Actor,
   input: unknown,
-): Promise<PlatformOffer> {
+): Promise<LimitProfile> {
   assertSuperAdmin(actor);
   const source = sourceOf(input);
   const provisioning = await parseProvisioning(deps, source.provisioning);
   try {
-    return await deps.offers.create({
+    return await deps.profiles.create({
       name: parseName(source.name),
       description: parseDescription(source.description),
       provisioning,
@@ -75,22 +75,22 @@ export async function createPlatformOffer(
       createdBy: actor.id,
     });
   } catch (error) {
-    if (isUniqueViolation(error)) throw new ConflictError("Une offre porte déjà ce nom");
+    if (isUniqueViolation(error)) throw new ConflictError("Un profil porte déjà ce nom");
     throw error;
   }
 }
 
-/** Modifie une offre existante (super-admin). */
-export async function updatePlatformOffer(
-  deps: PlatformOfferDependencies,
+/** Modifie un profil de limites existante (super-admin). */
+export async function updateLimitProfile(
+  deps: LimitProfileDependencies,
   actor: Actor,
   id: string,
   input: unknown,
-): Promise<PlatformOffer> {
+): Promise<LimitProfile> {
   assertSuperAdmin(actor);
   const source = sourceOf(input);
-  const existing = await deps.offers.findById(id);
-  if (existing === null) throw new NotFoundError("Offre introuvable");
+  const existing = await deps.profiles.findById(id);
+  if (existing === null) throw new NotFoundError("Profil de limites introuvable");
   const patch = {
     ...(source.name === undefined ? {} : { name: parseName(source.name) }),
     ...(source.description === undefined
@@ -102,21 +102,22 @@ export async function updatePlatformOffer(
       : { provisioning: await parseProvisioning(deps, source.provisioning) }),
   };
   try {
-    const updated = await deps.offers.update(id, patch);
-    if (updated === null) throw new NotFoundError("Offre introuvable");
+    const updated = await deps.profiles.update(id, patch);
+    if (updated === null) throw new NotFoundError("Profil de limites introuvable");
+    await deps.profiles.syncToOrganizations(updated, actor.id);
     return updated;
   } catch (error) {
-    if (isUniqueViolation(error)) throw new ConflictError("Une offre porte déjà ce nom");
+    if (isUniqueViolation(error)) throw new ConflictError("Un profil porte déjà ce nom");
     throw error;
   }
 }
 
-/** Supprime une offre ; les invitations déjà créées conservent leur snapshot. */
-export async function deletePlatformOffer(
-  deps: Pick<PlatformOfferDependencies, "offers">,
+/** Supprime un profil de limites ; les invitations déjà créées conservent leur snapshot. */
+export async function deleteLimitProfile(
+  deps: Pick<LimitProfileDependencies, "profiles">,
   actor: Actor,
   id: string,
 ): Promise<void> {
   assertSuperAdmin(actor);
-  if (!(await deps.offers.delete(id))) throw new NotFoundError("Offre introuvable");
+  if (!(await deps.profiles.delete(id))) throw new NotFoundError("Profil de limites introuvable");
 }
