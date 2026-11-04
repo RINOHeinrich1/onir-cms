@@ -89,6 +89,20 @@ export function channelsForLink(link: ChatLink): ChatLinkChannels {
   };
 }
 
+/**
+ * Un lien est public dès qu'au moins un canal activé est ouvert à un visiteur
+ * non interne. Un lien sans canal activé est considéré public par défaut : une
+ * configuration backoffice ne doit jamais pouvoir y être préparée (ADR-0067 §2.5).
+ */
+export function isPublicChatLink(channels: ChatLinkChannels): boolean {
+  const enabled = [channels.page, channels.widget].filter((channel) => channel.enabled);
+  if (enabled.length === 0) return true;
+  // Le type actif n'expose pas encore `internal`, mais la colonne le réserve :
+  // la comparaison est volontairement élargie pour rester correcte si le mode
+  // backoffice est ouvert plus tard (ADR-0033 / ADR-0067 §2.5).
+  return enabled.some((channel) => (channel.identificationMode as string) !== "internal");
+}
+
 /** Champs historiques (surface, template, identification) dérivés des canaux. */
 export function legacyChannelFields(
   channels: ChatLinkChannels,

@@ -1,5 +1,7 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
 import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
+import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
+import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import { buildDefaultSystemPrompt } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 import {
@@ -244,6 +246,8 @@ export type ChatbotConfigInput = {
   fallback?: ChatbotFallback;
   /** Budget de génération d'une réponse, en tokens (défaut 400). */
   replyMaxTokens?: number;
+  /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
+  searchTool?: FicheSearchToolConfig;
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
@@ -372,6 +376,8 @@ export function parseChatbotConfig(
   if (!parsedSelection.ok) errors.push(parsedSelection.error);
   const parsedFallback = parseChatbotFallback(raw.fallback);
   if (!parsedFallback.ok) errors.push(parsedFallback.error);
+  const parsedSearchTool = parseSearchToolConfig(raw.searchTool);
+  if (!parsedSearchTool.ok) errors.push(...parsedSearchTool.errors);
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -383,6 +389,7 @@ export function parseChatbotConfig(
       dataSelection: parsedSelection.ok ? parsedSelection.value : defaultChatbotDataSelection(),
       fallback: parsedFallback.ok ? parsedFallback.value : defaultChatbotFallback(),
       replyMaxTokens: replyMaxTokens ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
+      searchTool: parsedSearchTool.ok ? parsedSearchTool.value : defaultSearchToolConfig(),
     },
   };
 }

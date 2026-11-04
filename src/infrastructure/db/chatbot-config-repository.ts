@@ -10,6 +10,7 @@ import {
   parseChatbotDataSelection,
   parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
+import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
 
@@ -23,12 +24,13 @@ type Row = {
   fiche_definitions: unknown;
   data_selection: unknown;
   fallback: unknown;
+  search_tool: unknown;
   created_by: string | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, created_by, created_at";
+  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, search_tool, created_by, created_at";
 
 function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -54,6 +56,10 @@ function toConfig(row: Row): ChatbotConfig {
   if (!fallback.ok) {
     throw new Error(`Configuration ${row.id} invalide : fallback heuristique illisible`);
   }
+  const searchTool = parseSearchToolConfig(row.search_tool);
+  if (!searchTool.ok) {
+    throw new Error(`Configuration ${row.id} invalide : outil de recherche illisible`);
+  }
   return {
     id: row.id,
     organizationId: row.organization_id,
@@ -65,6 +71,7 @@ function toConfig(row: Row): ChatbotConfig {
     fiches: row.fiche_definitions as FicheDefinition[],
     dataSelection: dataSelection.value,
     fallback: fallback.value,
+    searchTool: searchTool.value,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
   };
@@ -119,8 +126,8 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO chatbot_configs
              (organization_id, chat_link_id, version, system_prompt, simple_settings,
-              fiche_definitions, data_selection, fallback, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              fiche_definitions, data_selection, fallback, search_tool, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -131,6 +138,7 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             JSON.stringify(input.fiches),
             JSON.stringify(input.dataSelection),
             JSON.stringify(input.fallback ?? defaultChatbotFallback()),
+            JSON.stringify(input.searchTool ?? defaultSearchToolConfig()),
             createdBy,
           ],
         );

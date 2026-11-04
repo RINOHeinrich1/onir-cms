@@ -6,6 +6,7 @@ import type {
 } from "@/application/ports/chatbot-provisioning-repository";
 import { type ChatLinkChannels, legacyChannelFields } from "@/domain/entities/chat";
 import { defaultChatbotFallback } from "@/domain/entities/chatbot-config";
+import { defaultSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import { rethrowOrganizationChatbotLimit } from "./chatbot-limit";
 
 type LinkRow = { id: string };
@@ -98,8 +99,8 @@ async function insertConfig(
   const { rows } = await client.query<ConfigRow>(
     `INSERT INTO chatbot_configs
        (organization_id, chat_link_id, version, system_prompt, simple_settings,
-        fiche_definitions, data_selection, fallback, created_by)
-     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)
+        fiche_definitions, data_selection, fallback, search_tool, created_by)
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9)
      RETURNING id`,
     [
       organizationId,
@@ -122,6 +123,7 @@ async function insertConfig(
           : input.config.dataSelection,
       ),
       JSON.stringify(input.config.fallback ?? defaultChatbotFallback()),
+      JSON.stringify(input.config.searchTool ?? defaultSearchToolConfig()),
       input.createdBy,
     ],
   );
