@@ -8,13 +8,14 @@ type Profile = { id: string; name: string; description: string; active: boolean 
 export function OrganizationLimitProfilePanel({
   organizationId,
   organizationName,
+  initialProfileId,
 }: {
   organizationId: string;
   organizationName: string;
+  initialProfileId: string | null;
 }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileId, setProfileId] = useState("");
-  const [initialProfileId, setInitialProfileId] = useState("");
+  const [profileId, setProfileId] = useState(initialProfileId ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -22,34 +23,17 @@ export function OrganizationLimitProfilePanel({
   const load = useCallback(async (): Promise<void> => {
     setError(null);
     try {
-      const [profilesResponse, limitsResponse] = await Promise.all([
-        fetch("/api/platform/limit-profiles", { cache: "no-store" }),
-        fetch(`/api/organizations/${organizationId}/limits`, { cache: "no-store" }),
-      ]);
-      const profilesJson = (await profilesResponse.json()) as {
-        profiles?: Profile[];
-        error?: string;
-      };
-      const limitsJson = (await limitsResponse.json()) as {
-        limits?: { limitProfileId?: string | null };
-        error?: string;
-      };
-      if (!profilesResponse.ok) {
-        setError(profilesJson.error ?? "Profils indisponibles");
+      const response = await fetch("/api/platform/limit-profiles", { cache: "no-store" });
+      const json = (await response.json()) as { profiles?: Profile[]; error?: string };
+      if (!response.ok) {
+        setError(json.error ?? "Profils indisponibles");
         return;
       }
-      if (!limitsResponse.ok) {
-        setError(limitsJson.error ?? "Organisation indisponible");
-        return;
-      }
-      setProfiles(profilesJson.profiles ?? []);
-      const current = limitsJson.limits?.limitProfileId ?? "";
-      setProfileId(current);
-      setInitialProfileId(current);
+      setProfiles(json.profiles ?? []);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     }
-  }, [organizationId]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -70,7 +54,6 @@ export function OrganizationLimitProfilePanel({
         setError(json.error ?? "Assignation impossible");
         return;
       }
-      setInitialProfileId(profileId);
       await load();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -104,10 +87,10 @@ export function OrganizationLimitProfilePanel({
           <button
             type="button"
             className="btn small"
-            disabled={pending || profileId === "" || profileId === initialProfileId}
+            disabled={pending || profileId === ""}
             onClick={() => void assign()}
           >
-            {pending ? "Application…" : "Assigner le profil"}
+            {pending ? "Application…" : "Assigner / réappliquer"}
           </button>
         </div>
       </div>
