@@ -5,7 +5,13 @@ import { useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 /** Création d'organisation (super-admin) — nom prérempli côté serveur si vide. */
-export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
+export function OrganizationForm({
+  onCreated,
+  onClose,
+}: {
+  onCreated: () => void;
+  onClose: () => void;
+}) {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
@@ -38,8 +44,7 @@ export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
   };
 
   return (
-    <form className="form card" onSubmit={onSubmit} noValidate>
-      <h3>Nouvelle organisation</h3>
+    <form className="form" onSubmit={onSubmit} noValidate>
       {error !== null ? <p className="alert error">{error}</p> : null}
       <label className="field">
         Nom (vide = partie locale de votre email)
@@ -48,6 +53,9 @@ export function OrganizationForm({ onCreated }: { onCreated: () => void }) {
       <div className="tools">
         <button type="submit" className="btn small" disabled={pending}>
           {pending ? "Création…" : "Créer et provisionner"}
+        </button>
+        <button type="button" className="btn ghost small" onClick={onClose} disabled={pending}>
+          Annuler
         </button>
       </div>
     </form>

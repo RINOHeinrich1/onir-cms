@@ -141,6 +141,11 @@ export function AccountSettings({
           }))}
           isSuperAdmin={isSuperAdmin}
           activeOrganizationId={activeOrganizationId}
+          onOpenMembers={(organizationId) => {
+            setSelectedOrganizationId(organizationId);
+            setPeopleTab("membres");
+            setTab("utilisateurs");
+          }}
         />
       ) : null}
 

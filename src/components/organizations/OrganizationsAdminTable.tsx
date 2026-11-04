@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Organization } from "@/domain/entities/organization";
 import { OrganizationForm } from "./OrganizationForm";
@@ -95,13 +96,16 @@ export function OrganizationsAdminTable({
   initialOrganizations,
   isSuperAdmin,
   activeOrganizationId,
+  onOpenMembers,
 }: {
   initialOrganizations: OrganizationRow[];
   isSuperAdmin: boolean;
   activeOrganizationId: string | null;
+  onOpenMembers?: (organizationId: string) => void;
 }) {
   const router = useRouter();
   const [organizations, setOrganizations] = useState<OrganizationRow[]>(initialOrganizations);
+  const [creating, setCreating] = useState(false);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -157,8 +161,10 @@ export function OrganizationsAdminTable({
     <div>
       {error !== null ? <p className="alert error">{error}</p> : null}
       {isSuperAdmin ? (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <OrganizationForm onCreated={refresh} />
+        <div className="tools" style={{ marginBottom: "1.5rem" }}>
+          <button type="button" className="btn small" onClick={() => setCreating(true)}>
+            Nouvelle organisation
+          </button>
         </div>
       ) : null}
 
@@ -189,7 +195,19 @@ export function OrganizationsAdminTable({
                     {organization.suspendedAt === null ? "active" : "suspendue"}
                   </span>
                 </td>
-                <td data-label="Membres">{organization.membersCount ?? "—"}</td>
+                <td data-label="Membres">
+                  {onOpenMembers === undefined ? (
+                    (organization.membersCount ?? "—")
+                  ) : (
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => onOpenMembers(organization.id)}
+                    >
+                      {organization.membersCount ?? 0}
+                    </button>
+                  )}
+                </td>
                 {isSuperAdmin ? (
                   <td data-label="Limitation">
                     <LimitProfileCell
@@ -232,6 +250,17 @@ export function OrganizationsAdminTable({
           </tbody>
         </table>
       </div>
+      {isSuperAdmin && creating ? (
+        <Modal title="Nouvelle organisation" onClose={() => setCreating(false)}>
+          <OrganizationForm
+            onCreated={() => {
+              setCreating(false);
+              refresh();
+            }}
+            onClose={() => setCreating(false)}
+          />
+        </Modal>
+      ) : null}
     </div>
   );
 }
