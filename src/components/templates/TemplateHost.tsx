@@ -183,11 +183,31 @@ export function TemplateHost({
   const lastAtRef = useRef<string | null>(
     initialMessages.length === 0 ? null : (initialMessages[initialMessages.length - 1]?.at ?? null),
   );
+  /** Messages optimistes en attente du message serveur correspondant. */
+  const optimisticUserMessagesRef = useRef<Array<{ id: string; content: string }>>([]);
+  const localMessageSequenceRef = useRef(0);
   const allowAttachments = template.capabilities.includes("attachments");
 
   const receiveMessages = useCallback((incoming: TemplateMessage[]): void => {
     if (incoming.length === 0) return;
-    setMessages((previous) => mergeTemplateMessages(previous, incoming));
+    const matchedLocalIds = new Set<string>();
+    for (const message of incoming) {
+      if (message.role !== "user") continue;
+      const content = message.content.trim();
+      const index = optimisticUserMessagesRef.current.findIndex(
+        (entry) => entry.content === content,
+      );
+      if (index < 0) continue;
+      const [matched] = optimisticUserMessagesRef.current.splice(index, 1);
+      if (matched !== undefined) matchedLocalIds.add(matched.id);
+    }
+    setMessages((previous) => {
+      const withoutOptimistic =
+        matchedLocalIds.size === 0
+          ? previous
+          : previous.filter((message) => !matchedLocalIds.has(message.id));
+      return mergeTemplateMessages(withoutOptimistic, incoming);
+    });
     const latest = incoming[incoming.length - 1];
     if (latest !== undefined && (lastAtRef.current === null || latest.at > lastAtRef.current)) {
       lastAtRef.current = latest.at;
@@ -485,23 +505,37 @@ export function TemplateHost({
         }
         void (async () => {
           setError(null);
-          const activeConversationId = await ensureConversation();
-          if (activeConversationId === null) return;
-          const userId = `local-${Date.now()}`;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: userId,
-              role: "user",
-              content: text,
-              medias: [],
-              attachments,
-              at: new Date().toISOString(),
-            },
-          ]);
+          localMessageSequenceRef.current += 1;
+          const userId = `local-${Date.now()}-${localMessageSequenceRef.current}`;
+          optimisticUserMessagesRef.current.push({ id: userId, content: text });
+          setMessages((prev) => {
+            // Le SSE a pu déjà réconcilier ce message avant ce rendu.
+            if (!optimisticUserMessagesRef.current.some((entry) => entry.id === userId)) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: userId,
+                role: "user",
+                content: text,
+                medias: [],
+                attachments,
+                at: new Date().toISOString(),
+              },
+            ];
+          });
           const removeLocal = (): void => {
+            optimisticUserMessagesRef.current = optimisticUserMessagesRef.current.filter(
+              (entry) => entry.id !== userId,
+            );
             setMessages((previous) => previous.filter((message) => message.id !== userId));
           };
+          const activeConversationId = await ensureConversation();
+          if (activeConversationId === null) {
+            removeLocal();
+            return;
+          }
           if (text !== "") setTyping(true);
           // Capacité `userState` (ADR-0020) : l'HÔTE appelle /api/chat/state — le
           // template ne touche JAMAIS l'API. Double garde : capacité + flag lien.
