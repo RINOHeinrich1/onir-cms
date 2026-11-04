@@ -22,6 +22,13 @@ export interface AiProviderModelRepository {
     providerId: string,
     modelId: string,
   ): Promise<AiProviderModel | null>;
+  /** Accès runtime à un modèle membre d'un cluster partagé (cluster opaque). */
+  findByModelIdForCluster(
+    organizationId: string,
+    clusterId: string,
+    providerId: string,
+    modelId: string,
+  ): Promise<AiProviderModel | null>;
   create(
     organizationId: string,
     providerId: string,

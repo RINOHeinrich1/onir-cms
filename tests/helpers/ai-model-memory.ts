@@ -37,6 +37,9 @@ export function memoryAiModelRepository() {
         ) ?? null
       );
     },
+    async findByModelIdForCluster(organizationId, _clusterId, providerId, modelId) {
+      return this.findByModelId(organizationId, providerId, modelId);
+    },
     async create(organizationId, providerId, input) {
       if (
         models.some((model) => model.providerId === providerId && model.modelId === input.modelId)

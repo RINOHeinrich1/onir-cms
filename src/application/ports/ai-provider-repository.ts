@@ -37,6 +37,12 @@ export type AiProviderTestResult = {
 export interface AiProviderRepository {
   list(organizationId: string, options?: { includeArchived?: boolean }): Promise<AiProvider[]>;
   findById(organizationId: string, id: string): Promise<AiProvider | null>;
+  /** Accès runtime à un membre d'un cluster partagé (cluster opaque). */
+  findByIdForCluster(
+    organizationId: string,
+    clusterId: string,
+    id: string,
+  ): Promise<AiProvider | null>;
   create(organizationId: string, input: CreateAiProviderInput): Promise<AiProvider>;
   update(
     organizationId: string,
