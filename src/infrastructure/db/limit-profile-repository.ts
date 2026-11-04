@@ -35,7 +35,7 @@ function toOffer(row: OfferRow): LimitProfile {
   };
 }
 
-/** Adapter PostgreSQL des offres réutilisables (ADR-0065). */
+/** Adapter PostgreSQL des profils de limites (ADR-0066). */
 export function pgLimitProfileRepository(pool: Pool): LimitProfileRepository {
   return {
     async list(includeInactive = false): Promise<LimitProfile[]> {
@@ -70,7 +70,7 @@ export function pgLimitProfileRepository(pool: Pool): LimitProfileRepository {
         ],
       );
       const row = rows[0];
-      if (row === undefined) throw new Error("Échec de création de l'offre");
+      if (row === undefined) throw new Error("Échec de création du profil de limites");
       return toOffer(row);
     },
 

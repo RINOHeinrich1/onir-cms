@@ -7160,3 +7160,50 @@ a.subtab {
   color: var(--fg-muted);
   font-size: 0.85rem;
 }
+
+/* ---------- Organisation — onglets et profils de limites ---------- */
+.org-tabs {
+  flex-wrap: wrap;
+}
+
+.limit-profile-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.limit-profile-cell select {
+  min-width: 11rem;
+}
+
+@media (max-width: 640px) {
+  .org-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    border-bottom: 0;
+  }
+
+  .org-tabs .channel-tab {
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .org-tabs .channel-tab[aria-selected="true"] {
+    border-color: var(--orange);
+    color: var(--fg);
+  }
+
+  .limit-profile-cell {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .limit-profile-cell select,
+  .limit-profile-cell .btn {
+    width: 100%;
+  }
+}
