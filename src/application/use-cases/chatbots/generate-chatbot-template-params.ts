@@ -1,6 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
-import type { AiClient } from "@/application/ports/ai-client";
 import type { AiClientFactory, ResolvedAiTarget } from "@/application/ports/ai-client-factory";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
@@ -97,7 +96,6 @@ export async function generateChatbotTemplateParams(
       : { organizationId, aiProviderId: null, aiModel: null };
 
   let resolved: ResolvedAiTarget;
-  let client: AiClient;
   if (provider !== null && model !== null) {
     resolved = await deps.aiFactory.resolve(target);
   } else if (deps.aiFactory.resolveForUsage !== undefined) {
@@ -109,7 +107,7 @@ export async function generateChatbotTemplateParams(
     resolved.providerId === null
       ? target
       : { organizationId, aiProviderId: resolved.providerId, aiModel: resolved.model };
-  client = await deps.aiFactory.forTarget(resolvedTarget);
+  const client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
 
   const prompt = buildChatbotTemplateParamsPrompt({
     chatbot: {

@@ -59,6 +59,12 @@ async function requireProvider(
   return provider;
 }
 
+function requireOwnedProvider(provider: AiProvider, organizationId: string): void {
+  if (provider.organizationId !== organizationId) {
+    throw new NotFoundError("Fournisseur introuvable");
+  }
+}
+
 export async function listProviderModels(
   deps: AiModelDependencies,
   actor: Actor,
@@ -80,7 +86,8 @@ export async function syncProviderModels(
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
   const provider = await requireProvider(deps, organizationId, providerId);
-  const sealed = await deps.providers.getSealedKey(organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
+  const sealed = await deps.providers.getSealedKey(provider.organizationId, providerId);
   if (sealed === null) throw new NotFoundError("Clé fournisseur introuvable");
 
   let apiKey: string;
@@ -120,7 +127,8 @@ export async function addManualProviderModel(
 ): Promise<AiProviderModel> {
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
-  await requireProvider(deps, organizationId, providerId);
+  const provider = await requireProvider(deps, organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
   const source = sourceOf(input);
   const modelId = validateModelId(source.modelId);
   const label = aiModelLabel(modelId, typeof source.label === "string" ? source.label : null);
@@ -150,6 +158,7 @@ export async function setProviderModelEnabled(
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
   const provider = await requireProvider(deps, organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
   const model = await deps.models.findById(organizationId, providerId, modelRowId);
   if (model === null) throw new NotFoundError("Modèle introuvable");
   if (!enabled && provider.defaultModel === model.modelId) {
@@ -176,6 +185,7 @@ export async function setProviderModelReasoning(
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
   const provider = await requireProvider(deps, organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
   const model = await deps.models.findById(organizationId, providerId, modelRowId);
   if (model === null) throw new NotFoundError("Modèle introuvable");
   const parsed = parseReasoningMode(reasoningMode);
@@ -207,6 +217,7 @@ export async function removeProviderModel(
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
   const provider = await requireProvider(deps, organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
   const model = await deps.models.findById(organizationId, providerId, modelRowId);
   if (model === null) throw new NotFoundError("Modèle introuvable");
   if (provider.defaultModel === model.modelId) {
@@ -279,11 +290,14 @@ export async function testProviderModel(
   const startedAt = Date.now();
 
   try {
-    const ai = await deps.aiFactory.forTarget({
-      organizationId,
-      aiProviderId: providerId,
-      aiModel: model.modelId,
-    });
+    const ai = await deps.aiFactory.forTarget(
+      {
+        organizationId,
+        aiProviderId: providerId,
+        aiModel: model.modelId,
+      },
+      "model_test",
+    );
     const response = await ai.complete({
       system: "Tu es un assistant de test du dashboard Onirtech. Réponds de façon concise.",
       messages: conversation,
@@ -308,7 +322,8 @@ export async function setProviderDefaultModel(
 ): Promise<AiProvider> {
   assertCan(actor, "ai:manage");
   const organizationId = organizationOf(actor);
-  await requireProvider(deps, organizationId, providerId);
+  const provider = await requireProvider(deps, organizationId, providerId);
+  requireOwnedProvider(provider, organizationId);
   const source = sourceOf(input);
   const modelId = normalizeAiModelId(source.modelId);
   if (modelId === null) {

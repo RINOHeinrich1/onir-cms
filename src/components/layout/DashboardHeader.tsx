@@ -121,6 +121,12 @@ const ICONS = {
       <path d="M22 7l-10 6L2 7" />
     </>
   ),
+  offers: (
+    <>
+      <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <circle cx="7" cy="7" r="1" />
+    </>
+  ),
   configuration: (
     <>
       <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" />
@@ -152,6 +158,7 @@ type NavItem = {
   label: string;
   action: Action;
   icon: NavIconName;
+  superAdminOnly?: boolean;
 };
 
 const ITEMS: readonly NavItem[] = [
@@ -209,6 +216,13 @@ const ITEMS: readonly NavItem[] = [
   { href: "/utilisateurs", label: "Utilisateurs", action: "users:list", icon: "utilisateurs" },
   { href: "/invitations", label: "Invitations", action: "invitations:list", icon: "invitations" },
   {
+    href: "/offres",
+    label: "Offres",
+    action: "organizations:update",
+    icon: "offers",
+    superAdminOnly: true,
+  },
+  {
     href: "/configuration",
     label: "Configuration",
     action: "organizations:update",
@@ -248,7 +262,9 @@ export function DashboardHeader({
 }) {
   // Le super-admin voit tout (son rôle effectif peut être `admin` sans ces actions).
   const pathname = usePathname();
-  const links = ITEMS.filter((item) => isSuperAdmin || can(role, item.action));
+  const links = ITEMS.filter(
+    (item) => isSuperAdmin || (!item.superAdminOnly && can(role, item.action)),
+  );
   const primaryLinks = links.filter((item) => PRIMARY_HREFS.has(item.href));
   const toolboxLinks = links.filter((item) => !ACCOUNT_HREFS.has(item.href));
   const isActive = (href: string): boolean =>

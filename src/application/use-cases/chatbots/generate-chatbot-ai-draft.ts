@@ -26,7 +26,6 @@ import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai
 import {
   type ChatbotAiDraft,
   type ChatbotAiKnowledgeCandidate,
-  extractAiJsonObject,
   parseChatbotAiDraft,
 } from "@/domain/chatbot-ai-draft";
 import { EMPTY_SITE_PALETTE, type SitePalette } from "@/domain/site-palette";
@@ -276,7 +275,7 @@ export async function generateChatbotAiDraft(
             aiProviderId: resolved.providerId,
             aiModel: resolved.model,
           };
-    client = await deps.aiFactory.forTarget(resolvedTarget);
+    client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
   } catch (error) {
     if (error instanceof AiNotConfiguredError || error instanceof AppError) throw error;
     throw new BadGatewayError("Aucun fournisseur IA disponible pour cette génération");

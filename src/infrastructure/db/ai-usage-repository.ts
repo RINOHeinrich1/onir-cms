@@ -68,13 +68,13 @@ function clusterFrom(row: ClusterRow, members: AiClusterMember[]): AiCluster {
   };
 }
 
-async function loadMembers(pool: Pool, organizationId: string, clusterId: string) {
+async function loadMembers(pool: Pool, clusterId: string) {
   const { rows } = await pool.query<MemberRow>(
     `SELECT cluster_id, position, provider_id, model, enabled
        FROM ai_cluster_members
-      WHERE organization_id = $1 AND cluster_id = $2
+      WHERE cluster_id = $1
       ORDER BY position`,
-    [organizationId, clusterId],
+    [clusterId],
   );
   return rows.map((row) => ({
     position: row.position,
@@ -193,27 +193,43 @@ export function pgAiUsageRepository(pool: Pool): AiUsageRepository {
 
     async listClusters(organizationId, includeInactive = false) {
       const { rows } = await pool.query<ClusterRow>(
-        `SELECT id, organization_id, label, description, actif, created_at, updated_at
-           FROM ai_clusters
-          WHERE organization_id = $1 ${includeInactive ? "" : "AND actif = true"}
-          ORDER BY lower(label)`,
+        `SELECT c.id, c.organization_id, c.label, c.description, c.actif,
+                c.created_at, c.updated_at
+           FROM ai_clusters c
+          WHERE (
+            c.organization_id = $1
+            OR EXISTS (
+              SELECT 1 FROM ai_cluster_grants g
+               WHERE g.organization_id = $1 AND g.cluster_id = c.id
+            )
+          )
+            ${includeInactive ? "" : "AND c.actif = true"}
+          ORDER BY lower(c.label)`,
         [organizationId],
       );
       return Promise.all(
-        rows.map(async (row) => clusterFrom(row, await loadMembers(pool, organizationId, row.id))),
+        rows.map(async (row) => clusterFrom(row, await loadMembers(pool, row.id))),
       );
     },
 
     async findCluster(organizationId, id) {
       const { rows } = await pool.query<ClusterRow>(
-        `SELECT id, organization_id, label, description, actif, created_at, updated_at
-           FROM ai_clusters
-          WHERE organization_id = $1 AND id = $2`,
+        `SELECT c.id, c.organization_id, c.label, c.description, c.actif,
+                c.created_at, c.updated_at
+           FROM ai_clusters c
+          WHERE c.id = $2
+            AND (
+              c.organization_id = $1
+              OR EXISTS (
+                SELECT 1 FROM ai_cluster_grants g
+                 WHERE g.organization_id = $1 AND g.cluster_id = c.id
+              )
+            )`,
         [organizationId, id],
       );
       const row = rows[0];
       if (row === undefined) return null;
-      return clusterFrom(row, await loadMembers(pool, organizationId, id));
+      return clusterFrom(row, await loadMembers(pool, id));
     },
 
     async createCluster(organizationId, input, createdBy) {
@@ -229,7 +245,7 @@ export function pgAiUsageRepository(pool: Pool): AiUsageRepository {
         const row = inserted.rows[0];
         if (row === undefined) throw new Error("Cluster non créé");
         await insertMembers(client, organizationId, row.id, input.members);
-        const members = await loadMembers(client as unknown as Pool, organizationId, row.id);
+        const members = await loadMembers(client as unknown as Pool, row.id);
         await client.query("COMMIT");
         return clusterFrom(row, members);
       } catch (error) {
@@ -261,7 +277,7 @@ export function pgAiUsageRepository(pool: Pool): AiUsageRepository {
           [organizationId, id],
         );
         await insertMembers(client, organizationId, id, input.members);
-        const members = await loadMembers(client as unknown as Pool, organizationId, id);
+        const members = await loadMembers(client as unknown as Pool, id);
         await client.query("COMMIT");
         return clusterFrom(row, members);
       } catch (error) {

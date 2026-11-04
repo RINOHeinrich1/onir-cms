@@ -8,7 +8,9 @@ import type {
 } from "@/application/ports/ai-client-factory";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import type { AiUsageRecorder } from "@/application/ports/ai-usage-recorder";
 import type { AiUsageRepository } from "@/application/ports/ai-usage-repository";
+import { createOrganizationAiUsageRecorder } from "@/application/use-cases/ai/record-organization-ai-usage";
 import { resolveUsageTargets } from "@/application/use-cases/ai/resolve-usage-targets";
 import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import { infomaniakBaseUrl } from "@/domain/entities/ai-provider";
@@ -16,6 +18,7 @@ import { chatCompletionForProvider } from "@/infrastructure/ai/openai-client";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgAiUsageRepository } from "@/infrastructure/db/ai-usage-repository";
+import { pgOrganizationAiQuotaRepository } from "@/infrastructure/db/organization-ai-quota-repository";
 import { openAiKey } from "@/lib/ai-crypto";
 import { legacyAiCredentials } from "@/lib/env";
 
@@ -24,6 +27,8 @@ export type AiClientFactoryDependencies = {
   models: AiProviderModelRepository;
   /** Défauts, clusters et overrides (ADR-0058). */
   usage?: AiUsageRepository;
+  /** Comptage central et quotas organisation (ADR-0065). */
+  usageRecorder?: AiUsageRecorder;
 };
 
 function unavailable(message: string): AiProviderUnavailableError {
@@ -36,6 +41,7 @@ async function resolveProviderTarget(
   providerId: string,
   model: string,
   source: "link" | "organization",
+  clusterId: string | null,
 ): Promise<ResolvedAiTarget> {
   const provider = await deps.providers.findById(organizationId, providerId);
   if (provider === null || provider.archivedAt !== null) {
@@ -58,6 +64,7 @@ async function resolveProviderTarget(
     providerId,
     providerLabel: provider.label,
     model,
+    clusterId,
     source,
     preset: provider.preset,
     reasoningMode: modelRow.reasoningMode ?? "auto",
@@ -78,6 +85,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         target.aiProviderId,
         target.aiModel,
         "link",
+        target.aiClusterId ?? null,
       );
     }
     if (target !== null && target.aiModel !== null) {
@@ -96,6 +104,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           settings.defaultProviderId,
           settings.defaultModel,
           "organization",
+          null,
         );
       }
     }
@@ -107,6 +116,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         providerId: null,
         providerLabel: "Infomaniak (legacy)",
         model: legacy.model,
+        clusterId: null,
         source: "legacy",
         preset: "infomaniak",
         reasoningMode: "auto",
@@ -118,11 +128,47 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     );
   };
 
-  const buildClient = async (resolved: ResolvedAiTarget): Promise<AiClient> => {
+  const instrumentClient = (
+    resolved: ResolvedAiTarget,
+    operation: string | undefined,
+    client: AiClient,
+  ): AiClient => {
+    const recorder = deps.usageRecorder;
+    if (recorder === undefined || resolved.organizationId === "") return client;
+    const context = {
+      organizationId: resolved.organizationId,
+      providerId: resolved.providerId,
+      providerLabel: resolved.providerLabel,
+      model: resolved.model,
+      clusterId: resolved.clusterId ?? null,
+    };
+    return {
+      async complete(input) {
+        await recorder.assertCanCall(context);
+        return client.complete({
+          ...input,
+          onUsage: async (usage) => {
+            try {
+              await recorder.record({
+                ...context,
+                usage: input.usageOperation ?? operation ?? "other",
+                ...usage,
+              });
+            } catch (error) {
+              console.error("[ia] usage organisation non enregistré", error);
+            }
+            await input.onUsage?.(usage);
+          },
+        });
+      },
+    };
+  };
+
+  const buildClient = async (resolved: ResolvedAiTarget, operation?: string): Promise<AiClient> => {
     if (resolved.source === "legacy") {
       const legacy = legacyAiCredentials();
       if (legacy === null) throw new AiNotConfiguredError();
-      return {
+      return instrumentClient(resolved, operation, {
         async complete(input) {
           return chatCompletionForProvider({
             baseUrl: infomaniakBaseUrl(legacy.productId),
@@ -139,7 +185,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             onFinishReason: input.onFinishReason,
           });
         },
-      };
+      });
     }
 
     if (resolved.providerId === null) throw new AiNotConfiguredError();
@@ -157,7 +203,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         "Clé fournisseur IA illisible : vérifiez Configuration → Secrets applicatifs",
       );
     }
-    return {
+    return instrumentClient(resolved, operation, {
       async complete(input) {
         return chatCompletionForProvider({
           baseUrl: provider.baseUrl,
@@ -174,7 +220,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           onFinishReason: input.onFinishReason,
         });
       },
-    };
+    });
   };
 
   const forUsage = async (
@@ -183,7 +229,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     chatLinkId?: string | null,
   ) => {
     if (deps.usage === undefined) {
-      return [{ label: "lien", client: await buildClient(await resolve(target)) }];
+      return [{ label: "lien", client: await buildClient(await resolve(target), usage) }];
     }
     const refs = await resolveUsageTargets(
       { usage: deps.usage },
@@ -196,7 +242,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     );
     if (refs.length === 0) {
       if (usage === "assistant") throw new AiNotConfiguredError();
-      return [{ label: "legacy", client: await buildClient(await resolve(target)) }];
+      return [{ label: "legacy", client: await buildClient(await resolve(target), usage) }];
     }
     const clients: { label: string; client: AiClient }[] = [];
     const seen = new Set<string>();
@@ -209,7 +255,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         seen.add(key);
         clients.push({
           label: `${usage}${refs.length > 1 ? ` #${index + 1}` : ""} · ${resolved.providerLabel} · ${resolved.model}`,
-          client: await buildClient(resolved),
+          client: await buildClient(resolved, usage),
         });
       } catch (error) {
         lastError = error;
@@ -236,8 +282,8 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
       const first = refs[0];
       return first === undefined ? resolve(target) : resolve(first);
     },
-    async forTarget(target) {
-      return buildClient(await resolve(target));
+    async forTarget(target, operation) {
+      return buildClient(await resolve(target), operation);
     },
     async forUsage(target, usage, chatLinkId) {
       return forUsage(target, usage, chatLinkId);
@@ -297,7 +343,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           seen.add(key);
           clients.push({
             label: `${candidate.label} · ${resolved.providerLabel} · ${resolved.model}`,
-            client: await buildClient(resolved),
+            client: await buildClient(resolved, "extraction"),
           });
         } catch (error) {
           lastError = error;
@@ -313,9 +359,11 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
 
 /** Factory PostgreSQL liée à un pool. */
 export function pgAiClientFactory(pool: Pool): AiClientFactory {
+  const quotas = pgOrganizationAiQuotaRepository(pool);
   return createAiClientFactory({
     providers: pgAiProviderRepository(pool),
     models: pgAiProviderModelRepository(pool),
     usage: pgAiUsageRepository(pool),
+    usageRecorder: createOrganizationAiUsageRecorder({ quotas }),
   });
 }

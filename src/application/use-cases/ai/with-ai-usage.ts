@@ -11,6 +11,7 @@ export function withAiUsage(client: AiClient, record: RecordAiUsage, operation: 
     async complete(input) {
       return client.complete({
         ...input,
+        usageOperation: operation,
         onUsage: async (usage) => {
           try {
             await record(operation, usage);

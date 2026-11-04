@@ -6,6 +6,8 @@ import type { MemberDto } from "@/application/use-cases/organizations/manage-mem
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { Organization } from "@/domain/entities/organization";
 import { MembersTable } from "./MembersTable";
+import { OrganizationAiLimitsPanel } from "./OrganizationAiLimitsPanel";
+import { OrganizationAiSharingPanel } from "./OrganizationAiSharingPanel";
 import { OrganizationForm } from "./OrganizationForm";
 
 type OrganizationWithMembers = Organization & { members: MemberDto[] };
@@ -109,6 +111,15 @@ export function OrganizationsTable({
                     {isSuperAdmin ? (
                       <button
                         type="button"
+                        className="btn ghost small"
+                        onClick={() => setSelectedId(organization.id)}
+                      >
+                        Limites IA
+                      </button>
+                    ) : null}
+                    {isSuperAdmin ? (
+                      <button
+                        type="button"
                         className={`btn small ${organization.suspendedAt === null ? "danger ghost" : ""}`}
                         onClick={() =>
                           void setSuspended(organization, organization.suspendedAt === null)
@@ -138,6 +149,20 @@ export function OrganizationsTable({
             organizationId={selected.id}
             initialMembers={selected.members}
           />
+          {isSuperAdmin ? (
+            <>
+              <OrganizationAiLimitsPanel
+                key={`limits:${selected.id}`}
+                organizationId={selected.id}
+                organizationName={selected.name}
+              />
+              <OrganizationAiSharingPanel
+                key={`sharing:${selected.id}`}
+                organizationId={selected.id}
+                organizationName={selected.name}
+              />
+            </>
+          ) : null}
         </section>
       ) : null}
     </div>

@@ -76,6 +76,20 @@ export class ChatbotBlockedError extends AppError {
   }
 }
 
+/** L'organisation (ou une cible IA) a atteint son budget de tokens — ADR-0065. */
+export class AiQuotaExceededError extends AppError {
+  constructor(message = "Le budget IA de cette organisation est épuisé") {
+    super(message, 423);
+  }
+}
+
+/** L'organisation a atteint son nombre maximal de chatbots — ADR-0065. */
+export class OrganizationChatbotLimitError extends AppError {
+  constructor(message = "Cette organisation a atteint son nombre maximal de chatbots") {
+    super(message, 423);
+  }
+}
+
 /** Aucune organisation active : état « aucune organisation » (ADR-0025 §4). */
 export class NoOrganizationError extends AppError {
   constructor(message = "Aucune organisation active") {

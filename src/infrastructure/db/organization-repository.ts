@@ -10,18 +10,20 @@ type Row = {
   id: string;
   name: string;
   suspended_at: Date | null;
+  max_chatbots: number | null;
   created_by: string | null;
   created_at: Date;
   updated_at: Date;
 };
 
-const COLUMNS = "id, name, suspended_at, created_by, created_at, updated_at";
+const COLUMNS = "id, name, suspended_at, max_chatbots, created_by, created_at, updated_at";
 
 function toEntity(row: Row): Organization {
   return {
     id: row.id,
     name: row.name,
     suspendedAt: row.suspended_at ? row.suspended_at.toISOString() : null,
+    maxChatbots: row.max_chatbots,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

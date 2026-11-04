@@ -38,6 +38,24 @@ type Row = {
 const COLUMNS =
   "id, organization_id, label, preset, dialect, base_url, api_key_hint, default_model, reasoning_profile, archived_at, last_test_at, last_test_ok, last_test_error, created_by, created_at, updated_at";
 
+const ACCESS_SQL = `(
+  p.organization_id = $1
+  OR EXISTS (
+    SELECT 1 FROM ai_provider_grants g
+     WHERE g.organization_id = $1 AND g.provider_id = p.id
+  )
+  OR EXISTS (
+    SELECT 1 FROM ai_model_grants g
+     WHERE g.organization_id = $1 AND g.provider_id = p.id
+  )
+  OR EXISTS (
+    SELECT 1
+      FROM ai_cluster_grants cg
+      JOIN ai_cluster_members cm ON cm.cluster_id = cg.cluster_id
+     WHERE cg.organization_id = $1 AND cm.provider_id = p.id
+  )
+)`;
+
 function toEntity(row: Row): AiProvider {
   const preset: AiProviderPreset | null = parseAiProviderPreset(row.preset);
   const dialect: AiDialect | null = parseAiDialect(row.dialect);
@@ -92,10 +110,10 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
     async list(organizationId, options = {}) {
       const includeArchived = options.includeArchived === true;
       const { rows } = await pool.query<Row>(
-        `SELECT ${COLUMNS} FROM ai_providers
-          WHERE organization_id = $1
-            ${includeArchived ? "" : "AND archived_at IS NULL"}
-          ORDER BY lower(label)`,
+        `SELECT ${COLUMNS} FROM ai_providers p
+          WHERE ${ACCESS_SQL}
+            ${includeArchived ? "" : "AND p.archived_at IS NULL"}
+          ORDER BY lower(p.label)`,
         [organizationId],
       );
       return rows.map(toEntity);
@@ -103,7 +121,7 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
 
     async findById(organizationId, id) {
       const { rows } = await pool.query<Row>(
-        `SELECT ${COLUMNS} FROM ai_providers WHERE organization_id = $1 AND id = $2`,
+        `SELECT ${COLUMNS} FROM ai_providers p WHERE ${ACCESS_SQL} AND p.id = $2`,
         [organizationId, id],
       );
       return rows[0] ? toEntity(rows[0]) : null;
@@ -209,11 +227,11 @@ export function pgAiProviderRepository(pool: Pool): AiProviderRepository {
       );
     },
 
-    async countLinksUsing(organizationId, id) {
+    async countLinksUsing(_organizationId, id) {
       const { rows } = await pool.query<{ count: string }>(
         `SELECT count(*)::text AS count FROM chat_links
-          WHERE organization_id = $1 AND ai_provider_id = $2`,
-        [organizationId, id],
+          WHERE ai_provider_id = $1`,
+        [id],
       );
       return Number(rows[0]?.count ?? "0");
     },

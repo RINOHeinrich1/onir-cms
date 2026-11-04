@@ -7,6 +7,8 @@ export type AiTargetRef = {
   organizationId: string;
   aiProviderId: string | null;
   aiModel: string | null;
+  /** Cluster utilisé pour cette résolution (ADR-0065), si applicable. */
+  aiClusterId?: string | null;
 };
 
 export type AiResolutionSource = "link" | "organization" | "legacy";
@@ -18,6 +20,7 @@ export type ResolvedAiTarget = {
   providerId: string | null;
   providerLabel: string;
   model: string;
+  clusterId?: string | null;
   source: AiResolutionSource;
   preset?: AiProviderPreset;
   reasoningMode?: ReasoningMode;
@@ -40,7 +43,7 @@ export interface AiClientFactory {
   /** Résout selon le défaut/cluster d'un usage, avec repli sur la cible fournie. */
   resolveForUsage?(target: AiTargetRef | null, usage: AiUsage): Promise<ResolvedAiTarget>;
   /** Construit un client lié au fournisseur/modèle résolu ; lève si indisponible. */
-  forTarget(target: AiTargetRef | null): Promise<AiClient>;
+  forTarget(target: AiTargetRef | null, operation?: string): Promise<AiClient>;
   /** Variante fail-open : null si aucun fournisseur résoluble. */
   optionalTarget(target: AiTargetRef | null): Promise<AiClient | null>;
   /** Chaîne de clients pour un usage métier (défaut, cluster, override). */

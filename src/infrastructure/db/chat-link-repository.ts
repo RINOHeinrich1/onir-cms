@@ -23,6 +23,7 @@ import {
   parseWidgetConfig,
   type TokenResetMode,
 } from "@/domain/entities/chat";
+import { rethrowOrganizationChatbotLimit } from "./chatbot-limit";
 
 type ChatLinkRow = {
   id: string;
@@ -408,6 +409,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         return toEntity(row, channels);
       } catch (error) {
         await client.query("ROLLBACK");
+        rethrowOrganizationChatbotLimit(error);
         throw error;
       } finally {
         client.release();

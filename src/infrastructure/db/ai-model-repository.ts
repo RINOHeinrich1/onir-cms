@@ -28,6 +28,31 @@ type Row = {
 const COLUMNS =
   "id, organization_id, provider_id, model_id, label, source, enabled, reasoning_mode, last_seen_at, created_by, created_at, updated_at";
 
+const MODEL_ACCESS_SQL = `(
+  EXISTS (
+    SELECT 1 FROM ai_providers p
+     WHERE p.id = m.provider_id AND p.organization_id = $1
+  )
+  OR EXISTS (
+    SELECT 1 FROM ai_provider_grants g
+     WHERE g.organization_id = $1 AND g.provider_id = m.provider_id
+  )
+  OR EXISTS (
+    SELECT 1 FROM ai_model_grants g
+     WHERE g.organization_id = $1
+       AND g.provider_id = m.provider_id
+       AND g.model_id = m.model_id
+  )
+  OR EXISTS (
+    SELECT 1
+      FROM ai_cluster_grants cg
+      JOIN ai_cluster_members cm ON cm.cluster_id = cg.cluster_id
+     WHERE cg.organization_id = $1
+       AND cm.provider_id = m.provider_id
+       AND cm.model = m.model_id
+  )
+)`;
+
 function toEntity(row: Row): AiProviderModel {
   const source: AiModelSource | null = parseAiModelSource(row.source);
   if (source === null) throw new Error("Source de modèle IA invalide en base");
@@ -55,10 +80,11 @@ export function pgAiProviderModelRepository(pool: Pool): AiProviderModelReposito
   return {
     async list(organizationId, providerId, options = {}) {
       const { rows } = await pool.query<Row>(
-        `SELECT ${COLUMNS} FROM ai_provider_models
-          WHERE organization_id = $1 AND provider_id = $2
-            ${options.enabledOnly === true ? "AND enabled = true" : ""}
-          ORDER BY lower(label), model_id`,
+        `SELECT ${COLUMNS} FROM ai_provider_models m
+          WHERE m.provider_id = $2
+            AND ${MODEL_ACCESS_SQL}
+            ${options.enabledOnly === true ? "AND m.enabled = true" : ""}
+          ORDER BY lower(m.label), m.model_id`,
         [organizationId, providerId],
       );
       return rows.map(toEntity);
@@ -66,8 +92,8 @@ export function pgAiProviderModelRepository(pool: Pool): AiProviderModelReposito
 
     async findById(organizationId, providerId, id) {
       const { rows } = await pool.query<Row>(
-        `SELECT ${COLUMNS} FROM ai_provider_models
-          WHERE organization_id = $1 AND provider_id = $2 AND id = $3`,
+        `SELECT ${COLUMNS} FROM ai_provider_models m
+          WHERE m.provider_id = $2 AND m.id = $3 AND ${MODEL_ACCESS_SQL}`,
         [organizationId, providerId, id],
       );
       return rows[0] ? toEntity(rows[0]) : null;
@@ -75,8 +101,8 @@ export function pgAiProviderModelRepository(pool: Pool): AiProviderModelReposito
 
     async findByModelId(organizationId, providerId, modelId) {
       const { rows } = await pool.query<Row>(
-        `SELECT ${COLUMNS} FROM ai_provider_models
-          WHERE organization_id = $1 AND provider_id = $2 AND model_id = $3`,
+        `SELECT ${COLUMNS} FROM ai_provider_models m
+          WHERE m.provider_id = $2 AND m.model_id = $3 AND ${MODEL_ACCESS_SQL}`,
         [organizationId, providerId, modelId],
       );
       return rows[0] ? toEntity(rows[0]) : null;
@@ -151,11 +177,11 @@ export function pgAiProviderModelRepository(pool: Pool): AiProviderModelReposito
       return (result.rowCount ?? 0) > 0;
     },
 
-    async countLinksUsing(organizationId, providerId, modelId) {
+    async countLinksUsing(_organizationId, providerId, modelId) {
       const { rows } = await pool.query<{ count: string }>(
         `SELECT count(*)::text AS count FROM chat_links
-          WHERE organization_id = $1 AND ai_provider_id = $2 AND ai_model = $3`,
-        [organizationId, providerId, modelId],
+          WHERE ai_provider_id = $1 AND ai_model = $2`,
+        [providerId, modelId],
       );
       return Number(rows[0]?.count ?? "0");
     },
