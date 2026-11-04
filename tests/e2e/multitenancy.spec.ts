@@ -37,10 +37,7 @@ async function switchOrganization(
   expect(response.ok()).toBeTruthy();
 }
 
-test("super-admin : login, page Organisations et bascule vers l'organisation personnelle", async ({
-  page,
-  request,
-}) => {
+test("super-admin : login et accès aux paramètres du compte", async ({ page, request }) => {
   await login(request);
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
@@ -48,7 +45,8 @@ test("super-admin : login, page Organisations et bascule vers l'organisation per
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL(/\/dashboard$/);
   await page.goto("/organisations");
-  await expect(page.getByRole("heading", { name: "Organisations" })).toBeVisible();
+  await page.waitForURL(/\/parametres-compte\?tab=organisation/);
+  await expect(page.getByRole("heading", { name: "Paramètres du compte" })).toBeVisible();
   await expect(page.getByRole("cell", { name: /Onirtech/ }).first()).toBeVisible();
 });
 
