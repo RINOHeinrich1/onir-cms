@@ -1,6 +1,6 @@
 # 0063. Extraction et mapping des couleurs du site vers les variables de template
 
-- **Statut** : Proposé
+- **Statut** : Remplacé par [ADR-0064](./0064-remplissage-ia-parametres-statiques.md)
 - **Date** : 2026-11-03
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0019, ADR-0023, ADR-0060, ADR-0062.

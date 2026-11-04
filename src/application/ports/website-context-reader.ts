@@ -1,3 +1,5 @@
+import type { SitePalette } from "@/domain/site-palette";
+
 /** Port de lecture d'un site pour l'assistance IA (ADR-0038). */
 
 export type WebsiteCrawlOptions = {
@@ -19,6 +21,8 @@ export type WebsiteContext = {
   chars: number;
   truncated: boolean;
   warnings: string[];
+  /** Palette heuristique extraite des HTML/CSS accessibles. */
+  palette: SitePalette;
 };
 
 export interface WebsiteContextReader {

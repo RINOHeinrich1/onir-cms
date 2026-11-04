@@ -16,7 +16,9 @@ import type {
   WebsiteContextReader,
   WebsiteCrawlOptions,
 } from "@/application/ports/website-context-reader";
+import { EMPTY_SITE_PALETTE } from "@/domain/site-palette";
 import { assertPublicHttpUrl, isPrivateIp } from "@/infrastructure/web/safe-url";
+import { extractSitePalette } from "@/infrastructure/web/site-palette";
 
 const USER_AGENT = "OnirCmsBot/1.0 (+https://onirtech.com)";
 const MAX_BYTES_PER_PAGE = 1024 * 1024;
@@ -24,6 +26,8 @@ const MAX_TOTAL_CHARS = 40_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 3;
 const MAX_ROBOTS_BYTES = 128 * 1024;
+const MAX_STYLESHEETS = 6;
+const MAX_CSS_BYTES = 256 * 1024;
 
 const ASSET_PATTERN =
   /\.(?:jpg|jpeg|png|gif|webp|svg|ico|css|js|map|woff2?|ttf|otf|eot|mp4|webm|mp3|wav|zip|gz|pdf|docx?|xlsx?|pptx?|odt|ods|odp)$/i;
@@ -171,8 +175,18 @@ async function loadRobots(
   }
 }
 
-function extractPage(html: string, url: string): { page: CrawledPage; links: string[] } {
+function extractPage(
+  html: string,
+  url: string,
+): { page: CrawledPage; links: string[]; stylesheets: string[] } {
   const $ = load(html);
+  const stylesheets = new Set<string>();
+  $('link[rel~="stylesheet"][href]').each((_index, element) => {
+    const href = $(element).attr("href");
+    if (href === undefined || href.trim() === "") return;
+    const normalized = normalizeUrl(href, url);
+    if (normalized !== null) stylesheets.add(normalized);
+  });
   $("script, style, noscript, template, svg, canvas").remove();
   const title = normalizeText($("title").first().text()) || url;
   const text = normalizeText($("body").text());
@@ -183,7 +197,7 @@ function extractPage(html: string, url: string): { page: CrawledPage; links: str
     const normalized = normalizeUrl(href, url);
     if (normalized !== null) links.add(normalized);
   });
-  return { page: { url, title, text }, links: [...links] };
+  return { page: { url, title, text }, links: [...links], stylesheets: [...stylesheets] };
 }
 
 export function siteContextReader(): WebsiteContextReader {
@@ -194,6 +208,8 @@ export function siteContextReader(): WebsiteContextReader {
       const maxDepth = clamp(options.maxDepth, 0, 2);
       const warnings: string[] = [];
       const pages: CrawledPage[] = [];
+      const palettePages: Array<{ url: string; html: string }> = [];
+      const stylesheetUrls = new Set<string>();
       const visited = new Set<string>();
       const dispatcher = new Agent({ connect: { lookup: safeLookup() } });
 
@@ -207,6 +223,7 @@ export function siteContextReader(): WebsiteContextReader {
             chars: 0,
             truncated: false,
             warnings: [...warnings, "Le site interdit le crawl de cette page via robots.txt."],
+            palette: EMPTY_SITE_PALETTE,
           };
         }
 
@@ -257,6 +274,8 @@ export function siteContextReader(): WebsiteContextReader {
               : extracted.page.text;
           if (pageText.length < extracted.page.text.length) truncated = true;
           pages.push({ ...extracted.page, text: pageText });
+          palettePages.push({ url: finalUrl, html: body.text });
+          for (const stylesheet of extracted.stylesheets) stylesheetUrls.add(stylesheet);
           totalChars += pageText.length;
 
           if (next.depth < maxDepth) {
@@ -275,7 +294,29 @@ export function siteContextReader(): WebsiteContextReader {
         if (totalChars >= MAX_TOTAL_CHARS) truncated = true;
         if (truncated)
           warnings.push("Le contenu du site a été tronqué pour rester dans les limites.");
-        return { startUrl: start.toString(), pages, chars: totalChars, truncated, warnings };
+
+        const cssTexts: string[] = [];
+        for (const stylesheet of stylesheetUrls) {
+          if (cssTexts.length >= MAX_STYLESHEETS) break;
+          try {
+            const { response } = await requestWithRedirects(stylesheet, dispatcher);
+            if (!response.ok) continue;
+            const contentType = response.headers.get("content-type") ?? "";
+            if (!contentType.includes("text/css")) continue;
+            const css = await readBodyLimited(response, MAX_CSS_BYTES);
+            if (css.text.trim() !== "") cssTexts.push(css.text);
+          } catch {
+            // Une feuille CSS inaccessible ne bloque pas l'extraction.
+          }
+        }
+        return {
+          startUrl: start.toString(),
+          pages,
+          chars: totalChars,
+          truncated,
+          warnings,
+          palette: extractSitePalette(palettePages, cssTexts),
+        };
       } finally {
         await dispatcher.close();
       }
