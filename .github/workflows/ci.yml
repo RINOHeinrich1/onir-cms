@@ -53,6 +53,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - name: Garde legacy — colonnes de fiches supprimées (ADR-0067)
+        run: npm run check:legacy
       - run: npm test
       - name: Migrations — base de test jetable
         run: npm run db:migrate

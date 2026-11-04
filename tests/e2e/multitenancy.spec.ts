@@ -173,7 +173,6 @@ test("fiches : une organisation ne voit jamais celles d'une autre (E012)", async
         budget: "1000",
         duree: "1 mois",
         contact: "Contact A",
-        statut: "initier",
       },
     },
   });

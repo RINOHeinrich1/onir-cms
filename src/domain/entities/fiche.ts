@@ -1,16 +1,13 @@
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 
 /**
- * Entité métier `Fiche` (B040) — fiche de prospection livrable.
- * RM-FICHE-001 : plateformes (multi), description, budget, durée, contact,
- * statut (initier/reprendre), contraintes techno si reprise, lien doc spec.
+ * Entité métier `Fiche` (B040) — fiche générique livrable.
  * Chaque fiche porte un snapshot de définition (`definition`) et des valeurs
- * génériques (`data`, clés = field.name). `statut` nullable pour les
- * définitions sans statut ; les colonnes historiques restent alimentées
- * depuis `data` (compatibilité d'affichage).
+ * génériques (`data`, clés = field.name). Le statut historique
+ * (`initier`/`reprendre`) et les colonnes statiques de l'ancienne fiche de
+ * prospection ont été supprimés (ADR-0067 §3) ; seul le statut de qualification
+ * (`qualificationStatusKey`) subsiste comme métadonnée.
  */
-
-export const STATUTS_FICHE = ["initier", "reprendre"] as const;
 
 /** Définition locale d'une fiche manuelle, sans modèle de raisonnement. */
 export const MANUAL_FICHE_KEY = "fiche-manuelle";
@@ -32,18 +29,10 @@ export const MANUAL_FICHE_DEFINITION: TemplateDefinition = {
     { name: "duree", label: "Durée prévue", type: "text", required: true },
     { name: "contact", label: "Contact du prospect", type: "text", required: true },
     {
-      name: "statut",
-      label: "Statut de lancement",
-      type: "select",
-      required: true,
-      options: [...STATUTS_FICHE],
-    },
-    {
       name: "contraintesTechno",
       label: "Contraintes technologiques",
       type: "textarea",
       required: false,
-      requiredIf: { field: "statut", equals: "reprendre" },
     },
     { name: "lienDocSpec", label: "Document de spécifications", type: "url", required: false },
   ],
@@ -65,9 +54,6 @@ export const MANUAL_FICHE_DEFINITION: TemplateDefinition = {
     "## Contact",
     "{{contact}}",
     "",
-    "## Statut",
-    "{{statut}}",
-    "",
     "{{#if contraintesTechno}}## Contraintes technologiques",
     "{{contraintesTechno}}",
     "{{/if}}",
@@ -76,12 +62,6 @@ export const MANUAL_FICHE_DEFINITION: TemplateDefinition = {
     "{{/if}}",
   ].join("\n"),
 };
-
-export type StatutFiche = (typeof STATUTS_FICHE)[number];
-
-export function isStatutFiche(value: string): value is StatutFiche {
-  return (STATUTS_FICHE as readonly string[]).includes(value);
-}
 
 /** Filtre d'archivage des fiches (serveur). */
 export type FicheArchiveFilter = "actives" | "archivees" | "toutes";
@@ -100,14 +80,6 @@ export type Fiche = {
   /** Snapshot de la définition utilisée (ADR-0055). */
   definition?: TemplateDefinition | null;
   data: Record<string, unknown>;
-  plateformes: string[];
-  description: string;
-  budget: string;
-  duree: string;
-  contact: string;
-  statut: StatutFiche | null;
-  contraintesTechno: string;
-  lienDocSpec: string;
   /** Fiche archivée (masquée par défaut). */
   archivee: boolean;
   /** Configuration chatbot source (ADR-0049). */

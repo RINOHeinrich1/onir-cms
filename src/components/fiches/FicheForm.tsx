@@ -13,9 +13,11 @@ type FicheFormProps = {
   onCancel: () => void;
 };
 
-const inputType = (field: TemplateField): "email" | "url" | "text" => {
+const inputType = (field: TemplateField): "email" | "url" | "text" | "number" | "date" => {
   if (field.type === "email") return "email";
-  if (field.type === "url") return "url";
+  if (field.type === "url" || field.type === "image") return "url";
+  if (field.type === "number") return "number";
+  if (field.type === "date") return "date";
   return "text";
 };
 

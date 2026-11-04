@@ -5,7 +5,7 @@ import type {
   FicheSearchResult,
 } from "@/application/ports/fiche-search-repository";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
-import { type Fiche, isStatutFiche, type StatutFiche } from "@/domain/entities/fiche";
+import type { Fiche } from "@/domain/entities/fiche";
 
 type FicheRow = {
   id: string;
@@ -15,29 +15,22 @@ type FicheRow = {
   created_by: string | null;
   definition: unknown;
   data: unknown;
-  plateformes: string[];
-  description: string;
-  budget: string;
-  duree: string;
-  contact: string;
-  statut: string | null;
-  contraintes_techno: string;
-  lien_doc_spec: string;
   archivee: boolean;
+  qualification_status_key: string | null;
+  qualification_status_updated_at: Date | null;
+  qualification_status_updated_by: string | null;
   chat_link_ids: string[];
   created_at: Date;
 };
 
 const COLUMNS = `f.id, f.organization_id, f.conversation_id, f.prospect_id, f.created_by,
-  f.definition, f.data, f.plateformes, f.description,
-  f.budget, f.duree, f.contact, f.statut, f.contraintes_techno, f.lien_doc_spec,
-  f.archivee, f.created_at,
+  f.definition, f.data, f.archivee,
+  f.qualification_status_key, f.qualification_status_updated_at,
+  f.qualification_status_updated_by, f.created_at,
   (SELECT COALESCE(array_agg(fcl.chat_link_id ORDER BY fcl.created_at), '{}'::uuid[])
      FROM fiche_chat_links fcl WHERE fcl.fiche_id = f.id) AS chat_link_ids`;
 
 function toFiche(row: FicheRow): Fiche {
-  const statut: StatutFiche | null =
-    row.statut !== null && isStatutFiche(row.statut) ? row.statut : null;
   const data =
     row.data !== null && typeof row.data === "object" && !Array.isArray(row.data)
       ? (row.data as Record<string, unknown>)
@@ -55,15 +48,13 @@ function toFiche(row: FicheRow): Fiche {
         ? (row.definition as TemplateDefinition)
         : null,
     data,
-    plateformes: row.plateformes,
-    description: row.description,
-    budget: row.budget,
-    duree: row.duree,
-    contact: row.contact,
-    statut,
-    contraintesTechno: row.contraintes_techno,
-    lienDocSpec: row.lien_doc_spec,
     archivee: row.archivee,
+    qualificationStatusKey: row.qualification_status_key,
+    qualificationStatusUpdatedAt:
+      row.qualification_status_updated_at === null
+        ? null
+        : row.qualification_status_updated_at.toISOString(),
+    qualificationStatusUpdatedBy: row.qualification_status_updated_by,
     chatLinkIds: row.chat_link_ids ?? [],
     createdAt: row.created_at.toISOString(),
   };

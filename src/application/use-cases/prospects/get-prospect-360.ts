@@ -5,7 +5,6 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type { Conversation } from "@/domain/entities/chat";
-import type { Fiche } from "@/domain/entities/fiche";
 import type { Prospect } from "@/domain/entities/prospect";
 
 export type Prospect360Dependencies = {
@@ -30,12 +29,19 @@ export type Prospect360Conversation = {
   contacts: { type: string; valeur: string }[];
 };
 
+/** Résumé de fiche exposé dans la vue 360 (label de définition + date). */
+export type Prospect360Fiche = {
+  id: string;
+  label: string;
+  createdAt: string;
+};
+
 /** Vue « 360 » d'un client : identité, contacts, conversations, fiches. */
 export type Prospect360 = {
   prospect: Prospect;
   contacts: Prospect360Contact[];
   conversations: Prospect360Conversation[];
-  fiches: Fiche[];
+  fiches: Prospect360Fiche[];
 };
 
 /**
@@ -107,6 +113,10 @@ export async function getProspect360(
       email: conversation.visitorEmail,
       contacts: conversation.visitorContacts,
     })),
-    fiches,
+    fiches: fiches.map((fiche) => ({
+      id: fiche.id,
+      label: fiche.definition?.label ?? fiche.ficheKey ?? "Fiche",
+      createdAt: fiche.createdAt,
+    })),
   };
 }
