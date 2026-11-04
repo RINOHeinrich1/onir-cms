@@ -25,6 +25,8 @@ export type AiCompletionInput = {
   structured?: boolean;
   /** Remonte l'usage réel (ADR-0048) ; jamais exposé au client. */
   onUsage?: (usage: AiTokenUsage) => void | Promise<void>;
+  /** Sous-opération métier (ex. knowledge_selection) pour le journal ADR-0065. */
+  usageOperation?: string;
   /** Remonte la raison d'arrêt du fournisseur (`stop`, `length`, …), si exposée. */
   onFinishReason?: (reason: string | null) => void;
 };

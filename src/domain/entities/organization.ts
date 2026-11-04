@@ -10,6 +10,8 @@ export type Organization = {
   id: string;
   name: string;
   suspendedAt: string | null;
+  /** Nombre maximal de chatbots ; null = illimité (ADR-0065). */
+  maxChatbots?: number | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

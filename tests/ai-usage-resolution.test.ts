@@ -45,8 +45,18 @@ describe("résolution IA par usage", () => {
       { organizationId: "org-1", usage: "response" },
     );
     expect(targets).toEqual([
-      { organizationId: "org-1", aiProviderId: "p1", aiModel: "m1" },
-      { organizationId: "org-1", aiProviderId: "p2", aiModel: "m2" },
+      {
+        organizationId: "org-1",
+        aiProviderId: "p1",
+        aiModel: "m1",
+        aiClusterId: "extraction-cluster",
+      },
+      {
+        organizationId: "org-1",
+        aiProviderId: "p2",
+        aiModel: "m2",
+        aiClusterId: "extraction-cluster",
+      },
     ]);
   });
 

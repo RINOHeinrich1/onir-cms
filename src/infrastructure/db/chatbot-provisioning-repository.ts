@@ -6,6 +6,7 @@ import type {
 } from "@/application/ports/chatbot-provisioning-repository";
 import { type ChatLinkChannels, legacyChannelFields } from "@/domain/entities/chat";
 import { defaultChatbotFallback } from "@/domain/entities/chatbot-config";
+import { rethrowOrganizationChatbotLimit } from "./chatbot-limit";
 
 type LinkRow = { id: string };
 type ConfigRow = { id: string };
@@ -188,6 +189,7 @@ export function pgChatbotProvisioningRepository(pool: Pool): ChatbotProvisioning
         return { linkId, knowledge };
       } catch (error) {
         await client.query("ROLLBACK");
+        rethrowOrganizationChatbotLimit(error);
         throw error;
       } finally {
         client.release();

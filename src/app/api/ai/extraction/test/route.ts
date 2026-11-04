@@ -27,11 +27,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const startedAt = Date.now();
     try {
-      const client = await pgAiClientFactory(getPool()).forTarget({
-        organizationId: actor.organizationId,
-        aiProviderId: providerId,
-        aiModel: model,
-      });
+      const client = await pgAiClientFactory(getPool()).forTarget(
+        {
+          organizationId: actor.organizationId,
+          aiProviderId: providerId,
+          aiModel: model,
+        },
+        "extraction_test",
+      );
       const raw = await client.complete({
         system:
           "Extrais les informations. Réponds uniquement avec un objet JSON strict, sans texte autour.",

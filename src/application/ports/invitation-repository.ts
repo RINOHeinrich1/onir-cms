@@ -1,4 +1,5 @@
 import type { Invitation } from "@/domain/entities/invitation";
+import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
 import type { Role } from "@/domain/entities/user";
 
 export type CreateInvitationInput = {
@@ -8,10 +9,14 @@ export type CreateInvitationInput = {
   role: Role;
   invitedBy: string;
   expiresAt: Date;
+  provisioning?: OrganizationProvisioning | null;
+  offerId?: string | null;
 };
 
 export type InvitationRecord = Invitation & {
   organizationName: string | null;
+  provisioning?: OrganizationProvisioning | null;
+  offerId?: string | null;
   invitedByEmail: string;
   /** Jeton clair déchiffré pour affichage/copie (admin uniquement). */
   token: string | null;

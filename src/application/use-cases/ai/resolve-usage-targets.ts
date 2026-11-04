@@ -27,13 +27,20 @@ function refsFromCluster(cluster: AiCluster): AiTargetRef[] {
       organizationId: cluster.organizationId,
       aiProviderId: member.providerId,
       aiModel: member.model,
+      aiClusterId: cluster.id,
     }));
 }
 
 function refsFromTarget(target: AiTarget | null, clusters: AiCluster[]): AiTargetRef[] {
   if (target === null) return [];
   if (target.kind === "model") {
-    return [{ organizationId: "", aiProviderId: target.providerId, aiModel: target.model }];
+    return [
+      {
+        organizationId: "",
+        aiProviderId: target.providerId,
+        aiModel: target.model,
+      },
+    ];
   }
   const cluster = clusters.find((entry) => entry.id === target.clusterId && entry.actif);
   return cluster === undefined ? [] : refsFromCluster(cluster);
@@ -95,7 +102,16 @@ export async function resolveUsageTargets(
   }
 
   if (input.fallbackTarget !== null && input.fallbackTarget !== undefined) {
-    return [{ ...input.fallbackTarget, organizationId: input.organizationId }];
+    return [
+      {
+        ...input.fallbackTarget,
+        organizationId: input.organizationId,
+        ...(input.fallbackTarget.aiClusterId === undefined ||
+        input.fallbackTarget.aiClusterId === null
+          ? {}
+          : { aiClusterId: input.fallbackTarget.aiClusterId }),
+      },
+    ];
   }
   return [];
 }

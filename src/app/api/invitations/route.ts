@@ -3,8 +3,10 @@ import type { InvitationRecord } from "@/application/ports/invitation-repository
 import { createInvitation } from "@/application/use-cases/invitations/create-invitation";
 import { listInvitations } from "@/application/use-cases/invitations/list-invitations";
 import { type InvitationStatus, invitationStatus } from "@/domain/entities/invitation";
+import { pgAiGrantRepository } from "@/infrastructure/db/ai-grant-repository";
 import { pgInvitationRepository } from "@/infrastructure/db/invitation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
+import { pgPlatformOfferRepository } from "@/infrastructure/db/platform-offer-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { appUrl } from "@/lib/env";
 import { errorResponse } from "../_lib/errors";
@@ -51,11 +53,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         invitations: pgInvitationRepository(pool),
         organizations: pgOrganizationRepository(pool),
+        grants: pgAiGrantRepository(pool),
+        offers: pgPlatformOfferRepository(pool),
       },
       actor,
       {
         organizationId: stringField(body, "organizationId"),
         role: stringField(body, "role"),
+        provisioning: body.provisioning,
+        offerId: stringField(body, "offerId"),
       },
     );
     return NextResponse.json({ invitation: toDto(result.invitation) }, { status: 201 });
