@@ -19,6 +19,18 @@ export type ChatbotBehaviorMode = "guided" | "expert";
 
 export const DEFAULT_CHATBOT_BEHAVIOR_MODE: ChatbotBehaviorMode = "guided";
 
+export const DEFAULT_CHATBOT_REPLY_MAX_TOKENS = 400;
+export const MIN_CHATBOT_REPLY_MAX_TOKENS = 100;
+export const MAX_CHATBOT_REPLY_MAX_TOKENS = 2000;
+
+/** Valide le budget de génération d'une réponse ; null si invalide. */
+export function parseChatbotReplyMaxTokens(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isInteger(value)) return null;
+  return value >= MIN_CHATBOT_REPLY_MAX_TOKENS && value <= MAX_CHATBOT_REPLY_MAX_TOKENS
+    ? value
+    : null;
+}
+
 /**
  * Prompt effectif du mode guidé : généré uniquement depuis les réglages simples.
  * Les instructions de la fiche de collecte restent ajoutées séparément au runtime.
@@ -228,6 +240,8 @@ export type ChatbotConfigInput = {
   dataSelection: ChatbotDataSelection;
   /** Secours heuristique fermé (ADR-0059). Absent sur les anciens snapshots. */
   fallback?: ChatbotFallback;
+  /** Budget de génération d'une réponse, en tokens (défaut 400). */
+  replyMaxTokens?: number;
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
@@ -309,6 +323,16 @@ export function parseChatbotConfig(
   const behaviorMode: ChatbotBehaviorMode = isChatbotBehaviorMode(rawBehaviorMode)
     ? rawBehaviorMode
     : DEFAULT_CHATBOT_BEHAVIOR_MODE;
+  const rawReplyMaxTokens = raw.replyMaxTokens;
+  const replyMaxTokens =
+    rawReplyMaxTokens === undefined
+      ? DEFAULT_CHATBOT_REPLY_MAX_TOKENS
+      : parseChatbotReplyMaxTokens(rawReplyMaxTokens);
+  if (replyMaxTokens === null) {
+    errors.push(
+      `Budget de réponse invalide (${MIN_CHATBOT_REPLY_MAX_TOKENS}..${MAX_CHATBOT_REPLY_MAX_TOKENS} tokens)`,
+    );
+  }
   const simple = normalizeTemplateSimpleSettings(raw.simple);
   if (simple === null) errors.push("Réglages simples invalides");
   let systemPrompt = text(raw.systemPrompt);
@@ -355,6 +379,7 @@ export function parseChatbotConfig(
       fiches,
       dataSelection: parsedSelection.ok ? parsedSelection.value : defaultChatbotDataSelection(),
       fallback: parsedFallback.ok ? parsedFallback.value : defaultChatbotFallback(),
+      replyMaxTokens: replyMaxTokens ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
     },
   };
 }

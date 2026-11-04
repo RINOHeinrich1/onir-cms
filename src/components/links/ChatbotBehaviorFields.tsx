@@ -2,6 +2,10 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import {
+  MAX_CHATBOT_REPLY_MAX_TOKENS,
+  MIN_CHATBOT_REPLY_MAX_TOKENS,
+} from "@/domain/entities/chatbot-config";
 import { type ChatbotConfigDraft, guidedPromptFromDraft } from "./chatbot-config-draft";
 
 type Props = {
@@ -209,6 +213,32 @@ export function ChatbotBehaviorFields({ value, onChange }: Props) {
             : "Le prompt système est la source du comportement. Les réglages simples sont conservés mais ne sont pas ajoutés au prompt."}
         </p>
       </fieldset>
+
+      <label className="field">
+        Longueur maximale des réponses
+        <input
+          type="number"
+          min={MIN_CHATBOT_REPLY_MAX_TOKENS}
+          max={MAX_CHATBOT_REPLY_MAX_TOKENS}
+          step={50}
+          value={value.replyMaxTokens}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (!Number.isFinite(next)) return;
+            onChange({
+              ...value,
+              replyMaxTokens: Math.max(
+                MIN_CHATBOT_REPLY_MAX_TOKENS,
+                Math.min(MAX_CHATBOT_REPLY_MAX_TOKENS, Math.round(next)),
+              ),
+            });
+          }}
+        />
+        <span className="hint">
+          Budget de cette réponse, en tokens (≈ {Math.round(value.replyMaxTokens * 0.6)} mots).
+          Différent du budget total de tokens du chatbot.
+        </span>
+      </label>
 
       {value.behaviorMode === "guided" ? (
         <>

@@ -24,6 +24,7 @@ export async function chatCompletion(input: {
   model: string;
   messages: AiMessage[];
   maxTokens?: number;
+  onFinishReason?: (reason: string | null) => void;
 }): Promise<string> {
   const config = aiConfig();
   const controller = new AbortController();
@@ -66,7 +67,7 @@ export async function chatCompletion(input: {
   }
 
   const json = (await response.json()) as {
-    choices?: Array<{ message?: { content?: unknown } }>;
+    choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }>;
     usage?: {
       completion_tokens?: number;
       completion_tokens_details?: { reasoning_tokens?: number };
@@ -78,6 +79,8 @@ export async function chatCompletion(input: {
     `[ia] ${input.model} · ${durationMs} ms · tokens=${json.usage?.completion_tokens ?? "?"} (raisonnement=${reasoningTokens})`,
   );
 
+  const finishReason = json.choices?.[0]?.finish_reason;
+  input.onFinishReason?.(typeof finishReason === "string" ? finishReason : null);
   const content = json.choices?.[0]?.message?.content;
   if (typeof content !== "string" || content.trim() === "") {
     throw new Error("Réponse IA vide");

@@ -25,6 +25,8 @@ export type AiCompletionInput = {
   structured?: boolean;
   /** Remonte l'usage réel (ADR-0048) ; jamais exposé au client. */
   onUsage?: (usage: AiTokenUsage) => void | Promise<void>;
+  /** Remonte la raison d'arrêt du fournisseur (`stop`, `length`, …), si exposée. */
+  onFinishReason?: (reason: string | null) => void;
 };
 
 export interface AiClient {

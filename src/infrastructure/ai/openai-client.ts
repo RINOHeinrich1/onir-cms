@@ -25,6 +25,7 @@ export type ProviderChatInput = {
   structured?: boolean | undefined;
   capabilities?: AiCapabilities | undefined;
   onUsage?: ((usage: AiTokenUsage) => void | Promise<void>) | undefined;
+  onFinishReason?: ((reason: string | null) => void) | undefined;
 };
 
 function endpoint(baseUrl: string): string {
@@ -138,7 +139,7 @@ export async function chatCompletionForProvider(input: ProviderChatInput): Promi
     }
 
     const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
+      choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }>;
       usage?: {
         prompt_tokens?: number;
         completion_tokens?: number;
@@ -147,6 +148,8 @@ export async function chatCompletionForProvider(input: ProviderChatInput): Promi
       };
     };
     const durationMs = Date.now() - startedAt;
+    const finishReason = json.choices?.[0]?.finish_reason;
+    input.onFinishReason?.(typeof finishReason === "string" ? finishReason : null);
     const content = json.choices?.[0]?.message?.content;
     const promptText = input.messages.map((message) => message.content).join("\n");
     const completionText = typeof content === "string" ? content : "";

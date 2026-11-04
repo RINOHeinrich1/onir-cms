@@ -11,11 +11,13 @@ import {
   type ChatbotDataSelection,
   type ChatbotFallback,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   defaultChatbotDataSelection,
   defaultChatbotFallback,
   isChatbotBehaviorMode,
   parseChatbotDataSelection,
   parseChatbotFallback,
+  parseChatbotReplyMaxTokens,
 } from "@/domain/entities/chatbot-config";
 import { toTemplateKey } from "@/domain/template-defaults";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
@@ -65,6 +67,8 @@ export type ChatbotConfigDraft = {
   fiches: FicheDraft[];
   dataSelection: ChatbotDataSelection;
   fallback: ChatbotFallback;
+  /** Budget de génération d'une réponse, en tokens. */
+  replyMaxTokens: number;
 };
 
 function newId(): string {
@@ -121,6 +125,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     dataSelection: defaultChatbotDataSelection(),
     fallback:
       fields.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
+    replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
 
@@ -175,6 +180,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     fiches: [],
     dataSelection: defaultChatbotDataSelection(),
     fallback: defaultChatbotFallback(),
+    replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
 
@@ -279,6 +285,7 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
     }),
     dataSelection: draft.dataSelection,
     fallback: draft.fallback,
+    replyMaxTokens: draft.replyMaxTokens,
   };
 }
 
@@ -388,6 +395,8 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
     fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
+    replyMaxTokens:
+      parseChatbotReplyMaxTokens(raw.replyMaxTokens) ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
 
