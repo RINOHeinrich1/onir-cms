@@ -21,7 +21,7 @@ type PageProps = {
 export default async function AiTestPage({ searchParams }: PageProps) {
   const context = await getSessionContext();
   if (context === null) redirect("/login");
-  if (!actorCan(context.actor, "ai:manage")) redirect("/parametres/ia");
+  if (!actorCan(context.actor, "ai:manage")) redirect("/configuration?tab=ia");
 
   const providers = await listAiProviders(
     { providers: pgAiProviderRepository(getPool()) },
@@ -40,9 +40,9 @@ export default async function AiTestPage({ searchParams }: PageProps) {
           <h1 className="ai-test-title">Test IA</h1>
           <p className="alert error">
             Aucun fournisseur actif. Ajoutez un fournisseur et un modèle depuis{" "}
-            <a href="/parametres/ia">Paramètres IA</a>.
+            <a href="/configuration?tab=ia">Intelligence artificielle</a>.
           </p>
-          <a className="btn ghost small" href="/parametres/ia">
+          <a className="btn ghost small" href="/configuration?tab=ia">
             ← Retour aux fournisseurs
           </a>
         </div>

@@ -189,7 +189,7 @@ export default async function DashboardHomePage() {
               <strong>Traiter les conversations</strong>
               <span>Répondre, prendre la main ou générer une fiche.</span>
             </Link>
-            <Link href="/parametres/ia">
+            <Link href="/configuration?tab=ia">
               <strong>Régler l’IA</strong>
               <span>Fournisseur par défaut, extraction et modèles.</span>
             </Link>

@@ -6,6 +6,7 @@ import { listInvitations } from "@/application/use-cases/invitations/list-invita
 import { listOrganizations } from "@/application/use-cases/organizations/list-organizations";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
 import { listMembers } from "@/application/use-cases/organizations/manage-members";
+import { getExpirationAlertDays } from "@/application/use-cases/organizations/manage-organization-settings";
 import {
   AccountSettings,
   type AccountTab,
@@ -18,6 +19,7 @@ import { pgApiKeyRepository } from "@/infrastructure/db/api-key-repository";
 import { pgInvitationRepository } from "@/infrastructure/db/invitation-repository";
 import { pgMembershipRepository } from "@/infrastructure/db/membership-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
+import { pgOrganizationSettingsRepository } from "@/infrastructure/db/organization-settings-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgSessionRepository } from "@/infrastructure/db/session-repository";
 import { pgUserRepository } from "@/infrastructure/db/user-repository";
@@ -114,6 +116,13 @@ export default async function AccountSettingsPage({
     canApiKeys && context.actor.organizationId !== null
       ? await listApiKeys({ apiKeys: pgApiKeyRepository(pool) }, context.actor)
       : [];
+  const expirationAlertDays =
+    canOrganizations && context.actor.organizationId !== null
+      ? await getExpirationAlertDays(
+          { settings: pgOrganizationSettingsRepository(pool) },
+          context.actor.organizationId,
+        )
+      : null;
 
   return (
     <AccountSettings
@@ -132,6 +141,7 @@ export default async function AccountSettingsPage({
       canUsers={canUsers}
       canInvitations={canInvitations}
       canApiKeys={canApiKeys}
+      expirationAlertDays={expirationAlertDays}
     />
   );
 }
