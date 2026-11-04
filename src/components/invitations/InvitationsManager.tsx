@@ -354,6 +354,10 @@ export function InvitationsManager({
                   ) : null}
                 </div>
 
+                <p className="hint">
+                  La première ressource ajoutée devient la ressource par défaut pour tous les usages
+                  IA de l’organisation invitée.
+                </p>
                 <label className="field">
                   Modèle ou cluster disponible
                   <select value={resource} onChange={(event) => setResource(event.target.value)}>
