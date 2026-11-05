@@ -24,6 +24,10 @@ test.afterAll(async () => {
   await fixture?.cleanup();
 });
 
+async function openToolsStep(page: import("@playwright/test").Page): Promise<void> {
+  await page.getByRole("button", { name: /Outils/ }).click();
+}
+
 async function openEditor(page: import("@playwright/test").Page): Promise<void> {
   // Connexion via l'API puis navigation : évite la course d'hydratation du
   // formulaire, qui rend le clic intermittent en exécution groupée.
@@ -44,6 +48,7 @@ async function openEditor(page: import("@playwright/test").Page): Promise<void> 
 
 test("l'éditeur expose les politiques versionnées avec les gardes publiques", async ({ page }) => {
   await openEditor(page);
+  await openToolsStep(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });
   await expect(group).toBeVisible();
   await expect(group.getByRole("checkbox", { name: /Activer l’outil de recherche/ })).toBeChecked();
@@ -70,6 +75,7 @@ test("l'éditeur expose les politiques versionnées avec les gardes publiques", 
 
 test("le toggle masque puis réaffiche la configuration sans casser la modale", async ({ page }) => {
   await openEditor(page);
+  await openToolsStep(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });
   const toggle = group.getByRole("checkbox", { name: /Activer l’outil de recherche/ });
   await expect(toggle).toBeChecked();
@@ -83,6 +89,7 @@ test("le toggle masque puis réaffiche la configuration sans casser la modale", 
 
 test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) => {
   await openEditor(page);
+  await openToolsStep(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });
 
   await expect(group.locator(".fiche-scope-tag", { hasText: "Fournisseur" })).toBeVisible();
@@ -108,6 +115,7 @@ test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) =>
 
   // Rechargement : les valeurs reviennent du serveur.
   await openEditor(page);
+  await openToolsStep(page);
   const reloaded = page.getByRole("group", { name: "Outil de recherche" });
   await expect(reloaded.getByLabel("Tri des résultats")).toHaveValue("created_at");
   await expect(reloaded.getByRole("checkbox", { name: /Publié/ })).toBeChecked();

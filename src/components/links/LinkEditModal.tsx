@@ -56,6 +56,7 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
 const EDIT_STEPS = [
   { title: "Contexte & comportement", short: "Contexte" },
   { title: "Moteurs IA", short: "IA" },
+  { title: "Outils", short: "Outils" },
   { title: "Fallback", short: "Fallback" },
   { title: "Diffusion", short: "Diffusion" },
   { title: "Récapitulatif", short: "Récapitulatif" },
@@ -170,11 +171,11 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 0 && config !== null) {
+    if (index === 2 && config !== null) {
       const violations = searchToolDraftViolations(config.searchTool, publicLink);
       if (violations.length > 0) return violations.join(" · ");
     }
-    if (index === 2 && config !== null) {
+    if (index === 3 && config !== null) {
       if (
         config.fallback.enabled &&
         config.fallback.questions.length === 0 &&
@@ -183,7 +184,7 @@ export function LinkEditModal({
         return "Ajoutez au moins une question de fallback ou autorisez la fiche de collecte.";
       }
     }
-    if (index === 3) {
+    if (index === 4) {
       if (!channels.page.enabled && !channels.widget.enabled) {
         return "Activez au moins un canal de diffusion.";
       }
@@ -304,7 +305,9 @@ export function LinkEditModal({
     void save(false);
   };
 
-  const canFinish = [0, 1, 2, 3].every((index) => validateStep(index) === null);
+  const canFinish = EDIT_STEPS.map((_, index) => index).every(
+    (index) => validateStep(index) === null,
+  );
 
   return (
     <div className="modal-overlay chatbot-wizard-overlay">
@@ -385,18 +388,6 @@ export function LinkEditModal({
                   {config !== null ? (
                     <ChatbotBehaviorFields value={config} onChange={setConfig} />
                   ) : null}
-                  {config !== null ? (
-                    <ChatbotSearchToolFields
-                      value={config.searchTool}
-                      onChange={(searchTool) =>
-                        setConfig((current) =>
-                          current === null ? current : { ...current, searchTool },
-                        )
-                      }
-                      fiches={config.fiches}
-                      publicLink={publicLink}
-                    />
-                  ) : null}
                   <CategoryPicker contentType="link" contentId={link.id} />
                 </section>
               ) : null}
@@ -422,6 +413,29 @@ export function LinkEditModal({
               {step === 2 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
                   <div className="chatbot-step-head">
+                    <h4>Outils</h4>
+                    <p className="hint">
+                      Activez et paramétrez l’outil de recherche de fiches pour ce chatbot.
+                    </p>
+                  </div>
+                  {config !== null ? (
+                    <ChatbotSearchToolFields
+                      value={config.searchTool}
+                      onChange={(searchTool) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, searchTool },
+                        )
+                      }
+                      fiches={config.fiches}
+                      publicLink={publicLink}
+                    />
+                  ) : null}
+                </section>
+              ) : null}
+
+              {step === 3 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
+                  <div className="chatbot-step-head">
                     <h4>Fallback heuristique</h4>
                     <p className="hint">
                       En cas de panne IA, proposez uniquement des questions/réponses fermées et, si
@@ -441,8 +455,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 3 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
+              {step === 4 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
                   <div className="chatbot-step-head">
                     <h4>Diffusion</h4>
                     <p className="hint">
@@ -469,8 +483,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 4 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+              {step === 5 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[5].title}>
                   <div className="chatbot-step-head">
                     <h4>Récapitulatif</h4>
                     <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
