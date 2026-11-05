@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseInlineLinks,
+  parseInlineTokens,
   parseMarkdownBlocks,
   renderMarkdownPdf,
 } from "@/infrastructure/pdf/markdown-pdf";
@@ -16,6 +17,30 @@ describe("parseMarkdownBlocks", () => {
       { kind: "bullet", text: "b" },
       { kind: "h2", text: "Sous" },
       { kind: "paragraph", text: "Fin." },
+    ]);
+  });
+
+  it("interprète les titres de niveau 3, listes ordonnées et citations", () => {
+    expect(parseMarkdownBlocks("### Détail\n\n1. Premier\n2. Second\n\n> Note")).toEqual([
+      { kind: "h3", text: "Détail" },
+      { kind: "ordered", number: "1", text: "Premier" },
+      { kind: "ordered", number: "2", text: "Second" },
+      { kind: "quote", text: "Note" },
+    ]);
+  });
+});
+
+describe("parseInlineTokens", () => {
+  it("interprète gras, italique, code et liens", () => {
+    expect(parseInlineTokens("- **Nom** : *hôtel* `25` [site](https://example.test)")).toEqual([
+      { text: "- " },
+      { text: "Nom", bold: true },
+      { text: " : " },
+      { text: "hôtel", italic: true },
+      { text: " " },
+      { text: "25", code: true },
+      { text: " " },
+      { text: "site", url: "https://example.test" },
     ]);
   });
 });
@@ -40,6 +65,15 @@ describe("renderMarkdownPdf", () => {
     const pdf = await renderMarkdownPdf(
       "# Fiche de prospection — Onirtech\n\nÉdité avec des accents : éàçù.\n\n- site web\n- SaaS\n",
       "Fiche — Onirtech",
+    );
+    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(800);
+  });
+
+  it("produit un PDF avec du gras et des puces Markdown", async () => {
+    const pdf = await renderMarkdownPdf(
+      "# Hôtel\n\n- **Nom de l'établissement** : Hôtel Analamanga\n- **Services** : spa\n",
+      "Fiche — Hôtel",
     );
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(800);
