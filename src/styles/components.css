@@ -7618,3 +7618,85 @@ a.subtab {
 .inbox-chatbot-card-foot .btn {
   flex: none;
 }
+
+/* Vue d'ensemble plein écran des chatbots. */
+.conversations-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: calc(100dvh - 10rem);
+  min-height: 38rem;
+  padding: 1.25rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-card);
+}
+
+.conversations-overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.conversations-overview-head .hint {
+  margin: 0.15rem 0 0;
+}
+
+.conversations-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.conversations-overview-actions .inbox-group-toggle {
+  margin: 0;
+}
+
+.conversations-overview-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.conversations-overview-filters .list-search {
+  flex: 1 1 18rem;
+  max-width: 36rem;
+}
+
+.conversations-overview-cards {
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+
+.conversations-overview-cards .inbox-chatbot-card {
+  min-height: 9.5rem;
+}
+
+@media (max-width: 900px) {
+  .conversations-overview {
+    height: auto;
+    min-height: calc(100dvh - 8rem);
+    padding: 1rem;
+  }
+
+  .conversations-overview-head,
+  .conversations-overview-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .conversations-overview-filters {
+    align-items: stretch;
+  }
+
+  .conversations-overview-filters .list-search {
+    max-width: none;
+  }
+
+  .conversations-overview-cards {
+    grid-template-columns: 1fr;
+  }
+}
