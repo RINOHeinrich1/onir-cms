@@ -907,3 +907,25 @@ amélioration UI séparée, hors périmètre de cette ADR.
   redéfinition en champ `number`.
 - Les sessions de recherche doivent être stockées et nettoyées.
 - Les performances de recherche sur `data` devront être surveillées.
+
+## Amendement — 2026-11-05 : portée par fiches de collecte
+
+La notion de `scope` (`chat_link` / `organization`) est supprimée.
+
+La portée de l'outil est désormais définie par une liste de **fiches de
+collecte** sélectionnées dans l'organisation (`ficheTypes` dans le contrat
+actuel, à comprendre comme des clés de fiches de collecte).
+
+- Une fiche de collecte sélectionnée rend interrogeables **toutes ses instances
+  de l'organisation**, qu'elles soient ou non rattachées au chatbot.
+- Une fiche de collecte non sélectionnée est exclue.
+- Aucune sélection d'instance individuelle n'est possible.
+- Le chatbot ne peut pas modifier cette portée : elle est fixée dans la
+  configuration versionnée de l'outil.
+- Le filtre `fiche_chat_links` est retiré de la recherche.
+- L'UI utilise un tag-input searchable alimenté par les fiches de collecte de
+  l'organisation, avec sélection multiple et suppression par tag.
+- L'outil doit être activé manuellement (`enabled = true`) et au moins une fiche
+  de collecte doit être sélectionnée.
+- Les anciennes configurations `scope` sont ignorées et `ficheTypes` est
+  conservé comme liste de clés de fiches de collecte.

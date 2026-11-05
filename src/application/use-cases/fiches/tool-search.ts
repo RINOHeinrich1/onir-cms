@@ -84,11 +84,8 @@ function templateDefinitionsByType(
   return result;
 }
 
-function effectiveFicheTypes(
-  config: FicheSearchToolConfig,
-  definitions: Readonly<Record<string, SearchableFicheDefinition>>,
-): string[] {
-  return config.ficheTypes.length > 0 ? config.ficheTypes : Object.keys(definitions);
+function effectiveFicheTypes(config: FicheSearchToolConfig): string[] {
+  return [...config.ficheTypes];
 }
 
 function assertSortExecutable(config: FicheSearchToolConfig): void {
@@ -129,14 +126,10 @@ function toResultItem(row: FicheToolRow, statusMode: FicheSearchToolConfig["stat
   return item;
 }
 
-function scopeFrom(
-  context: FicheToolContext,
-  overrides: Partial<FicheToolScope> = {},
-): FicheToolScope {
+function scopeFrom(context: FicheToolContext): FicheToolScope {
   return {
     organizationId: context.organizationId,
     chatLinkId: context.chatLinkId,
-    scope: overrides.scope ?? context.config.scope,
   };
 }
 
@@ -221,7 +214,6 @@ async function searchFichesTool(
       statusMode: context.config.statusMode,
       fixedStatusKeys: context.config.fixedStatusKeys,
       sortMode: context.config.sortMode,
-      scope: context.config.scope,
     },
     orderedFicheIds: result.ids,
     total: result.total,
@@ -295,7 +287,7 @@ async function continueSearchTool(
   const items = await loadPage(
     context.deps,
     {
-      ...scopeFrom(context, { scope: session.criteria.scope }),
+      ...scopeFrom(context),
       ficheTypes: session.criteria.ficheTypes,
       statusMode: session.criteria.statusMode,
       fixedStatusKeys: session.criteria.fixedStatusKeys,
@@ -331,7 +323,7 @@ async function getFicheTool(
   if (ficheId === "") throw new ValidationError("get_fiche : ficheId obligatoire");
 
   const definitions = definitionsByType(context.fiches);
-  const ficheTypes = effectiveFicheTypes(context.config, definitions);
+  const ficheTypes = effectiveFicheTypes(context.config);
   assertFixedStatusesAvailable(context.config, definitions, ficheTypes);
   const row = await context.deps.fiches.findScopedById({
     ...scopeFrom(context),
@@ -345,7 +337,9 @@ async function getFicheTool(
 }
 
 function listFicheTypesTool(context: FicheToolContext): FicheTypeToolResult[] {
-  return context.fiches.map((fiche) => ({ key: fiche.key, label: fiche.label }));
+  return context.fiches
+    .filter((fiche) => context.config.ficheTypes.includes(fiche.key))
+    .map((fiche) => ({ key: fiche.key, label: fiche.label }));
 }
 
 async function countFichesTool(

@@ -49,7 +49,6 @@ function toCriteria(value: unknown): ChatSearchStoredCriteria {
         : record.sortMode === "relevance"
           ? "relevance"
           : "fair_rotation",
-    scope: record.scope === "organization" ? "organization" : "chat_link",
   };
 }
 

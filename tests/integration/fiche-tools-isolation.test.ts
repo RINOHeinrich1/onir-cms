@@ -202,7 +202,7 @@ describe("isolation des sessions de recherche (E013)", () => {
     ).rejects.toThrow(/Aucune recherche active/);
   });
 
-  it("scope get_fiche au chatbot et à l'organisation", async () => {
+  it("get_fiche est limité à l'organisation et aux fiches de collecte sélectionnées", async () => {
     const own = await seedFiche({
       organizationId: orgA,
       linkId: linkA,
@@ -227,9 +227,13 @@ describe("isolation des sessions de recherche (E013)", () => {
     })) as FicheToolResultItem;
     expect(item.ficheId).toBe(own);
 
-    await expect(executeFicheTool(context(), "get_fiche", { ficheId: otherLink })).rejects.toThrow(
-      /introuvable/,
-    );
+    // Même organisation + même fiche de collecte : accessible, même via un autre chatbot.
+    const otherItem = (await executeFicheTool(context(), "get_fiche", {
+      ficheId: otherLink,
+    })) as FicheToolResultItem;
+    expect(otherItem.ficheId).toBe(otherLink);
+
+    // Autre organisation : toujours interdit.
     await expect(executeFicheTool(context(), "get_fiche", { ficheId: otherOrg })).rejects.toThrow(
       /introuvable/,
     );

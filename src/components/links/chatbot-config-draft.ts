@@ -280,13 +280,13 @@ export function searchToolDraftViolations(
   searchTool: ChatbotSearchToolDraft,
   publicLink: boolean,
 ): string[] {
-  if (!publicLink || !searchTool.enabled) return [];
+  if (!searchTool.enabled) return [];
   const errors: string[] = [];
-  if (searchTool.statusMode !== "hidden_fixed") {
-    errors.push("Le mode de statut backoffice est interdit sur un lien public");
+  if (searchTool.ficheTypes.length === 0) {
+    errors.push("Sélectionnez au moins une fiche de collecte à interroger");
   }
-  if (searchTool.scope !== "chat_link") {
-    errors.push("La portée organisation est interdite sur un lien public");
+  if (publicLink && searchTool.statusMode !== "hidden_fixed") {
+    errors.push("Le mode de statut backoffice est interdit sur un lien public");
   }
   return errors;
 }
@@ -303,7 +303,6 @@ export function publicSafeSearchToolDraft(
   return {
     ...searchTool,
     statusMode: "hidden_fixed",
-    scope: "chat_link",
   };
 }
 

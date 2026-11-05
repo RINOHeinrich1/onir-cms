@@ -62,13 +62,6 @@ export function isFicheSortModeExecutable(value: FicheSortMode): boolean {
   return value !== "relevance";
 }
 
-export const FICHE_SCOPES = ["chat_link", "organization"] as const;
-export type FicheScope = (typeof FICHE_SCOPES)[number];
-
-export function isFicheScope(value: unknown): value is FicheScope {
-  return typeof value === "string" && (FICHE_SCOPES as readonly string[]).includes(value);
-}
-
 /** Condition sémantique fournie par le modèle (jamais de SQL). */
 export type FicheSearchCondition = {
   field: string;
@@ -79,7 +72,6 @@ export type FicheSearchCondition = {
 /** Entrée de `search_fiches` / `count_fiches`. */
 export type FicheSearchRequest = {
   query?: string;
-  ficheTypes?: string[];
   conditions?: FicheSearchCondition[];
   createdFrom?: string;
   createdTo?: string;
@@ -90,11 +82,11 @@ export type FicheSearchRequest = {
 export type FicheSearchToolConfig = {
   /** Activation manuelle de l'outil ; désactivé par défaut. */
   enabled: boolean;
+  /** Clés des fiches de collecte interrogées (toutes leurs instances). */
   ficheTypes: string[];
   statusMode: FicheStatusMode;
   fixedStatusKeys: string[];
   sortMode: FicheSortMode;
-  scope: FicheScope;
 };
 
 /** Élément de résultat : l'identifiant technique reste hors des champs rendus. */

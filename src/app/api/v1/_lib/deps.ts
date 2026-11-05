@@ -13,6 +13,7 @@ import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { pgFicheSearchRepository } from "@/infrastructure/db/fiche-search-repository";
 import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
@@ -66,6 +67,7 @@ export function conversationChatDeps() {
     ficheInstances: pgConversationFicheInstanceRepository(pool),
     fiches: pgFicheRepository(pool),
     ficheTools,
+    ficheCollectes: pgFicheCollecteRepository(pool),
     searchSessions: pgChatSearchSessionRepository(pool),
   };
 }

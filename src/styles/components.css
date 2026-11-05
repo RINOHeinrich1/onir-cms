@@ -6615,6 +6615,134 @@ a.subtab {
   border-radius: 10px;
 }
 
+.fiche-scope-field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.fiche-scope-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.fiche-scope-control {
+  position: relative;
+  min-width: 0;
+}
+
+.fiche-scope-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.8rem;
+  padding: 0.4rem;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+}
+
+.fiche-scope-tags:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--focus) 38%, transparent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.fiche-scope-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0.35rem 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+  color: var(--fg);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.fiche-scope-tag button {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fiche-scope-tag button:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  color: var(--fg);
+}
+
+.fiche-scope-tags input {
+  flex: 1 1 10rem;
+  min-width: 7rem;
+  width: auto;
+  margin: 0;
+  padding: 0.35rem 0.25rem;
+  border: 0;
+  background: transparent;
+  font: 400 0.95rem var(--font-sans);
+  color: var(--fg);
+}
+
+.fiche-scope-tags input:focus {
+  outline: none;
+}
+
+.fiche-scope-suggestions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lifted);
+}
+
+.fiche-scope-suggestion button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fiche-scope-suggestion button:hover,
+.fiche-scope-suggestion button.active {
+  background: var(--surface);
+}
+
+.fiche-scope-suggestion small {
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+}
+
+.fiche-scope-empty {
+  margin: 0;
+  padding: 0.65rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
 .chatbot-fiche-options {
   display: grid;
   gap: 0.5rem;

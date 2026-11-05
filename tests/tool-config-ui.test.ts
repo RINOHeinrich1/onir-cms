@@ -20,7 +20,6 @@ describe("payload public de l'outil de recherche", () => {
       statusMode: "internal_filter",
       fixedStatusKeys: ["publie"],
       sortMode: "created_at",
-      scope: "organization",
     };
 
     const payload = chatbotConfigPayload(draft, { publicLink: true });
@@ -30,7 +29,6 @@ describe("payload public de l'outil de recherche", () => {
       statusMode: "hidden_fixed",
       fixedStatusKeys: ["publie"],
       sortMode: "created_at",
-      scope: "chat_link",
     });
 
     const serialized = JSON.stringify(payload);
@@ -41,11 +39,10 @@ describe("payload public de l'outil de recherche", () => {
   it("signale les violations d'un lien public", () => {
     const internal = {
       enabled: true,
-      ficheTypes: [],
+      ficheTypes: ["fournisseur"],
       statusMode: "internal_filter" as const,
       fixedStatusKeys: [],
       sortMode: "fair_rotation" as const,
-      scope: "chat_link" as const,
     };
     expect(searchToolDraftViolations(internal, true)).toContain(
       "Le mode de statut backoffice est interdit sur un lien public",
@@ -54,15 +51,13 @@ describe("payload public de l'outil de recherche", () => {
     const all = { ...internal, statusMode: "all" as const };
     expect(searchToolDraftViolations(all, true)).toHaveLength(1);
 
-    const organization = {
-      ...internal,
-      statusMode: "hidden_fixed" as const,
-      scope: "organization" as const,
-    };
-    expect(searchToolDraftViolations(organization, true)).toContain(
-      "La portée organisation est interdite sur un lien public",
+    const withoutFiche = { ...internal, ficheTypes: [] };
+    expect(searchToolDraftViolations(withoutFiche, false)).toContain(
+      "Sélectionnez au moins une fiche de collecte à interroger",
     );
-    expect(searchToolDraftViolations(organization, false)).toEqual([]);
+    expect(searchToolDraftViolations({ ...internal, statusMode: "hidden_fixed" }, true)).toEqual(
+      [],
+    );
   });
 
   it("ne modifie pas une politique backoffice sur un lien non public", () => {
@@ -73,7 +68,6 @@ describe("payload public de l'outil de recherche", () => {
       statusMode: "internal_filter",
       fixedStatusKeys: ["publie"],
       sortMode: "fair_rotation",
-      scope: "organization",
     };
     const payload = chatbotConfigPayload(draft, { publicLink: false });
     expect(payload.searchTool).toEqual(draft.searchTool);

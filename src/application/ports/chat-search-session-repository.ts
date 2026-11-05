@@ -1,5 +1,4 @@
 import type {
-  FicheScope,
   FicheSearchOperator,
   FicheSortMode,
   FicheStatusMode,
@@ -15,7 +14,6 @@ export type ChatSearchStoredCriteria = {
   statusMode: FicheStatusMode;
   fixedStatusKeys: string[];
   sortMode: FicheSortMode;
-  scope: FicheScope;
 };
 
 export type ChatSearchSession = {

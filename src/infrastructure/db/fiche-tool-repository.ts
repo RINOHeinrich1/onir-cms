@@ -64,26 +64,6 @@ function buildScopeClauses(
   const clauses: string[] = [];
   clauses.push(`f.organization_id = ${add(scope.organizationId)}`);
   clauses.push("f.archivee = false");
-
-  if (scope.scope === "chat_link") {
-    const organization = add(scope.organizationId);
-    const link = add(scope.chatLinkId);
-    clauses.push(`(
-      EXISTS (
-        SELECT 1 FROM fiche_chat_links fcl
-         WHERE fcl.fiche_id = f.id
-           AND fcl.organization_id = ${organization}
-           AND fcl.chat_link_id = ${link}
-      )
-      OR EXISTS (
-        SELECT 1 FROM conversations c
-         WHERE c.id = f.conversation_id
-           AND c.organization_id = ${organization}
-           AND c.link_id = ${link}
-      )
-    )`);
-  }
-
   clauses.push(`${TYPE_EXPR} = ANY(${add(scope.ficheTypes)}::text[])`);
 
   if (

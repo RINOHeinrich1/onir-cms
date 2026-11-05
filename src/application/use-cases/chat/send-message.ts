@@ -14,6 +14,7 @@ import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheToolRepository } from "@/application/ports/fiche-tool-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
@@ -131,6 +132,8 @@ export type SendMessageDependencies = {
   /** Outils internes de recherche (P3) — absents ⇒ chemin sans outil. */
   ficheTools?: FicheToolRepository;
   searchSessions?: ChatSearchSessionRepository;
+  /** Toutes les fiches de collecte de l'organisation (portée de recherche). */
+  ficheCollectes?: FicheCollecteRepository;
 };
 
 export type SendMessageResult = {
@@ -467,6 +470,7 @@ ${attachmentContext}`;
     config !== null &&
     searchToolConfig !== undefined &&
     searchToolConfig.enabled === true &&
+    searchToolConfig.ficheTypes.length > 0 &&
     ficheToolRepository !== undefined &&
     searchSessions !== undefined;
 
@@ -475,12 +479,22 @@ ${attachmentContext}`;
   let blocks: MessageBlock[] = [];
 
   if (toolsEnabled && searchToolConfig !== undefined && ficheToolRepository !== undefined) {
+    const collectes =
+      deps.ficheCollectes === undefined
+        ? (config?.fiches ?? [])
+        : await deps.ficheCollectes.list(organizationId);
+    const searchableFiches = collectes.map((fiche) => ({
+      key: fiche.key,
+      label: fiche.label,
+      fields: fiche.fields,
+      ...(fiche.statuses === undefined ? {} : { statuses: fiche.statuses }),
+    }));
     const toolContext: FicheToolContext = {
       organizationId,
       chatLinkId: link.id,
       conversationId: conversation.id,
       config: searchToolConfig,
-      fiches: config?.fiches ?? [],
+      fiches: searchableFiches,
       deps: {
         fiches: ficheToolRepository,
         sessions: searchSessions as ChatSearchSessionRepository,

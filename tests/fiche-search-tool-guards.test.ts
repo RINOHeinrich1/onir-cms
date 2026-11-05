@@ -51,17 +51,14 @@ describe("garde des modes backoffice sur lien public (ADR-0067 §2.5/§10)", () 
     ).not.toThrow();
   });
 
-  it("refuse internal_filter, all et scope=organization sur un lien public", () => {
-    const base = { ...defaultSearchToolConfig(), enabled: true };
+  it("refuse internal_filter et all sur un lien public", () => {
+    const base = { ...defaultSearchToolConfig(), enabled: true, ficheTypes: ["fournisseur"] };
     expect(
       searchToolConfigViolation(channels("contact"), { ...base, statusMode: "internal_filter" }),
     ).toMatch(/backoffice/);
     expect(searchToolConfigViolation(channels("contact"), { ...base, statusMode: "all" })).toMatch(
       /backoffice/,
     );
-    expect(
-      searchToolConfigViolation(channels("contact"), { ...base, scope: "organization" }),
-    ).toMatch(/organisation/);
 
     expect(() =>
       assertSearchToolConfigAllowedForLink(channels("contact"), {
@@ -72,12 +69,15 @@ describe("garde des modes backoffice sur lien public (ADR-0067 §2.5/§10)", () 
   });
 
   it("autorise les modes backoffice sur un lien interne uniquement", () => {
-    const base = defaultSearchToolConfig();
+    const base = {
+      ...defaultSearchToolConfig(),
+      enabled: true,
+      ficheTypes: ["fournisseur"],
+    };
     expect(
       searchToolConfigViolation(channels("internal"), {
         ...base,
         statusMode: "all",
-        scope: "organization",
       }),
     ).toBeNull();
   });
