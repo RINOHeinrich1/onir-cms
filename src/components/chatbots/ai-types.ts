@@ -60,4 +60,5 @@ export type ChatbotAiModelsDto = {
   }>;
   defaultProviderId: string | null;
   defaultModel: string | null;
+  sharedDefault: { id: string; label: string } | null;
 };

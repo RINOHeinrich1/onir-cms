@@ -84,6 +84,7 @@ export function ChatbotAiAssistPanel({
     [catalog, providerId],
   );
   const hasModels = (catalog?.providers.length ?? 0) > 0;
+  const hasSharedDefault = catalog?.sharedDefault !== null && catalog?.sharedDefault !== undefined;
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 
   const onProviderChange = (nextProviderId: string): void => {
@@ -152,7 +153,7 @@ export function ChatbotAiAssistPanel({
 
   if (catalogError !== null) return <p className="alert error">{catalogError}</p>;
   if (catalog === null) return <p className="hint">Chargement des modèles IA…</p>;
-  if (!hasModels) {
+  if (!hasModels && !hasSharedDefault) {
     return (
       <p className="alert warning">
         Aucun modèle IA actif n'est disponible. Configurez un fournisseur et activez au moins un
@@ -171,7 +172,9 @@ export function ChatbotAiAssistPanel({
             et le comportement. Vous relisez et validez avant l’enregistrement.
           </p>
         </div>
-        <span className="pill">{catalog.providers.length} fournisseur(s)</span>
+        <span className="pill">
+          {hasModels ? `${catalog.providers.length} fournisseur(s)` : "IA partagée"}
+        </span>
       </div>
 
       <label className="field">
@@ -219,37 +222,44 @@ export function ChatbotAiAssistPanel({
         <p className="hint">Total : {Math.round(totalBytes / 1024 / 1024)} Mo</p>
       ) : null}
 
-      <div className="grid-2">
-        <label className="field">
-          Fournisseur IA
-          <select
-            value={providerId}
-            onChange={(event) => onProviderChange(event.target.value)}
-            disabled={pending}
-          >
-            {catalog.providers.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Modèle IA
-          <select
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            disabled={pending}
-          >
-            <option value="">— Choisir un modèle —</option>
-            {selectedProvider?.models.map((entry) => (
-              <option key={entry.modelId} value={entry.modelId}>
-                {entry.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      {hasModels ? (
+        <div className="grid-2">
+          <label className="field">
+            Fournisseur IA
+            <select
+              value={providerId}
+              onChange={(event) => onProviderChange(event.target.value)}
+              disabled={pending}
+            >
+              {catalog.providers.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Modèle IA
+            <select
+              value={model}
+              onChange={(event) => setModel(event.target.value)}
+              disabled={pending}
+            >
+              <option value="">— Choisir un modèle —</option>
+              {selectedProvider?.models.map((entry) => (
+                <option key={entry.modelId} value={entry.modelId}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <p className="alert info">
+          Votre organisation utilise l’IA partagée « {catalog.sharedDefault?.label} ». Le modèle par
+          défaut de cette organisation sera utilisé.
+        </p>
+      )}
 
       <button
         type="button"
@@ -291,7 +301,7 @@ export function ChatbotAiAssistPanel({
           disabled={pending}
         />{" "}
         J'accepte que la description, les pages du site et les documents soient envoyés au
-        fournisseur IA sélectionné pour générer le chatbot.
+        fournisseur IA {hasModels ? "sélectionné" : "de l’organisation"} pour générer le chatbot.
       </label>
 
       <div className="tools">
@@ -299,7 +309,7 @@ export function ChatbotAiAssistPanel({
           type="button"
           className="btn small"
           onClick={() => void generate()}
-          disabled={pending || !hasModels || model === ""}
+          disabled={pending || (hasModels ? model === "" : !hasSharedDefault)}
         >
           {pending ? "Génération en cours…" : submitLabel}
         </button>
