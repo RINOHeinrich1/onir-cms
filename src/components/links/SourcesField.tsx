@@ -4,7 +4,7 @@ import type { ChatLinkSources } from "@/domain/entities/chat";
 
 const LABELS: Record<keyof ChatLinkSources, string> = {
   connaissances: "Connaissances",
-  phototheque: "Photothèque",
+  phototheque: "Photos",
   lien: "Liens",
 };
 
@@ -23,9 +23,9 @@ export function SourcesField({
   const keys = Object.keys(LABELS) as (keyof ChatLinkSources)[];
   return (
     <fieldset className="field sources-field">
-      <legend>Données recherchées à la génération</legend>
+      <legend>Contenus recherchés à la génération</legend>
       <span className="hint">
-        Seules les sources cochées sont interrogées pour composer la réponse.
+        Seuls les contenus cochés sont interrogés pour composer la réponse.
       </span>
       <div className="checks-row">
         {keys.map((key) => (

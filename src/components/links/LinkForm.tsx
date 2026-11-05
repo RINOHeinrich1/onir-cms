@@ -23,7 +23,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
@@ -49,7 +48,6 @@ import {
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
-import { SourcesField } from "./SourcesField";
 import type {
   AiProviderOption,
   ConfidentialiteOption,
@@ -905,13 +903,6 @@ export function LinkForm({
                   Activez les sources autorisées pour ce chatbot, puis choisissez les données
                   existantes et les ajouts.
                 </p>
-                <SourcesField value={sources} onChange={setSources} />
-                <ChatbotSearchToolFields
-                  value={config.searchTool}
-                  onChange={(searchTool) => setConfig((current) => ({ ...current, searchTool }))}
-                  fiches={config.fiches}
-                  publicLink={publicLink}
-                />
                 <ChatbotSourceLabelsFields
                   value={config.sourceMeta}
                   onChange={(sourceMeta) => setConfig((current) => ({ ...current, sourceMeta }))}
@@ -926,6 +917,12 @@ export function LinkForm({
                   onGlobalCountsChange={setGlobalDataCounts}
                   onUploadPhoto={uploadDraftPhoto}
                   onRemovePhoto={removeDraftPhoto}
+                  searchTool={config.searchTool}
+                  onSearchToolChange={(searchTool) =>
+                    setConfig((current) => ({ ...current, searchTool }))
+                  }
+                  fiches={config.fiches}
+                  publicLink={publicLink}
                 />
               </div>
             ) : (
@@ -1035,13 +1032,13 @@ export function LinkForm({
                   : [
                       config.searchTool.enabled ? "Fiches existantes" : "",
                       sources.connaissances ? "Connaissances" : "",
-                      sources.phototheque ? "Photothèque" : "",
+                      sources.phototheque ? "Photos" : "",
                       sources.lien ? "Liens" : "",
                     ]
                       .filter((entry) => entry !== "")
                       .join(", ") || "Aucune source active"}
               </dd>
-              <dt>Données ajoutées</dt>
+              <dt>Contenus ajoutés</dt>
               <dd>
                 {pendingDataCount === 0
                   ? "Aucune"
@@ -1055,11 +1052,11 @@ export function LinkForm({
                       .filter((entry) => entry !== "")
                       .join(" · ")}
               </dd>
-              <dt>Données existantes</dt>
+              <dt>Bibliothèque</dt>
               <dd>
                 {config.dataSelection.mode === "all"
-                  ? `Toutes les données globales (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
-                  : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} média(s) sélectionné(s) + données déjà rattachées`}
+                  ? `Toute la bibliothèque (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
+                  : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} photo(s)/lien(s) sélectionné(s) + contenus déjà rattachés`}
               </dd>
               <dt>Configuration IA</dt>
               <dd>
@@ -1097,9 +1094,11 @@ export function LinkForm({
               </li>
               <li className="ok">
                 {config.dataSelection.mode === "all"
-                  ? "Toutes les données globales"
-                  : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} donnée(s) existante(s) sélectionnée(s)`}
-                {pendingDataCount === 0 ? "" : ` · ${pendingDataCount} ajout(s) pour ce chatbot`}
+                  ? "Toute la bibliothèque"
+                  : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} contenu(s) de la bibliothèque sélectionné(s)`}
+                {pendingDataCount === 0
+                  ? ""
+                  : ` · ${pendingDataCount} contenu(s) ajouté(s) à ce chatbot`}
               </li>
               <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
                 Au moins un canal de publication

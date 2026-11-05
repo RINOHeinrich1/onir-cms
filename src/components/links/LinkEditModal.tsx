@@ -19,7 +19,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
@@ -36,7 +35,6 @@ import {
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
-import { SourcesField } from "./SourcesField";
 import type {
   AiProviderOption,
   ChatLinkRow,
@@ -498,17 +496,6 @@ export function LinkEditModal({
                       {config.mission !== "collect" ? (
                         <div className="chatbot-subsection">
                           <h5>Sources à consulter</h5>
-                          <SourcesField value={sources} onChange={setSources} />
-                          <ChatbotSearchToolFields
-                            value={config.searchTool}
-                            onChange={(searchTool) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, searchTool },
-                              )
-                            }
-                            fiches={config.fiches}
-                            publicLink={publicLink}
-                          />
                           <ChatbotSourceLabelsFields
                             value={config.sourceMeta}
                             onChange={(sourceMeta) =>
@@ -529,6 +516,14 @@ export function LinkEditModal({
                             chatLinkId={link.id}
                             onUploadPhoto={uploadDraftPhoto}
                             onRemovePhoto={removeDraftPhoto}
+                            searchTool={config.searchTool}
+                            onSearchToolChange={(searchTool) =>
+                              setConfig((current) =>
+                                current === null ? current : { ...current, searchTool },
+                              )
+                            }
+                            fiches={config.fiches}
+                            publicLink={publicLink}
                           />
                         </div>
                       ) : (
@@ -650,7 +645,7 @@ export function LinkEditModal({
                         : [
                             config?.searchTool.enabled ? "Fiches existantes" : "",
                             sources.connaissances ? "Connaissances" : "",
-                            sources.phototheque ? "Photothèque" : "",
+                            sources.phototheque ? "Photos" : "",
                             sources.lien ? "Liens" : "",
                           ]
                             .filter((value) => value !== "")
@@ -663,11 +658,11 @@ export function LinkEditModal({
                         .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
                         .join(", ") || "— Aucun —"}
                     </dd>
-                    <dt>Données ajoutées</dt>
+                    <dt>Contenus ajoutés</dt>
                     <dd>
                       {chatbotDataDraftCount(dataDraft) === 0
                         ? "Aucune"
-                        : `${chatbotDataDraftCount(dataDraft)} ajout(s) à rattacher`}
+                        : `${chatbotDataDraftCount(dataDraft)} contenu(s) à rattacher`}
                     </dd>
                     <dt>Configuration IA</dt>
                     <dd>
