@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
@@ -39,6 +40,8 @@ export function ChatbotDataStep({
   onSearchToolChange,
   fiches,
   publicLink,
+  sources,
+  onSourcesChange,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -61,6 +64,8 @@ export function ChatbotDataStep({
   onSearchToolChange: (next: ChatbotSearchToolDraft) => void;
   fiches: FicheDraft[];
   publicLink: boolean;
+  sources: ChatLinkSources;
+  onSourcesChange: (next: ChatLinkSources) => void;
 }) {
   const [mode, setMode] = useState<"none" | "choose" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
@@ -187,6 +192,8 @@ export function ChatbotDataStep({
           onSearchToolChange={onSearchToolChange}
           fiches={fiches}
           publicLink={publicLink}
+          sources={sources}
+          onSourcesChange={onSourcesChange}
         />
 
         <div className="tools">

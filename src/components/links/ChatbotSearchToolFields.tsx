@@ -144,108 +144,90 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
         ne sont jamais modifiables par le modèle (ADR-0067).
       </p>
 
-      <label className="chatbot-tool-toggle">
-        <input
-          type="checkbox"
-          className="chatbot-tool-toggle-input"
-          checked={value.enabled}
-          onChange={(event) => onChange({ ...value, enabled: event.target.checked })}
+      <div className="chatbot-search-tool-config">
+        <FicheScopeTagInput
+          options={availableFiches}
+          value={value.ficheTypes}
+          onChange={changeFiches}
         />
-        <span className="chatbot-tool-toggle-track" aria-hidden="true" />
-        <span className="chatbot-tool-toggle-text">Activer l’outil de recherche</span>
-      </label>
-      <p className="hint">
-        {value.enabled
-          ? "L’outil est activé pour ce chatbot. Configurez ci-dessous les types de fiches, le statut, le tri et la portée."
-          : "Désactivé par défaut : le chatbot répond normalement, sans outil de recherche. Activez explicitement l’outil pour ce chatbot."}
-      </p>
 
-      {value.enabled ? (
-        <div className="chatbot-search-tool-config">
-          <FicheScopeTagInput
-            options={availableFiches}
-            value={value.ficheTypes}
-            onChange={changeFiches}
-          />
-
-          <label className="field">
-            Mode de statut
-            <select
-              value={value.statusMode}
-              onChange={(event) => changeStatusMode(event.target.value as FicheStatusMode)}
-            >
-              {FICHE_STATUS_MODES.map((mode) => (
-                <option key={mode} value={mode} disabled={publicLink && mode !== "hidden_fixed"}>
-                  {STATUS_MODE_LABELS[mode]}
-                </option>
-              ))}
-            </select>
-            {publicLink ? (
-              <span className="hint">
-                Lien public : les modes backoffice <code>internal_filter</code> et <code>all</code>{" "}
-                sont désactivés et refusés par le serveur.
-              </span>
-            ) : null}
-          </label>
-
-          <div className="field">
-            <span>Statuts fixes appliqués</span>
-            {availableStatuses.length === 0 ? (
-              <p className="hint">
-                Aucun statut non archivé disponible pour les fiches sélectionnées. Ajoutez des
-                statuts dans la fiche de collecte.
-              </p>
-            ) : (
-              <div className="chatbot-fiche-options">
-                {availableStatuses.map((status) => (
-                  <label key={status.key} className="chatbot-fiche-option">
-                    <input
-                      type="checkbox"
-                      checked={value.fixedStatusKeys.includes(status.key)}
-                      disabled={value.statusMode === "all"}
-                      onChange={() => toggleStatusKey(status.key)}
-                    />
-                    <span>
-                      <strong>{status.label}</strong>
-                      <small> {status.key}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
+        <label className="field">
+          Mode de statut
+          <select
+            value={value.statusMode}
+            onChange={(event) => changeStatusMode(event.target.value as FicheStatusMode)}
+          >
+            {FICHE_STATUS_MODES.map((mode) => (
+              <option key={mode} value={mode} disabled={publicLink && mode !== "hidden_fixed"}>
+                {STATUS_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+          {publicLink ? (
             <span className="hint">
-              {value.statusMode === "all"
-                ? "Mode « aucun filtre » : les statuts fixes ne sont pas appliqués."
-                : "Le filtre est appliqué automatiquement ; il n’est jamais transmis au modèle sur un lien public."}
+              Lien public : les modes backoffice <code>internal_filter</code> et <code>all</code>{" "}
+              sont désactivés et refusés par le serveur.
             </span>
-            {unknownStatusKeys.length > 0 ? (
-              <p className="alert error">
-                Statut(s) fixe(s) introuvable(s) ou archivé(s) : {unknownStatusKeys.join(", ")}.
-                Corrigez la configuration.
-              </p>
-            ) : null}
-          </div>
+          ) : null}
+        </label>
 
-          <label className="field">
-            Tri des résultats
-            <select
-              value={value.sortMode}
-              onChange={(event) =>
-                onChange({ ...value, sortMode: event.target.value as FicheSortMode })
-              }
-            >
-              {FICHE_SORT_MODES.map((mode) => (
-                <option key={mode} value={mode} disabled={mode === "relevance"}>
-                  {SORT_MODE_LABELS[mode]}
-                </option>
+        <div className="field">
+          <span>Statuts fixes appliqués</span>
+          {availableStatuses.length === 0 ? (
+            <p className="hint">
+              Aucun statut non archivé disponible pour les fiches sélectionnées. Ajoutez des statuts
+              dans la fiche de collecte.
+            </p>
+          ) : (
+            <div className="chatbot-fiche-options">
+              {availableStatuses.map((status) => (
+                <label key={status.key} className="chatbot-fiche-option">
+                  <input
+                    type="checkbox"
+                    checked={value.fixedStatusKeys.includes(status.key)}
+                    disabled={value.statusMode === "all"}
+                    onChange={() => toggleStatusKey(status.key)}
+                  />
+                  <span>
+                    <strong>{status.label}</strong>
+                    <small> {status.key}</small>
+                  </span>
+                </label>
               ))}
-            </select>
-            <span className="hint">
-              Le tri « pertinence » est visible mais non disponible dans le MVP.
-            </span>
-          </label>
+            </div>
+          )}
+          <span className="hint">
+            {value.statusMode === "all"
+              ? "Mode « aucun filtre » : les statuts fixes ne sont pas appliqués."
+              : "Le filtre est appliqué automatiquement ; il n’est jamais transmis au modèle sur un lien public."}
+          </span>
+          {unknownStatusKeys.length > 0 ? (
+            <p className="alert error">
+              Statut(s) fixe(s) introuvable(s) ou archivé(s) : {unknownStatusKeys.join(", ")}.
+              Corrigez la configuration.
+            </p>
+          ) : null}
         </div>
-      ) : null}
+
+        <label className="field">
+          Tri des résultats
+          <select
+            value={value.sortMode}
+            onChange={(event) =>
+              onChange({ ...value, sortMode: event.target.value as FicheSortMode })
+            }
+          >
+            {FICHE_SORT_MODES.map((mode) => (
+              <option key={mode} value={mode} disabled={mode === "relevance"}>
+                {SORT_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+          <span className="hint">
+            Le tri « pertinence » est visible mais non disponible dans le MVP.
+          </span>
+        </label>
+      </div>
 
       {violations.length > 0 ? (
         <p className="alert error" role="alert">

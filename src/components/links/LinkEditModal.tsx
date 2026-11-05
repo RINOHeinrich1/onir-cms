@@ -19,7 +19,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -496,14 +495,6 @@ export function LinkEditModal({
                       {config.mission !== "collect" ? (
                         <div className="chatbot-subsection">
                           <h5>Sources à consulter</h5>
-                          <ChatbotSourceLabelsFields
-                            value={config.sourceMeta}
-                            onChange={(sourceMeta) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, sourceMeta },
-                              )
-                            }
-                          />
                           <ChatbotDataStep
                             value={dataDraft}
                             onChange={setDataDraft}
@@ -524,6 +515,8 @@ export function LinkEditModal({
                             }
                             fiches={config.fiches}
                             publicLink={publicLink}
+                            sources={sources}
+                            onSourcesChange={setSources}
                           />
                         </div>
                       ) : (

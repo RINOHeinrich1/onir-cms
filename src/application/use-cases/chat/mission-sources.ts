@@ -182,7 +182,7 @@ async function executeConnaissancesSource(input: {
   );
   return {
     key: "connaissances",
-    label: source.label,
+    label: "Connaissances",
     context: buildContexteInterne(utiles) || "",
     blocks: [],
     connaissances: utiles.map((entry) => ({ ref: entry.id, titre: entry.titre })),
@@ -203,7 +203,7 @@ async function executeMediasSource(input: {
   if (source.access !== "on_demand") {
     return {
       key: "medias",
-      label: source.label,
+      label: "Photos et liens",
       context: "",
       blocks: [],
       connaissances: [],
@@ -230,11 +230,11 @@ async function executeMediasSource(input: {
   const medias = filtered.slice(0, source.maxResults);
   return {
     key: "medias",
-    label: source.label,
+    label: "Photos et liens",
     context:
       medias.length === 0
         ? ""
-        : `Médias accessibles (${source.label}) :\n${medias
+        : `Médias accessibles (Photos et liens) :\n${medias
             .map((media) => `- ${media.type} — ${media.libelle} : ${media.description}`)
             .join("\n")}`,
     blocks: [],

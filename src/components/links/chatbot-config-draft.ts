@@ -76,17 +76,9 @@ export function defaultChatbotSearchToolDraft(): ChatbotSearchToolDraft {
   return defaultSearchToolConfig();
 }
 
-export type ChatbotSourceMeta = {
-  fiches: { label: string; usageHint: string };
-  connaissances: { label: string; usageHint: string };
-  medias: { label: string; usageHint: string };
-};
-
 export type ChatbotConfigDraft = {
   /** Mission stable du chatbot (ADR-0068). */
   mission: ChatbotMission;
-  /** Libellés et descriptions d'usage des sources (ADR-0068). */
-  sourceMeta: ChatbotSourceMeta;
   behaviorMode: ChatbotBehaviorMode;
   systemPrompt: string;
   simple: {
@@ -145,7 +137,6 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
         ];
   return {
     mission: fields.length > 0 ? "hybrid" : "inform",
-    sourceMeta: defaultSourceMeta(),
     behaviorMode: "guided",
     systemPrompt: draft.systemPrompt,
     simple: {
@@ -206,27 +197,9 @@ export function emptyFiche(index: number): FicheDraft {
   };
 }
 
-export function defaultSourceMeta(): ChatbotSourceMeta {
-  return {
-    fiches: {
-      label: "Fiches existantes",
-      usageHint: "Rechercher des fiches existantes et leurs informations.",
-    },
-    connaissances: {
-      label: "Connaissances",
-      usageHint: "Utiliser la base de connaissances pour répondre aux questions.",
-    },
-    medias: {
-      label: "Photos et liens",
-      usageHint: "Utiliser les médias accessibles pour illustrer la réponse.",
-    },
-  };
-}
-
 export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
   return {
     mission: "collect",
-    sourceMeta: defaultSourceMeta(),
     behaviorMode: DEFAULT_CHATBOT_BEHAVIOR_MODE,
     systemPrompt: "",
     simple: {
@@ -324,14 +297,12 @@ function informationSourcesFromDraft(
     fiches: {
       ...searchTool,
       enabled: draft.mission !== "collect" && searchTool.enabled,
-      label: draft.sourceMeta.fiches.label,
-      usageHint: draft.sourceMeta.fiches.usageHint,
+      label: defaults.fiches.label,
+      usageHint: defaults.fiches.usageHint,
       matchMode: "normalized",
     },
     connaissances: {
       ...defaults.connaissances,
-      label: draft.sourceMeta.connaissances.label,
-      usageHint: draft.sourceMeta.connaissances.usageHint,
       enabled: draft.mission !== "collect" && sources.connaissances,
       selection: {
         mode: draft.dataSelection.mode,
@@ -340,8 +311,6 @@ function informationSourcesFromDraft(
     },
     medias: {
       ...defaults.medias,
-      label: draft.sourceMeta.medias.label,
-      usageHint: draft.sourceMeta.medias.usageHint,
       enabled: draft.mission !== "collect" && (sources.phototheque || sources.lien),
       types: [
         ...(sources.phototheque ? (["photo"] as const) : []),
@@ -542,22 +511,6 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   const fallback = parseChatbotFallback(raw.fallback);
   const searchTool = parseSearchToolConfig(raw.searchTool);
   const informationSources = parseChatbotInformationSources(raw.informationSources);
-  const sourceMeta: ChatbotSourceMeta = informationSources.ok
-    ? {
-        fiches: {
-          label: informationSources.value.fiches.label,
-          usageHint: informationSources.value.fiches.usageHint,
-        },
-        connaissances: {
-          label: informationSources.value.connaissances.label,
-          usageHint: informationSources.value.connaissances.usageHint,
-        },
-        medias: {
-          label: informationSources.value.medias.label,
-          usageHint: informationSources.value.medias.usageHint,
-        },
-      }
-    : defaultSourceMeta();
   const mission: ChatbotMission = isChatbotMission(raw.mission)
     ? raw.mission
     : searchTool.ok && searchTool.value.enabled
@@ -565,7 +518,6 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
       : "collect";
   return {
     mission,
-    sourceMeta,
     behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
       ? raw.behaviorMode
       : DEFAULT_CHATBOT_BEHAVIOR_MODE,

@@ -23,7 +23,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigDraftFromAi,
@@ -903,10 +902,6 @@ export function LinkForm({
                   Activez les sources autorisées pour ce chatbot, puis choisissez les données
                   existantes et les ajouts.
                 </p>
-                <ChatbotSourceLabelsFields
-                  value={config.sourceMeta}
-                  onChange={(sourceMeta) => setConfig((current) => ({ ...current, sourceMeta }))}
-                />
                 <ChatbotDataStep
                   value={dataDraft}
                   onChange={setDataDraft}
@@ -923,6 +918,8 @@ export function LinkForm({
                   }
                   fiches={config.fiches}
                   publicLink={publicLink}
+                  sources={sources}
+                  onSourcesChange={setSources}
                 />
               </div>
             ) : (

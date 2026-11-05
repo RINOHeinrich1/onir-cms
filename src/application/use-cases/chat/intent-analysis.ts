@@ -40,9 +40,9 @@ function sourceCatalog(
         return `- fiches (${sources.fiches.label}) : ${sources.fiches.usageHint}`;
       }
       if (key === "connaissances") {
-        return `- connaissances (${sources.connaissances.label}) : ${sources.connaissances.usageHint}`;
+        return "- connaissances : base de connaissances interne";
       }
-      return `- medias (${sources.medias.label}) : ${sources.medias.usageHint}`;
+      return "- medias : photos et liens internes";
     })
     .join("\n");
 }
