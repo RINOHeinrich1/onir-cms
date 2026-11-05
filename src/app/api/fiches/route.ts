@@ -16,7 +16,14 @@ export async function GET(request: Request): Promise<NextResponse> {
     const params = new URL(request.url).searchParams;
     const filtre = parseFicheArchiveFilter(params.get("filtre"));
     const lien = params.has("lien") ? (params.get("lien") ?? "") : null;
-    const fiches = await listFiches({ fiches: pgFicheRepository(getPool()) }, actor, filtre, lien);
+    const statuts = params.getAll("statut").filter((value) => value !== "");
+    const fiches = await listFiches(
+      { fiches: pgFicheRepository(getPool()) },
+      actor,
+      filtre,
+      lien,
+      statuts.length > 0 ? statuts : null,
+    );
     return NextResponse.json({ fiches });
   } catch (error) {
     return errorResponse(error);

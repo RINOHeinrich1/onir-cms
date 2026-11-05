@@ -3,7 +3,13 @@
  * Un seul point d'envoi ; les différences sont isolées par dialecte.
  */
 
-import type { AiMessage, AiTokenUsage } from "@/application/ports/ai-client";
+import type {
+  AiMessage,
+  AiTokenUsage,
+  AiToolCall,
+  AiToolCompletion,
+  AiToolDefinition,
+} from "@/application/ports/ai-client";
 import {
   type AiCapabilities,
   aiCapabilitiesFor,
@@ -23,6 +29,9 @@ export type ProviderChatInput = {
   maxTokens?: number;
   reasoning?: ReasoningMode | undefined;
   structured?: boolean | undefined;
+  /** Outils proposés au modèle (tool calling natif, ADR-0067 §7.1). */
+  tools?: AiToolDefinition[] | undefined;
+  toolChoice?: "auto" | "none" | undefined;
   capabilities?: AiCapabilities | undefined;
   onUsage?: ((usage: AiTokenUsage) => void | Promise<void>) | undefined;
   onFinishReason?: ((reason: string | null) => void) | undefined;
@@ -32,6 +41,28 @@ function endpoint(baseUrl: string): string {
   return `${baseUrl.replace(/\/$/, "")}/chat/completions`;
 }
 
+/**
+ * Traduit les messages du port vers le format OpenAI. Les champs `toolCalls`
+ * et `toolCallId` ne sont émis que lorsqu'ils sont présents : le chemin sans
+ * outil reste strictement identique (`{ role, content }`).
+ */
+function wireMessages(messages: AiMessage[]): Record<string, unknown>[] {
+  return messages.map((message) => {
+    const wire: Record<string, unknown> = { role: message.role, content: message.content };
+    if (message.role === "tool" && message.toolCallId !== undefined) {
+      wire.tool_call_id = message.toolCallId;
+    }
+    if (message.toolCalls !== undefined && message.toolCalls.length > 0) {
+      wire.tool_calls = message.toolCalls.map((call) => ({
+        id: call.id,
+        type: "function",
+        function: { name: call.name, arguments: call.arguments },
+      }));
+    }
+    return wire;
+  });
+}
+
 function requestBody(
   input: ProviderChatInput,
   maxTokens: number,
@@ -39,7 +70,7 @@ function requestBody(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: input.model,
-    messages: input.messages,
+    messages: wireMessages(input.messages),
     [tokenField]: maxTokens,
   };
   const reasoning = input.reasoning ?? "auto";
@@ -67,6 +98,20 @@ function requestBody(
 
   if (input.structured === true && capabilities?.structuredOutput === "json_object") {
     body.response_format = { type: "json_object" };
+  }
+
+  // Tool calling natif : uniquement si des outils sont fournis. Le chemin
+  // existant (sans `tools`) n'envoie donc aucun paramètre supplémentaire.
+  if (input.tools !== undefined && input.tools.length > 0) {
+    body.tools = input.tools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    }));
+    body.tool_choice = input.toolChoice ?? "auto";
   }
 
   return body;
@@ -97,78 +142,175 @@ async function post(
   });
 }
 
+type CompletionJson = {
+  choices?: Array<{
+    message?: { content?: unknown; tool_calls?: unknown };
+    finish_reason?: unknown;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    completion_tokens_details?: { reasoning_tokens?: number };
+  };
+};
+
+/**
+ * Envoie la requête et gère la reprise OpenAI (`max_tokens` refusé) une seule
+ * fois. Commun aux chemins avec et sans outils.
+ */
+async function postWithRetry(
+  input: ProviderChatInput,
+  maxTokens: number,
+  controller: AbortController,
+): Promise<{ json: CompletionJson; durationMs: number }> {
+  const startedAt = Date.now();
+  let response: Response;
+  try {
+    response = await post(input, requestBody(input, maxTokens, "max_tokens"), controller.signal);
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Délai d'attente IA dépassé (120 s)");
+    }
+    throw new Error("Service IA injoignable");
+  }
+
+  // OpenAI récent peut refuser `max_tokens` : une seule reprise compatible.
+  if (response.status === 400) {
+    const detail = await response.text();
+    if (/max_tokens|max_completion_tokens/i.test(detail)) {
+      try {
+        response = await post(
+          input,
+          requestBody(input, maxTokens, "max_completion_tokens"),
+          controller.signal,
+        );
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error("Délai d'attente IA dépassé (120 s)");
+        }
+        throw new Error("Service IA injoignable");
+      }
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(statusMessage(response.status));
+  }
+
+  const json = (await response.json()) as CompletionJson;
+  return { json, durationMs: Date.now() - startedAt };
+}
+
+async function reportUsage(
+  input: ProviderChatInput,
+  json: CompletionJson,
+  completionText: string,
+): Promise<{ completionTokens: number }> {
+  const promptText = input.messages.map((message) => message.content).join("\n");
+  const promptTokens =
+    json.usage?.prompt_tokens ?? (promptText === "" ? 0 : Math.ceil(promptText.length / 4));
+  const completionTokens =
+    json.usage?.completion_tokens ??
+    (completionText === "" ? 0 : Math.ceil(completionText.length / 4));
+  const totalTokens = json.usage?.total_tokens ?? promptTokens + completionTokens;
+  await input.onUsage?.({ promptTokens, completionTokens, totalTokens });
+  return { completionTokens };
+}
+
+function finishReasonOf(json: CompletionJson): string | null {
+  const value = json.choices?.[0]?.finish_reason;
+  return typeof value === "string" ? value : null;
+}
+
+/** Normalise un `tool_calls` fournisseur (arguments parfois objet). */
+function parseToolCalls(value: unknown): AiToolCall[] {
+  if (!Array.isArray(value)) return [];
+  const calls: AiToolCall[] = [];
+  for (const entry of value) {
+    if (entry === null || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const fn = record.function;
+    if (fn === null || typeof fn !== "object") continue;
+    const fnRecord = fn as Record<string, unknown>;
+    const name = typeof fnRecord.name === "string" ? fnRecord.name.trim() : "";
+    if (name === "") continue;
+    const rawArguments = fnRecord.arguments;
+    const args =
+      typeof rawArguments === "string"
+        ? rawArguments
+        : rawArguments === undefined || rawArguments === null
+          ? "{}"
+          : JSON.stringify(rawArguments);
+    calls.push({
+      id: typeof record.id === "string" ? record.id : `call_${calls.length}`,
+      name,
+      arguments: args,
+    });
+  }
+  return calls;
+}
+
 /** Exécute une complétion sur un fournisseur OpenAI-compatible. */
 export async function chatCompletionForProvider(input: ProviderChatInput): Promise<string> {
   const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120_000);
-  const startedAt = Date.now();
 
   try {
-    let response: Response;
-    try {
-      response = await post(input, requestBody(input, maxTokens, "max_tokens"), controller.signal);
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error("Délai d'attente IA dépassé (120 s)");
-      }
-      throw new Error("Service IA injoignable");
-    }
-
-    // OpenAI récent peut refuser `max_tokens` : une seule reprise compatible.
-    if (response.status === 400) {
-      const detail = await response.text();
-      if (/max_tokens|max_completion_tokens/i.test(detail)) {
-        try {
-          response = await post(
-            input,
-            requestBody(input, maxTokens, "max_completion_tokens"),
-            controller.signal,
-          );
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            throw new Error("Délai d'attente IA dépassé (120 s)");
-          }
-          throw new Error("Service IA injoignable");
-        }
-      }
-    }
-
-    if (!response.ok) {
-      throw new Error(statusMessage(response.status));
-    }
-
-    const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }>;
-      usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
-        total_tokens?: number;
-        completion_tokens_details?: { reasoning_tokens?: number };
-      };
-    };
-    const durationMs = Date.now() - startedAt;
-    const finishReason = json.choices?.[0]?.finish_reason;
-    input.onFinishReason?.(typeof finishReason === "string" ? finishReason : null);
+    const { json, durationMs } = await postWithRetry(input, maxTokens, controller);
+    const finishReason = finishReasonOf(json);
+    input.onFinishReason?.(finishReason);
     const content = json.choices?.[0]?.message?.content;
-    const promptText = input.messages.map((message) => message.content).join("\n");
     const completionText = typeof content === "string" ? content : "";
-    const promptTokens =
-      json.usage?.prompt_tokens ?? (promptText === "" ? 0 : Math.ceil(promptText.length / 4));
-    const completionTokens =
-      json.usage?.completion_tokens ??
-      (completionText === "" ? 0 : Math.ceil(completionText.length / 4));
-    const totalTokens = json.usage?.total_tokens ?? promptTokens + completionTokens;
-    await input.onUsage?.({ promptTokens, completionTokens, totalTokens });
+    const { completionTokens } = await reportUsage(input, json, completionText);
     const reasoningTokens = json.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     console.info(
       `[ia] ${input.label ?? "provider"} · ${input.model} · ${durationMs} ms · tokens=${completionTokens} (raisonnement=${reasoningTokens})`,
     );
 
-    if (typeof content !== "string" || content.trim() === "") {
+    if (completionText.trim() === "") {
       throw new Error("Réponse IA vide");
     }
-    return content.trim();
+    return completionText.trim();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Complétion avec tool calling natif (ADR-0067 §7.1). Retourne le contenu
+ * (éventuellement vide) ET les appels d'outil normalisés. Une réponse vide
+ * est acceptée dès qu'au moins un appel d'outil est présent.
+ */
+export async function chatCompletionWithToolsForProvider(
+  input: ProviderChatInput,
+): Promise<AiToolCompletion> {
+  const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120_000);
+
+  try {
+    const { json, durationMs } = await postWithRetry(input, maxTokens, controller);
+    const finishReason = finishReasonOf(json);
+    input.onFinishReason?.(finishReason);
+    const content = json.choices?.[0]?.message?.content;
+    const completionText = typeof content === "string" ? content : "";
+    const toolCalls = parseToolCalls(json.choices?.[0]?.message?.tool_calls);
+    const { completionTokens } = await reportUsage(input, json, completionText);
+    const reasoningTokens = json.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+    console.info(
+      `[ia] ${input.label ?? "provider"} · ${input.model} · ${durationMs} ms · tokens=${completionTokens} (raisonnement=${reasoningTokens}, outils=${toolCalls.length})`,
+    );
+
+    if (completionText.trim() === "" && toolCalls.length === 0) {
+      throw new Error("Réponse IA vide");
+    }
+    return {
+      content: completionText.trim(),
+      toolCalls,
+      finishReason,
+    };
   } finally {
     clearTimeout(timeout);
   }

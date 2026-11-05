@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { TEMPLATE_FIELD_TYPES, type TemplateFieldType } from "@/domain/entities/chat-template";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import type { FicheCollecteDto } from "./types";
+
+type StatusDraft = FicheStatusDefinition;
 
 type FieldDraft = {
   id: string;
@@ -14,6 +17,7 @@ type FieldDraft = {
   required: boolean;
   options: string;
   example: string;
+  unit: string;
 };
 
 type Draft = {
@@ -24,6 +28,7 @@ type Draft = {
   renderTemplate: string;
   instructions: string;
   fields: FieldDraft[];
+  statuses: StatusDraft[];
 };
 
 function newId(): string {
@@ -51,8 +56,10 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
           required: true,
           options: "",
           example: "",
+          unit: "",
         },
       ],
+      statuses: [],
     };
   }
   return {
@@ -62,6 +69,7 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
     intent: fiche.intent,
     renderTemplate: fiche.renderTemplate,
     instructions: fiche.instructions,
+    statuses: fiche.statuses,
     fields: fiche.fields.map((field) => ({
       id: newId(),
       name: field.name,
@@ -70,8 +78,20 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
       required: field.required,
       options: field.options?.join(", ") ?? "",
       example: field.example ?? "",
+      unit: field.unit ?? "",
     })),
   };
+}
+
+function slugifyStatusKey(label: string): string {
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+  return normalized === "" ? "statut" : normalized;
 }
 
 function slugifyFieldName(label: string): string {
@@ -107,8 +127,11 @@ function payload(draft: Draft): Record<string, unknown> {
         label: field.label.trim(),
         type: field.type,
         required: field.required,
-        ...(options.length === 0 ? {} : { options }),
+        ...((field.type === "select" || field.type === "multi") && options.length > 0
+          ? { options }
+          : {}),
         ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
+        ...(field.type === "number" && field.unit.trim() !== "" ? { unit: field.unit.trim() } : {}),
       };
     });
   const renderTemplate =
@@ -125,6 +148,15 @@ function payload(draft: Draft): Record<string, unknown> {
     renderTemplate,
     instructions: draft.instructions.trim(),
     fields,
+    statuses: draft.statuses.map((status) => ({
+      key: status.key.trim(),
+      label: status.label.trim(),
+      order: status.order,
+      ...(status.color?.trim() ? { color: status.color.trim() } : {}),
+      isDefault: status.isDefault,
+      archivedAt: status.archivedAt,
+      updatedAt: new Date().toISOString(),
+    })),
   };
 }
 
@@ -144,6 +176,25 @@ export function FicheCollecteForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
+
+  const updateStatus = (index: number, patch: Partial<StatusDraft>): void => {
+    setDraft((current) => ({
+      ...current,
+      statuses: current.statuses.map((status, position) =>
+        position === index ? { ...status, ...patch } : status,
+      ),
+    }));
+  };
+
+  const setDefaultStatus = (index: number): void => {
+    setDraft((current) => ({
+      ...current,
+      statuses: current.statuses.map((status, position) => ({
+        ...status,
+        isDefault: position === index,
+      })),
+    }));
+  };
 
   const updateField = (index: number, patch: Partial<FieldDraft>): void => {
     setDraft((current) => ({
@@ -254,6 +305,7 @@ export function FicheCollecteForm({
                   required: false,
                   options: "",
                   example: "",
+                  unit: "",
                 },
               ],
             })
@@ -307,6 +359,17 @@ export function FicheCollecteForm({
               />
             </label>
           ) : null}
+          {field.type === "number" ? (
+            <label className="field">
+              Unité (€, Ar…)
+              <input
+                type="text"
+                maxLength={8}
+                value={field.unit}
+                onChange={(event) => updateField(index, { unit: event.target.value })}
+              />
+            </label>
+          ) : null}
           <button
             type="button"
             className="btn ghost small"
@@ -315,6 +378,113 @@ export function FicheCollecteForm({
                 ...draft,
                 fields: draft.fields.filter((_entry, position) => position !== index),
               })
+            }
+          >
+            Retirer
+          </button>
+        </div>
+      ))}
+
+      <div className="chatbot-fields-head" style={{ marginTop: "1.5rem" }}>
+        <strong>Statuts de qualification ({draft.statuses.length})</strong>
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={() =>
+            setDraft((current) => ({
+              ...current,
+              statuses: [
+                ...current.statuses,
+                {
+                  key: "",
+                  label: "",
+                  order: current.statuses.length,
+                  isDefault: current.statuses.length === 0,
+                  archivedAt: null,
+                  updatedAt: new Date().toISOString(),
+                },
+              ],
+            }))
+          }
+        >
+          Ajouter un statut
+        </button>
+      </div>
+      <p className="hint">
+        Les statuts sont des métadonnées internes : ils ne sont pas des champs de la fiche et ne
+        sont jamais affichés au visiteur.
+      </p>
+      {draft.statuses.map((status, index) => (
+        <div className="field-row" key={status.key === "" ? status.updatedAt : status.key}>
+          <label className="field">
+            Statut
+            <input
+              type="text"
+              value={status.label}
+              placeholder="À qualifier"
+              onChange={(event) => {
+                const label = event.target.value;
+                updateStatus(index, {
+                  label,
+                  ...(status.key === "" ? { key: slugifyStatusKey(label) } : {}),
+                });
+              }}
+            />
+          </label>
+          <label className="field">
+            Clé
+            <input
+              type="text"
+              value={status.key}
+              disabled={status.key !== "" && fiche !== null}
+              onChange={(event) => updateStatus(index, { key: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Ordre
+            <input
+              type="number"
+              value={status.order}
+              onChange={(event) => updateStatus(index, { order: Number(event.target.value) })}
+            />
+          </label>
+          <label className="field">
+            Couleur
+            <input
+              type="text"
+              value={status.color ?? ""}
+              placeholder="#..."
+              onChange={(event) => updateStatus(index, { color: event.target.value })}
+            />
+          </label>
+          <label className="field checkbox">
+            <input
+              type="checkbox"
+              checked={status.isDefault}
+              onChange={() => setDefaultStatus(index)}
+            />
+            Défaut
+          </label>
+          <label className="field checkbox">
+            <input
+              type="checkbox"
+              checked={status.archivedAt !== null}
+              onChange={(event) =>
+                updateStatus(index, {
+                  archivedAt: event.target.checked ? new Date().toISOString() : null,
+                })
+              }
+            />
+            Archivé
+          </label>
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={() =>
+              setDraft((current) => ({
+                ...current,
+                statuses: current.statuses.filter((_entry, position) => position !== index),
+              }))
             }
           >
             Retirer

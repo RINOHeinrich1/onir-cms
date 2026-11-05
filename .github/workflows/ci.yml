@@ -53,6 +53,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - name: Garde legacy — colonnes de fiches supprimées (ADR-0067)
+        run: npm run check:legacy
       - run: npm test
       - name: Migrations — base de test jetable
         run: npm run db:migrate
@@ -98,6 +100,8 @@ jobs:
         run: npm run smoke --prefix template-kit
       - name: Immersive — tests unitaires
         run: npm run test:immersive --prefix template-kit
+      - name: Starter — tests des blocs (ADR-0067)
+        run: npm run test:template --prefix template-kit
 
   e2e:
     name: E2E — parcours publics

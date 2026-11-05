@@ -33,11 +33,17 @@ import {
   type TemplateParamType as HostTemplateParamType,
   TEMPLATE_PARAM_TYPES,
 } from "@/domain/template-params";
+import type {
+  MessageBlock as HostMessageBlock,
+  ToolField as HostToolField,
+  ToolFieldType as HostToolFieldType,
+} from "@/domain/tool-blocks";
 import {
   CONTRACT_VERSION as SDK_CONTRACT_VERSION,
   TEMPLATE_HOST_PROTOCOL as SDK_TEMPLATE_HOST_PROTOCOL,
 } from "../packages/template-sdk/src/constants";
 import type {
+  MessageBlock as SdkMessageBlock,
   ShadowDomMode as SdkShadowDomMode,
   TemplateAction as SdkTemplateAction,
   TemplateCapability as SdkTemplateCapability,
@@ -47,6 +53,8 @@ import type {
   TemplateMessage as SdkTemplateMessage,
   TemplateParamType as SdkTemplateParamType,
   TemplateTrustLevel as SdkTemplateTrustLevel,
+  ToolField as SdkToolField,
+  ToolFieldType as SdkToolFieldType,
 } from "../packages/template-sdk/src/types";
 
 /** `true` si `A` est assignable à `B` (non distributif : unions comparées entières). */
@@ -80,6 +88,14 @@ type TrustLevelSdkToHost = Expect<Extends<SdkTemplateTrustLevel, HostTemplateTru
 type TrustLevelHostToSdk = Expect<Extends<HostTemplateTrustLevel, SdkTemplateTrustLevel>>;
 type ShadowDomSdkToHost = Expect<Extends<SdkShadowDomMode, HostTemplateShadowDom>>;
 type ShadowDomHostToSdk = Expect<Extends<HostTemplateShadowDom, SdkShadowDomMode>>;
+
+// — Blocs de message et champs typés (ADR-0067 §5) —
+type BlockSdkToHost = Expect<Extends<SdkMessageBlock, HostMessageBlock>>;
+type BlockHostToSdk = Expect<Extends<HostMessageBlock, SdkMessageBlock>>;
+type ToolFieldSdkToHost = Expect<Extends<SdkToolField, HostToolField>>;
+type ToolFieldHostToSdk = Expect<Extends<HostToolField, SdkToolField>>;
+type ToolFieldTypeSdkToHost = Expect<Extends<SdkToolFieldType, HostToolFieldType>>;
+type ToolFieldTypeHostToSdk = Expect<Extends<HostToolFieldType, SdkToolFieldType>>;
 const dataContractSdkToHost = (value: SdkTemplateDataContract): HostTemplateDataContract => value;
 const dataContractHostToSdk = (value: HostTemplateDataContract): SdkTemplateDataContract => value;
 
@@ -118,6 +134,12 @@ const TYPE_ASSERTIONS = [
   true satisfies TrustLevelHostToSdk,
   true satisfies ShadowDomSdkToHost,
   true satisfies ShadowDomHostToSdk,
+  true satisfies BlockSdkToHost,
+  true satisfies BlockHostToSdk,
+  true satisfies ToolFieldSdkToHost,
+  true satisfies ToolFieldHostToSdk,
+  true satisfies ToolFieldTypeSdkToHost,
+  true satisfies ToolFieldTypeHostToSdk,
   true satisfies ProtocolSdkToHost,
   true satisfies ProtocolHostToSdk,
   true satisfies VersionSdkToHost,
@@ -151,5 +173,22 @@ describe("ressources de données — assignabilité hôte ↔ SDK", () => {
   it("accepte les deux directions", () => {
     expect(typeof dataContractSdkToHost).toBe("function");
     expect(typeof dataContractHostToSdk).toBe("function");
+  });
+});
+
+describe("blocs de message — miroir hôte ↔ SDK (ADR-0067 §5)", () => {
+  it("les types ToolField/MessageBlock sont mutuellement assignables", () => {
+    expect(true).toBe(true);
+  });
+
+  it("le champ contractVersion du SDK vaut 1", () => {
+    const block: SdkMessageBlock = {
+      type: "tool_search_result",
+      contractVersion: 1,
+      tool: "search_fiches",
+      items: [{ fields: [{ key: "titre", label: "Titre", type: "text", value: "A" }] }],
+    };
+    const host: HostMessageBlock = block;
+    expect(host.type).toBe("tool_search_result");
   });
 });

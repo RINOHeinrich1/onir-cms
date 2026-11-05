@@ -15,7 +15,8 @@
     "smoke": "node bin/smoke-create-template.mjs",
     "test:immersive": "node --test template-immersive/tests/*.test.mjs",
     "smoke:immersive": "node bin/test-immersive-flow.mjs --baseline=template-immersive/docs/baseline-4.24.1.json",
-    "build:vendor": "node bin/build-three-loaders.mjs"
+    "build:vendor": "node bin/build-three-loaders.mjs",
+    "test:template": "node --test template/tests/*.test.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3"

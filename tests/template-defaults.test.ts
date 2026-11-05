@@ -93,3 +93,25 @@ describe("template-defaults", () => {
     expect(preview.markdown).toContain("5 000 €");
   });
 });
+
+describe("buildSampleData — champs typés (ADR-0067)", () => {
+  it("produit des échantillons number, date et image", () => {
+    const sample = buildSampleData([
+      { name: "loyer", label: "Loyer", type: "number", required: true },
+      { name: "date", label: "Date", type: "date", required: true },
+      { name: "photo", label: "Photo", type: "image", required: true },
+    ]);
+    expect(sample).toEqual({
+      loyer: 0,
+      date: "2026-01-01",
+      photo: "https://exemple.com/image.jpg",
+    });
+  });
+
+  it("convertit un exemple numérique en nombre", () => {
+    const sample = buildSampleData([
+      { name: "loyer", label: "Loyer", type: "number", required: true, example: "5" },
+    ]);
+    expect(sample.loyer).toBe(5);
+  });
+});

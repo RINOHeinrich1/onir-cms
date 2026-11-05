@@ -9,10 +9,12 @@ import type { AiTokenUsage } from "@/application/ports/ai-client";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
+import type { ChatSearchSessionRepository } from "@/application/ports/chat-search-session-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
+import type { FicheToolRepository } from "@/application/ports/fiche-tool-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -41,10 +43,15 @@ import {
   interruptedAnswerMarker,
   replyLengthGuardrail,
 } from "@/application/use-cases/chat/reply-length";
+import { FICHE_TOOL_DEFINITIONS, runToolLoop } from "@/application/use-cases/chat/tool-loop";
 import {
   buildContexteInterne,
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
+import {
+  executeFicheTool,
+  type FicheToolContext,
+} from "@/application/use-cases/fiches/tool-search";
 import { type Attachment, DEFAULT_FILE_CONSTRAINTS } from "@/domain/entities/attachment";
 import type {
   ChatLink,
@@ -64,6 +71,7 @@ import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-fi
 import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
+import type { MessageBlock } from "@/domain/tool-blocks";
 import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt";
 
 function buildCollecteState(fiche: FicheDefinition, data: Record<string, unknown>): string {
@@ -120,6 +128,9 @@ export type SendMessageDependencies = {
   /** Configuration chatbot autonome (ADR-0049). */
   configs?: ChatbotConfigRepository;
   ficheInstances?: ConversationFicheInstanceRepository;
+  /** Outils internes de recherche (P3) — absents ⇒ chemin sans outil. */
+  ficheTools?: FicheToolRepository;
+  searchSessions?: ChatSearchSessionRepository;
 };
 
 export type SendMessageResult = {
@@ -445,23 +456,85 @@ ${attachmentContext}`;
     role: toAiRole(message.role),
     content: message.content,
   }));
+
+  // Chemin outils : explicitement opt-in (des types de fiches sont exposés) et
+  // uniquement si les repositories P3 sont disponibles. Sinon le comportement
+  // historique (une complétion simple) est strictement conservé.
+  const searchToolConfig = config?.searchTool;
+  const ficheToolRepository = deps.ficheTools;
+  const searchSessions = deps.searchSessions;
+  const toolsEnabled =
+    config !== null &&
+    searchToolConfig !== undefined &&
+    searchToolConfig.ficheTypes.length > 0 &&
+    ficheToolRepository !== undefined &&
+    searchSessions !== undefined;
+
   let finishReason: string | null = null;
   let answer: string;
-  try {
-    answer = await replyAi.complete({
-      system: systemEnrichi,
-      messages,
-      maxTokens: replyMaxTokens,
-      onFinishReason: (reason) => {
-        finishReason = reason;
+  let blocks: MessageBlock[] = [];
+
+  if (toolsEnabled && searchToolConfig !== undefined && ficheToolRepository !== undefined) {
+    const toolContext: FicheToolContext = {
+      organizationId,
+      chatLinkId: link.id,
+      conversationId: conversation.id,
+      config: searchToolConfig,
+      fiches: config?.fiches ?? [],
+      deps: {
+        fiches: ficheToolRepository,
+        sessions: searchSessions as ChatSearchSessionRepository,
       },
-    });
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new BadGatewayError("Service IA momentanément indisponible, réessayez");
+    };
+    try {
+      const loop = await runToolLoop({
+        ai: replyAi,
+        system: systemEnrichi,
+        messages,
+        maxTokens: replyMaxTokens,
+        supportsToolCalling: replyAi.capabilities?.supportsToolCalling === true,
+        tools: FICHE_TOOL_DEFINITIONS,
+        executeTool: (name, args) => executeFicheTool(toolContext, name, args),
+      });
+      answer = loop.content;
+      blocks = loop.blocks;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      // Le fournisseur a refusé le tool calling : réponse sans outil.
+      try {
+        answer = await replyAi.complete({
+          system: systemEnrichi,
+          messages,
+          maxTokens: replyMaxTokens,
+          onFinishReason: (reason) => {
+            finishReason = reason;
+          },
+        });
+      } catch (fallbackError) {
+        if (fallbackError instanceof AppError) throw fallbackError;
+        throw new BadGatewayError("Service IA momentanément indisponible, réessayez");
+      }
+    }
+  } else {
+    try {
+      answer = await replyAi.complete({
+        system: systemEnrichi,
+        messages,
+        maxTokens: replyMaxTokens,
+        onFinishReason: (reason) => {
+          finishReason = reason;
+        },
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new BadGatewayError("Service IA momentanément indisponible, réessayez");
+    }
   }
 
-  if (finishReason === "length") {
+  if (toolsEnabled && finishReason === "length") {
+    // La réponse issue de la boucle outils est déjà bornée ; on ne relance pas
+    // une seconde génération pour ne pas dépasser les deux appels d'outil.
+  } else if (finishReason === "length") {
     try {
       let retryFinishReason: string | null = null;
       const compact = await replyAi.complete({
@@ -501,6 +574,9 @@ ${attachmentContext}`;
     conversation.id,
     "assistant",
     answer,
+    undefined,
+    undefined,
+    blocks,
   );
   const mediaPending = await hasEligibleMedia(deps, organizationId, link, config);
   return {

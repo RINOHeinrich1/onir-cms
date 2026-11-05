@@ -15,10 +15,7 @@ type ConversationSummary = {
 
 type FicheSummary = {
   id: string;
-  plateformes: string[];
-  budget: string;
-  duree: string;
-  statut: "initier" | "reprendre";
+  label: string;
   createdAt: string;
 };
 
@@ -200,13 +197,9 @@ export function Prospect360Modal({
                     {data.fiches.map((fiche) => (
                       <li key={fiche.id}>
                         <span>
-                          <strong>{fiche.plateformes.join(", ")}</strong> · {fiche.budget} ·{" "}
-                          {fiche.duree}
+                          <strong>{fiche.label}</strong>
                         </span>
-                        <span className="muted-text">
-                          {fiche.statut === "initier" ? "à initier" : "à reprendre"} ·{" "}
-                          {formatDate(fiche.createdAt)}
-                        </span>
+                        <span className="muted-text">{formatDate(fiche.createdAt)}</span>
                       </li>
                     ))}
                   </ul>

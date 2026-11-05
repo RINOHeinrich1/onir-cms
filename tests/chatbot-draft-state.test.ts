@@ -60,6 +60,7 @@ describe("état de brouillon de chatbot", () => {
             type: "text",
             required: true,
             options: "",
+            unit: "",
             example: "",
           },
         ],

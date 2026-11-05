@@ -9,6 +9,7 @@ import type {
   VisitorContact,
 } from "@/domain/entities/chat";
 import type { ConversationIncidentKind } from "@/domain/entities/conversation-incident";
+import type { MessageBlock } from "@/domain/tool-blocks";
 
 export type CreateConversationInput = {
   linkId: string;
@@ -105,6 +106,8 @@ export interface ConversationRepository {
     attachmentIds?: string[],
     /** Auteur humain (messages opérateur uniquement). */
     authorUserId?: string | null,
+    /** Blocs riches persistés (ADR-0067 §5) ; défaut : tableau vide. */
+    blocks?: MessageBlock[],
   ): Promise<ChatMessage>;
   /** Message opérateur + prise en main atomiques (ADR-0043). */
   appendOperatorMessage(

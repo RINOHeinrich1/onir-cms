@@ -17,7 +17,7 @@
     "mode": "web-component",
     "entry": "./src/index.js",
     "element": "onirtech-template-starter",
-    "integrity": "sha256-5rLJXp+Q16+Eh+onsojUQiW2Air8BWR1NoPViAYBmpg=",
+    "integrity": "sha256-/QXhkIXzfG9Rj6AnWiCQ5uPcOaPAoeWA6UyScACuaNA=",
     "shadowDom": "open",
     "widget": {
       "entry": "./src/widget.js",

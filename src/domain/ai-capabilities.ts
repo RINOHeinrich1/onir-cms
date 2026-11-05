@@ -44,6 +44,8 @@ export type AiCapabilities = {
   supportsReasoningToggle: boolean;
   /** Mode structuré natif utilisable par défaut ; le prompt reste le fallback. */
   structuredOutput: StructuredOutputMode;
+  /** Tool calling natif annoncé par le preset (déclaratif, défaut `false`). */
+  supportsToolCalling: boolean;
 };
 
 export function isReasoningMode(value: unknown): value is ReasoningMode {
@@ -56,18 +58,29 @@ export function parseReasoningMode(value: unknown): ReasoningMode | null {
 
 const REASONING_MODEL_PATTERN = /^(o[1-9]|gpt-5|gpt-6|deepseek-reasoner|qwen\/|google\/gemma)/i;
 
+/**
+ * Le tool calling natif est déclaratif : seuls les presets réputés le
+ * supporter l'annoncent. Un fournisseur qui ment retombe sur le planner JSON
+ * (ADR-0067 §7.2) et la boucle reste bornée.
+ */
+export function supportsToolCallingFor(preset: AiProviderPreset): boolean {
+  return preset === "openai" || preset === "openrouter" || preset === "deepseek";
+}
+
 /** Capacités déclaratives par preset ; extensible sans toucher au cœur métier. */
 export function aiCapabilitiesFor(
   preset: AiProviderPreset,
   modelId: string,
   profile?: ReasoningProfile | null,
 ): AiCapabilities {
+  const supportsToolCalling = supportsToolCallingFor(preset);
   if (profile !== undefined && profile !== null && profile !== "auto") {
     if (profile === "none") {
       return {
         reasoningControl: "none",
         supportsReasoningToggle: false,
         structuredOutput: "prompt",
+        supportsToolCalling,
       };
     }
     if (profile === "infomaniak_chat_template") {
@@ -75,6 +88,7 @@ export function aiCapabilitiesFor(
         reasoningControl: "infomaniak_chat_template",
         supportsReasoningToggle: true,
         structuredOutput: "prompt",
+        supportsToolCalling,
       };
     }
     if (profile === "openai_reasoning_effort") {
@@ -82,12 +96,14 @@ export function aiCapabilitiesFor(
         reasoningControl: "openai_reasoning_effort",
         supportsReasoningToggle: true,
         structuredOutput: "json_object",
+        supportsToolCalling,
       };
     }
     return {
       reasoningControl: "openrouter_reasoning",
       supportsReasoningToggle: true,
       structuredOutput: "json_object",
+      supportsToolCalling,
     };
   }
   if (preset === "infomaniak") {
@@ -95,6 +111,7 @@ export function aiCapabilitiesFor(
       reasoningControl: "infomaniak_chat_template",
       supportsReasoningToggle: true,
       structuredOutput: "prompt",
+      supportsToolCalling,
     };
   }
   if (preset === "openai") {
@@ -103,6 +120,7 @@ export function aiCapabilitiesFor(
       reasoningControl: reasoning ? "openai_reasoning_effort" : "none",
       supportsReasoningToggle: reasoning,
       structuredOutput: "json_object",
+      supportsToolCalling,
     };
   }
   if (preset === "openrouter") {
@@ -110,6 +128,7 @@ export function aiCapabilitiesFor(
       reasoningControl: "openrouter_reasoning",
       supportsReasoningToggle: true,
       structuredOutput: "json_object",
+      supportsToolCalling,
     };
   }
   if (preset === "deepseek") {
@@ -117,12 +136,14 @@ export function aiCapabilitiesFor(
       reasoningControl: "none",
       supportsReasoningToggle: false,
       structuredOutput: "json_object",
+      supportsToolCalling,
     };
   }
   return {
     reasoningControl: "none",
     supportsReasoningToggle: false,
     structuredOutput: "prompt",
+    supportsToolCalling,
   };
 }
 

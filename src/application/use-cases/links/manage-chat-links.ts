@@ -1,5 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError, UnprocessableError, ValidationError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -25,12 +25,19 @@ import {
 } from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
+  type ChatLinkChannels,
   channelsForLink,
   legacyChannelFields,
   parseLinkSources,
   parseUserStateEnabled,
 } from "@/domain/entities/chat";
-import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
+import { type ChatbotConfigInput, parseChatbotConfig } from "@/domain/entities/chatbot-config";
+import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
+import {
+  assertSearchToolConfigAllowedForLink,
+  defaultSearchToolConfig,
+  FicheSearchToolConfigError,
+} from "@/domain/fiche-search-tool-config";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { publicLinkBaseUrl } from "@/lib/env";
 import { decryptLinkToken, encryptLinkToken } from "@/lib/link-crypto";
@@ -50,6 +57,20 @@ export type ManageChatLinksDependencies = ChatLinksDependencies & {
   /** Bibliothèque des fiches réutilisables (publication automatique). */
   ficheCollectes?: FicheCollecteRepository;
 };
+
+function assertPublicSearchToolConfig(
+  channels: ChatLinkChannels,
+  config: FicheSearchToolConfig,
+): void {
+  try {
+    assertSearchToolConfigAllowedForLink(channels, config);
+  } catch (error) {
+    if (error instanceof FicheSearchToolConfigError) {
+      throw new UnprocessableError(error.message);
+    }
+    throw error;
+  }
+}
 
 /** US-LIENS-001 — liste des liens (admin/marketeur). */
 export async function listChatLinks(
@@ -189,6 +210,22 @@ export async function updateChatLinkForOrganization(
   });
   const summary = legacyChannelFields(channels);
 
+  // La configuration est validée AVANT toute écriture : un refus de garde ne
+  // doit pas laisser une mise à jour partielle du lien (ADR-0067 §2.5).
+  let parsedConfig: ChatbotConfigInput | null = null;
+  const configRepository = deps.configs;
+  if ("config" in source) {
+    const parsed = parseChatbotConfig(source.config);
+    if (!parsed.ok) {
+      throw new ValidationError(parsed.errors.join(" ; "));
+    }
+    assertPublicSearchToolConfig(channels, parsed.value.searchTool ?? defaultSearchToolConfig());
+    if (configRepository === undefined) {
+      throw new ValidationError("Configuration chatbot indisponible");
+    }
+    parsedConfig = parsed.value;
+  }
+
   const updatedRaw = await deps.links.updateDetails(organizationId, id, {
     label: "label" in source ? parseLabel(source.label) : existing.label,
     ...summary,
@@ -226,18 +263,14 @@ export async function updateChatLinkForOrganization(
     );
   }
 
-  if ("config" in source) {
-    const parsed = parseChatbotConfig(source.config);
-    if (!parsed.ok) {
-      throw new ValidationError(parsed.errors.join(" ; "));
-    }
-    if (deps.configs === undefined) {
+  if (parsedConfig !== null) {
+    if (configRepository === undefined) {
       throw new ValidationError("Configuration chatbot indisponible");
     }
-    const config = await deps.configs.createVersion(
+    const config = await configRepository.createVersion(
       organizationId,
       id,
-      parsed.value,
+      parsedConfig,
       updated.createdBy,
     );
     if (deps.ficheCollectes !== undefined) {
@@ -245,7 +278,7 @@ export async function updateChatLinkForOrganization(
         await publishChatbotFiches(
           { fiches: deps.ficheCollectes },
           organizationId,
-          parsed.value.fiches,
+          parsedConfig.fiches,
           updated.createdBy,
         );
       } catch (error) {

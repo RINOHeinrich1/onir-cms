@@ -11,6 +11,7 @@ import {
   type TemplateDefinition,
   type TemplateField,
 } from "@/domain/entities/chat-template";
+import { parseFicheStatuses } from "@/domain/entities/fiche-status";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
 
 const KEY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -77,12 +78,22 @@ export function validateTemplateDefinition(
         continue;
       }
       const example = text(raw.example);
+      const unit = text(raw.unit);
+      if (unit !== "" && typeRaw !== "number") {
+        errors.push(`Unité réservée aux nombres (champ ${name})`);
+        continue;
+      }
+      if (unit.length > 8) {
+        errors.push(`Unité trop longue (champ ${name})`);
+        continue;
+      }
       const field: TemplateField = {
         name,
         label: fieldLabel,
         type: typeRaw,
         required: raw.required === true,
         ...(example === "" ? {} : { example }),
+        ...(unit === "" ? {} : { unit }),
       };
       if (typeRaw === "file") {
         const constraints = normalizeFileConstraints(raw.file);
@@ -91,6 +102,12 @@ export function validateTemplateDefinition(
           continue;
         }
         field.file = constraints.value;
+      }
+      if (typeRaw !== "select" && typeRaw !== "multi") {
+        if (Array.isArray(raw.options) && raw.options.length > 0) {
+          errors.push(`Options interdites pour ce type (champ ${name})`);
+          continue;
+        }
       }
       if (typeRaw === "select" || typeRaw === "multi") {
         const options = Array.isArray(raw.options)
@@ -139,6 +156,13 @@ export function validateTemplateDefinition(
     return { ok: false, errors };
   }
   const simple = normalizeTemplateSimpleSettings(input.simple);
+  const statuses = parseFicheStatuses(input.statuses);
+  if (!statuses.ok) {
+    errors.push(...statuses.errors);
+  }
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
   return {
     ok: true,
     value: {
@@ -148,6 +172,7 @@ export function validateTemplateDefinition(
       systemPrompt,
       fields,
       renderTemplate,
+      ...(input.statuses === undefined ? {} : { statuses: statuses.ok ? statuses.value : [] }),
       ...(simple === null ? {} : { simple }),
     },
   };

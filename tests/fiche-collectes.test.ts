@@ -35,6 +35,7 @@ function input(overrides: Partial<FicheCollecteInput> = {}): FicheCollecteInput 
       { name: "ville", label: "Ville", type: "text", required: true },
       { name: "contact", label: "Contact", type: "email", required: true },
     ],
+    statuses: [],
     renderTemplate: "# Hôtel\n\nVille : {{ville}}\n\nContact : {{contact}}\n",
     instructions: "",
     ...overrides,
@@ -203,5 +204,59 @@ describe("fiches de collecte réutilisables", () => {
     expect(snapshot.label).toBe("Demande d'hôtel");
     expect(snapshot.fields).toHaveLength(2);
     expect(snapshot.sourceVersion).toBe(1);
+  });
+});
+
+describe("statuts de qualification dans les snapshots (ADR-0067)", () => {
+  it("valide, conserve et copie les statuts dans le snapshot de fiche", () => {
+    const statuses = [
+      {
+        key: "a_qualifier",
+        label: "À qualifier",
+        order: 0,
+        isDefault: true,
+        archivedAt: null,
+        updatedAt: "2026-11-04T12:00:00.000Z",
+      },
+      {
+        key: "qualifie",
+        label: "Qualifié",
+        order: 1,
+        isDefault: false,
+        archivedAt: null,
+        updatedAt: "2026-11-04T12:00:00.000Z",
+      },
+    ];
+    const validated = validateFicheCollecte({ ...input(), statuses });
+    expect(validated.ok).toBe(true);
+    if (!validated.ok) return;
+    expect(validated.value.statuses).toEqual(statuses);
+    const snapshot = ficheToDefinitionSnapshot({
+      id: "f1",
+      organizationId: "org-1",
+      version: 1,
+      createdBy: null,
+      createdAt: "2026-11-04T12:00:00.000Z",
+      updatedAt: "2026-11-04T12:00:00.000Z",
+      ...validated.value,
+    });
+    expect(snapshot.statuses).toEqual(statuses);
+  });
+
+  it("refuse un statut sans défaut", () => {
+    const validated = validateFicheCollecte({
+      ...input(),
+      statuses: [
+        {
+          key: "qualifie",
+          label: "Qualifié",
+          order: 0,
+          isDefault: false,
+          archivedAt: null,
+          updatedAt: "2026-11-04T12:00:00.000Z",
+        },
+      ],
+    });
+    expect(validated.ok).toBe(false);
   });
 });

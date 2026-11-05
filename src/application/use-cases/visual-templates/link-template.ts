@@ -74,6 +74,7 @@ export function toContractMessages(
     id: message.id,
     role: message.role === "user" ? "user" : "assistant",
     content: message.content,
+    ...(message.blocks.length > 0 ? { blocks: message.blocks } : {}),
     ...(message.role === "operator" ? { authorName: "Conseiller" } : {}),
     medias: message.medias.map((media) => ({
       type: media.type,
@@ -151,6 +152,7 @@ export async function buildLinkContext(
         type: field.type,
         required: field.required,
         ...(field.options === undefined ? {} : { options: field.options }),
+        ...(field.unit === undefined ? {} : { unit: field.unit }),
         ...(field.file === undefined
           ? {}
           : {

@@ -14,7 +14,10 @@ import { createOrganizationAiUsageRecorder } from "@/application/use-cases/ai/re
 import { resolveUsageTargets } from "@/application/use-cases/ai/resolve-usage-targets";
 import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import { infomaniakBaseUrl } from "@/domain/entities/ai-provider";
-import { chatCompletionForProvider } from "@/infrastructure/ai/openai-client";
+import {
+  chatCompletionForProvider,
+  chatCompletionWithToolsForProvider,
+} from "@/infrastructure/ai/openai-client";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgAiUsageRepository } from "@/infrastructure/db/ai-usage-repository";
@@ -148,26 +151,41 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
       model: resolved.model,
       clusterId: resolved.clusterId ?? null,
     };
-    return {
+    const forwardedUsage =
+      (input: import("@/application/ports/ai-client").AiCompletionInput) =>
+      async (usage: import("@/application/ports/ai-client").AiTokenUsage) => {
+        try {
+          await recorder.record({
+            ...context,
+            usage: input.usageOperation ?? operation ?? "other",
+            ...usage,
+          });
+        } catch (error) {
+          console.error("[ia] usage organisation non enregistré", error);
+        }
+        await input.onUsage?.(usage);
+      };
+
+    const wrapped: AiClient = {
+      capabilities: client.capabilities ?? resolved.capabilities,
       async complete(input) {
         await recorder.assertCanCall(context);
-        return client.complete({
-          ...input,
-          onUsage: async (usage) => {
-            try {
-              await recorder.record({
-                ...context,
-                usage: input.usageOperation ?? operation ?? "other",
-                ...usage,
-              });
-            } catch (error) {
-              console.error("[ia] usage organisation non enregistré", error);
-            }
-            await input.onUsage?.(usage);
-          },
-        });
+        return client.complete({ ...input, onUsage: forwardedUsage(input) });
       },
     };
+    if (client.completeWithTools !== undefined) {
+      wrapped.completeWithTools = async (input) => {
+        await recorder.assertCanCall(context);
+        return (
+          client.completeWithTools?.({ ...input, onUsage: forwardedUsage(input) }) ?? {
+            content: "",
+            toolCalls: [],
+            finishReason: null,
+          }
+        );
+      };
+    }
+    return wrapped;
   };
 
   const buildClient = async (resolved: ResolvedAiTarget, operation?: string): Promise<AiClient> => {
@@ -175,6 +193,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
       const legacy = legacyAiCredentials();
       if (legacy === null) throw new AiNotConfiguredError();
       return instrumentClient(resolved, operation, {
+        capabilities: resolved.capabilities,
         async complete(input) {
           return chatCompletionForProvider({
             baseUrl: infomaniakBaseUrl(legacy.productId),
@@ -186,6 +205,24 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
             reasoning: input.reasoning ?? resolved.reasoningMode,
             structured: input.structured === true,
+            capabilities: resolved.capabilities,
+            onUsage: input.onUsage,
+            onFinishReason: input.onFinishReason,
+          });
+        },
+        async completeWithTools(input) {
+          return chatCompletionWithToolsForProvider({
+            baseUrl: infomaniakBaseUrl(legacy.productId),
+            apiKey: legacy.token,
+            model: resolved.model,
+            dialect: "infomaniak",
+            label: resolved.providerLabel,
+            messages: [{ role: "system", content: input.system }, ...input.messages],
+            ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+            reasoning: input.reasoning ?? resolved.reasoningMode,
+            structured: input.structured === true,
+            ...(input.tools === undefined ? {} : { tools: input.tools }),
+            ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
             capabilities: resolved.capabilities,
             onUsage: input.onUsage,
             onFinishReason: input.onFinishReason,
@@ -217,6 +254,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
       );
     }
     return instrumentClient(resolved, operation, {
+      capabilities: resolved.capabilities,
       async complete(input) {
         return chatCompletionForProvider({
           baseUrl: provider.baseUrl,
@@ -228,6 +266,24 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
           ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
           reasoning: input.reasoning ?? resolved.reasoningMode,
           structured: input.structured === true,
+          capabilities: resolved.capabilities,
+          onUsage: input.onUsage,
+          onFinishReason: input.onFinishReason,
+        });
+      },
+      async completeWithTools(input) {
+        return chatCompletionWithToolsForProvider({
+          baseUrl: provider.baseUrl,
+          apiKey,
+          model: resolved.model,
+          dialect: provider.dialect,
+          label: provider.label,
+          messages: [{ role: "system", content: input.system }, ...input.messages],
+          ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+          reasoning: input.reasoning ?? resolved.reasoningMode,
+          structured: input.structured === true,
+          ...(input.tools === undefined ? {} : { tools: input.tools }),
+          ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
           capabilities: resolved.capabilities,
           onUsage: input.onUsage,
           onFinishReason: input.onFinishReason,

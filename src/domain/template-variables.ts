@@ -79,7 +79,12 @@ export function buildRenderVariables(
       vars[field.name] = items.map((item) => `- ${item}`).join("\n");
       continue;
     }
-    const text = typeof value === "string" ? value : "";
+    const text =
+      typeof value === "string"
+        ? value
+        : typeof value === "number" && Number.isFinite(value)
+          ? String(value)
+          : "";
     vars[field.name] = text;
     if (field.type === "select" && text !== "") {
       vars[`${field.name}_${text}`] = "1";

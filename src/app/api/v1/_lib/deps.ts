@@ -7,6 +7,7 @@ import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-reposi
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { pgChatSearchSessionRepository } from "@/infrastructure/db/chat-search-session-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgConnaissanceRepository } from "@/infrastructure/db/connaissance-repository";
@@ -14,6 +15,7 @@ import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conve
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { pgFicheSearchRepository } from "@/infrastructure/db/fiche-search-repository";
+import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -50,6 +52,7 @@ export function conversationDeps() {
 
 export function conversationChatDeps() {
   const pool = getPool();
+  const ficheTools = pgFicheToolRepository(pool);
   return {
     organizations: pgOrganizationRepository(pool),
     links: pgChatLinkRepository(pool),
@@ -62,6 +65,8 @@ export function conversationChatDeps() {
     configs: pgChatbotConfigRepository(pool),
     ficheInstances: pgConversationFicheInstanceRepository(pool),
     fiches: pgFicheRepository(pool),
+    ficheTools,
+    searchSessions: pgChatSearchSessionRepository(pool),
   };
 }
 

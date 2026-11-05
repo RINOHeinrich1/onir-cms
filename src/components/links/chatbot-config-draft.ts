@@ -19,6 +19,9 @@ import {
   parseChatbotFallback,
   parseChatbotReplyMaxTokens,
 } from "@/domain/entities/chatbot-config";
+import { type FicheStatusDefinition, parseFicheStatuses } from "@/domain/entities/fiche-status";
+import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
+import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import { toTemplateKey } from "@/domain/template-defaults";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 
@@ -31,6 +34,7 @@ export type FicheFieldDraft = {
   required: boolean;
   options: string;
   example: string;
+  unit: string;
   /** Règle conditionnelle conservée lors d'un import/édition. */
   requiredIf?: TemplateRequiredIf;
   /** Contraintes fichier conservées lors d'un import/édition. */
@@ -47,10 +51,22 @@ export type FicheDraft = {
   instructions: string;
   renderTemplate: string;
   fields: FicheFieldDraft[];
+  /** Statuts de qualification versionnés avec la fiche (ADR-0067 §2.2). */
+  statuses?: FicheStatusDefinition[];
   /** Fiche réutilisable d'origine (traçabilité du snapshot, optionnel). */
   sourceFicheId?: string;
   sourceVersion?: number;
 };
+
+/**
+ * Politiques de l'outil de recherche éditées dans le backoffice (ADR-0067 §4.9).
+ * Alias explicite du contrat domaine, pour que l'UI ne dépende pas du nom interne.
+ */
+export type ChatbotSearchToolDraft = FicheSearchToolConfig;
+
+export function defaultChatbotSearchToolDraft(): ChatbotSearchToolDraft {
+  return defaultSearchToolConfig();
+}
 
 export type ChatbotConfigDraft = {
   behaviorMode: ChatbotBehaviorMode;
@@ -67,6 +83,8 @@ export type ChatbotConfigDraft = {
   fiches: FicheDraft[];
   dataSelection: ChatbotDataSelection;
   fallback: ChatbotFallback;
+  /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
+  searchTool: ChatbotSearchToolDraft;
   /** Budget de génération d'une réponse, en tokens. */
   replyMaxTokens: number;
 };
@@ -88,6 +106,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     required: field.required,
     options: field.options?.join(", ") ?? "",
     example: field.example ?? "",
+    unit: "",
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
   }));
@@ -125,6 +144,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     dataSelection: defaultChatbotDataSelection(),
     fallback:
       fields.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
+    searchTool: defaultChatbotSearchToolDraft(),
     replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
@@ -138,6 +158,7 @@ export function emptyField(): FicheFieldDraft {
     required: false,
     options: "",
     example: "",
+    unit: "",
   };
 }
 
@@ -159,6 +180,7 @@ export function emptyFiche(index: number): FicheDraft {
         required: true,
         options: "",
         example: "Nom et coordonnées",
+        unit: "",
       },
     ],
   };
@@ -180,6 +202,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     fiches: [],
     dataSelection: defaultChatbotDataSelection(),
     fallback: defaultChatbotFallback(),
+    searchTool: defaultChatbotSearchToolDraft(),
     replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
@@ -233,15 +256,62 @@ function fieldPayload(field: FicheFieldDraft, name: string): Record<string, unkn
         ? "text"
         : field.type,
     required: field.required,
-    ...(options.length === 0 ? {} : { options }),
+    ...((field.type === "select" || field.type === "multi") && options.length > 0
+      ? { options }
+      : {}),
     ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
+    ...(field.type === "number" && field.unit.trim() !== "" ? { unit: field.unit.trim() } : {}),
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
   };
 }
 
 /** Convertit le brouillon d'éditeur en payload API `config`. */
-export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, unknown> {
+export type ChatbotConfigPayloadOptions = {
+  /** Le lien porte au moins un canal public : aucune politique backoffice. */
+  publicLink?: boolean;
+};
+
+/**
+ * Motifs de refus d'une configuration d'outil sur un lien public.
+ * Mêmes règles que la garde serveur (ADR-0067 §2.5 / §10).
+ */
+export function searchToolDraftViolations(
+  searchTool: ChatbotSearchToolDraft,
+  publicLink: boolean,
+): string[] {
+  if (!publicLink) return [];
+  const errors: string[] = [];
+  if (searchTool.statusMode !== "hidden_fixed") {
+    errors.push("Le mode de statut backoffice est interdit sur un lien public");
+  }
+  if (searchTool.scope !== "chat_link") {
+    errors.push("La portée organisation est interdite sur un lien public");
+  }
+  return errors;
+}
+
+/**
+ * Normalise la politique pour un lien public : même une valeur héritée
+ * invalide ne peut jamais être émise vers le serveur.
+ */
+export function publicSafeSearchToolDraft(
+  searchTool: ChatbotSearchToolDraft,
+  publicLink: boolean,
+): ChatbotSearchToolDraft {
+  if (!publicLink) return { ...searchTool };
+  return {
+    ...searchTool,
+    statusMode: "hidden_fixed",
+    scope: "chat_link",
+  };
+}
+
+export function chatbotConfigPayload(
+  draft: ChatbotConfigDraft,
+  options: ChatbotConfigPayloadOptions = {},
+): Record<string, unknown> {
+  const publicLink = options.publicLink === true;
   return {
     behaviorMode: draft.behaviorMode,
     systemPrompt: effectiveSystemPrompt(draft),
@@ -276,6 +346,7 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
         description: fiche.description.trim(),
         intent: fiche.intent.trim(),
         fields: fields.map(({ draft: field, name }) => fieldPayload(field, name)),
+        ...(fiche.statuses === undefined ? {} : { statuses: fiche.statuses }),
         renderTemplate,
         instructions: fiche.instructions.trim(),
         ...(fiche.sourceFicheId === undefined
@@ -285,6 +356,7 @@ export function chatbotConfigPayload(draft: ChatbotConfigDraft): Record<string, 
     }),
     dataSelection: draft.dataSelection,
     fallback: draft.fallback,
+    searchTool: publicSafeSearchToolDraft(draft.searchTool, publicLink),
     replyMaxTokens: draft.replyMaxTokens,
   };
 }
@@ -310,6 +382,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
         ? (entry as Record<string, unknown>)
         : {};
     const fieldsRaw = Array.isArray(fiche.fields) ? fiche.fields : [];
+    const statusesParsed = parseFicheStatuses(fiche.statuses);
     const fields: FicheFieldDraft[] = fieldsRaw.map((fieldEntry) => {
       const field =
         fieldEntry !== null && typeof fieldEntry === "object" && !Array.isArray(fieldEntry)
@@ -325,6 +398,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           ? field.options.filter((item): item is string => typeof item === "string").join(", ")
           : "",
         example: typeof field.example === "string" ? field.example : "",
+        unit: typeof field.unit === "string" ? field.unit : "",
         ...(field.requiredIf !== null &&
         typeof field.requiredIf === "object" &&
         !Array.isArray(field.requiredIf) &&
@@ -354,6 +428,9 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
           ? fiche.renderTemplate
           : "# {{contact}}\n",
       fields: fields.length === 0 ? [emptyField()] : fields,
+      ...(statusesParsed.ok && statusesParsed.value.length > 0
+        ? { statuses: statusesParsed.value }
+        : {}),
       ...(typeof fiche.sourceFicheId === "string" && fiche.sourceFicheId !== ""
         ? {
             sourceFicheId: fiche.sourceFicheId,
@@ -377,6 +454,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
       : [];
   const dataSelection = parseChatbotDataSelection(raw.dataSelection);
   const fallback = parseChatbotFallback(raw.fallback);
+  const searchTool = parseSearchToolConfig(raw.searchTool);
   return {
     behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
       ? raw.behaviorMode
@@ -395,6 +473,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
     fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
+    searchTool: searchTool.ok ? searchTool.value : defaultChatbotSearchToolDraft(),
     replyMaxTokens:
       parseChatbotReplyMaxTokens(raw.replyMaxTokens) ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
@@ -411,6 +490,7 @@ export function draftFromFicheCollecte(input: {
   renderTemplate: string;
   version: number;
   fields: TemplateField[];
+  statuses?: FicheStatusDefinition[];
 }): FicheDraft {
   return {
     id: newId(),
@@ -422,6 +502,7 @@ export function draftFromFicheCollecte(input: {
     renderTemplate: input.renderTemplate.trim() === "" ? "# {{contact}}\n" : input.renderTemplate,
     sourceFicheId: input.id,
     sourceVersion: input.version,
+    ...(input.statuses === undefined ? {} : { statuses: input.statuses }),
     fields: input.fields.map((field) => ({
       id: newId(),
       name: field.name,
@@ -430,6 +511,7 @@ export function draftFromFicheCollecte(input: {
       required: field.required,
       options: field.options?.join(", ") ?? "",
       example: field.example ?? "",
+      unit: field.unit ?? "",
       ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
       ...(field.file === undefined ? {} : { file: field.file }),
     })),
@@ -445,5 +527,6 @@ export function draftFieldsToTemplateFields(fields: FicheFieldDraft[]): Template
       label: field.label.trim(),
       type: field.type,
       required: field.required,
+      ...(field.unit.trim() === "" ? {} : { unit: field.unit.trim() }),
     }));
 }

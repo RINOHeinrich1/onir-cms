@@ -5,6 +5,7 @@ import type {
 } from "@/application/ports/fiche-collecte-repository";
 import type { TemplateField } from "@/domain/entities/chat-template";
 import type { FicheCollecte, FicheCollecteInput } from "@/domain/entities/fiche-collecte";
+import { parseFicheStatuses } from "@/domain/entities/fiche-status";
 
 type Row = {
   id: string;
@@ -14,6 +15,7 @@ type Row = {
   description: string;
   intent: string;
   fields: unknown;
+  statuses: unknown;
   render_template: string;
   instructions: string;
   version: number;
@@ -31,6 +33,7 @@ type VersionRow = {
   description: string;
   intent: string;
   fields: unknown;
+  statuses: unknown;
   render_template: string;
   instructions: string;
   created_by: string | null;
@@ -38,9 +41,14 @@ type VersionRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, key, label, description, intent, fields, render_template, instructions, version, created_by, created_at, updated_at";
+  "id, organization_id, key, label, description, intent, fields, statuses, render_template, instructions, version, created_by, created_at, updated_at";
 function parseFields(value: unknown): TemplateField[] {
   return Array.isArray(value) ? (value as TemplateField[]) : [];
+}
+
+function parseStatuses(value: unknown) {
+  const parsed = parseFicheStatuses(value);
+  return parsed.ok ? parsed.value : [];
 }
 
 function toEntity(row: Row): FicheCollecte {
@@ -52,6 +60,7 @@ function toEntity(row: Row): FicheCollecte {
     description: row.description,
     intent: row.intent,
     fields: parseFields(row.fields),
+    statuses: parseStatuses(row.statuses),
     renderTemplate: row.render_template,
     instructions: row.instructions,
     version: row.version,
@@ -71,6 +80,7 @@ function toVersion(row: VersionRow): FicheCollecteVersion {
     description: row.description,
     intent: row.intent,
     fields: parseFields(row.fields),
+    statuses: parseStatuses(row.statuses),
     renderTemplate: row.render_template,
     instructions: row.instructions,
     createdBy: row.created_by,
@@ -88,8 +98,8 @@ async function insertVersion(
   await client.query(
     `INSERT INTO fiche_collecte_versions
        (fiche_collecte_id, version, key, label, description, intent, fields,
-        render_template, instructions, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)`,
+        statuses, render_template, instructions, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11)`,
     [
       ficheId,
       version,
@@ -98,6 +108,7 @@ async function insertVersion(
       input.description,
       input.intent,
       JSON.stringify(input.fields),
+      JSON.stringify(input.statuses),
       input.renderTemplate,
       input.instructions,
       createdBy,
@@ -143,8 +154,8 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO fiche_collectes
              (organization_id, key, label, description, intent, fields,
-              render_template, instructions, version, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, 1, $9)
+              statuses, render_template, instructions, version, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, 1, $10)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -153,6 +164,7 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
             input.description,
             input.intent,
             JSON.stringify(input.fields),
+            JSON.stringify(input.statuses),
             input.renderTemplate,
             input.instructions,
             createdBy,
@@ -189,7 +201,8 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
         const updated = await client.query<Row>(
           `UPDATE fiche_collectes SET
              key = $3, label = $4, description = $5, intent = $6, fields = $7::jsonb,
-             render_template = $8, instructions = $9, version = $10, updated_at = now()
+             statuses = $8::jsonb, render_template = $9, instructions = $10,
+             version = $11, updated_at = now()
            WHERE organization_id = $1 AND id = $2
            RETURNING ${COLUMNS}`,
           [
@@ -200,6 +213,7 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
             input.description,
             input.intent,
             JSON.stringify(input.fields),
+            JSON.stringify(input.statuses),
             input.renderTemplate,
             input.instructions,
             version,
@@ -220,7 +234,7 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
     async listVersions(organizationId, id) {
       const { rows } = await pool.query<VersionRow>(
         `SELECT v.id, v.fiche_collecte_id, v.version, v.key, v.label, v.description,
-                v.intent, v.fields, v.render_template, v.instructions,
+                v.intent, v.fields, v.statuses, v.render_template, v.instructions,
                 v.created_by, v.created_at
            FROM fiche_collecte_versions v
            JOIN fiche_collectes f ON f.id = v.fiche_collecte_id
@@ -234,7 +248,7 @@ export function pgFicheCollecteRepository(pool: Pool): FicheCollecteRepository {
     async findVersion(organizationId, id, version) {
       const { rows } = await pool.query<VersionRow>(
         `SELECT v.id, v.fiche_collecte_id, v.version, v.key, v.label, v.description,
-                v.intent, v.fields, v.render_template, v.instructions,
+                v.intent, v.fields, v.statuses, v.render_template, v.instructions,
                 v.created_by, v.created_at
            FROM fiche_collecte_versions v
            JOIN fiche_collectes f ON f.id = v.fiche_collecte_id

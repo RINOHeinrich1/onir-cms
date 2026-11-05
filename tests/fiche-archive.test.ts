@@ -28,14 +28,6 @@ function fiche(overrides: Partial<Fiche> = {}): Fiche {
     prospectId: null,
     createdBy: null,
     data: {},
-    plateformes: [],
-    description: "",
-    budget: "",
-    duree: "",
-    contact: "",
-    statut: null,
-    contraintesTechno: "",
-    lienDocSpec: "",
     archivee: false,
     createdAt: new Date(0).toISOString(),
     ...overrides,
@@ -68,19 +60,19 @@ describe("listFiches — filtre serveur", () => {
   it("par défaut, exclut les fiches archivées", async () => {
     const fiches = repo(null);
     await listFiches({ fiches }, ADMIN);
-    expect(fiches.list).toHaveBeenCalledWith("org-1", "actives", null);
+    expect(fiches.list).toHaveBeenCalledWith("org-1", "actives", null, null);
   });
 
   it("transmet le filtre demandé", async () => {
     const fiches = repo(null);
     await listFiches({ fiches }, ADMIN, "archivees");
-    expect(fiches.list).toHaveBeenCalledWith("org-1", "archivees", null);
+    expect(fiches.list).toHaveBeenCalledWith("org-1", "archivees", null, null);
   });
 
   it("transmet le libellé de lien de chat", async () => {
     const fiches = repo(null);
     await listFiches({ fiches }, ADMIN, "actives", "Campagne été");
-    expect(fiches.list).toHaveBeenCalledWith("org-1", "actives", "Campagne été");
+    expect(fiches.list).toHaveBeenCalledWith("org-1", "actives", "Campagne été", null);
   });
 });
 

@@ -53,7 +53,8 @@ function sameFiche(existing: FicheCollecte, input: FicheCollecteInput): boolean 
     existing.intent === input.intent &&
     existing.instructions === input.instructions &&
     existing.renderTemplate === input.renderTemplate &&
-    JSON.stringify(existing.fields) === JSON.stringify(input.fields)
+    JSON.stringify(existing.fields) === JSON.stringify(input.fields) &&
+    JSON.stringify(existing.statuses) === JSON.stringify(input.statuses)
   );
 }
 
@@ -75,6 +76,7 @@ export async function publishChatbotFiches(
       description: fiche.description,
       intent: fiche.intent,
       fields: fiche.fields,
+      statuses: fiche.statuses ?? [],
       renderTemplate: fiche.renderTemplate,
       instructions: fiche.instructions,
     };

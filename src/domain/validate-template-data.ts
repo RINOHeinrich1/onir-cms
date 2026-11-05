@@ -10,6 +10,34 @@ import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-t
 import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const NUMERIC_PATTERN = /^-?\d+(?:\.\d+)?$/;
+
+function httpUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+function isoDate(value: unknown): string | null {
+  if (typeof value !== "string" || !DATE_PATTERN.test(value.trim())) return null;
+  const text = value.trim();
+  const date = new Date(`${text}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text ? null : text;
+}
+
+function numericValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && NUMERIC_PATTERN.test(value.trim())) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -37,18 +65,14 @@ function checkType(field: TemplateField, value: unknown): string | null {
       }
       return null;
     }
-    case "url": {
-      if (typeof value !== "string") return `« ${field.label} » doit être un lien`;
-      try {
-        const parsed = new URL(value.trim());
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          return `« ${field.label} » doit être un lien http(s)`;
-        }
-      } catch {
-        return `« ${field.label} » doit être un lien valide`;
-      }
-      return null;
-    }
+    case "url":
+      return httpUrl(value) === null ? `« ${field.label} » doit être un lien http(s)` : null;
+    case "image":
+      return httpUrl(value) === null ? `« ${field.label} » doit être une image http(s)` : null;
+    case "number":
+      return numericValue(value) === null ? `« ${field.label} » doit être un nombre` : null;
+    case "date":
+      return isoDate(value) === null ? `« ${field.label} » doit être une date YYYY-MM-DD` : null;
     case "select": {
       if (typeof value !== "string" || canonicalOption(field, value) === null) {
         return `« ${field.label} » doit valoir : ${(field.options ?? []).join(", ")}`;
@@ -69,11 +93,19 @@ function checkType(field: TemplateField, value: unknown): string | null {
 
 function isEmpty(field: TemplateField, value: unknown): boolean {
   if (field.type === "multi") return textList(value).length === 0;
-  return text(value) === "";
+  if (field.type === "number") {
+    return (
+      value === null || value === undefined || (typeof value === "string" && value.trim() === "")
+    );
+  }
+  return (
+    value === null || value === undefined || (typeof value === "string" && value.trim() === "")
+  );
 }
 
 function normalize(field: TemplateField, value: unknown): unknown {
   if (field.type === "multi") return canonicalMultiValue(field, value).values;
+  if (field.type === "number") return numericValue(value);
   if (field.type === "select" && typeof value === "string") {
     return canonicalOption(field, value) ?? value.trim();
   }

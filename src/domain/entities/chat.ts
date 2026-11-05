@@ -6,6 +6,7 @@
 
 import type { AttachmentView } from "@/domain/entities/attachment";
 import { normalizeTemplateParamValues, type TemplateParamValues } from "@/domain/template-params";
+import type { MessageBlock } from "@/domain/tool-blocks";
 import { type ChatLinkWidgetConfig, parseChatLinkWidgetConfig } from "@/domain/widget";
 
 export const CHAT_LINK_TYPES = ["specifique", "standard"] as const;
@@ -87,6 +88,32 @@ export function channelsForLink(link: ChatLink): ChatLinkChannels {
       widgetConfig: link.widgetConfig,
     },
   };
+}
+
+/** Sous-ensemble structurel d'un canal suffisant pour décider de la publicité. */
+export type PublicChannelState = {
+  enabled: boolean;
+  identificationMode: string;
+};
+
+/**
+ * Un lien est public dès qu'au moins un canal activé est ouvert à un visiteur
+ * non interne. Un lien sans canal activé est considéré public par défaut : une
+ * configuration backoffice ne doit jamais pouvoir y être préparée (ADR-0067 §2.5).
+ *
+ * La signature est volontairement structurelle : les formulaires d'édition
+ * (brouillons de canaux) et les canaux persistés peuvent la réutiliser.
+ */
+export function isPublicChatLink(channels: {
+  page: PublicChannelState;
+  widget: PublicChannelState;
+}): boolean {
+  const enabled = [channels.page, channels.widget].filter((channel) => channel.enabled);
+  if (enabled.length === 0) return true;
+  // Le type actif n'expose pas encore `internal`, mais la colonne le réserve :
+  // la comparaison est volontairement élargie pour rester correcte si le mode
+  // backoffice est ouvert plus tard (ADR-0033 / ADR-0067 §2.5).
+  return enabled.some((channel) => (channel.identificationMode as string) !== "internal");
 }
 
 /** Champs historiques (surface, template, identification) dérivés des canaux. */
@@ -438,6 +465,8 @@ export type ChatMessage = {
   mediasComputed: boolean;
   /** Pièces jointes du message (champs fichier, ADR-0034). */
   attachments: AttachmentView[];
+  /** Représentation riche ordonnée (ADR-0067 §5) ; `content` reste le secours. */
+  blocks: MessageBlock[];
   /** Auteur humain d'un message opérateur (ADR-0043). */
   authorUserId: string | null;
   /** Nom lisible de l'auteur opérateur (dérivé). */

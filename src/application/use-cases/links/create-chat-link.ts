@@ -1,5 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError, UnprocessableError, ValidationError } from "@/application/errors";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
@@ -31,6 +31,7 @@ import {
 } from "@/application/use-cases/links/link-fields";
 import {
   type ChatLink,
+  type ChatLinkChannels,
   type ChatLinkType,
   isChatLinkType,
   legacyChannelFields,
@@ -38,6 +39,12 @@ import {
   parseUserStateEnabled,
 } from "@/domain/entities/chat";
 import { parseChatbotConfig } from "@/domain/entities/chatbot-config";
+import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
+import {
+  assertSearchToolConfigAllowedForLink,
+  defaultSearchToolConfig,
+  FicheSearchToolConfigError,
+} from "@/domain/fiche-search-tool-config";
 import { generateLinkToken, hashLinkToken } from "@/domain/link-token";
 import { encryptLinkToken } from "@/lib/link-crypto";
 
@@ -99,6 +106,20 @@ function parseProvisioningKnowledge(value: unknown): ProvisioningKnowledgeInput[
     result.push({ titre, contenu });
   }
   return result;
+}
+
+function assertPublicSearchToolConfig(
+  channels: ChatLinkChannels,
+  config: FicheSearchToolConfig,
+): void {
+  try {
+    assertSearchToolConfigAllowedForLink(channels, config);
+  } catch (error) {
+    if (error instanceof FicheSearchToolConfigError) {
+      throw new UnprocessableError(error.message);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -165,6 +186,7 @@ export async function createChatLinkForOrganization(
   if (configInput.ok === false) {
     throw new ValidationError(configInput.errors.join(" ; "));
   }
+  assertPublicSearchToolConfig(channels, configInput.value.searchTool ?? defaultSearchToolConfig());
   const knowledge = parseProvisioningKnowledge(source.knowledge);
 
   if (type === "specifique") {

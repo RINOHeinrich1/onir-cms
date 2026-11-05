@@ -1,4 +1,7 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
+import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
+import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import { buildDefaultSystemPrompt } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
 import {
@@ -57,6 +60,7 @@ export type FicheDefinition = {
   description: string;
   intent: string;
   fields: TemplateField[];
+  statuses?: FicheStatusDefinition[];
   renderTemplate: string;
   instructions: string;
   /** Fiche réutilisable d'origine (snapshot, optionnel). */
@@ -242,6 +246,8 @@ export type ChatbotConfigInput = {
   fallback?: ChatbotFallback;
   /** Budget de génération d'une réponse, en tokens (défaut 400). */
   replyMaxTokens?: number;
+  /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
+  searchTool?: FicheSearchToolConfig;
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
@@ -278,6 +284,8 @@ function parseFiche(
     description: text(raw.description),
     systemPrompt: "validation",
     fields: raw.fields,
+    // ADR-0067 §2.2 : les statuts sont versionnés avec le snapshot de la fiche.
+    ...(raw.statuses === undefined ? {} : { statuses: raw.statuses }),
     renderTemplate,
   });
   if (!validated.ok) {
@@ -294,6 +302,7 @@ function parseFiche(
       description: validated.value.description,
       intent: text(raw.intent),
       fields: validated.value.fields,
+      ...(validated.value.statuses === undefined ? {} : { statuses: validated.value.statuses }),
       renderTemplate: validated.value.renderTemplate,
       instructions: text(raw.instructions).slice(0, 4000),
       ...(text(raw.sourceFicheId) === ""
@@ -369,6 +378,8 @@ export function parseChatbotConfig(
   if (!parsedSelection.ok) errors.push(parsedSelection.error);
   const parsedFallback = parseChatbotFallback(raw.fallback);
   if (!parsedFallback.ok) errors.push(parsedFallback.error);
+  const parsedSearchTool = parseSearchToolConfig(raw.searchTool);
+  if (!parsedSearchTool.ok) errors.push(...parsedSearchTool.errors);
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -380,6 +391,7 @@ export function parseChatbotConfig(
       dataSelection: parsedSelection.ok ? parsedSelection.value : defaultChatbotDataSelection(),
       fallback: parsedFallback.ok ? parsedFallback.value : defaultChatbotFallback(),
       replyMaxTokens: replyMaxTokens ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
+      searchTool: parsedSearchTool.ok ? parsedSearchTool.value : defaultSearchToolConfig(),
     },
   };
 }

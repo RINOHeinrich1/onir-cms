@@ -159,3 +159,42 @@ test("lien public : l'organisation du lien est résolue, org suspendue = 404", a
   const afterSuspend = await request.get(`/l/${token}`);
   expect(afterSuspend.status()).toBe(404);
 });
+
+test("fiches : une organisation ne voit jamais celles d'une autre (E012)", async ({ request }) => {
+  await login(request);
+
+  const orgA = await createOrganization(request, `E2E-FICHES-A-${Date.now()}`);
+  await switchOrganization(request, orgA);
+  const created = await request.post("/api/fiches", {
+    data: {
+      data: {
+        plateformes: ["site web"],
+        description: "Fiche E2E isolation",
+        budget: "1000",
+        duree: "1 mois",
+        contact: "Contact A",
+      },
+    },
+  });
+  expect(created.status()).toBe(201);
+  const { fiche } = (await created.json()) as { fiche: { id: string } };
+
+  const orgB = await createOrganization(request, `E2E-FICHES-B-${Date.now()}`);
+  await switchOrganization(request, orgB);
+
+  const list = await request.get("/api/fiches");
+  expect(list.ok()).toBeTruthy();
+  const body = (await list.json()) as { fiches: { id: string }[] };
+  expect(body.fiches.some((item) => item.id === fiche.id)).toBe(false);
+
+  const crossUpdate = await request.patch(`/api/fiches/${fiche.id}`, {
+    data: { archivee: true },
+  });
+  expect(crossUpdate.status()).toBe(404);
+
+  await switchOrganization(request, orgA);
+  const own = await request.patch(`/api/fiches/${fiche.id}`, {
+    data: { archivee: true },
+  });
+  expect(own.ok()).toBeTruthy();
+});

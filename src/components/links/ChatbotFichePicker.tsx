@@ -6,6 +6,7 @@ import type { FicheCollecteDto } from "@/components/fiches-collecte/types";
 import { Modal } from "@/components/ui/Modal";
 import type { TemplateField } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import { draftFromFicheCollecte, type FicheDraft } from "./chatbot-config-draft";
 
 export type FicheCollecteOption = {
@@ -18,6 +19,7 @@ export type FicheCollecteOption = {
   renderTemplate: string;
   version: number;
   fields: TemplateField[];
+  statuses?: FicheStatusDefinition[];
 };
 
 type Props = {

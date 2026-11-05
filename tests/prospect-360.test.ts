@@ -73,36 +73,36 @@ function deps() {
     findById: async () => null,
     listByConversation: async () => [],
     setArchivee: async () => null,
+    setQualificationStatus: async () => null,
     create: async () => ({}) as Fiche,
     list: async () => [
       {
         id: "f1",
+        organizationId: "org-1",
         conversationId: "c-from-fiche",
         prospectId: "p1",
         createdBy: null,
-        plateformes: ["site web"],
-        description: "d",
-        budget: "1",
-        duree: "2",
-        contact: "x",
-        statut: "initier",
-        contraintesTechno: "",
-        lienDocSpec: "",
+        definition: {
+          key: "maison",
+          label: "Maison",
+          description: "",
+          systemPrompt: "x",
+          fields: [],
+          renderTemplate: "",
+        },
+        data: {},
+        archivee: false,
         createdAt: new Date(0).toISOString(),
       } as Fiche,
       {
         id: "f2",
+        organizationId: "org-1",
         conversationId: null,
         prospectId: "autre",
         createdBy: null,
-        plateformes: ["mobile"],
-        description: "d",
-        budget: "1",
-        duree: "2",
-        contact: "x",
-        statut: "initier",
-        contraintesTechno: "",
-        lienDocSpec: "",
+        definition: null,
+        data: {},
+        archivee: false,
         createdAt: new Date(0).toISOString(),
       } as Fiche,
     ],
@@ -156,7 +156,9 @@ describe("getProspect360", () => {
   it("consolide identité, contacts, conversations et fiches du prospect", async () => {
     const result = await getProspect360(deps(), ACTOR, "p1");
     expect(result.prospect.id).toBe("p1");
-    expect(result.fiches.map((fiche) => fiche.id)).toEqual(["f1"]);
+    expect(result.fiches).toEqual([
+      { id: "f1", label: "Maison", createdAt: new Date(0).toISOString() },
+    ]);
     expect(result.conversations.map((c) => c.id).sort()).toEqual(["c-from-fiche", "c-link"]);
     expect(result.contacts).toEqual([
       { type: "email", valeur: "jean@exemple.mg", source: "prospect" },

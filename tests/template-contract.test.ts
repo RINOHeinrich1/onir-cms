@@ -5,6 +5,7 @@ import {
   parseTemplateAction,
   type TemplateMessage,
 } from "@/domain/template-contract";
+import type { MessageBlock } from "@/domain/tool-blocks";
 
 function input(overrides: Partial<BuildTemplateContextInput> = {}): BuildTemplateContextInput {
   return {
@@ -191,5 +192,41 @@ describe("parseTemplateAction — validation côté hôte", () => {
     );
     expect(parseTemplateAction({ action: "sabotage" }).ok).toBe(false);
     expect(parseTemplateAction("nope").ok).toBe(false);
+  });
+});
+
+describe("buildTemplateContext — blocs (ADR-0067 §5)", () => {
+  const blocks: MessageBlock[] = [
+    { type: "text", text: "Bonjour" },
+    {
+      type: "tool_search_result",
+      contractVersion: 1,
+      tool: "search_fiches",
+      items: [{ fields: [{ key: "titre", label: "Titre", type: "text", value: "A" }] }],
+    },
+  ];
+
+  it("conserve les blocs et content dans le message du contrat", () => {
+    const ctx = buildTemplateContext(
+      input({
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            content: "Bonjour",
+            medias: [],
+            at: new Date(0).toISOString(),
+            blocks,
+          },
+        ],
+      }),
+    );
+    expect(ctx.state.messages[0]?.blocks).toEqual(blocks);
+    expect(ctx.state.messages[0]?.content).toBe("Bonjour");
+  });
+
+  it("ne fabrique pas de bloc quand le message n'en a pas", () => {
+    const ctx = buildTemplateContext(input());
+    expect(ctx.state.messages[0]?.blocks).toBeUndefined();
   });
 });

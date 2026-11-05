@@ -9,8 +9,8 @@ const DEFINITION: TemplateDefinition = {
   systemPrompt: "x",
   fields: [
     {
-      name: "plateformes",
-      label: "Plateformes",
+      name: "categories",
+      label: "Catégories",
       type: "multi",
       required: true,
       options: ["site web", "SaaS", "mobile", "automatisme background"],
@@ -19,18 +19,18 @@ const DEFINITION: TemplateDefinition = {
     { name: "budget", label: "Budget", type: "text", required: true },
     { name: "contact", label: "Contact", type: "text", required: true },
     {
-      name: "statut",
-      label: "Statut",
+      name: "priorite",
+      label: "Priorité",
       type: "select",
       required: true,
-      options: ["initier", "reprendre"],
+      options: ["basse", "haute"],
     },
     {
-      name: "contraintesTechno",
-      label: "Contraintes",
+      name: "details",
+      label: "Détails",
       type: "textarea",
       required: false,
-      requiredIf: { field: "statut", equals: "reprendre" },
+      requiredIf: { field: "priorite", equals: "haute" },
     },
     { name: "site", label: "Site", type: "url", required: false },
     { name: "courriel", label: "Courriel", type: "email", required: false },
@@ -39,24 +39,24 @@ const DEFINITION: TemplateDefinition = {
 };
 
 const BASE: Record<string, unknown> = {
-  plateformes: ["site web"],
+  categories: ["site web"],
   description: "Vitrine.",
   budget: "1000",
   contact: "jean@exemple.mg",
-  statut: "initier",
+  priorite: "basse",
 };
 
 describe("validateTemplateData — règles fiche-projet reproduites", () => {
   it("accepte des données complètes et normalise", () => {
-    const result = validateTemplateData(DEFINITION, { ...BASE, plateformes: [" site web ", ""] });
+    const result = validateTemplateData(DEFINITION, { ...BASE, categories: [" site web ", ""] });
     expect(result).toEqual({
       ok: true,
       value: {
-        plateformes: ["site web"],
+        categories: ["site web"],
         description: "Vitrine.",
         budget: "1000",
         contact: "jean@exemple.mg",
-        statut: "initier",
+        priorite: "basse",
       },
     });
   });
@@ -65,25 +65,25 @@ describe("validateTemplateData — règles fiche-projet reproduites", () => {
     const result = validateTemplateData(DEFINITION, {});
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors.join(" ")).toMatch(/Plateformes/);
+      expect(result.errors.join(" ")).toMatch(/Catégories/);
       expect(result.errors.join(" ")).toMatch(/Budget/);
     }
   });
 
-  it("applique requiredIf (reprise ⇒ contraintes)", () => {
-    const missing = validateTemplateData(DEFINITION, { ...BASE, statut: "reprendre" });
+  it("applique requiredIf (priorité haute ⇒ détails)", () => {
+    const missing = validateTemplateData(DEFINITION, { ...BASE, priorite: "haute" });
     expect(missing.ok).toBe(false);
     const filled = validateTemplateData(DEFINITION, {
       ...BASE,
-      statut: "reprendre",
-      contraintesTechno: "PHP 5",
+      priorite: "haute",
+      details: "PHP 5",
     });
     expect(filled.ok).toBe(true);
   });
 
   it("valide types select/multi/url/email", () => {
-    expect(validateTemplateData(DEFINITION, { ...BASE, statut: "brouillon" }).ok).toBe(false);
-    expect(validateTemplateData(DEFINITION, { ...BASE, plateformes: ["inconnu"] }).ok).toBe(false);
+    expect(validateTemplateData(DEFINITION, { ...BASE, priorite: "brouillon" }).ok).toBe(false);
+    expect(validateTemplateData(DEFINITION, { ...BASE, categories: ["inconnu"] }).ok).toBe(false);
     expect(validateTemplateData(DEFINITION, { ...BASE, site: "pas-un-lien" }).ok).toBe(false);
     expect(validateTemplateData(DEFINITION, { ...BASE, site: "https://exemple.mg" }).ok).toBe(true);
     expect(validateTemplateData(DEFINITION, { ...BASE, courriel: "pas-un-email" }).ok).toBe(false);
@@ -98,13 +98,61 @@ describe("validatePartialTemplateData — édition des champs collectés", () =>
   });
 
   it("normalise un effacement manuel", () => {
-    const result = validatePartialTemplateData(DEFINITION, { site: "", plateformes: [] });
+    const result = validatePartialTemplateData(DEFINITION, { site: "", categories: [] });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual({ site: "", plateformes: [] });
+    if (result.ok) expect(result.value).toEqual({ site: "", categories: [] });
   });
 
   it("refuse une valeur invalide fournie", () => {
     const result = validatePartialTemplateData(DEFINITION, { site: "pas-un-lien" });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("validateTemplateData — champs number, date et image (ADR-0067)", () => {
+  const TYPED: TemplateDefinition = {
+    key: "typed",
+    label: "Typed",
+    description: "",
+    systemPrompt: "x",
+    fields: [
+      { name: "loyer", label: "Loyer", type: "number", required: true, unit: "€" },
+      { name: "disponible_le", label: "Disponible le", type: "date", required: false },
+      { name: "photo", label: "Photo", type: "image", required: false },
+    ],
+    renderTemplate: "# {{loyer}}",
+  };
+
+  it("accepte un nombre et normalise une chaîne numérique", () => {
+    const result = validateTemplateData(TYPED, { loyer: " 5 " });
+    expect(result).toEqual({ ok: true, value: { loyer: 5 } });
+  });
+
+  it("ne considère pas 0 comme vide", () => {
+    const result = validateTemplateData(TYPED, { loyer: 0 });
+    expect(result).toEqual({ ok: true, value: { loyer: 0 } });
+  });
+
+  it("refuse un nombre invalide", () => {
+    expect(validateTemplateData(TYPED, { loyer: "abc" }).ok).toBe(false);
+    expect(validateTemplateData(TYPED, { loyer: "" }).ok).toBe(false);
+  });
+
+  it("accepte une date calendrier valide et refuse une date impossible", () => {
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "2026-02-28" }).ok).toBe(true);
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "2026-02-30" }).ok).toBe(false);
+    expect(validateTemplateData(TYPED, { loyer: 1, disponible_le: "01/02/2026" }).ok).toBe(false);
+  });
+
+  it("accepte une image http(s) et refuse une valeur non URL", () => {
+    expect(
+      validateTemplateData(TYPED, { loyer: 1, photo: "https://exemple.mg/photo.jpg" }).ok,
+    ).toBe(true);
+    expect(validateTemplateData(TYPED, { loyer: 1, photo: "photo.jpg" }).ok).toBe(false);
+  });
+
+  it("normalise l'effacement partiel d'un nombre en chaîne vide", () => {
+    const result = validatePartialTemplateData(TYPED, { loyer: "" });
+    expect(result).toEqual({ ok: true, value: { loyer: "" } });
   });
 });

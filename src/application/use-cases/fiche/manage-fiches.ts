@@ -1,6 +1,7 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
+import { defaultStatusKeyFor } from "@/application/use-cases/fiche/manage-fiche-status";
 import {
   type Fiche,
   type FicheArchiveFilter,
@@ -57,6 +58,7 @@ export async function createFiche(
     ficheKey: MANUAL_FICHE_KEY,
     chatLinkIds,
     data: validated.value,
+    qualificationStatusKey: defaultStatusKeyFor(definition),
   });
 }
 
@@ -66,9 +68,10 @@ export async function listFiches(
   actor: Actor,
   filter: FicheArchiveFilter = "actives",
   linkLabel: string | string[] | null = null,
+  statusKeys: string[] | null = null,
 ): Promise<Fiche[]> {
   assertCan(actor, "project:read");
-  return deps.fiches.list(organizationOf(actor), filter, linkLabel);
+  return deps.fiches.list(organizationOf(actor), filter, linkLabel, statusKeys);
 }
 
 /** US-FICHE-002 — archive / désarchive une fiche (admin/marketeur). */
