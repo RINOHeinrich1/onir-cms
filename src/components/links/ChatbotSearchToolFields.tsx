@@ -134,135 +134,140 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
         <span className="chatbot-tool-toggle-text">Activer l’outil de recherche</span>
       </label>
       <p className="hint">
-        Désactivé par défaut : le chatbot répond normalement, sans outil de recherche. Activez
-        explicitement l’outil pour ce chatbot.
+        {value.enabled
+          ? "L’outil est activé pour ce chatbot. Configurez ci-dessous les types de fiches, le statut, le tri et la portée."
+          : "Désactivé par défaut : le chatbot répond normalement, sans outil de recherche. Activez explicitement l’outil pour ce chatbot."}
       </p>
 
-      <div className="field">
-        <span>Types de fiches interrogés</span>
-        {fiches.length === 0 ? (
-          <p className="hint">
-            Aucune fiche de collecte dans ce chatbot : laissez vide pour interroger tous les types
-            rattachés.
-          </p>
-        ) : (
-          <div className="chatbot-fiche-options">
-            {fiches.map((fiche) => (
-              <label key={fiche.id} className="chatbot-fiche-option">
-                <input
-                  type="checkbox"
-                  checked={value.ficheTypes.includes(fiche.key)}
-                  onChange={() => toggleFicheType(fiche.key)}
-                />
-                <span>
-                  <strong>{fiche.label || fiche.key}</strong>
-                  <small> {fiche.key}</small>
-                </span>
-              </label>
-            ))}
+      {value.enabled ? (
+        <div className="chatbot-search-tool-config">
+          <div className="field">
+            <span>Types de fiches interrogés</span>
+            {fiches.length === 0 ? (
+              <p className="hint">
+                Aucune fiche de collecte dans ce chatbot : laissez vide pour interroger tous les
+                types rattachés.
+              </p>
+            ) : (
+              <div className="chatbot-fiche-options">
+                {fiches.map((fiche) => (
+                  <label key={fiche.id} className="chatbot-fiche-option">
+                    <input
+                      type="checkbox"
+                      checked={value.ficheTypes.includes(fiche.key)}
+                      onChange={() => toggleFicheType(fiche.key)}
+                    />
+                    <span>
+                      <strong>{fiche.label || fiche.key}</strong>
+                      <small> {fiche.key}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <span className="hint">
+              Vide = tous les types rattachés au chatbot, une fois l’outil activé. Sélectionnez un
+              ou plusieurs types pour restreindre la recherche.
+            </span>
           </div>
-        )}
-        <span className="hint">
-          Vide = tous les types rattachés au chatbot, une fois l’outil activé. Sélectionnez un ou
-          plusieurs types pour restreindre la recherche.
-        </span>
-      </div>
 
-      <label className="field">
-        Mode de statut
-        <select
-          value={value.statusMode}
-          onChange={(event) => changeStatusMode(event.target.value as FicheStatusMode)}
-        >
-          {FICHE_STATUS_MODES.map((mode) => (
-            <option key={mode} value={mode} disabled={publicLink && mode !== "hidden_fixed"}>
-              {STATUS_MODE_LABELS[mode]}
-            </option>
-          ))}
-        </select>
-        {publicLink ? (
-          <span className="hint">
-            Lien public : les modes backoffice <code>internal_filter</code> et <code>all</code> sont
-            désactivés et refusés par le serveur.
-          </span>
-        ) : null}
-      </label>
+          <label className="field">
+            Mode de statut
+            <select
+              value={value.statusMode}
+              onChange={(event) => changeStatusMode(event.target.value as FicheStatusMode)}
+            >
+              {FICHE_STATUS_MODES.map((mode) => (
+                <option key={mode} value={mode} disabled={publicLink && mode !== "hidden_fixed"}>
+                  {STATUS_MODE_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+            {publicLink ? (
+              <span className="hint">
+                Lien public : les modes backoffice <code>internal_filter</code> et <code>all</code>{" "}
+                sont désactivés et refusés par le serveur.
+              </span>
+            ) : null}
+          </label>
 
-      <div className="field">
-        <span>Statuts fixes appliqués</span>
-        {availableStatuses.length === 0 ? (
-          <p className="hint">
-            Aucun statut non archivé disponible pour les fiches sélectionnées. Ajoutez des statuts
-            dans la fiche de collecte.
-          </p>
-        ) : (
-          <div className="chatbot-fiche-options">
-            {availableStatuses.map((status) => (
-              <label key={status.key} className="chatbot-fiche-option">
-                <input
-                  type="checkbox"
-                  checked={value.fixedStatusKeys.includes(status.key)}
-                  disabled={value.statusMode === "all"}
-                  onChange={() => toggleStatusKey(status.key)}
-                />
-                <span>
-                  <strong>{status.label}</strong>
-                  <small> {status.key}</small>
-                </span>
-              </label>
-            ))}
+          <div className="field">
+            <span>Statuts fixes appliqués</span>
+            {availableStatuses.length === 0 ? (
+              <p className="hint">
+                Aucun statut non archivé disponible pour les fiches sélectionnées. Ajoutez des
+                statuts dans la fiche de collecte.
+              </p>
+            ) : (
+              <div className="chatbot-fiche-options">
+                {availableStatuses.map((status) => (
+                  <label key={status.key} className="chatbot-fiche-option">
+                    <input
+                      type="checkbox"
+                      checked={value.fixedStatusKeys.includes(status.key)}
+                      disabled={value.statusMode === "all"}
+                      onChange={() => toggleStatusKey(status.key)}
+                    />
+                    <span>
+                      <strong>{status.label}</strong>
+                      <small> {status.key}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <span className="hint">
+              {value.statusMode === "all"
+                ? "Mode « aucun filtre » : les statuts fixes ne sont pas appliqués."
+                : "Le filtre est appliqué automatiquement ; il n’est jamais transmis au modèle sur un lien public."}
+            </span>
+            {unknownStatusKeys.length > 0 ? (
+              <p className="alert error">
+                Statut(s) fixe(s) introuvable(s) ou archivé(s) : {unknownStatusKeys.join(", ")}.
+                Corrigez la configuration.
+              </p>
+            ) : null}
           </div>
-        )}
-        <span className="hint">
-          {value.statusMode === "all"
-            ? "Mode « aucun filtre » : les statuts fixes ne sont pas appliqués."
-            : "Le filtre est appliqué automatiquement ; il n’est jamais transmis au modèle sur un lien public."}
-        </span>
-        {unknownStatusKeys.length > 0 ? (
-          <p className="alert error">
-            Statut(s) fixe(s) introuvable(s) ou archivé(s) : {unknownStatusKeys.join(", ")}.
-            Corrigez la configuration.
-          </p>
-        ) : null}
-      </div>
 
-      <label className="field">
-        Tri des résultats
-        <select
-          value={value.sortMode}
-          onChange={(event) =>
-            onChange({ ...value, sortMode: event.target.value as FicheSortMode })
-          }
-        >
-          {FICHE_SORT_MODES.map((mode) => (
-            <option key={mode} value={mode} disabled={mode === "relevance"}>
-              {SORT_MODE_LABELS[mode]}
-            </option>
-          ))}
-        </select>
-        <span className="hint">
-          Le tri « pertinence » est visible mais non disponible dans le MVP.
-        </span>
-      </label>
+          <label className="field">
+            Tri des résultats
+            <select
+              value={value.sortMode}
+              onChange={(event) =>
+                onChange({ ...value, sortMode: event.target.value as FicheSortMode })
+              }
+            >
+              {FICHE_SORT_MODES.map((mode) => (
+                <option key={mode} value={mode} disabled={mode === "relevance"}>
+                  {SORT_MODE_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              Le tri « pertinence » est visible mais non disponible dans le MVP.
+            </span>
+          </label>
 
-      <label className="field">
-        Portée de la recherche
-        <select
-          value={value.scope}
-          onChange={(event) => changeScope(event.target.value as FicheScope)}
-        >
-          {FICHE_SCOPES.map((scope) => (
-            <option key={scope} value={scope} disabled={publicLink && scope !== "chat_link"}>
-              {SCOPE_LABELS[scope]}
-            </option>
-          ))}
-        </select>
-        {publicLink ? (
-          <span className="hint">
-            Lien public : la portée organisation est désactivée et refusée par le serveur.
-          </span>
-        ) : null}
-      </label>
+          <label className="field">
+            Portée de la recherche
+            <select
+              value={value.scope}
+              onChange={(event) => changeScope(event.target.value as FicheScope)}
+            >
+              {FICHE_SCOPES.map((scope) => (
+                <option key={scope} value={scope} disabled={publicLink && scope !== "chat_link"}>
+                  {SCOPE_LABELS[scope]}
+                </option>
+              ))}
+            </select>
+            {publicLink ? (
+              <span className="hint">
+                Lien public : la portée organisation est désactivée et refusée par le serveur.
+              </span>
+            ) : null}
+          </label>
+        </div>
+      ) : null}
 
       {violations.length > 0 ? (
         <p className="alert error" role="alert">

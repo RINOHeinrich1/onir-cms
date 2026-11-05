@@ -949,6 +949,12 @@
   line-height: 1.35;
 }
 
+.chatbot-search-tool-config {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
 @media (max-width: 560px) {
   .chatbot-tool-toggle {
     gap: 0.55rem;
