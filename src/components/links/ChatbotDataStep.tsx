@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
+import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
 import type {
   ChatbotDataDraft,
   ConnaissanceDraftInput,
@@ -34,6 +35,10 @@ export function ChatbotDataStep({
   chatLinkId,
   onUploadPhoto,
   onRemovePhoto,
+  searchTool,
+  onSearchToolChange,
+  fiches,
+  publicLink,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -52,8 +57,12 @@ export function ChatbotDataStep({
   }) => Promise<{ mediaId: string }>;
   /** Suppression du média temporaire quand la photo est retirée du brouillon. */
   onRemovePhoto?: (photo: { mediaId?: string }) => void;
+  searchTool: ChatbotSearchToolDraft;
+  onSearchToolChange: (next: ChatbotSearchToolDraft) => void;
+  fiches: FicheDraft[];
+  publicLink: boolean;
 }) {
-  const [mode, setMode] = useState<"none" | "connaissance" | "lien" | "photo">("none");
+  const [mode, setMode] = useState<"none" | "choose" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [connaissance, setConnaissance] = useState<ConnaissanceDraftInput>(CONNAISSANCE_FORM);
@@ -162,10 +171,10 @@ export function ChatbotDataStep({
     <section className="chatbot-data-step">
       <div className="chatbot-data-globals">
         <div className="chatbot-step-head">
-          <h4>Données existantes</h4>
+          <h4>Bibliothèque de l’organisation</h4>
           <p className="hint">
-            Lecture seule : sélectionnez les données globales accessibles à ce chatbot. Leur portée
-            n’est jamais modifiée. Utilisez « Gérer les données » pour les éditer.
+            Sélectionnez les contenus que ce chatbot peut utiliser. Leur portée n’est jamais
+            modifiée.
           </p>
         </div>
 
@@ -174,6 +183,10 @@ export function ChatbotDataStep({
           onChange={onSelectionChange}
           chatLinkId={chatLinkId}
           onCountsChange={onGlobalCountsChange}
+          searchTool={searchTool}
+          onSearchToolChange={onSearchToolChange}
+          fiches={fiches}
+          publicLink={publicLink}
         />
 
         <div className="tools">
@@ -181,16 +194,15 @@ export function ChatbotDataStep({
             Gérer les connaissances
           </a>
           <a className="btn ghost small" href="/medias" target="_blank" rel="noreferrer">
-            Gérer les médias
+            Gérer les photos et liens
           </a>
         </div>
       </div>
 
       <div className="chatbot-step-head">
-        <h4>Ajouts pour ce chatbot ({total})</h4>
+        <h4>Contenus ajoutés à ce chatbot ({total})</h4>
         <p className="hint">
-          Ces ajouts seront rattachés au chatbot en cours de création. Ils ne modifient pas les
-          données globales.
+          Ces contenus sont réservés à ce chatbot et ne modifient pas la bibliothèque.
         </p>
       </div>
 
@@ -198,25 +210,25 @@ export function ChatbotDataStep({
         <button
           type="button"
           className="btn ghost small"
-          onClick={() => setMode(mode === "connaissance" ? "none" : "connaissance")}
+          onClick={() => setMode(mode === "choose" ? "none" : "choose")}
         >
-          + Connaissance
-        </button>
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={() => setMode(mode === "lien" ? "none" : "lien")}
-        >
-          + Lien média
-        </button>
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={() => setMode(mode === "photo" ? "none" : "photo")}
-        >
-          + Photo
+          + Ajouter un contenu
         </button>
       </div>
+
+      {mode === "choose" ? (
+        <div className="tools chatbot-data-add-choices">
+          <button type="button" className="btn small" onClick={() => setMode("connaissance")}>
+            Connaissance
+          </button>
+          <button type="button" className="btn small" onClick={() => setMode("photo")}>
+            Photo
+          </button>
+          <button type="button" className="btn small" onClick={() => setMode("lien")}>
+            Lien
+          </button>
+        </div>
+      ) : null}
 
       {formError !== null ? <p className="alert error">{formError}</p> : null}
 
@@ -348,7 +360,7 @@ export function ChatbotDataStep({
 
       {total === 0 ? (
         <p className="hint">
-          Aucune donnée ajoutée pour ce chatbot : il utilisera les données globales.
+          Aucun contenu ajouté à ce chatbot : il utilisera uniquement la bibliothèque.
         </p>
       ) : (
         <ul className="chatbot-data-drafts">
