@@ -924,6 +924,10 @@ export function LinkForm({
               publicLink={publicLink}
               sources={sources}
               onSourcesChange={setSources}
+              usageHint={config.ficheUsageHint}
+              onUsageHintChange={(ficheUsageHint) =>
+                setConfig((current) => ({ ...current, ficheUsageHint }))
+              }
             />
           </section>
         ) : null}

@@ -96,6 +96,8 @@ export function ChatbotDataSelection({
   publicLink,
   sources,
   onSourcesChange,
+  usageHint,
+  onUsageHintChange,
 }: {
   selection: DataSelection;
   onChange: (next: DataSelection) => void;
@@ -108,6 +110,8 @@ export function ChatbotDataSelection({
   publicLink: boolean;
   sources: ChatLinkSources;
   onSourcesChange: (next: ChatLinkSources) => void;
+  usageHint: string;
+  onUsageHintChange: (next: string) => void;
 }) {
   const modeName = useId();
   const [connaissances, setConnaissances] = useState<ConnaissanceDto[]>([]);
@@ -352,6 +356,8 @@ export function ChatbotDataSelection({
                 onChange={onSearchToolChange}
                 fiches={fiches}
                 publicLink={publicLink}
+                usageHint={usageHint}
+                onUsageHintChange={onUsageHintChange}
               />
             ) : (
               <p className="hint">

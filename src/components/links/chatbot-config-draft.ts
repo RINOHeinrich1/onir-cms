@@ -95,6 +95,8 @@ export type ChatbotConfigDraft = {
   fallback: ChatbotFallback;
   /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
   searchTool: ChatbotSearchToolDraft;
+  /** Déclencheur métier de la source Fiches (libellé généré côté serveur). */
+  ficheUsageHint: string;
   /** Budget de génération d'une réponse, en tokens. */
   replyMaxTokens: number;
 };
@@ -156,6 +158,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     fallback:
       fields.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
     searchTool: defaultChatbotSearchToolDraft(),
+    ficheUsageHint: defaultChatbotInformationSources().fiches.usageHint,
     replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
@@ -215,6 +218,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     dataSelection: defaultChatbotDataSelection(),
     fallback: defaultChatbotFallback(),
     searchTool: defaultChatbotSearchToolDraft(),
+    ficheUsageHint: defaultChatbotInformationSources().fiches.usageHint,
     replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };
 }
@@ -298,7 +302,7 @@ function informationSourcesFromDraft(
       ...searchTool,
       enabled: draft.mission !== "collect" && searchTool.enabled,
       label: defaults.fiches.label,
-      usageHint: defaults.fiches.usageHint,
+      usageHint: draft.ficheUsageHint,
       matchMode: "normalized",
     },
     connaissances: {
@@ -511,6 +515,9 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   const fallback = parseChatbotFallback(raw.fallback);
   const searchTool = parseSearchToolConfig(raw.searchTool);
   const informationSources = parseChatbotInformationSources(raw.informationSources);
+  const ficheUsageHint = informationSources.ok
+    ? informationSources.value.fiches.usageHint
+    : defaultChatbotInformationSources().fiches.usageHint;
   const mission: ChatbotMission = isChatbotMission(raw.mission)
     ? raw.mission
     : searchTool.ok && searchTool.value.enabled
@@ -536,6 +543,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
     fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
     searchTool: searchTool.ok ? searchTool.value : defaultChatbotSearchToolDraft(),
+    ficheUsageHint,
     replyMaxTokens:
       parseChatbotReplyMaxTokens(raw.replyMaxTokens) ?? DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   };

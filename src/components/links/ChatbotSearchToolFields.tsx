@@ -71,7 +71,14 @@ function nonArchivedStatusKeys(fiches: FicheOption[], ficheTypes: string[]): Set
  * (ADR-0067 §2.5, §4.9). Les modes backoffice sont désactivés dès que le lien
  * est public ; la garde serveur reste la source de vérité.
  */
-export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }: Props) {
+export function ChatbotSearchToolFields({
+  value,
+  onChange,
+  fiches,
+  publicLink,
+  usageHint,
+  onUsageHintChange,
+}: Props & { usageHint: string; onUsageHintChange: (next: string) => void }) {
   const [availableFiches, setAvailableFiches] = useState<FicheOption[]>(() =>
     fiches.map((fiche) => ({ key: fiche.key, label: fiche.label, statuses: fiche.statuses ?? [] })),
   );
@@ -143,6 +150,16 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
         Ces politiques sont versionnées avec le chatbot. Elles s’appliquent avant toute recherche et
         ne sont jamais modifiables par le modèle (ADR-0067).
       </p>
+      <label className="field">
+        Quand l’utiliser
+        <input
+          type="text"
+          maxLength={400}
+          value={usageHint}
+          onChange={(event) => onUsageHintChange(event.target.value)}
+        />
+        <span className="hint">La source sera nommée automatiquement « Fiches existantes ».</span>
+      </label>
 
       <div className="chatbot-search-tool-config">
         <FicheScopeTagInput

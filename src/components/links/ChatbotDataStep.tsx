@@ -42,6 +42,8 @@ export function ChatbotDataStep({
   publicLink,
   sources,
   onSourcesChange,
+  usageHint,
+  onUsageHintChange,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -66,6 +68,8 @@ export function ChatbotDataStep({
   publicLink: boolean;
   sources: ChatLinkSources;
   onSourcesChange: (next: ChatLinkSources) => void;
+  usageHint: string;
+  onUsageHintChange: (next: string) => void;
 }) {
   const [mode, setMode] = useState<"none" | "choose" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
@@ -203,6 +207,8 @@ export function ChatbotDataStep({
           publicLink={publicLink}
           sources={sources}
           onSourcesChange={onSourcesChange}
+          usageHint={usageHint}
+          onUsageHintChange={onUsageHintChange}
         />
 
         <div className="tools">
