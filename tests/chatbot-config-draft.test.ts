@@ -125,7 +125,6 @@ describe("brouillon de configuration chatbot", () => {
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],
       sortMode: "fair_rotation",
-      scope: "chat_link",
     });
     expect(chatbotConfigPayload(draft).searchTool).toEqual(draft.searchTool);
   });
@@ -138,7 +137,6 @@ describe("brouillon de configuration chatbot", () => {
       statusMode: "hidden_fixed",
       fixedStatusKeys: ["publie"],
       sortMode: "created_at",
-      scope: "chat_link",
     };
     const payload = chatbotConfigPayload(draft);
     const reloaded = draftFromConfig(payload);
@@ -156,7 +154,6 @@ describe("brouillon de configuration chatbot", () => {
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],
       sortMode: "fair_rotation",
-      scope: "chat_link",
     });
   });
 

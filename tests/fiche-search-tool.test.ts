@@ -35,7 +35,7 @@ const TERRAIN: SearchableFicheDefinition = {
 };
 
 const DEFINITIONS = { maison: MAISON, terrain: TERRAIN };
-const CONFIG = defaultSearchToolConfig();
+const CONFIG = { ...defaultSearchToolConfig(), ficheTypes: ["maison", "terrain"] };
 
 function validate(input: Record<string, unknown>, config = CONFIG, definitions = DEFINITIONS) {
   return validateSearchRequest(input, definitions, config);
@@ -245,9 +245,11 @@ describe("validation de la requête", () => {
     if (result.ok) expect(result.value.ficheTypes).toEqual(["maison"]);
   });
 
-  it("respecte les types autorisés par la configuration", () => {
+  it("utilise uniquement les fiches de collecte configurées, sans override du modèle", () => {
     const config = { ...CONFIG, ficheTypes: ["terrain"] };
-    expect(validate({ ficheTypes: ["maison"] }, config)).toMatchObject({ ok: false });
+    const result = validate({ ficheTypes: ["maison"] }, config);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.ficheTypes).toEqual(["terrain"]);
     expect(
       validate({ conditions: [{ field: "ville", operator: "eq", value: "Antananarivo" }] }, config),
     ).toMatchObject({ ok: false });
@@ -270,7 +272,6 @@ describe("configuration versionnée de l'outil", () => {
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],
       sortMode: "fair_rotation",
-      scope: "chat_link",
     });
     expect(parseSearchToolConfig(undefined)).toEqual({
       ok: true,
@@ -286,7 +287,6 @@ describe("configuration versionnée de l'outil", () => {
       statusMode: "internal_filter",
       fixedStatusKeys: ["publie"],
       sortMode: "relevance",
-      scope: "organization",
     });
     expect(parsed).toEqual({
       ok: true,
@@ -296,7 +296,6 @@ describe("configuration versionnée de l'outil", () => {
         statusMode: "internal_filter",
         fixedStatusKeys: ["publie"],
         sortMode: "relevance",
-        scope: "organization",
       },
     });
   });
@@ -304,7 +303,6 @@ describe("configuration versionnée de l'outil", () => {
   it("refuse les valeurs invalides", () => {
     expect(parseSearchToolConfig({ statusMode: "public" })).toMatchObject({ ok: false });
     expect(parseSearchToolConfig({ sortMode: "random" })).toMatchObject({ ok: false });
-    expect(parseSearchToolConfig({ scope: "global" })).toMatchObject({ ok: false });
     expect(parseSearchToolConfig({ ficheTypes: ["Maison"] })).toMatchObject({ ok: false });
     expect(parseSearchToolConfig({ fixedStatusKeys: ["Publié"] })).toMatchObject({ ok: false });
   });

@@ -192,49 +192,21 @@ function fieldInType(
   return definition?.fields.find((field) => field.name === fieldName) ?? null;
 }
 
-function normalizeFicheTypes(
-  value: unknown,
+function configuredFicheTypes(
   definitionsByType: Readonly<Record<string, SearchableFicheDefinition>>,
   config: FicheSearchToolConfig,
   errors: string[],
 ): string[] {
   const available = Object.keys(definitionsByType);
-  let requested: string[] | null = null;
-  if (value !== undefined && value !== null) {
-    if (!Array.isArray(value)) {
-      errors.push("ficheTypes : liste attendue");
-    } else {
-      const types: string[] = [];
-      for (const entry of value) {
-        if (typeof entry !== "string") {
-          errors.push("ficheTypes : clé texte attendue");
-          continue;
-        }
-        const type = entry.trim();
-        if (type === "" || types.includes(type)) continue;
-        types.push(type);
-      }
-      if (types.length > 0) requested = types;
-    }
+  const configured = config.ficheTypes;
+  if (configured.length === 0) {
+    errors.push("Aucune fiche de collecte sélectionnée pour l'outil");
+    return [];
   }
-
-  const configTypes = config.ficheTypes;
-  for (const type of configTypes) {
-    if (!available.includes(type)) {
-      errors.push(`Type de fiche configuré introuvable : ${type}`);
-    }
-  }
-  const allowed = configTypes.length > 0 ? configTypes : available;
-
-  if (requested === null) return allowed;
   const effective: string[] = [];
-  for (const type of requested) {
+  for (const type of configured) {
     if (!available.includes(type)) {
-      errors.push(`Type de fiche inconnu : ${type}`);
-      continue;
-    }
-    if (!allowed.includes(type)) {
-      errors.push(`Type de fiche non autorisé par l'outil : ${type}`);
+      errors.push(`Fiche de collecte configurée introuvable : ${type}`);
       continue;
     }
     effective.push(type);
@@ -251,7 +223,7 @@ export function validateSearchRequest(
   const source: Record<string, unknown> = isRecord(input) ? input : {};
   const errors: string[] = [];
 
-  const rawTypes = normalizeFicheTypes(source.ficheTypes, definitionsByType, config, errors);
+  const rawTypes = configuredFicheTypes(definitionsByType, config, errors);
   if (Object.keys(definitionsByType).length === 0) {
     errors.push("Aucun type de fiche disponible pour ce chatbot");
   }

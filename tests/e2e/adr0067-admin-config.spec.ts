@@ -56,10 +56,6 @@ test("l'éditeur expose les politiques versionnées avec les gardes publiques", 
   );
   await expect(statusMode.locator('option[value="all"]')).toHaveAttribute("disabled", "");
 
-  const scope = group.getByLabel("Portée de la recherche");
-  await expect(scope).toHaveValue("chat_link");
-  await expect(scope.locator('option[value="organization"]')).toHaveAttribute("disabled", "");
-
   const sortMode = group.getByLabel("Tri des résultats");
   await expect(sortMode.locator('option[value="relevance"]')).toHaveAttribute("disabled", "");
 
@@ -68,8 +64,8 @@ test("l'éditeur expose les politiques versionnées avec les gardes publiques", 
   await expect(group.getByRole("checkbox", { name: /À qualifier/ })).toBeVisible();
   await expect(group.getByRole("checkbox", { name: /Archivé/ })).toHaveCount(0);
 
-  // Le type de fiche du snapshot est sélectionnable.
-  await expect(group.getByRole("checkbox", { name: /Fournisseur/ })).toBeVisible();
+  // La fiche de collecte sélectionnée est affichée en tag.
+  await expect(group.locator(".fiche-scope-tag", { hasText: "Fournisseur" })).toBeVisible();
 });
 
 test("le toggle masque puis réaffiche la configuration sans casser la modale", async ({ page }) => {
@@ -89,8 +85,7 @@ test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) =>
   await openEditor(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });
 
-  const supplier = group.getByRole("checkbox", { name: /Fournisseur/ });
-  if (!(await supplier.isChecked())) await supplier.check();
+  await expect(group.locator(".fiche-scope-tag", { hasText: "Fournisseur" })).toBeVisible();
   const published = group.getByRole("checkbox", { name: /Publié/ });
   if (!(await published.isChecked())) await published.check();
   await group.getByLabel("Tri des résultats").selectOption("created_at");
@@ -109,7 +104,6 @@ test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) =>
     statusMode: "hidden_fixed",
     fixedStatusKeys: ["publie"],
     sortMode: "created_at",
-    scope: "chat_link",
   });
 
   // Rechargement : les valeurs reviennent du serveur.
@@ -117,5 +111,5 @@ test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) =>
   const reloaded = page.getByRole("group", { name: "Outil de recherche" });
   await expect(reloaded.getByLabel("Tri des résultats")).toHaveValue("created_at");
   await expect(reloaded.getByRole("checkbox", { name: /Publié/ })).toBeChecked();
-  await expect(reloaded.getByRole("checkbox", { name: /Fournisseur/ })).toBeChecked();
+  await expect(reloaded.locator(".fiche-scope-tag", { hasText: "Fournisseur" })).toBeVisible();
 });

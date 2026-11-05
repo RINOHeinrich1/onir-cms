@@ -1,6 +1,5 @@
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type {
-  FicheScope,
   FicheSearchOperator,
   FicheSortMode,
   FicheStatusMode,
@@ -17,7 +16,6 @@ export type FicheToolCondition = {
 export type FicheToolScope = {
   organizationId: string;
   chatLinkId: string;
-  scope: FicheScope;
 };
 
 export type FicheToolFilters = FicheToolScope & {

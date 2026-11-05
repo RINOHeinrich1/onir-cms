@@ -1,6 +1,6 @@
 /**
  * Configuration versionnée de l'outil de recherche (ADR-0067 §2.5, §4.9).
- * Les valeurs par défaut sont sûres : statut imposé masqué, portée chatbot,
+ * Les valeurs par défaut sont sûres : outil désactivé, statut imposé masqué,
  * rotation équitable. `relevance` reste structurellement accepté pour ne pas
  * casser une configuration existante, mais n'est pas activable.
  */
@@ -8,14 +8,11 @@
 import { type ChatLinkChannels, isPublicChatLink } from "@/domain/entities/chat";
 import { STATUS_KEY_PATTERN } from "@/domain/entities/fiche-status";
 import {
-  FICHE_SCOPES,
   FICHE_SORT_MODES,
   FICHE_STATUS_MODES,
-  type FicheScope,
   type FicheSearchToolConfig,
   type FicheSortMode,
   type FicheStatusMode,
-  isFicheScope,
   isFicheSortMode,
   isFicheStatusMode,
 } from "@/domain/fiche-search-tool";
@@ -32,7 +29,6 @@ export function defaultSearchToolConfig(): FicheSearchToolConfig {
     statusMode: "hidden_fixed",
     fixedStatusKeys: [],
     sortMode: "fair_rotation",
-    scope: "chat_link",
   };
 }
 
@@ -93,15 +89,6 @@ function parseSortMode(value: unknown, errors: string[]): FicheSortMode {
   return value;
 }
 
-function parseScope(value: unknown, errors: string[]): FicheScope {
-  if (value === undefined || value === null) return "chat_link";
-  if (!isFicheScope(value)) {
-    errors.push(`Portée invalide (${FICHE_SCOPES.join(", ")})`);
-    return "chat_link";
-  }
-  return value;
-}
-
 /** Normalise et valide le bloc `searchTool` d'un snapshot chatbot. */
 export function parseSearchToolConfig(
   input: unknown,
@@ -117,11 +104,10 @@ export function parseSearchToolConfig(
   const enabled = input.enabled === true;
   const statusMode = parseStatusMode(input.statusMode, errors);
   const sortMode = parseSortMode(input.sortMode, errors);
-  const scope = parseScope(input.scope, errors);
   const ficheTypes = parseKeys(
     input.ficheTypes,
     FICHE_KEY_PATTERN,
-    "Type de fiche",
+    "Fiche de collecte",
     MAX_SEARCH_TOOL_FICHE_TYPES,
     errors,
   );
@@ -136,7 +122,7 @@ export function parseSearchToolConfig(
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
-    value: { enabled, ficheTypes, statusMode, fixedStatusKeys, sortMode, scope },
+    value: { enabled, ficheTypes, statusMode, fixedStatusKeys, sortMode },
   };
 }
 
@@ -150,18 +136,18 @@ export class FicheSearchToolConfigError extends Error {
 
 /**
  * Retourne le motif de refus, ou `null` si la configuration est autorisée.
- * Sur un lien public, seuls `hidden_fixed` et `scope = chat_link` sont permis.
+ * Sur un lien public, seul `hidden_fixed` est permis.
  */
 export function searchToolConfigViolation(
   channels: ChatLinkChannels,
   config: FicheSearchToolConfig,
 ): string | null {
-  if (!isPublicChatLink(channels) || !config.enabled) return null;
-  if (config.statusMode !== "hidden_fixed") {
-    return "Le mode de statut backoffice est interdit sur un lien public";
+  if (!config.enabled) return null;
+  if (config.ficheTypes.length === 0) {
+    return "Sélectionnez au moins une fiche de collecte à interroger";
   }
-  if (config.scope !== "chat_link") {
-    return "La portée organisation est interdite sur un lien public";
+  if (isPublicChatLink(channels) && config.statusMode !== "hidden_fixed") {
+    return "Le mode de statut backoffice est interdit sur un lien public";
   }
   return null;
 }

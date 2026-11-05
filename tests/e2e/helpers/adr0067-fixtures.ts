@@ -131,7 +131,6 @@ export function searchToolPayload(overrides: Record<string, unknown> = {}) {
     statusMode: "hidden_fixed",
     fixedStatusKeys: ["publie"],
     sortMode: "fair_rotation",
-    scope: "chat_link",
     ...overrides,
   };
 }

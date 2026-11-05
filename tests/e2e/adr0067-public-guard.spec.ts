@@ -8,8 +8,8 @@ import {
 
 /**
  * E009 — garde des liens publics (ADR-0067 §2.5 / §10) : `internal_filter`,
- * `all` et `scope=organization` sont refusés côté serveur, en création comme
- * en modification, sans écriture partielle.
+ * `all` et l'absence de fiche de collecte sélectionnée sont refusés côté
+ * serveur, en création comme en modification, sans écriture partielle.
  */
 const enabled = process.env.E2E_DATABASE_URL !== undefined;
 
@@ -35,18 +35,14 @@ async function login(request: APIRequestContext): Promise<void> {
 
 test("refuse les politiques backoffice à la création d'un lien public", async ({ request }) => {
   await login(request);
-  const cases = [
-    { statusMode: "internal_filter" },
-    { statusMode: "all" },
-    { scope: "organization" },
-  ];
+  const cases = [{ statusMode: "internal_filter" }, { statusMode: "all" }, { ficheTypes: [] }];
   for (const overrides of cases) {
     const response = await request.post("/api/links", {
       data: linkPayload(`Interdit ${JSON.stringify(overrides)}`, searchToolPayload(overrides)),
     });
     expect(response.status()).toBe(422);
     const body = (await response.json()) as { error?: string };
-    expect(body.error ?? "").toMatch(/interdit|refus/i);
+    expect(body.error ?? "").toMatch(/interdit|refus|sélectionnez/i);
   }
 });
 
@@ -60,7 +56,7 @@ test("refuse les politiques backoffice à la modification et conserve la configu
   for (const overrides of [
     { statusMode: "internal_filter" },
     { statusMode: "all" },
-    { scope: "organization" },
+    { ficheTypes: [] },
   ]) {
     const response = await request.patch(`/api/links/${fixture.linkId}`, {
       data: { config: linkPayload("x", searchToolPayload(overrides)).config },

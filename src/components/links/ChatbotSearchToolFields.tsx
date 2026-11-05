@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import {
-  FICHE_SCOPES,
   FICHE_SORT_MODES,
   FICHE_STATUS_MODES,
-  type FicheScope,
   type FicheSortMode,
   type FicheStatusMode,
 } from "@/domain/fiche-search-tool";
@@ -14,11 +13,12 @@ import {
   type FicheDraft,
   searchToolDraftViolations,
 } from "./chatbot-config-draft";
+import { FicheScopeTagInput } from "./FicheScopeTagInput";
 
 type Props = {
   value: ChatbotSearchToolDraft;
   onChange: (next: ChatbotSearchToolDraft) => void;
-  /** Fiches de collecte du chatbot (snapshot versionné). */
+  /** Fiches de collecte du chatbot (fallback avant chargement de l'organisation). */
   fiches: FicheDraft[];
   /** Lien public : les modes backoffice et la portée organisation sont interdits. */
   publicLink: boolean;
@@ -42,15 +42,15 @@ const SORT_MODE_LABELS: Record<FicheSortMode, string> = {
   relevance: "Pertinence (non implémenté)",
 };
 
-const SCOPE_LABELS: Record<FicheScope, string> = {
-  chat_link: "Fiches rattachées au chatbot",
-  organization: "Toute l’organisation (backoffice)",
+type FicheOption = {
+  key: string;
+  label: string;
+  statuses?: FicheStatusDefinition[];
 };
 
 /** Statuts non archivés des fiches sélectionnées (union par clé). */
-function statusOptionsFor(fiches: FicheDraft[], ficheTypes: string[]): StatusOption[] {
-  const selected =
-    ficheTypes.length === 0 ? fiches : fiches.filter((fiche) => ficheTypes.includes(fiche.key));
+function statusOptionsFor(fiches: FicheOption[], ficheTypes: string[]): StatusOption[] {
+  const selected = fiches.filter((fiche) => ficheTypes.includes(fiche.key));
   const byKey = new Map<string, StatusOption>();
   for (const fiche of selected) {
     for (const status of fiche.statuses ?? []) {
@@ -62,7 +62,7 @@ function statusOptionsFor(fiches: FicheDraft[], ficheTypes: string[]): StatusOpt
   return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label, "fr"));
 }
 
-function nonArchivedStatusKeys(fiches: FicheDraft[], ficheTypes: string[]): Set<string> {
+function nonArchivedStatusKeys(fiches: FicheOption[], ficheTypes: string[]): Set<string> {
   return new Set(statusOptionsFor(fiches, ficheTypes).map((status) => status.key));
 }
 
@@ -72,9 +72,38 @@ function nonArchivedStatusKeys(fiches: FicheDraft[], ficheTypes: string[]): Set<
  * est public ; la garde serveur reste la source de vérité.
  */
 export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }: Props) {
+  const [availableFiches, setAvailableFiches] = useState<FicheOption[]>(() =>
+    fiches.map((fiche) => ({ key: fiche.key, label: fiche.label, statuses: fiche.statuses ?? [] })),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/fiches-collecte")
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as { fiches?: unknown }) : null,
+      )
+      .then((json) => {
+        if (cancelled || !Array.isArray(json?.fiches)) return;
+        const options = json.fiches
+          .filter(
+            (entry): entry is { key: string; label: string; statuses?: FicheStatusDefinition[] } =>
+              entry !== null &&
+              typeof entry === "object" &&
+              typeof (entry as { key?: unknown }).key === "string" &&
+              typeof (entry as { label?: unknown }).label === "string",
+          )
+          .map((entry) => ({ key: entry.key, label: entry.label, statuses: entry.statuses ?? [] }));
+        if (options.length > 0) setAvailableFiches(options);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const availableStatuses = useMemo(
-    () => statusOptionsFor(fiches, value.ficheTypes),
-    [fiches, value.ficheTypes],
+    () => statusOptionsFor(availableFiches, value.ficheTypes),
+    [availableFiches, value.ficheTypes],
   );
   const violations = useMemo(
     () => searchToolDraftViolations(value, publicLink),
@@ -84,11 +113,8 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
     (key) => !availableStatuses.some((status) => status.key === key),
   );
 
-  const toggleFicheType = (key: string): void => {
-    const nextTypes = value.ficheTypes.includes(key)
-      ? value.ficheTypes.filter((entry) => entry !== key)
-      : [...value.ficheTypes, key];
-    const stillAvailable = nonArchivedStatusKeys(fiches, nextTypes);
+  const changeFiches = (nextTypes: string[]): void => {
+    const stillAvailable = nonArchivedStatusKeys(availableFiches, nextTypes);
     onChange({
       ...value,
       ficheTypes: nextTypes,
@@ -108,11 +134,6 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
   const changeStatusMode = (mode: FicheStatusMode): void => {
     if (publicLink && mode !== "hidden_fixed") return;
     onChange({ ...value, statusMode: mode });
-  };
-
-  const changeScope = (scope: FicheScope): void => {
-    if (publicLink && scope !== "chat_link") return;
-    onChange({ ...value, scope });
   };
 
   return (
@@ -141,35 +162,11 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
 
       {value.enabled ? (
         <div className="chatbot-search-tool-config">
-          <div className="field">
-            <span>Types de fiches interrogés</span>
-            {fiches.length === 0 ? (
-              <p className="hint">
-                Aucune fiche de collecte dans ce chatbot : laissez vide pour interroger tous les
-                types rattachés.
-              </p>
-            ) : (
-              <div className="chatbot-fiche-options">
-                {fiches.map((fiche) => (
-                  <label key={fiche.id} className="chatbot-fiche-option">
-                    <input
-                      type="checkbox"
-                      checked={value.ficheTypes.includes(fiche.key)}
-                      onChange={() => toggleFicheType(fiche.key)}
-                    />
-                    <span>
-                      <strong>{fiche.label || fiche.key}</strong>
-                      <small> {fiche.key}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <span className="hint">
-              Vide = tous les types rattachés au chatbot, une fois l’outil activé. Sélectionnez un
-              ou plusieurs types pour restreindre la recherche.
-            </span>
-          </div>
+          <FicheScopeTagInput
+            options={availableFiches}
+            value={value.ficheTypes}
+            onChange={changeFiches}
+          />
 
           <label className="field">
             Mode de statut
@@ -246,25 +243,6 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
             <span className="hint">
               Le tri « pertinence » est visible mais non disponible dans le MVP.
             </span>
-          </label>
-
-          <label className="field">
-            Portée de la recherche
-            <select
-              value={value.scope}
-              onChange={(event) => changeScope(event.target.value as FicheScope)}
-            >
-              {FICHE_SCOPES.map((scope) => (
-                <option key={scope} value={scope} disabled={publicLink && scope !== "chat_link"}>
-                  {SCOPE_LABELS[scope]}
-                </option>
-              ))}
-            </select>
-            {publicLink ? (
-              <span className="hint">
-                Lien public : la portée organisation est désactivée et refusée par le serveur.
-              </span>
-            ) : null}
           </label>
         </div>
       ) : null}
