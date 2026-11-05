@@ -6433,6 +6433,95 @@ a.subtab {
   display: flex;
 }
 
+.chatbot-page-overlay {
+  background: transparent;
+  display: block;
+  inset: auto;
+  padding: 0;
+  position: static;
+}
+
+.chatbot-page-overlay .modal-backdrop,
+.chatbot-page-overlay .modal-close {
+  display: none;
+}
+
+.chatbot-page-overlay .modal.chatbot-page-modal {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: auto;
+  max-height: none;
+  max-width: none;
+  padding: 0;
+  position: static;
+  width: 100%;
+}
+
+.chatbot-page-overlay .modal-body.chatbot-wizard-host {
+  overflow: visible;
+}
+
+.chatbot-page-overlay .modal-head {
+  display: none;
+}
+
+.chatbot-wizard-page {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: min(72rem, calc(100dvh - 9rem));
+  overflow: hidden;
+}
+
+.chatbot-wizard-page .chatbot-wizard-stepper {
+  align-items: stretch;
+  border-bottom: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  overflow-x: visible;
+  overflow-y: auto;
+  padding: 1.4rem 1rem;
+}
+
+.chatbot-wizard-page .chatbot-step {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.chatbot-wizard-page .chatbot-step-title {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.chatbot-wizard-page .chatbot-step-short {
+  display: none;
+}
+
+.chatbot-wizard-page .chatbot-wizard-body {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 2rem clamp(1.25rem, 4vw, 3rem);
+}
+
+.chatbot-wizard-page .chatbot-wizard-footer {
+  grid-column: 2;
+  grid-row: 2;
+  position: sticky;
+  bottom: 0;
+}
+
 .chatbot-wizard {
   display: flex;
   flex: 1;
@@ -6959,6 +7048,31 @@ a.subtab {
   content: "!";
   background: var(--orange);
   color: var(--surface-raised);
+}
+
+@media (max-width: 56rem) {
+  .chatbot-wizard-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .chatbot-wizard-page .chatbot-wizard-stepper {
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    padding: 0.75rem;
+  }
+
+  .chatbot-wizard-page .chatbot-wizard-body {
+    padding: 1.1rem;
+  }
+
+  .chatbot-wizard-page .chatbot-wizard-footer {
+    position: sticky;
+  }
 }
 
 @media (max-width: 40rem) {
