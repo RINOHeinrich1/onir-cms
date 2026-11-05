@@ -72,6 +72,19 @@ test("l'éditeur expose les politiques versionnées avec les gardes publiques", 
   await expect(group.getByRole("checkbox", { name: /Fournisseur/ })).toBeVisible();
 });
 
+test("le toggle masque puis réaffiche la configuration sans casser la modale", async ({ page }) => {
+  await openEditor(page);
+  const group = page.getByRole("group", { name: "Outil de recherche" });
+  const toggle = group.getByRole("checkbox", { name: /Activer l’outil de recherche/ });
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await expect(group.getByLabel("Mode de statut")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Modifier le chatbot" })).toBeVisible();
+  await toggle.check();
+  await expect(group.getByLabel("Mode de statut")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Modifier le chatbot" })).toBeVisible();
+});
+
 test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) => {
   await openEditor(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });

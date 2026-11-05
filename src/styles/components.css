@@ -889,6 +889,7 @@
 
 /* Toggle switch compact pour les activations de fonctionnalités. */
 .chatbot-tool-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
@@ -902,10 +903,13 @@
 
 .chatbot-tool-toggle-input {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .chatbot-tool-toggle-track {
