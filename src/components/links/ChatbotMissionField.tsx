@@ -19,8 +19,9 @@ export function ChatbotMissionField({
     <fieldset className="field">
       <legend>Mission du chatbot *</legend>
       <span className="hint">
-        La mission est stable. En mode hybride, le chatbot informe d’abord et ne collecte que si le
-        visiteur le demande explicitement.
+        La mission est enregistrée avec le chatbot. En mode hybride, il peut informer ou collecter :
+        la collecte est privilégiée lorsqu’une fiche est déjà en cours, ou lorsque le visiteur
+        demande explicitement à la remplir.
       </span>
       <div className="checks-row">
         {(Object.keys(LABELS) as ChatbotMission[]).map((mission) => (
