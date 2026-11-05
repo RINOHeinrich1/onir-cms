@@ -67,4 +67,4 @@ ADR qui remplace la précédente.
 | [0065](./0065-catalogue-ia-partage-quotas-organisation.md) | Catalogue IA partagé, quotas par organisation et provisioning des invitations | Accepté |
 | [0066](./0066-profils-de-limites-vivants.md) | Profils de limites vivants | Accepté |
 | [0067](./0067-outils-internes-fiches-statuts-qualification.md) | Outils internes sur les fiches et statuts de qualification | Accepté |
-| [0068](./0068-missions-chatbot-sources-information.md) | Missions du chatbot et sources d'information | Proposé |
+| [0068](./0068-missions-chatbot-sources-information.md) | Missions du chatbot et sources d'information | Accepté |

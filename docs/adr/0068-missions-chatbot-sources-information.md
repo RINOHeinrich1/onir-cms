@@ -1,6 +1,6 @@
 # 0068. Missions du chatbot, analyse d'intention et sources d'information
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-05
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0012, ADR-0013, ADR-0049, ADR-0052, ADR-0055, ADR-0060, ADR-0067.
