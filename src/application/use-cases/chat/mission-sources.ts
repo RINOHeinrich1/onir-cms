@@ -115,18 +115,31 @@ async function executeFichesSource(input: {
       sessions: input.deps.searchSessions,
     },
   };
-  const result = await executeFicheTool(toolContext, "search_fiches", {
-    query: requestedQuery(input.plan, input.content),
-    limit: input.plan.limit ?? 5,
-  });
+  const query = requestedQuery(input.plan, input.content);
+  const limit = input.plan.limit ?? 5;
+  let result = await executeFicheTool(toolContext, "search_fiches", { query, limit });
+  let broadened = false;
+  if (
+    query.trim() !== "" &&
+    typeof result === "object" &&
+    result !== null &&
+    "total" in result &&
+    result.total === 0
+  ) {
+    // Repli borné : une question conversationnelle ("Oui", "je cherche un
+    // hôtel") ne doit pas produire zéro résultat alors que la portée contient
+    // des fiches. On élargit sans changer la portée ni les statuts.
+    result = await executeFicheTool(toolContext, "search_fiches", { limit });
+    broadened = true;
+  }
   const modelItems = toModelItems(result);
+  const prefix = broadened
+    ? `Aucun résultat exact pour « ${query} ». Recherche élargie dans la portée ${source.label} :`
+    : `Résultats de la source ${source.label} :`;
   return {
     key: "fiches",
     label: source.label,
-    context:
-      modelItems === null
-        ? ""
-        : `Résultats de la source ${source.label} :\n${JSON.stringify(modelItems)}`,
+    context: modelItems === null ? "" : `${prefix}\n${JSON.stringify(modelItems)}`,
     blocks: toTemplateBlocks("search_fiches", result),
     connaissances: [],
     medias: [],
