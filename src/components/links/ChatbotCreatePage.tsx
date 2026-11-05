@@ -20,17 +20,9 @@ export function ChatbotCreatePage({
 
   return (
     <section className="chatbot-config-page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Chatbots</span>
-          <h1 className="text-title">
-            {draft === null ? "Nouveau chatbot" : "Reprendre un brouillon"}
-          </h1>
-        </div>
-        <button type="button" className="btn ghost small" onClick={goBack}>
-          Retour aux chatbots
-        </button>
-      </div>
+      <button type="button" className="chatbot-page-exit" onClick={goBack}>
+        ← Chatbots
+      </button>
       <LinkForm
         key={draft?.id ?? "nouveau"}
         layout="page"

@@ -6433,6 +6433,43 @@ a.subtab {
   display: flex;
 }
 
+.chatbot-fullscreen {
+  background: var(--surface-raised);
+  min-height: 100dvh;
+}
+
+.chatbot-config-page {
+  min-height: 100dvh;
+  position: relative;
+}
+
+.chatbot-page-exit {
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  left: 1.1rem;
+  padding: 0.35rem;
+  position: absolute;
+  top: 1rem;
+  z-index: 5;
+}
+
+.chatbot-page-exit:hover {
+  color: var(--accent);
+}
+
+.chatbot-config-page .chatbot-wizard-page {
+  border: 0;
+  border-radius: 0;
+  min-height: 100dvh;
+}
+
+.chatbot-config-page .chatbot-wizard-stepper {
+  padding-top: 3.4rem;
+}
+
 .chatbot-page-overlay {
   background: transparent;
   display: block;
