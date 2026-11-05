@@ -501,7 +501,7 @@ export function ChatbotDataSelection({
                               )}
                             </span>
                             <span className={`badge ${item.badge === "global" ? "muted" : "info"}`}>
-                              {item.badge === "global" ? "Bibliothèque" : "Ce chatbot"}
+                              {item.badge === "global" ? "Source" : "Ce chatbot"}
                             </span>
                           </label>
                         </li>

@@ -145,15 +145,20 @@ describe("état de brouillon de chatbot", () => {
       },
       fallback,
     );
-    expect(hydrated.step).toBe(4);
+    expect(hydrated.step).toBe(6);
     expect(hydrated.type).toBe("standard");
     expect(hydrated.channels.page.enabled).toBe(true);
     expect(hydrated.dataDraft.photos).toEqual([]);
   });
 
-  it("mappe les anciens numéros d’étape (7 étapes) vers les 5 sections", () => {
-    const hydrated = hydrateChatbotDraftState({ step: 4 }, defaultChatbotDraftState("conf-1"));
-    expect(hydrated.step).toBe(2);
+  it("mappe les anciens numéros d’étape vers la structure courante", () => {
+    const legacy = hydrateChatbotDraftState({ step: 4 }, defaultChatbotDraftState("conf-1"));
+    const v2 = hydrateChatbotDraftState(
+      { wizardVersion: 2, step: 4 },
+      defaultChatbotDraftState("conf-1"),
+    );
+    expect(legacy.step).toBe(3);
+    expect(v2.step).toBe(6);
   });
 
   it("décide create une seule fois puis update", () => {
