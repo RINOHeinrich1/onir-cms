@@ -502,6 +502,15 @@ Pour rester générique et réutilisable, les politiques suivantes sont
 configurables dans la configuration versionnée du chatbot, et non codées en dur
 dans le service de recherche.
 
+##### `enabled`
+
+L'outil est **désactivé par défaut** (`enabled = false`). Il doit être activé
+manuellement pour chaque chatbot. Tant qu'il est désactivé, le comportement
+historique est conservé : aucune boucle d'outil n'est exécutée.
+
+Une fois activé, `ficheTypes` vide signifie « tous les types rattachés au
+chatbot ».
+
 ##### `statusMode`
 
 ```text

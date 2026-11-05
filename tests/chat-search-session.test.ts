@@ -136,7 +136,7 @@ function context(
     organizationId: "org-1",
     chatLinkId: "link-1",
     conversationId: "conversation-1",
-    config: defaultSearchToolConfig(),
+    config: { ...defaultSearchToolConfig(), enabled: true },
     fiches: [FICHE],
     deps,
     ...overrides,

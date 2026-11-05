@@ -457,16 +457,16 @@ ${attachmentContext}`;
     content: message.content,
   }));
 
-  // Chemin outils : explicitement opt-in (des types de fiches sont exposés) et
-  // uniquement si les repositories P3 sont disponibles. Sinon le comportement
-  // historique (une complétion simple) est strictement conservé.
+  // Chemin outils : explicitement opt-in via `enabled`, et uniquement si les
+  // repositories P3 sont disponibles. Sinon le comportement historique
+  // (une complétion simple) est strictement conservé.
   const searchToolConfig = config?.searchTool;
   const ficheToolRepository = deps.ficheTools;
   const searchSessions = deps.searchSessions;
   const toolsEnabled =
     config !== null &&
     searchToolConfig !== undefined &&
-    searchToolConfig.ficheTypes.length > 0 &&
+    searchToolConfig.enabled === true &&
     ficheToolRepository !== undefined &&
     searchSessions !== undefined;
 

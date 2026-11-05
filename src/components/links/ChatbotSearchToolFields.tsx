@@ -123,6 +123,19 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
         ne sont jamais modifiables par le modèle (ADR-0067).
       </p>
 
+      <label className="field checkbox">
+        <input
+          type="checkbox"
+          checked={value.enabled}
+          onChange={(event) => onChange({ ...value, enabled: event.target.checked })}
+        />
+        Activer l’outil de recherche
+      </label>
+      <p className="hint">
+        Désactivé par défaut : le chatbot répond normalement, sans outil de recherche. Activez
+        explicitement l’outil pour ce chatbot.
+      </p>
+
       <div className="field">
         <span>Types de fiches interrogés</span>
         {fiches.length === 0 ? (
@@ -148,8 +161,8 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
           </div>
         )}
         <span className="hint">
-          Vide = tous les types rattachés au chatbot. Sélectionnez un ou plusieurs types pour
-          restreindre la recherche.
+          Vide = tous les types rattachés au chatbot, une fois l’outil activé. Sélectionnez un ou
+          plusieurs types pour restreindre la recherche.
         </span>
       </div>
 

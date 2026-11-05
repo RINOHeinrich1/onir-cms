@@ -27,6 +27,7 @@ export const MAX_SEARCH_TOOL_FIXED_STATUSES = 50;
 /** Valeurs par défaut d'un chatbot public (MandamPro, ADR-0067 §2.6). */
 export function defaultSearchToolConfig(): FicheSearchToolConfig {
   return {
+    enabled: false,
     ficheTypes: [],
     statusMode: "hidden_fixed",
     fixedStatusKeys: [],
@@ -113,6 +114,7 @@ export function parseSearchToolConfig(
   }
 
   const errors: string[] = [];
+  const enabled = input.enabled === true;
   const statusMode = parseStatusMode(input.statusMode, errors);
   const sortMode = parseSortMode(input.sortMode, errors);
   const scope = parseScope(input.scope, errors);
@@ -134,7 +136,7 @@ export function parseSearchToolConfig(
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
-    value: { ficheTypes, statusMode, fixedStatusKeys, sortMode, scope },
+    value: { enabled, ficheTypes, statusMode, fixedStatusKeys, sortMode, scope },
   };
 }
 
@@ -154,7 +156,7 @@ export function searchToolConfigViolation(
   channels: ChatLinkChannels,
   config: FicheSearchToolConfig,
 ): string | null {
-  if (!isPublicChatLink(channels)) return null;
+  if (!isPublicChatLink(channels) || !config.enabled) return null;
   if (config.statusMode !== "hidden_fixed") {
     return "Le mode de statut backoffice est interdit sur un lien public";
   }

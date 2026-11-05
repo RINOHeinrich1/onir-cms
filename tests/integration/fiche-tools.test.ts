@@ -74,6 +74,7 @@ const FICHE: SearchableFicheDefinition = {
 
 const HIDDEN_CONFIG: FicheSearchToolConfig = {
   ...defaultSearchToolConfig(),
+  enabled: true,
   ficheTypes: ["maison"],
   fixedStatusKeys: ["publie"],
 };

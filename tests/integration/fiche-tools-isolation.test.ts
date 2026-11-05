@@ -65,6 +65,7 @@ const FICHE: SearchableFicheDefinition = {
 
 const CONFIG: FicheSearchToolConfig = {
   ...defaultSearchToolConfig(),
+  enabled: true,
   ficheTypes: ["fournisseur"],
   fixedStatusKeys: ["publie"],
 };

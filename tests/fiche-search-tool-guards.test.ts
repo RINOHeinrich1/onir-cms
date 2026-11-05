@@ -52,7 +52,7 @@ describe("garde des modes backoffice sur lien public (ADR-0067 §2.5/§10)", () 
   });
 
   it("refuse internal_filter, all et scope=organization sur un lien public", () => {
-    const base = defaultSearchToolConfig();
+    const base = { ...defaultSearchToolConfig(), enabled: true };
     expect(
       searchToolConfigViolation(channels("contact"), { ...base, statusMode: "internal_filter" }),
     ).toMatch(/backoffice/);
@@ -108,7 +108,11 @@ const MIN_CONFIG = {
 
 const BACKOFFICE_CONFIG = {
   ...MIN_CONFIG,
-  searchTool: { ...defaultSearchToolConfig(), statusMode: "internal_filter" as const },
+  searchTool: {
+    ...defaultSearchToolConfig(),
+    enabled: true,
+    statusMode: "internal_filter" as const,
+  },
 };
 
 describe("création et édition d'un lien public", () => {

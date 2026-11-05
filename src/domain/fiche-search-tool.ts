@@ -88,6 +88,8 @@ export type FicheSearchRequest = {
 
 /** Politiques versionnées de l'outil (ADR-0067 §4.9). */
 export type FicheSearchToolConfig = {
+  /** Activation manuelle de l'outil ; désactivé par défaut. */
+  enabled: boolean;
   ficheTypes: string[];
   statusMode: FicheStatusMode;
   fixedStatusKeys: string[];
