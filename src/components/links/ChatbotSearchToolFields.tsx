@@ -123,13 +123,15 @@ export function ChatbotSearchToolFields({ value, onChange, fiches, publicLink }:
         ne sont jamais modifiables par le modèle (ADR-0067).
       </p>
 
-      <label className="field checkbox">
+      <label className="chatbot-tool-toggle">
         <input
           type="checkbox"
+          className="chatbot-tool-toggle-input"
           checked={value.enabled}
           onChange={(event) => onChange({ ...value, enabled: event.target.checked })}
         />
-        Activer l’outil de recherche
+        <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+        <span className="chatbot-tool-toggle-text">Activer l’outil de recherche</span>
       </label>
       <p className="hint">
         Désactivé par défaut : le chatbot répond normalement, sans outil de recherche. Activez
