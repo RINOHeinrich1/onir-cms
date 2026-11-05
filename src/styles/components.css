@@ -4344,7 +4344,7 @@ a.subtab {
   margin-top: 0.2rem;
 }
 
-.template-ai-toggle-card {
+.chatbot-form-section.template-ai-toggle-card {
   align-items: center;
   background: var(--surface-raised);
   border: 1px solid var(--border);
