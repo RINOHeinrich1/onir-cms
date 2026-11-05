@@ -61,7 +61,7 @@ export default async function FicheLecturePage({ params }: PageProps) {
       ? null
       : await deps.prospects.findById(organizationId, fiche.prospectId);
   const titreProspect =
-    prospect === null ? "Prospect libre" : `${prospect.nom} ${prospect.prenom}`.trim();
+    prospect === null ? "Ajout Manuel" : `${prospect.nom} ${prospect.prenom}`.trim();
   const webhookEndpoints = actorCan(context.actor, "webhooks:trigger")
     ? await listWebhookEndpointsForFiche(
         {
