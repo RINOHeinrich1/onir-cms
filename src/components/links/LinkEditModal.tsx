@@ -15,7 +15,7 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
-import { ChatbotDataSelection } from "./ChatbotDataSelection";
+import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
@@ -27,6 +27,12 @@ import {
   draftFromConfig,
   searchToolDraftViolations,
 } from "./chatbot-config-draft";
+import {
+  type ChatbotDataDraft,
+  chatbotDataDraftCount,
+  EMPTY_CHATBOT_DATA_DRAFT,
+  submitChatbotDataDraft,
+} from "./chatbot-data-draft";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -58,12 +64,11 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
 }
 
 const EDIT_STEPS = [
-  { title: "Contexte & comportement", short: "Contexte" },
-  { title: "Moteurs IA", short: "IA" },
-  { title: "Outils", short: "Outils" },
-  { title: "Fallback", short: "Fallback" },
-  { title: "Diffusion", short: "Diffusion" },
-  { title: "Récapitulatif", short: "Récapitulatif" },
+  { title: "Cadrage", short: "Cadrage" },
+  { title: "Alimentation", short: "Alimentation" },
+  { title: "Publication", short: "Publication" },
+  { title: "IA & secours", short: "IA & secours" },
+  { title: "Validation", short: "Validation" },
 ] as const;
 
 /**
@@ -117,6 +122,7 @@ export function LinkEditModal({
   });
   const [aiUsage, setAiUsage] = useState<Partial<Record<AiLinkUsage, AiLinkTarget>>>({});
   const [config, setConfig] = useState<ChatbotConfigDraft | null>(null);
+  const [dataDraft, setDataDraft] = useState<ChatbotDataDraft>(EMPTY_CHATBOT_DATA_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
@@ -128,6 +134,40 @@ export function LinkEditModal({
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, channels.widget.visualTemplate);
   const publicLink = isPublicChatLink(channels);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  const uploadDraftPhoto = async (input: {
+    fichier: File;
+    libelle: string;
+    description: string;
+  }): Promise<{ mediaId: string }> => {
+    const form = new FormData();
+    form.set("libelle", input.libelle);
+    form.set("description", input.description);
+    form.set("actif", "false");
+    form.set("fichier", input.fichier);
+    const response = await fetch("/api/medias/photo", { method: "POST", body: form });
+    const json = (await response.json().catch(() => null)) as {
+      media?: { id?: unknown };
+      error?: string;
+    } | null;
+    if (!response.ok) {
+      throw new Error(json?.error ?? "Import de la photo impossible.");
+    }
+    const mediaId = json?.media?.id;
+    if (typeof mediaId !== "string" || mediaId === "") {
+      throw new Error("Réponse d'import invalide.");
+    }
+    return { mediaId };
+  };
+
+  const removeDraftPhoto = (photo: { mediaId?: string }): void => {
+    if (photo.mediaId === undefined) return;
+    void fetch(`/api/medias/${photo.mediaId}`, { method: "DELETE" })
+      .then((response) => {
+        if (!response.ok) toast.warning("La photo temporaire n'a pas pu être supprimée.");
+      })
+      .catch(() => toast.warning("La photo temporaire n'a pas pu être supprimée."));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -175,9 +215,17 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 2 && config !== null) {
-      const violations = searchToolDraftViolations(config.searchTool, publicLink);
-      if (violations.length > 0) return violations.join(" · ");
+    if (index === 1 && config !== null) {
+      if (config.mission !== "collect") {
+        const violations = searchToolDraftViolations(config.searchTool, publicLink);
+        if (violations.length > 0) return violations.join(" · ");
+        const hasSource =
+          config.searchTool.enabled || sources.connaissances || sources.phototheque || sources.lien;
+        if (!hasSource) return "Activez au moins une source d’information pour cette mission.";
+      }
+      if (config.mission !== "inform" && config.fiches.length === 0) {
+        return "Sélectionnez au moins une fiche de collecte pour cette mission.";
+      }
     }
     if (index === 3 && config !== null) {
       if (
@@ -185,12 +233,12 @@ export function LinkEditModal({
         config.fallback.questions.length === 0 &&
         !config.fallback.showCollectionForm
       ) {
-        return "Ajoutez au moins une question de fallback ou autorisez la fiche de collecte.";
+        return "Ajoutez au moins une question de secours ou autorisez la fiche de collecte.";
       }
     }
-    if (index === 4) {
+    if (index === 2) {
       if (!channels.page.enabled && !channels.widget.enabled) {
-        return "Activez au moins un canal de diffusion.";
+        return "Activez au moins un canal de publication.";
       }
       if (channels.widget.enabled && widgetDisplay === null) {
         return "Choisissez un template visuel compatible avec le widget.";
@@ -268,7 +316,22 @@ export function LinkEditModal({
         body: JSON.stringify(aiUsage),
       });
       if (!aiResponse.ok) {
-        toast.warning("Chatbot mis à jour, mais les moteurs IA n'ont pas pu être enregistrés.");
+        toast.warning("Chatbot mis à jour, mais les modèles IA n'ont pas pu être enregistrés.");
+      }
+      if (config?.mission !== "collect" && chatbotDataDraftCount(dataDraft) > 0) {
+        try {
+          const result = await submitChatbotDataDraft(dataDraft, link.id);
+          if (result.created > 0) {
+            toast.success(`${result.created} donnée(s) rattachée(s) au chatbot.`);
+          }
+          if (result.failures.length > 0) {
+            toast.warning(`Certaines données n'ont pas pu être ajoutées : ${result.failures[0]}`);
+          } else {
+            setDataDraft(EMPTY_CHATBOT_DATA_DRAFT);
+          }
+        } catch {
+          toast.warning("Chatbot mis à jour, mais les données n'ont pas pu être ajoutées.");
+        }
       }
       toast.success("Chatbot mis à jour.");
       onSaved(json.link);
@@ -361,10 +424,9 @@ export function LinkEditModal({
               {step === 0 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[0].title}>
                   <div className="chatbot-step-head">
-                    <h4>Contexte & comportement</h4>
+                    <h4>Cadrage</h4>
                     <p className="hint">
-                      Identité du chatbot, comportement, expiration et catégorie. Le type reste non
-                      modifiable.
+                      Identité du chatbot, mission, comportement, expiration et catégorie.
                     </p>
                   </div>
                   <p className="hint">
@@ -402,16 +464,6 @@ export function LinkEditModal({
                         }
                       />
                       <ChatbotBehaviorFields value={config} onChange={setConfig} />
-                      {config.mission !== "inform" ? (
-                        <ChatbotFichePicker
-                          value={config.fiches}
-                          onChange={(fiches) =>
-                            setConfig((current) =>
-                              current === null ? current : { ...current, fiches },
-                            )
-                          }
-                        />
-                      ) : null}
                     </>
                   ) : null}
                   <CategoryPicker contentType="link" contentId={link.id} />
@@ -421,91 +473,81 @@ export function LinkEditModal({
               {step === 1 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[1].title}>
                   <div className="chatbot-step-head">
-                    <h4>Moteurs IA</h4>
+                    <h4>Alimentation</h4>
                     <p className="hint">
-                      Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
+                      Ce que le chatbot collecte et les sources qu’il consulte pour répondre.
                     </p>
                   </div>
-                  <AiUsageOverridesField
-                    chatLinkId={link.id}
-                    providers={aiProviders}
-                    value={aiUsage}
-                    onChange={setAiUsage}
-                    canAssign={canAssignAi}
-                  />
+                  {config === null ? (
+                    <p className="hint">Chargement de la configuration…</p>
+                  ) : (
+                    <>
+                      {config.mission !== "inform" ? (
+                        <div className="chatbot-subsection">
+                          <h5>Fiches à collecter</h5>
+                          <ChatbotFichePicker
+                            value={config.fiches}
+                            onChange={(fiches) =>
+                              setConfig((current) =>
+                                current === null ? current : { ...current, fiches },
+                              )
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      {config.mission !== "collect" ? (
+                        <div className="chatbot-subsection">
+                          <h5>Sources à consulter</h5>
+                          <SourcesField value={sources} onChange={setSources} />
+                          <ChatbotSearchToolFields
+                            value={config.searchTool}
+                            onChange={(searchTool) =>
+                              setConfig((current) =>
+                                current === null ? current : { ...current, searchTool },
+                              )
+                            }
+                            fiches={config.fiches}
+                            publicLink={publicLink}
+                          />
+                          <ChatbotSourceLabelsFields
+                            value={config.sourceMeta}
+                            onChange={(sourceMeta) =>
+                              setConfig((current) =>
+                                current === null ? current : { ...current, sourceMeta },
+                              )
+                            }
+                          />
+                          <ChatbotDataStep
+                            value={dataDraft}
+                            onChange={setDataDraft}
+                            selection={config.dataSelection}
+                            onSelectionChange={(dataSelection) =>
+                              setConfig((current) =>
+                                current === null ? current : { ...current, dataSelection },
+                              )
+                            }
+                            chatLinkId={link.id}
+                            onUploadPhoto={uploadDraftPhoto}
+                            onRemovePhoto={removeDraftPhoto}
+                          />
+                        </div>
+                      ) : (
+                        <p className="alert info">
+                          Mission « Collecter des fiches » : les sources d’information sont
+                          désactivées.
+                        </p>
+                      )}
+                    </>
+                  )}
                 </section>
               ) : null}
 
               {step === 2 ? (
                 <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
                   <div className="chatbot-step-head">
-                    <h4>Outils</h4>
+                    <h4>Publication</h4>
                     <p className="hint">
-                      Activez et paramétrez l’outil de recherche de fiches pour ce chatbot.
-                    </p>
-                  </div>
-                  {config !== null && config.mission !== "collect" ? (
-                    <>
-                      <ChatbotSearchToolFields
-                        value={config.searchTool}
-                        onChange={(searchTool) =>
-                          setConfig((current) =>
-                            current === null ? current : { ...current, searchTool },
-                          )
-                        }
-                        fiches={config.fiches}
-                        publicLink={publicLink}
-                      />
-                      <ChatbotSourceLabelsFields
-                        value={config.sourceMeta}
-                        onChange={(sourceMeta) =>
-                          setConfig((current) =>
-                            current === null ? current : { ...current, sourceMeta },
-                          )
-                        }
-                      />
-                      <ChatbotDataSelection
-                        selection={config.dataSelection}
-                        chatLinkId={link.id}
-                        onChange={(dataSelection) =>
-                          setConfig((current) =>
-                            current === null ? current : { ...current, dataSelection },
-                          )
-                        }
-                      />
-                    </>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {step === 3 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
-                  <div className="chatbot-step-head">
-                    <h4>Fallback heuristique</h4>
-                    <p className="hint">
-                      En cas de panne IA, proposez uniquement des questions/réponses fermées et, si
-                      besoin, la fiche de collecte existante.
-                    </p>
-                  </div>
-                  {config !== null ? (
-                    <ChatbotFallbackFields
-                      value={config.fallback}
-                      onChange={(fallback) =>
-                        setConfig((current) =>
-                          current === null ? current : { ...current, fallback },
-                        )
-                      }
-                    />
-                  ) : null}
-                </section>
-              ) : null}
-
-              {step === 4 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
-                  <div className="chatbot-step-head">
-                    <h4>Diffusion</h4>
-                    <p className="hint">
-                      Canaux, sources de réponse, état visiteur et bindings de données.
+                      Canaux, template visuel, état visiteur et bindings de données.
                     </p>
                   </div>
                   <LinkChannelsFields
@@ -517,9 +559,6 @@ export function LinkEditModal({
                     visualTemplates={visualTemplates}
                     confidentialites={confidentialites}
                   />
-                  {config?.mission !== "collect" ? (
-                    <SourcesField value={sources} onChange={setSources} />
-                  ) : null}
                   <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
                   <LinkDataBindingsField
                     templateId={activeTemplate.id}
@@ -530,10 +569,44 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 5 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[5].title}>
+              {step === 3 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
                   <div className="chatbot-step-head">
-                    <h4>Récapitulatif</h4>
+                    <h4>IA & secours</h4>
+                    <p className="hint">
+                      Choisissez les modèles IA et le comportement de secours si l’IA ne répond pas.
+                    </p>
+                  </div>
+                  <div className="chatbot-subsection">
+                    <h5>Modèles IA</h5>
+                    <AiUsageOverridesField
+                      chatLinkId={link.id}
+                      providers={aiProviders}
+                      value={aiUsage}
+                      onChange={setAiUsage}
+                      canAssign={canAssignAi}
+                    />
+                  </div>
+                  {config !== null ? (
+                    <div className="chatbot-subsection">
+                      <h5>Si l’IA ne répond pas</h5>
+                      <ChatbotFallbackFields
+                        value={config.fallback}
+                        onChange={(fallback) =>
+                          setConfig((current) =>
+                            current === null ? current : { ...current, fallback },
+                          )
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {step === 4 ? (
+                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+                  <div className="chatbot-step-head">
+                    <h4>Validation</h4>
                     <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
                   </div>
                   <LinkQuotaFields value={quota} onChange={setQuota} />
@@ -570,6 +643,19 @@ export function LinkEditModal({
                         ? "— Aucune —"
                         : config.fiches.map((fiche) => fiche.label || fiche.key).join(", ")}
                     </dd>
+                    <dt>Sources</dt>
+                    <dd>
+                      {config?.mission === "collect"
+                        ? "Désactivées par la mission"
+                        : [
+                            config?.searchTool.enabled ? "Fiches existantes" : "",
+                            sources.connaissances ? "Connaissances" : "",
+                            sources.phototheque ? "Photothèque" : "",
+                            sources.lien ? "Liens" : "",
+                          ]
+                            .filter((value) => value !== "")
+                            .join(", ") || "Aucune source active"}
+                    </dd>
                     <dt>Canaux</dt>
                     <dd>
                       {(["page", "widget"] as const)
@@ -577,17 +663,19 @@ export function LinkEditModal({
                         .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
                         .join(", ") || "— Aucun —"}
                     </dd>
-                    <dt>Sources</dt>
+                    <dt>Données ajoutées</dt>
                     <dd>
-                      {[
-                        sources.connaissances ? "Connaissances" : "",
-                        sources.phototheque ? "Photothèque" : "",
-                        sources.lien ? "Liens" : "",
-                      ]
-                        .filter((value) => value !== "")
-                        .join(", ") || "Aucune"}
+                      {chatbotDataDraftCount(dataDraft) === 0
+                        ? "Aucune"
+                        : `${chatbotDataDraftCount(dataDraft)} ajout(s) à rattacher`}
                     </dd>
-                    <dt>Fallback heuristique</dt>
+                    <dt>Configuration IA</dt>
+                    <dd>
+                      {Object.keys(aiUsage).length === 0
+                        ? "Réglages par défaut de l’organisation"
+                        : `${Object.keys(aiUsage).length} usage(s) personnalisé(s)`}
+                    </dd>
+                    <dt>Secours</dt>
                     <dd>
                       {config === null || !config.fallback.enabled
                         ? "Désactivé"

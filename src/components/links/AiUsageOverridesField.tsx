@@ -86,7 +86,7 @@ export function AiUsageOverridesField({
 
   return (
     <fieldset className="card" style={{ marginBottom: "1rem" }}>
-      <legend className="field">Moteurs IA par usage</legend>
+      <legend className="field">Modèles IA par usage</legend>
       <p className="hint">
         Laissez « Hériter du défaut d’usage » pour utiliser la configuration de l’usage. Un modèle
         ou un cluster explicite prend le dessus pour ce chatbot.
@@ -168,7 +168,7 @@ export function AiUsageOverridesField({
           );
         })}
       </div>
-      {!canAssign ? <p className="hint">Vous ne pouvez pas modifier les moteurs IA.</p> : null}
+      {!canAssign ? <p className="hint">Vous ne pouvez pas modifier les modèles IA.</p> : null}
     </fieldset>
   );
 }

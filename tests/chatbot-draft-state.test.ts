@@ -145,10 +145,15 @@ describe("état de brouillon de chatbot", () => {
       },
       fallback,
     );
-    expect(hydrated.step).toBe(6);
+    expect(hydrated.step).toBe(4);
     expect(hydrated.type).toBe("standard");
     expect(hydrated.channels.page.enabled).toBe(true);
     expect(hydrated.dataDraft.photos).toEqual([]);
+  });
+
+  it("mappe les anciens numéros d’étape (7 étapes) vers les 5 sections", () => {
+    const hydrated = hydrateChatbotDraftState({ step: 4 }, defaultChatbotDraftState("conf-1"));
+    expect(hydrated.step).toBe(2);
   });
 
   it("décide create une seule fois puis update", () => {

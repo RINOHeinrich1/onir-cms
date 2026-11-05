@@ -79,13 +79,11 @@ type LinkFormProps = {
 };
 
 const STEPS = [
-  { title: "Contexte & comportement", short: "Contexte" },
-  { title: "Fiches de collecte", short: "Fiches" },
-  { title: "Données", short: "Données" },
-  { title: "Moteurs IA", short: "IA" },
-  { title: "Diffusion", short: "Diffusion" },
-  { title: "Fallback", short: "Fallback" },
-  { title: "Récapitulatif", short: "Récapitulatif" },
+  { title: "Cadrage", short: "Cadrage" },
+  { title: "Alimentation", short: "Alimentation" },
+  { title: "Publication", short: "Publication" },
+  { title: "IA & secours", short: "IA & secours" },
+  { title: "Validation", short: "Validation" },
 ] as const;
 
 /** Création d'un chatbot en 5 étapes dans la même modale. */
@@ -507,7 +505,7 @@ export function LinkForm({
       }
       let failures: string[] = [];
       let failedPhotoMediaIds: string[] = [];
-      if (pendingDataCount > 0) {
+      if (pendingDataCount > 0 && config.mission !== "collect") {
         try {
           const result = await submitChatbotDataDraft(dataDraft, json.link.id);
           failures = result.failures;
@@ -812,7 +810,7 @@ export function LinkForm({
         {step === 0 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[0].title}>
             <div className="chatbot-step-head">
-              <h4>Contexte & comportement</h4>
+              <h4>Cadrage</h4>
               <p className="hint">
                 Identifiez le chatbot puis choisissez la façon de définir son comportement.
               </p>
@@ -880,19 +878,34 @@ export function LinkForm({
         {step === 1 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[1].title}>
             <div className="chatbot-step-head">
-              <h4>Fiches de collecte</h4>
+              <h4>Alimentation</h4>
               <p className="hint">
-                Choisissez les fiches que ce chatbot pourra remplir (au moins une).
+                Ce que le chatbot collecte et les sources qu’il consulte pour répondre.
               </p>
             </div>
+
             {config.mission !== "inform" ? (
-              <ChatbotFichePicker
-                value={config.fiches}
-                onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
-              />
+              <div className="chatbot-subsection">
+                <h5>Fiches à collecter</h5>
+                <p className="hint">
+                  Choisissez les fiches que ce chatbot pourra remplir. Une copie de chaque fiche est
+                  enregistrée avec le chatbot.
+                </p>
+                <ChatbotFichePicker
+                  value={config.fiches}
+                  onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
+                />
+              </div>
             ) : null}
+
             {config.mission !== "collect" ? (
-              <>
+              <div className="chatbot-subsection">
+                <h5>Sources à consulter</h5>
+                <p className="hint">
+                  Activez les sources autorisées pour ce chatbot, puis choisissez les données
+                  existantes et les ajouts.
+                </p>
+                <SourcesField value={sources} onChange={setSources} />
                 <ChatbotSearchToolFields
                   value={config.searchTool}
                   onChange={(searchTool) => setConfig((current) => ({ ...current, searchTool }))}
@@ -903,51 +916,32 @@ export function LinkForm({
                   value={config.sourceMeta}
                   onChange={(sourceMeta) => setConfig((current) => ({ ...current, sourceMeta }))}
                 />
-              </>
-            ) : null}
+                <ChatbotDataStep
+                  value={dataDraft}
+                  onChange={setDataDraft}
+                  selection={config.dataSelection}
+                  onSelectionChange={(dataSelection) =>
+                    setConfig((current) => ({ ...current, dataSelection }))
+                  }
+                  onGlobalCountsChange={setGlobalDataCounts}
+                  onUploadPhoto={uploadDraftPhoto}
+                  onRemovePhoto={removeDraftPhoto}
+                />
+              </div>
+            ) : (
+              <p className="alert info">
+                Mission « Collecter des fiches » : les sources d’information sont désactivées.
+              </p>
+            )}
           </section>
         ) : null}
 
         {step === 2 ? (
           <section className="chatbot-step-panel" aria-label={STEPS[2].title}>
-            <ChatbotDataStep
-              value={dataDraft}
-              onChange={setDataDraft}
-              selection={config.dataSelection}
-              onSelectionChange={(dataSelection) =>
-                setConfig((current) => ({ ...current, dataSelection }))
-              }
-              onGlobalCountsChange={setGlobalDataCounts}
-              onUploadPhoto={uploadDraftPhoto}
-              onRemovePhoto={removeDraftPhoto}
-            />
-          </section>
-        ) : null}
-
-        {step === 3 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
             <div className="chatbot-step-head">
-              <h4>Moteurs IA</h4>
+              <h4>Publication</h4>
               <p className="hint">
-                Choisissez les modèles ou clusters propres à ce chatbot pour chaque usage.
-              </p>
-            </div>
-            <AiUsageOverridesField
-              providers={aiProviders}
-              value={aiUsage}
-              onChange={setAiUsage}
-              canAssign={canAssignAi}
-            />
-          </section>
-        ) : null}
-
-        {step === 4 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
-            <div className="chatbot-step-head">
-              <h4>Diffusion</h4>
-              <p className="hint">
-                Activez les canaux, puis ajustez les sources et les limites. Les options avancées
-                restent repliées.
+                Choisissez où le chatbot est publié, puis ajustez les options avancées de diffusion.
               </p>
             </div>
             <LinkChannelsFields
@@ -962,9 +956,6 @@ export function LinkForm({
               visualTemplates={visualTemplates}
               confidentialites={confidentialites}
             />
-            {config.mission !== "collect" ? (
-              <SourcesField value={sources} onChange={setSources} />
-            ) : null}
             <details className="chatbot-advanced">
               <summary>Options avancées</summary>
               <div className="chatbot-advanced-body">
@@ -980,26 +971,37 @@ export function LinkForm({
           </section>
         ) : null}
 
-        {step === 5 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[5].title}>
+        {step === 3 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
             <div className="chatbot-step-head">
-              <h4>Fallback heuristique</h4>
+              <h4>IA & secours</h4>
               <p className="hint">
-                En cas de panne IA, proposez uniquement des questions/réponses fermées et, si
-                besoin, la fiche de collecte existante.
+                Choisissez les modèles IA et le comportement de secours si l’IA ne répond pas.
               </p>
             </div>
-            <ChatbotFallbackFields
-              value={config.fallback}
-              onChange={(fallback) => setConfig((current) => ({ ...current, fallback }))}
-            />
+            <div className="chatbot-subsection">
+              <h5>Modèles IA</h5>
+              <AiUsageOverridesField
+                providers={aiProviders}
+                value={aiUsage}
+                onChange={setAiUsage}
+                canAssign={canAssignAi}
+              />
+            </div>
+            <div className="chatbot-subsection">
+              <h5>Si l’IA ne répond pas</h5>
+              <ChatbotFallbackFields
+                value={config.fallback}
+                onChange={(fallback) => setConfig((current) => ({ ...current, fallback }))}
+              />
+            </div>
           </section>
         ) : null}
 
-        {step === 6 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[6].title}>
+        {step === 4 ? (
+          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
             <div className="chatbot-step-head">
-              <h4>Récapitulatif</h4>
+              <h4>Validation</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
             </div>
             <LinkQuotaFields value={quota} onChange={setQuota} />
@@ -1026,6 +1028,19 @@ export function LinkForm({
                   ? "— Aucune —"
                   : config.fiches.map((fiche) => fiche.label || fiche.key).join(", ")}
               </dd>
+              <dt>Sources</dt>
+              <dd>
+                {config.mission === "collect"
+                  ? "Désactivées par la mission"
+                  : [
+                      config.searchTool.enabled ? "Fiches existantes" : "",
+                      sources.connaissances ? "Connaissances" : "",
+                      sources.phototheque ? "Photothèque" : "",
+                      sources.lien ? "Liens" : "",
+                    ]
+                      .filter((entry) => entry !== "")
+                      .join(", ") || "Aucune source active"}
+              </dd>
               <dt>Données ajoutées</dt>
               <dd>
                 {pendingDataCount === 0
@@ -1046,6 +1061,12 @@ export function LinkForm({
                   ? `Toutes les données globales (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
                   : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} média(s) sélectionné(s) + données déjà rattachées`}
               </dd>
+              <dt>Configuration IA</dt>
+              <dd>
+                {Object.keys(aiUsage).length === 0
+                  ? "Réglages par défaut de l’organisation"
+                  : `${Object.keys(aiUsage).length} usage(s) personnalisé(s)`}
+              </dd>
               <dt>Canaux</dt>
               <dd>
                 {enabledChannels.length === 0
@@ -1054,7 +1075,7 @@ export function LinkForm({
                       .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
                       .join(", ")}
               </dd>
-              <dt>Fallback heuristique</dt>
+              <dt>Secours</dt>
               <dd>
                 {config.fallback.enabled
                   ? `${config.fallback.questions.length} question(s)${config.fallback.showCollectionForm ? " · fiche de collecte" : ""}`
@@ -1071,7 +1092,7 @@ export function LinkForm({
               </li>
               <li className="ok">
                 {config.fiches.length === 0
-                  ? "Aucune fiche de collecte (résumé possible)"
+                  ? "Aucune fiche de collecte"
                   : `${config.fiches.length} fiche${config.fiches.length > 1 ? "s" : ""} de collecte`}
               </li>
               <li className="ok">
@@ -1081,7 +1102,7 @@ export function LinkForm({
                 {pendingDataCount === 0 ? "" : ` · ${pendingDataCount} ajout(s) pour ce chatbot`}
               </li>
               <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
-                Au moins un canal de diffusion
+                Au moins un canal de publication
               </li>
               <li className={channels.widget.enabled && widgetDisplay === null ? "warn" : "ok"}>
                 Template widget compatible
