@@ -274,6 +274,7 @@ export async function generateChatbotAiDraft(
             organizationId,
             aiProviderId: resolved.providerId,
             aiModel: resolved.model,
+            aiClusterId: resolved.clusterId ?? null,
           };
     client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
   } catch (error) {
