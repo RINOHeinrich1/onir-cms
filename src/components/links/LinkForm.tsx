@@ -7,10 +7,10 @@ import type {
   ChatbotTemplateParamsDto,
 } from "@/components/chatbots/ai-types";
 import { ChatbotAiAssistPanel } from "@/components/chatbots/ChatbotAiAssistPanel";
+import { HelpHint } from "@/components/ui/HelpHint";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
-  CHAT_LINK_TYPES,
   type ChatLinkSources,
   type ChatLinkSurface,
   type ChatLinkType,
@@ -23,7 +23,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigDraftFromAi,
@@ -45,6 +44,14 @@ import {
   isChatbotDraftStateMeaningful,
   serializeChatbotDraftState,
 } from "./chatbot-draft-state";
+import {
+  CHATBOT_STEPS,
+  chatbotStepPosition,
+  isChatbotStepVisible,
+  nextChatbotStep,
+  previousChatbotStep,
+  visibleChatbotStepIndices,
+} from "./chatbot-steps";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -76,15 +83,7 @@ type LinkFormProps = {
   onCancel: () => void;
 };
 
-const STEPS = [
-  { title: "Cadrage", short: "Cadrage" },
-  { title: "Alimentation", short: "Alimentation" },
-  { title: "Publication", short: "Publication" },
-  { title: "IA & secours", short: "IA & secours" },
-  { title: "Validation", short: "Validation" },
-] as const;
-
-/** Création d'un chatbot en 5 étapes dans la même modale. */
+/** Création d'un chatbot en 7 étapes, dont deux conditionnées par l'opération. */
 export function LinkForm({
   prospects,
   confidentialites,
@@ -106,9 +105,12 @@ export function LinkForm({
     [initialDraft, fallbackState],
   );
   const resumed = initialDraft !== null;
-  const [step, setStep] = useState(initial.step);
+  const [step, setStep] = useState(() => {
+    if (isChatbotStepVisible(initial.step, initial.config.mission)) return initial.step;
+    return visibleChatbotStepIndices(initial.config.mission)[0] ?? 0;
+  });
   const [maxVisited, setMaxVisited] = useState(
-    initialDraft === null ? initial.step : STEPS.length - 1,
+    initialDraft === null ? initial.step : CHATBOT_STEPS.length - 1,
   );
   const [stepError, setStepError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -386,26 +388,35 @@ export function LinkForm({
       return null;
     }
     if (index === 1) {
-      const violations = searchToolDraftViolations(config.searchTool, publicLink);
-      if (violations.length > 0) return violations.join(" · ");
+      if (config.mission !== "inform" && config.fiches.length === 0) {
+        return "Sélectionnez au moins une fiche de collecte pour cette opération.";
+      }
       return null;
     }
-    if (index === 5) {
+    if (index === 2) {
+      const violations = searchToolDraftViolations(config.searchTool, publicLink);
+      if (violations.length > 0) return violations.join(" · ");
+      const hasSource =
+        config.searchTool.enabled || sources.connaissances || sources.phototheque || sources.lien;
+      if (!hasSource) return "Activez au moins une source d’information pour cette opération.";
+      return null;
+    }
+    if (index === 3) {
+      if (!channels.page.enabled && !channels.widget.enabled) {
+        return "Activez au moins un canal de publication.";
+      }
+      if (channels.widget.enabled && widgetDisplay === null) {
+        return "Choisissez un template visuel compatible avec le widget.";
+      }
+      return null;
+    }
+    if (index === 4) {
       if (
         config.fallback.enabled &&
         config.fallback.questions.length === 0 &&
         !config.fallback.showCollectionForm
       ) {
-        return "Ajoutez au moins une question de fallback ou autorisez la fiche de collecte.";
-      }
-      return null;
-    }
-    if (index === 4) {
-      if (!channels.page.enabled && !channels.widget.enabled) {
-        return "Activez au moins un canal de diffusion.";
-      }
-      if (channels.widget.enabled && widgetDisplay === null) {
-        return "Choisissez un template visuel compatible avec le widget.";
+        return "Ajoutez au moins une question de secours ou autorisez la fiche de collecte.";
       }
       return null;
     }
@@ -413,7 +424,7 @@ export function LinkForm({
   };
 
   const firstInvalidStep = (): { index: number; message: string } | null => {
-    for (let index = 0; index < STEPS.length; index += 1) {
+    for (const index of visibleChatbotStepIndices(config.mission)) {
       const message = validateStep(index);
       if (message !== null) return { index, message };
     }
@@ -432,13 +443,23 @@ export function LinkForm({
       setStepError(message);
       return;
     }
-    if (step < STEPS.length - 1) goToStep(step + 1);
+    const next = nextChatbotStep(step, config.mission);
+    if (next !== undefined) goToStep(next);
   };
 
   const goBack = (): void => {
-    if (step === 0) return;
+    const previous = previousChatbotStep(step, config.mission);
+    if (previous === undefined) return;
     setStepError(null);
-    setStep(step - 1);
+    setStep(previous);
+  };
+
+  const changeMission = (mission: ChatbotConfigDraft["mission"]): void => {
+    setConfig((current) => ({ ...current, mission }));
+    if (!isChatbotStepVisible(step, mission)) {
+      const next = nextChatbotStep(step, mission) ?? previousChatbotStep(step, mission);
+      if (next !== undefined) setStep(next);
+    }
   };
 
   /** Persiste l'état courant avant une action qui démonte le wizard. */
@@ -722,6 +743,8 @@ export function LinkForm({
   };
 
   const canFinish = firstInvalidStep() === null;
+  const stepIndices = visibleChatbotStepIndices(config.mission);
+  const stepPosition = chatbotStepPosition(step, config.mission);
 
   const quotasSummary =
     quota.maxFiches === "" && quota.maxTokens === ""
@@ -734,9 +757,11 @@ export function LinkForm({
   return (
     <form className="chatbot-wizard" onSubmit={onSubmit} noValidate>
       <nav className="chatbot-wizard-stepper" aria-label="Étapes de création">
-        {STEPS.map((entry, index) => {
+        {stepIndices.map((index, position) => {
+          const entry = CHATBOT_STEPS[index];
+          if (entry === undefined) return null;
           const current = index === step;
-          const done = index < step;
+          const done = position < stepPosition;
           return (
             <button
               key={entry.title}
@@ -746,7 +771,7 @@ export function LinkForm({
               disabled={pending || index > maxVisited}
               onClick={() => goToStep(index)}
             >
-              <span className="chatbot-step-number">{index + 1}</span>
+              <span className="chatbot-step-number">{position + 1}</span>
               <span className="chatbot-step-label">
                 <span className="chatbot-step-title">{entry.title}</span>
                 <span className="chatbot-step-short">{entry.short}</span>
@@ -806,7 +831,7 @@ export function LinkForm({
         ) : null}
 
         {step === 0 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[0].title}>
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[0].title}>
             <div className="chatbot-step-head">
               <h4>Cadrage</h4>
               <p className="hint">
@@ -825,116 +850,86 @@ export function LinkForm({
                 />
               </label>
               <label className="field">
-                Type de chatbot
+                Prospect cible
+                <HelpHint label="Aide sur le prospect cible">
+                  Aucun prospect : chatbot standard. Un prospect : lien dédié à ce prospect, sans
+                  formulaire de contact.
+                </HelpHint>
                 <select
-                  value={type}
-                  onChange={(event) => changeType(event.target.value as ChatLinkType)}
+                  value={type === "specifique" ? prospectId : ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === "") {
+                      changeType("standard");
+                      setProspectId("");
+                    } else {
+                      changeType("specifique");
+                      setProspectId(value);
+                    }
+                  }}
                 >
-                  {CHAT_LINK_TYPES.map((value) => (
-                    <option key={value} value={value}>
-                      {value === "specifique" ? "Spécifique à un prospect" : "Standard"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {type === "specifique" ? (
-              <label className="field">
-                Prospect rattaché *
-                <select value={prospectId} onChange={(event) => setProspectId(event.target.value)}>
-                  <option value="">— Choisir —</option>
+                  <option value="">Aucun prospect (standard)</option>
                   {prospects.map((prospect) => (
                     <option key={prospect.id} value={prospect.id}>
                       {prospect.nom} {prospect.prenom} ({prospect.email})
                     </option>
                   ))}
                 </select>
-                <span className="hint">
-                  Identification : prospect lié au lien. Aucun formulaire de contact.
-                </span>
               </label>
-            ) : null}
-            <ChatbotMissionField
-              value={config.mission}
-              onChange={(mission) => setConfig((current) => ({ ...current, mission }))}
-            />
+            </div>
+            <ChatbotMissionField value={config.mission} onChange={changeMission} />
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
-            <label className="field">
-              Expiration (optionnel)
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-              />
-              <span className="hint">
-                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
-              </span>
-            </label>
           </section>
         ) : null}
 
         {step === 1 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[1].title}>
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[1].title}>
             <div className="chatbot-step-head">
-              <h4>Alimentation</h4>
+              <h4>Collecte</h4>
               <p className="hint">
-                Ce que le chatbot collecte et les sources qu’il consulte pour répondre.
+                Choisissez la fiche que le chatbot remplira lorsque l’utilisateur veut recueillir
+                des informations.
               </p>
             </div>
-
-            {config.mission !== "inform" ? (
-              <div className="chatbot-subsection">
-                <h5>Fiches à collecter</h5>
-                <p className="hint">
-                  Choisissez les fiches que ce chatbot pourra remplir. Une copie de chaque fiche est
-                  enregistrée avec le chatbot.
-                </p>
-                <ChatbotFichePicker
-                  value={config.fiches}
-                  onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
-                />
-              </div>
-            ) : null}
-
-            {config.mission !== "collect" ? (
-              <div className="chatbot-subsection">
-                <h5>Sources à consulter</h5>
-                <p className="hint">
-                  Activez les sources autorisées pour ce chatbot, puis choisissez les données
-                  existantes et les ajouts.
-                </p>
-                <ChatbotSourceLabelsFields
-                  value={config.sourceMeta}
-                  onChange={(sourceMeta) => setConfig((current) => ({ ...current, sourceMeta }))}
-                />
-                <ChatbotDataStep
-                  value={dataDraft}
-                  onChange={setDataDraft}
-                  selection={config.dataSelection}
-                  onSelectionChange={(dataSelection) =>
-                    setConfig((current) => ({ ...current, dataSelection }))
-                  }
-                  onGlobalCountsChange={setGlobalDataCounts}
-                  onUploadPhoto={uploadDraftPhoto}
-                  onRemovePhoto={removeDraftPhoto}
-                  searchTool={config.searchTool}
-                  onSearchToolChange={(searchTool) =>
-                    setConfig((current) => ({ ...current, searchTool }))
-                  }
-                  fiches={config.fiches}
-                  publicLink={publicLink}
-                />
-              </div>
-            ) : (
-              <p className="alert info">
-                Mission « Collecter des fiches » : les sources d’information sont désactivées.
-              </p>
-            )}
+            <ChatbotFichePicker
+              value={config.fiches}
+              onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
+            />
           </section>
         ) : null}
 
         {step === 2 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[2].title}>
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[2].title}>
+            <div className="chatbot-step-head">
+              <h4>Alimentation</h4>
+              <p className="hint">
+                Les sources que le chatbot consulte et les contenus qu’il peut utiliser.
+              </p>
+            </div>
+            <ChatbotDataStep
+              value={dataDraft}
+              onChange={setDataDraft}
+              selection={config.dataSelection}
+              onSelectionChange={(dataSelection) =>
+                setConfig((current) => ({ ...current, dataSelection }))
+              }
+              onGlobalCountsChange={setGlobalDataCounts}
+              onUploadPhoto={uploadDraftPhoto}
+              onRemovePhoto={removeDraftPhoto}
+              searchTool={config.searchTool}
+              onSearchToolChange={(searchTool) =>
+                setConfig((current) => ({ ...current, searchTool }))
+              }
+              fiches={config.fiches}
+              publicLink={publicLink}
+              sources={sources}
+              onSourcesChange={setSources}
+            />
+          </section>
+        ) : null}
+
+        {step === 3 ? (
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[3].title}>
             <div className="chatbot-step-head">
               <h4>Publication</h4>
               <p className="hint">
@@ -968,8 +963,8 @@ export function LinkForm({
           </section>
         ) : null}
 
-        {step === 3 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[3].title}>
+        {step === 4 ? (
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[4].title}>
             <div className="chatbot-step-head">
               <h4>IA & secours</h4>
               <p className="hint">
@@ -995,23 +990,41 @@ export function LinkForm({
           </section>
         ) : null}
 
-        {step === 4 ? (
-          <section className="chatbot-step-panel" aria-label={STEPS[4].title}>
+        {step === 5 ? (
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[5].title}>
+            <div className="chatbot-step-head">
+              <h4>Restrictions et quotas</h4>
+              <p className="hint">Définissez les limites d’usage et l’expiration du chatbot.</p>
+            </div>
+            <LinkQuotaFields value={quota} onChange={setQuota} />
+            <label className="field">
+              Expiration (optionnel)
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+              />
+              <span className="hint">
+                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
+              </span>
+            </label>
+          </section>
+        ) : null}
+
+        {step === 6 ? (
+          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[6].title}>
             <div className="chatbot-step-head">
               <h4>Validation</h4>
               <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
             </div>
-            <LinkQuotaFields value={quota} onChange={setQuota} />
             <dl className="kv chatbot-summary">
-              <dt>Type</dt>
-              <dd>{type === "specifique" ? "Spécifique à un prospect" : "Standard"}</dd>
-              <dt>Prospect</dt>
+              <dt>Prospect cible</dt>
               <dd>
                 {type === "specifique"
                   ? selectedProspect === null
-                    ? "— Non sélectionné —"
+                    ? "— Prospect non sélectionné —"
                     : `${selectedProspect.nom} ${selectedProspect.prenom} (${selectedProspect.email})`
-                  : "Aucun"}
+                  : "Aucun prospect (standard)"}
               </dd>
               <dt>Comportement</dt>
               <dd>
@@ -1028,7 +1041,7 @@ export function LinkForm({
               <dt>Sources</dt>
               <dd>
                 {config.mission === "collect"
-                  ? "Désactivées par la mission"
+                  ? "Désactivées par l’opération"
                   : [
                       config.searchTool.enabled ? "Fiches existantes" : "",
                       sources.connaissances ? "Connaissances" : "",
@@ -1052,7 +1065,7 @@ export function LinkForm({
                       .filter((entry) => entry !== "")
                       .join(" · ")}
               </dd>
-              <dt>Bibliothèque</dt>
+              <dt>Sources d’information</dt>
               <dd>
                 {config.dataSelection.mode === "all"
                   ? `Toute la bibliothèque (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
@@ -1130,7 +1143,7 @@ export function LinkForm({
 
       <div className="chatbot-wizard-footer">
         <div>
-          {step > 0 ? (
+          {stepPosition > 0 ? (
             <button type="button" className="btn ghost small" disabled={pending} onClick={goBack}>
               Retour
             </button>
@@ -1156,9 +1169,9 @@ export function LinkForm({
                   : ""}
           </span>
           <span className="hint chatbot-step-counter">
-            Étape {step + 1} / {STEPS.length}
+            Étape {stepPosition + 1} / {stepIndices.length}
           </span>
-          {step < STEPS.length - 1 ? (
+          {stepPosition < stepIndices.length - 1 ? (
             <button type="button" className="btn small" disabled={pending} onClick={goNext}>
               Suivant
             </button>

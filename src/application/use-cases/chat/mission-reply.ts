@@ -123,8 +123,8 @@ function baseDefinition(config: ChatbotConfig): TemplateDefinition {
 
 function _sourcePlanLabel(plan: SourcePlan, sources: ChatbotInformationSources): string {
   if (plan.source === "fiches") return sources.fiches.label;
-  if (plan.source === "connaissances") return sources.connaissances.label;
-  return sources.medias.label;
+  if (plan.source === "connaissances") return "Connaissances";
+  return "Photos et liens";
 }
 
 function sourcePrompt(
@@ -136,12 +136,8 @@ function sourcePrompt(
     sources.fiches.enabled
       ? `- fiches : ${sources.fiches.label} — ${sources.fiches.usageHint}`
       : "",
-    sources.connaissances.enabled
-      ? `- connaissances : ${sources.connaissances.label} — ${sources.connaissances.usageHint}`
-      : "",
-    sources.medias.enabled
-      ? `- médias : ${sources.medias.label} — ${sources.medias.usageHint}`
-      : "",
+    sources.connaissances.enabled ? "- connaissances : base de connaissances interne" : "",
+    sources.medias.enabled ? "- médias : photos et liens internes" : "",
   ]
     .filter((entry) => entry !== "")
     .join("\n");

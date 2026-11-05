@@ -27,16 +27,12 @@ export type ChatbotFichesSource = FicheSearchToolConfig & {
 
 export type ChatbotConnaissancesSource = {
   enabled: boolean;
-  label: string;
-  usageHint: string;
   selection: ChatbotSourceSelection;
   maxEntries: number;
 };
 
 export type ChatbotMediasSource = {
   enabled: boolean;
-  label: string;
-  usageHint: string;
   types: ChatbotMediaType[];
   selection: ChatbotSourceSelection;
   access: ChatbotMediaAccessMode;
@@ -156,13 +152,6 @@ function parseConnaissancesSource(input: unknown, errors: string[]): ChatbotConn
   }
   return {
     enabled: raw.enabled === true,
-    label: label(raw.label, "Connaissances", errors, "Connaissances"),
-    usageHint: usageHint(
-      raw.usageHint,
-      "Utiliser la base de connaissances pour répondre aux questions.",
-      errors,
-      "Connaissances",
-    ),
     selection: parseSelection(raw.selection, errors, "Connaissances"),
     maxEntries: Math.max(1, Math.min(40, maxEntries)),
   };
@@ -183,13 +172,6 @@ function parseMediasSource(input: unknown, errors: string[]): ChatbotMediasSourc
   }
   return {
     enabled,
-    label: label(raw.label, "Photos et liens", errors, "Médias"),
-    usageHint: usageHint(
-      raw.usageHint,
-      "Utiliser les médias accessibles pour illustrer la réponse.",
-      errors,
-      "Médias",
-    ),
     types: [...new Set(types)],
     selection: parseSelection(raw.selection, errors, "Médias"),
     access: isChatbotMediaAccessMode(raw.access) ? raw.access : "on_demand",
@@ -207,15 +189,11 @@ export function defaultChatbotInformationSources(): ChatbotInformationSources {
     },
     connaissances: {
       enabled: false,
-      label: "Connaissances",
-      usageHint: "Utiliser la base de connaissances pour répondre aux questions.",
       selection: { mode: "all", ids: [] },
       maxEntries: 40,
     },
     medias: {
       enabled: false,
-      label: "Photos et liens",
-      usageHint: "Utiliser les médias accessibles pour illustrer la réponse.",
       types: ["photo", "lien"],
       selection: { mode: "all", ids: [] },
       access: "on_demand",
@@ -274,12 +252,8 @@ export function missionSourceLabels(sources: ChatbotInformationSources): string 
     sources.fiches.enabled
       ? `- fiches (${sources.fiches.label}) : ${sources.fiches.usageHint}`
       : "",
-    sources.connaissances.enabled
-      ? `- connaissances (${sources.connaissances.label}) : ${sources.connaissances.usageHint}`
-      : "",
-    sources.medias.enabled
-      ? `- médias (${sources.medias.label}) : ${sources.medias.usageHint}`
-      : "",
+    sources.connaissances.enabled ? "- connaissances : base de connaissances interne" : "",
+    sources.medias.enabled ? "- médias : photos et liens internes" : "",
   ]
     .filter((entry) => entry !== "")
     .join("\n");

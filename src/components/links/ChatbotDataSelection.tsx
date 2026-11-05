@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { ConnaissanceDto } from "@/components/connaissances/types";
 import type { MediaDto } from "@/components/medias/types";
+import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
@@ -93,6 +94,8 @@ export function ChatbotDataSelection({
   onSearchToolChange,
   fiches,
   publicLink,
+  sources,
+  onSourcesChange,
 }: {
   selection: DataSelection;
   onChange: (next: DataSelection) => void;
@@ -103,6 +106,8 @@ export function ChatbotDataSelection({
   onSearchToolChange: (next: ChatbotSearchToolDraft) => void;
   fiches: FicheDraft[];
   publicLink: boolean;
+  sources: ChatLinkSources;
+  onSourcesChange: (next: ChatLinkSources) => void;
 }) {
   const modeName = useId();
   const [connaissances, setConnaissances] = useState<ConnaissanceDto[]>([]);
@@ -173,6 +178,14 @@ export function ChatbotDataSelection({
   }, [items, loading, onCountsChange]);
 
   const tabCount = (id: TabId): number => (id === "fiches" ? fiches.length : items[id].length);
+  const contentEnabled =
+    tab === "connaissances"
+      ? sources.connaissances
+      : tab === "photos"
+        ? sources.phototheque
+        : tab === "liens"
+          ? sources.lien
+          : true;
   const activeItems = tab === "fiches" ? [] : items[tab];
   const selectedIds =
     selection.mode !== "selected" || tab === "fiches"
@@ -267,6 +280,55 @@ export function ChatbotDataSelection({
 
       {!loading && loadError === null ? (
         <>
+          <div className="chatbot-library-toggles">
+            <label className="chatbot-tool-toggle">
+              <input
+                type="checkbox"
+                className="chatbot-tool-toggle-input"
+                checked={sources.connaissances}
+                onChange={(event) =>
+                  onSourcesChange({ ...sources, connaissances: event.target.checked })
+                }
+              />
+              <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+              <span className="chatbot-tool-toggle-text">Connaissances</span>
+            </label>
+            <label className="chatbot-tool-toggle">
+              <input
+                type="checkbox"
+                className="chatbot-tool-toggle-input"
+                checked={sources.phototheque}
+                onChange={(event) =>
+                  onSourcesChange({ ...sources, phototheque: event.target.checked })
+                }
+              />
+              <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+              <span className="chatbot-tool-toggle-text">Photos</span>
+            </label>
+            <label className="chatbot-tool-toggle">
+              <input
+                type="checkbox"
+                className="chatbot-tool-toggle-input"
+                checked={sources.lien}
+                onChange={(event) => onSourcesChange({ ...sources, lien: event.target.checked })}
+              />
+              <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+              <span className="chatbot-tool-toggle-text">Liens</span>
+            </label>
+            <label className="chatbot-tool-toggle">
+              <input
+                type="checkbox"
+                className="chatbot-tool-toggle-input"
+                checked={searchTool.enabled}
+                onChange={(event) =>
+                  onSearchToolChange({ ...searchTool, enabled: event.target.checked })
+                }
+              />
+              <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+              <span className="chatbot-tool-toggle-text">Fiches</span>
+            </label>
+          </div>
+
           <div className="chatbot-data-tabs" role="tablist" aria-label="Type de contenu">
             {TABS.map((entry) => (
               <button
@@ -284,12 +346,25 @@ export function ChatbotDataSelection({
           </div>
 
           {tab === "fiches" ? (
-            <ChatbotSearchToolFields
-              value={searchTool}
-              onChange={onSearchToolChange}
-              fiches={fiches}
-              publicLink={publicLink}
-            />
+            searchTool.enabled ? (
+              <ChatbotSearchToolFields
+                value={searchTool}
+                onChange={onSearchToolChange}
+                fiches={fiches}
+                publicLink={publicLink}
+              />
+            ) : (
+              <p className="hint">
+                Activez « Fiches » au-dessus des onglets pour utiliser et configurer l’outil de
+                recherche.
+              </p>
+            )
+          ) : !contentEnabled ? (
+            <p className="hint">
+              Activez «{" "}
+              {tab === "connaissances" ? "Connaissances" : tab === "photos" ? "Photos" : "Liens"} »
+              au-dessus des onglets pour sélectionner ses contenus.
+            </p>
           ) : (
             <>
               <fieldset className="chatbot-data-mode">
@@ -426,7 +501,7 @@ export function ChatbotDataSelection({
                               )}
                             </span>
                             <span className={`badge ${item.badge === "global" ? "muted" : "info"}`}>
-                              {item.badge === "global" ? "Bibliothèque" : "Ce chatbot"}
+                              {item.badge === "global" ? "Source" : "Ce chatbot"}
                             </span>
                           </label>
                         </li>

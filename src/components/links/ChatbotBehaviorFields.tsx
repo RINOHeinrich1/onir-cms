@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { HelpHint } from "@/components/ui/HelpHint";
 import {
   MAX_CHATBOT_REPLY_MAX_TOKENS,
   MIN_CHATBOT_REPLY_MAX_TOKENS,
@@ -207,11 +208,11 @@ export function ChatbotBehaviorFields({ value, onChange }: Props) {
             Expert
           </button>
         </div>
-        <p className="hint">
+        <HelpHint label="Aide sur le mode de comportement">
           {value.behaviorMode === "guided"
             ? "Le prompt est généré depuis les réglages simples. Il n’est pas éditable."
             : "Le prompt système est la source du comportement. Les réglages simples sont conservés mais ne sont pas ajoutés au prompt."}
-        </p>
+        </HelpHint>
       </fieldset>
 
       <label className="field">
@@ -234,10 +235,10 @@ export function ChatbotBehaviorFields({ value, onChange }: Props) {
             });
           }}
         />
-        <span className="hint">
+        <HelpHint label="Aide sur la longueur maximale">
           Budget de cette réponse, en tokens (≈ {Math.round(value.replyMaxTokens * 0.6)} mots).
           Différent du budget total de tokens du chatbot.
-        </span>
+        </HelpHint>
       </label>
 
       {value.behaviorMode === "guided" ? (

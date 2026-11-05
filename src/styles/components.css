@@ -888,6 +888,67 @@
 }
 
 /* Toggle switch compact pour les activations de fonctionnalités. */
+.help-hint {
+  display: inline-flex;
+  margin-left: 0.35rem;
+  position: relative;
+  vertical-align: middle;
+}
+
+.help-hint-trigger {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 0.65rem;
+  font-weight: 800;
+  height: 1.2rem;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 1.2rem;
+}
+
+.help-hint-trigger:hover,
+.help-hint-trigger:focus-visible {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.help-hint-bubble {
+  background: var(--fg);
+  border-radius: 0.6rem;
+  box-shadow: 0 0.6rem 1.5rem rgb(0 0 0 / 0.18);
+  color: var(--surface);
+  display: none;
+  font-size: 0.72rem;
+  font-weight: 500;
+  left: 50%;
+  line-height: 1.45;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.55rem 0.7rem;
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  transform: translateX(-50%);
+  width: 18rem;
+  z-index: 30;
+}
+
+.help-hint:hover .help-hint-bubble,
+.help-hint:focus-within .help-hint-bubble {
+  display: block;
+}
+
+.chatbot-library-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.25rem;
+  margin: 0.85rem 0 0.35rem;
+}
+
 .chatbot-tool-toggle {
   position: relative;
   display: inline-flex;

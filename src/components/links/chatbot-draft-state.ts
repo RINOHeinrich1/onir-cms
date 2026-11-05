@@ -36,12 +36,15 @@ export type ChatbotDraftState = {
 };
 
 const STEP_MIN = 0;
-const STEP_MAX = 4;
-/** Ancien wizard (7 étapes) → nouveau wizard (5 étapes). */
-const LEGACY_STEP_MAP = [0, 1, 1, 3, 2, 3, 4] as const;
+const STEP_MAX = 6;
+/** Wizard v2 (5 étapes) → wizard courant (7 étapes). */
+const V2_STEP_MAP = [0, 2, 3, 4, 6] as const;
+/** Ancien wizard (7 étapes) → wizard courant (7 étapes). */
+const LEGACY_STEP_MAP = [0, 1, 2, 4, 3, 4, 6] as const;
 
-function mapStep(value: number, legacy: boolean): number {
-  if (!legacy) return Math.min(STEP_MAX, Math.max(STEP_MIN, value));
+function mapStep(value: number, version: number): number {
+  if (version >= 3) return Math.min(STEP_MAX, Math.max(STEP_MIN, value));
+  if (version === 2) return V2_STEP_MAP[Math.min(4, Math.max(0, value))] ?? 0;
   return LEGACY_STEP_MAP[Math.min(6, Math.max(0, value))] ?? 0;
 }
 
@@ -191,8 +194,8 @@ export function hydrateChatbotDraftState(
   const source = record(input);
   const channelsInput = record(source.channels);
   const rawStep = typeof source.step === "number" ? Math.trunc(source.step) : fallback.step;
-  const legacyWizard = source.wizardVersion !== 2;
-  const step = mapStep(rawStep, legacyWizard);
+  const version = source.wizardVersion === 3 ? 3 : source.wizardVersion === 2 ? 2 : 1;
+  const step = mapStep(rawStep, version);
   const config = draftFromConfig(source.config) ?? fallback.config;
   const type =
     typeof source.type === "string" && isChatLinkType(source.type) ? source.type : fallback.type;
@@ -225,7 +228,7 @@ export function hydrateChatbotDraftState(
 /** Représentation JSONB : aucun `File`, aucun objet non sérialisable. */
 export function serializeChatbotDraftState(state: ChatbotDraftState): Record<string, unknown> {
   return {
-    wizardVersion: 2,
+    wizardVersion: 3,
     step: state.step,
     type: state.type,
     prospectId: state.prospectId,
@@ -251,7 +254,6 @@ export function chatbotDraftStateSignature(state: ChatbotDraftState): string {
 function configComparable(config: ChatbotConfigDraft): string {
   return JSON.stringify({
     mission: config.mission,
-    sourceMeta: config.sourceMeta,
     behaviorMode: config.behaviorMode,
     systemPrompt: config.systemPrompt,
     simple: config.simple,

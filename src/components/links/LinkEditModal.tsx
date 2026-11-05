@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
+import { HelpHint } from "@/components/ui/HelpHint";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -19,7 +20,6 @@ import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
-import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -32,6 +32,14 @@ import {
   EMPTY_CHATBOT_DATA_DRAFT,
   submitChatbotDataDraft,
 } from "./chatbot-data-draft";
+import {
+  CHATBOT_STEPS,
+  chatbotStepPosition,
+  isChatbotStepVisible,
+  nextChatbotStep,
+  previousChatbotStep,
+  visibleChatbotStepIndices,
+} from "./chatbot-steps";
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
@@ -60,14 +68,6 @@ function channelDraft(channel: ChatLinkChannel): ChannelDrafts["page"] {
     widgetPosition: channel.widgetConfig.position ?? "bottom-right",
   };
 }
-
-const EDIT_STEPS = [
-  { title: "Cadrage", short: "Cadrage" },
-  { title: "Alimentation", short: "Alimentation" },
-  { title: "Publication", short: "Publication" },
-  { title: "IA & secours", short: "IA & secours" },
-  { title: "Validation", short: "Validation" },
-] as const;
 
 /**
  * Modale d'édition globale d'un lien : libellé + expiration (US-LIENS-001).
@@ -213,33 +213,40 @@ export function LinkEditModal({
   }, [onClose]);
 
   const validateStep = (index: number): string | null => {
+    if (index === 0 && config !== null) {
+      if (config.behaviorMode === "expert" && config.systemPrompt.trim() === "") {
+        return "Le prompt système est obligatoire en mode expert.";
+      }
+    }
     if (index === 1 && config !== null) {
+      if (config.mission !== "inform" && config.fiches.length === 0) {
+        return "Sélectionnez au moins une fiche de collecte pour cette opération.";
+      }
+    }
+    if (index === 2 && config !== null) {
       if (config.mission !== "collect") {
         const violations = searchToolDraftViolations(config.searchTool, publicLink);
         if (violations.length > 0) return violations.join(" · ");
         const hasSource =
           config.searchTool.enabled || sources.connaissances || sources.phototheque || sources.lien;
-        if (!hasSource) return "Activez au moins une source d’information pour cette mission.";
-      }
-      if (config.mission !== "inform" && config.fiches.length === 0) {
-        return "Sélectionnez au moins une fiche de collecte pour cette mission.";
+        if (!hasSource) return "Activez au moins une source d’information pour cette opération.";
       }
     }
-    if (index === 3 && config !== null) {
+    if (index === 3) {
+      if (!channels.page.enabled && !channels.widget.enabled) {
+        return "Activez au moins un canal de publication.";
+      }
+      if (channels.widget.enabled && widgetDisplay === null) {
+        return "Choisissez un template visuel compatible avec le widget.";
+      }
+    }
+    if (index === 4 && config !== null) {
       if (
         config.fallback.enabled &&
         config.fallback.questions.length === 0 &&
         !config.fallback.showCollectionForm
       ) {
         return "Ajoutez au moins une question de secours ou autorisez la fiche de collecte.";
-      }
-    }
-    if (index === 2) {
-      if (!channels.page.enabled && !channels.widget.enabled) {
-        return "Activez au moins un canal de publication.";
-      }
-      if (channels.widget.enabled && widgetDisplay === null) {
-        return "Choisissez un template visuel compatible avec le widget.";
       }
     }
     return null;
@@ -256,16 +263,32 @@ export function LinkEditModal({
       setStepError(message);
       return;
     }
-    if (step < EDIT_STEPS.length - 1) goToStep(step + 1);
+    const next = nextChatbotStep(step, config?.mission ?? "hybrid");
+    if (next !== undefined) goToStep(next);
+  };
+
+  const goBack = (): void => {
+    const previous = previousChatbotStep(step, config?.mission ?? "hybrid");
+    if (previous === undefined) return;
+    setStepError(null);
+    setStep(previous);
+  };
+
+  const changeMission = (mission: ChatbotConfigDraft["mission"]): void => {
+    setConfig((current) => (current === null ? current : { ...current, mission }));
+    if (!isChatbotStepVisible(step, mission)) {
+      const next = nextChatbotStep(step, mission) ?? previousChatbotStep(step, mission) ?? 0;
+      setStep(next);
+    }
   };
 
   const save = async (force = false): Promise<void> => {
     setError(null);
-    if (!force && step < EDIT_STEPS.length - 1) {
+    if (!force && step < CHATBOT_STEPS.length - 1) {
       goNext();
       return;
     }
-    for (let index = 0; index < EDIT_STEPS.length; index += 1) {
+    for (const index of visibleChatbotStepIndices(config?.mission ?? "hybrid")) {
       const message = validateStep(index);
       if (message !== null) {
         setStep(index);
@@ -372,9 +395,9 @@ export function LinkEditModal({
     void save(false);
   };
 
-  const canFinish = EDIT_STEPS.map((_, index) => index).every(
-    (index) => validateStep(index) === null,
-  );
+  const stepIndices = visibleChatbotStepIndices(config?.mission ?? "hybrid");
+  const stepPosition = chatbotStepPosition(step, config?.mission ?? "hybrid");
+  const canFinish = stepIndices.every((index) => validateStep(index) === null);
 
   return (
     <div className="modal-overlay chatbot-wizard-overlay">
@@ -397,22 +420,26 @@ export function LinkEditModal({
         <div className="modal-body chatbot-wizard-host">
           <form className="chatbot-wizard" onSubmit={onSubmit} noValidate>
             <nav className="chatbot-wizard-stepper" aria-label="Étapes de modification">
-              {EDIT_STEPS.map((entry, index) => (
-                <button
-                  key={entry.title}
-                  type="button"
-                  className={`chatbot-step${index === step ? " active" : ""}${index < step ? " done" : ""}`}
-                  aria-current={index === step ? "step" : undefined}
-                  disabled={pending}
-                  onClick={() => goToStep(index)}
-                >
-                  <span className="chatbot-step-number">{index + 1}</span>
-                  <span className="chatbot-step-label">
-                    <span className="chatbot-step-title">{entry.title}</span>
-                    <span className="chatbot-step-short">{entry.short}</span>
-                  </span>
-                </button>
-              ))}
+              {stepIndices.map((index, position) => {
+                const entry = CHATBOT_STEPS[index];
+                if (entry === undefined) return null;
+                return (
+                  <button
+                    key={entry.title}
+                    type="button"
+                    className={`chatbot-step${index === step ? " active" : ""}${position < stepPosition ? " done" : ""}`}
+                    aria-current={index === step ? "step" : undefined}
+                    disabled={pending}
+                    onClick={() => goToStep(index)}
+                  >
+                    <span className="chatbot-step-number">{position + 1}</span>
+                    <span className="chatbot-step-label">
+                      <span className="chatbot-step-title">{entry.title}</span>
+                      <span className="chatbot-step-short">{entry.short}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </nav>
 
             <div className="chatbot-wizard-body">
@@ -420,15 +447,20 @@ export function LinkEditModal({
               {error !== null ? <p className="alert error">{error}</p> : null}
 
               {step === 0 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[0].title}>
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[0].title}>
                   <div className="chatbot-step-head">
                     <h4>Cadrage</h4>
                     <p className="hint">
-                      Identité du chatbot, mission, comportement, expiration et catégorie.
+                      Identité du chatbot, opération, comportement et catégorie.
                     </p>
                   </div>
                   <p className="hint">
-                    Type : <span className="badge">{link.type}</span>
+                    Prospect cible :{" "}
+                    <span className="badge">
+                      {link.type === "specifique"
+                        ? "Prospect spécifique (lecture seule)"
+                        : "Aucun prospect (standard)"}
+                    </span>
                   </p>
                   <label className="field">
                     Libellé (optionnel)
@@ -440,27 +472,9 @@ export function LinkEditModal({
                       onChange={(event) => setLabel(event.target.value)}
                     />
                   </label>
-                  <label className="field">
-                    Expiration (vide = sans expiration)
-                    <input
-                      type="date"
-                      value={expiresAt}
-                      onChange={(event) => setExpiresAt(event.target.value)}
-                    />
-                    <span className="hint">
-                      Le lien reste valide jusqu&apos;à la fin du jour choisi.
-                    </span>
-                  </label>
                   {config !== null ? (
                     <>
-                      <ChatbotMissionField
-                        value={config.mission}
-                        onChange={(mission) =>
-                          setConfig((current) =>
-                            current === null ? current : { ...current, mission },
-                          )
-                        }
-                      />
+                      <ChatbotMissionField value={config.mission} onChange={changeMission} />
                       <ChatbotBehaviorFields value={config} onChange={setConfig} />
                     </>
                   ) : null}
@@ -469,76 +483,69 @@ export function LinkEditModal({
               ) : null}
 
               {step === 1 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[1].title}>
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[1].title}>
                   <div className="chatbot-step-head">
-                    <h4>Alimentation</h4>
+                    <h4>Collecte</h4>
                     <p className="hint">
-                      Ce que le chatbot collecte et les sources qu’il consulte pour répondre.
+                      Choisissez la fiche que le chatbot remplira lorsque le visiteur veut
+                      recueillir des informations.
                     </p>
                   </div>
                   {config === null ? (
                     <p className="hint">Chargement de la configuration…</p>
                   ) : (
-                    <>
-                      {config.mission !== "inform" ? (
-                        <div className="chatbot-subsection">
-                          <h5>Fiches à collecter</h5>
-                          <ChatbotFichePicker
-                            value={config.fiches}
-                            onChange={(fiches) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, fiches },
-                              )
-                            }
-                          />
-                        </div>
-                      ) : null}
-                      {config.mission !== "collect" ? (
-                        <div className="chatbot-subsection">
-                          <h5>Sources à consulter</h5>
-                          <ChatbotSourceLabelsFields
-                            value={config.sourceMeta}
-                            onChange={(sourceMeta) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, sourceMeta },
-                              )
-                            }
-                          />
-                          <ChatbotDataStep
-                            value={dataDraft}
-                            onChange={setDataDraft}
-                            selection={config.dataSelection}
-                            onSelectionChange={(dataSelection) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, dataSelection },
-                              )
-                            }
-                            chatLinkId={link.id}
-                            onUploadPhoto={uploadDraftPhoto}
-                            onRemovePhoto={removeDraftPhoto}
-                            searchTool={config.searchTool}
-                            onSearchToolChange={(searchTool) =>
-                              setConfig((current) =>
-                                current === null ? current : { ...current, searchTool },
-                              )
-                            }
-                            fiches={config.fiches}
-                            publicLink={publicLink}
-                          />
-                        </div>
-                      ) : (
-                        <p className="alert info">
-                          Mission « Collecter des fiches » : les sources d’information sont
-                          désactivées.
-                        </p>
-                      )}
-                    </>
+                    <ChatbotFichePicker
+                      value={config.fiches}
+                      onChange={(fiches) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, fiches },
+                        )
+                      }
+                    />
                   )}
                 </section>
               ) : null}
 
               {step === 2 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[2].title}>
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[2].title}>
+                  <div className="chatbot-step-head">
+                    <h4>Alimentation</h4>
+                    <p className="hint">
+                      Les sources que le chatbot consulte et les contenus qu’il peut utiliser.
+                    </p>
+                  </div>
+                  {config === null ? (
+                    <p className="hint">Chargement de la configuration…</p>
+                  ) : (
+                    <ChatbotDataStep
+                      value={dataDraft}
+                      onChange={setDataDraft}
+                      selection={config.dataSelection}
+                      onSelectionChange={(dataSelection) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, dataSelection },
+                        )
+                      }
+                      chatLinkId={link.id}
+                      onUploadPhoto={uploadDraftPhoto}
+                      onRemovePhoto={removeDraftPhoto}
+                      searchTool={config.searchTool}
+                      onSearchToolChange={(searchTool) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, searchTool },
+                        )
+                      }
+                      fiches={config.fiches}
+                      publicLink={publicLink}
+                      sources={sources}
+                      onSourcesChange={setSources}
+                    />
+                  )}
+                </section>
+              ) : null}
+
+              {step === 3 ? (
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[3].title}>
                   <div className="chatbot-step-head">
                     <h4>Publication</h4>
                     <p className="hint">
@@ -564,8 +571,8 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 3 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[3].title}>
+              {step === 4 ? (
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[4].title}>
                   <div className="chatbot-step-head">
                     <h4>IA & secours</h4>
                     <p className="hint">
@@ -598,13 +605,27 @@ export function LinkEditModal({
                 </section>
               ) : null}
 
-              {step === 4 ? (
-                <section className="chatbot-step-panel" aria-label={EDIT_STEPS[4].title}>
+              {step === 5 ? (
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[5].title}>
                   <div className="chatbot-step-head">
-                    <h4>Validation</h4>
-                    <p className="hint">Vérifiez les limites puis enregistrez les modifications.</p>
+                    <h4>Restrictions et quotas</h4>
+                    <p className="hint">
+                      Définissez les limites d’usage et l’expiration du chatbot.
+                    </p>
                   </div>
                   <LinkQuotaFields value={quota} onChange={setQuota} />
+                  <label className="field">
+                    Expiration (optionnel)
+                    <input
+                      type="date"
+                      value={expiresAt}
+                      onChange={(event) => setExpiresAt(event.target.value)}
+                    />
+                    <span className="hint">
+                      Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour
+                      choisi.
+                    </span>
+                  </label>
                   <div className="quota-summary">
                     <p className="hint">
                       Consommé : {initialQuota.fichesGenerated} fiche(s)
@@ -620,6 +641,17 @@ export function LinkEditModal({
                     >
                       {resetting ? "Réinitialisation…" : "Réinitialiser les tokens"}
                     </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {step === 6 ? (
+                <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[6].title}>
+                  <div className="chatbot-step-head">
+                    <h4>Validation</h4>
+                    <p className="hint">
+                      Vérifiez le récapitulatif puis enregistrez les modifications.
+                    </p>
                   </div>
                   <dl className="kv chatbot-summary">
                     <dt>Libellé</dt>
@@ -641,7 +673,7 @@ export function LinkEditModal({
                     <dt>Sources</dt>
                     <dd>
                       {config?.mission === "collect"
-                        ? "Désactivées par la mission"
+                        ? "Désactivées par l’opération"
                         : [
                             config?.searchTool.enabled ? "Fiches existantes" : "",
                             sources.connaissances ? "Connaissances" : "",
@@ -692,7 +724,7 @@ export function LinkEditModal({
                     type="button"
                     className="btn ghost small"
                     disabled={pending}
-                    onClick={() => goToStep(step - 1)}
+                    onClick={goBack}
                   >
                     Retour
                   </button>
@@ -704,9 +736,9 @@ export function LinkEditModal({
               </div>
               <div className="tools">
                 <span className="hint chatbot-step-counter">
-                  Étape {step + 1} / {EDIT_STEPS.length}
+                  Étape {stepPosition + 1} / {stepIndices.length}
                 </span>
-                {step < EDIT_STEPS.length - 1 ? (
+                {stepPosition < stepIndices.length - 1 ? (
                   <button type="button" className="btn small" disabled={pending} onClick={goNext}>
                     Suivant
                   </button>

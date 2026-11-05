@@ -1,5 +1,7 @@
 "use client";
 
+import { HelpHint } from "@/components/ui/HelpHint";
+
 import type { TokenResetMode } from "@/domain/entities/chat";
 
 export type LinkQuotaDraft = {
@@ -26,7 +28,13 @@ export function LinkQuotaFields({
 }) {
   return (
     <div className="field">
-      <span className="label">Limites du chatbot</span>
+      <span className="label">
+        Limites du chatbot
+        <HelpHint label="Aide sur les limites">
+          La limite de fiches est définitive. Le budget de tokens peut être réinitialisé
+          manuellement ou automatiquement.
+        </HelpHint>
+      </span>
       <label className="field">
         Fiches maximum (à vie)
         <input
@@ -50,10 +58,10 @@ export function LinkQuotaFields({
           value={value.maxTokens}
           onChange={(event) => onChange({ ...value, maxTokens: event.target.value })}
         />
-        <span className="hint">
+        <HelpHint label="Aide sur le budget de tokens">
           Toutes les opérations IA du chatbot sont comptées : réponses, connaissances, médias et
           fiches.
-        </span>
+        </HelpHint>
       </label>
       <label className="field">
         Réinitialisation du budget tokens
@@ -85,10 +93,6 @@ export function LinkQuotaFields({
           />
         </label>
       ) : null}
-      <span className="hint">
-        La limite de fiches est définitive. Le budget de tokens peut être réinitialisé manuellement
-        ou automatiquement.
-      </span>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
@@ -39,6 +40,8 @@ export function ChatbotDataStep({
   onSearchToolChange,
   fiches,
   publicLink,
+  sources,
+  onSourcesChange,
 }: {
   value: ChatbotDataDraft;
   onChange: (next: ChatbotDataDraft) => void;
@@ -61,6 +64,8 @@ export function ChatbotDataStep({
   onSearchToolChange: (next: ChatbotSearchToolDraft) => void;
   fiches: FicheDraft[];
   publicLink: boolean;
+  sources: ChatLinkSources;
+  onSourcesChange: (next: ChatLinkSources) => void;
 }) {
   const [mode, setMode] = useState<"none" | "choose" | "connaissance" | "lien" | "photo">("none");
   const [formError, setFormError] = useState<string | null>(null);
@@ -171,11 +176,20 @@ export function ChatbotDataStep({
     <section className="chatbot-data-step">
       <div className="chatbot-data-globals">
         <div className="chatbot-step-head">
-          <h4>Bibliothèque de l’organisation</h4>
+          <h4>Sources d’information</h4>
           <p className="hint">
             Sélectionnez les contenus que ce chatbot peut utiliser. Leur portée n’est jamais
             modifiée.
           </p>
+          <div className="tools">
+            <button
+              type="button"
+              className="btn ghost small"
+              onClick={() => setMode(mode === "choose" ? "none" : "choose")}
+            >
+              + Ajouter un contenu
+            </button>
+          </div>
         </div>
 
         <ChatbotDataSelection
@@ -187,6 +201,8 @@ export function ChatbotDataStep({
           onSearchToolChange={onSearchToolChange}
           fiches={fiches}
           publicLink={publicLink}
+          sources={sources}
+          onSourcesChange={onSourcesChange}
         />
 
         <div className="tools">
@@ -197,23 +213,6 @@ export function ChatbotDataStep({
             Gérer les photos et liens
           </a>
         </div>
-      </div>
-
-      <div className="chatbot-step-head">
-        <h4>Contenus ajoutés à ce chatbot ({total})</h4>
-        <p className="hint">
-          Ces contenus sont réservés à ce chatbot et ne modifient pas la bibliothèque.
-        </p>
-      </div>
-
-      <div className="tools">
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={() => setMode(mode === "choose" ? "none" : "choose")}
-        >
-          + Ajouter un contenu
-        </button>
       </div>
 
       {mode === "choose" ? (
