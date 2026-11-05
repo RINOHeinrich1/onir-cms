@@ -157,6 +157,7 @@ export function ConversationsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const grouped = searchParams.get("grouper") !== "0";
+  const overviewMode = grouped && selectedId === null;
   useToastOnMessage(error);
 
   const load = useCallback(async (): Promise<void> => {
@@ -348,6 +349,97 @@ export function ConversationsWorkspace({
     },
   ];
 
+  if (overviewMode) {
+    return (
+      <section className="conversations-overview" aria-label="Vue d'ensemble des chatbots">
+        <header className="conversations-overview-head">
+          <div>
+            <span className="eyebrow">Prospection</span>
+            <h1 className="inbox-title">Conversations</h1>
+            <p className="hint">Vue d’ensemble par chatbot</p>
+          </div>
+          <div className="conversations-overview-actions">
+            <span className="inbox-count">{filtered.length} discussion(s)</span>
+            <label className="inbox-group-toggle">
+              <input
+                type="checkbox"
+                checked={grouped}
+                onChange={(event) => setGrouped(event.target.checked)}
+              />
+              <span className="inbox-group-toggle-track" aria-hidden="true" />
+              <span>Grouper par chatbot</span>
+            </label>
+          </div>
+        </header>
+
+        <div className="conversations-overview-filters">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher un visiteur, un email…"
+            label="Rechercher une conversation"
+          />
+          <FilterMenu sections={filterSections} onApply={applyFilters} />
+        </div>
+
+        {error !== null ? <p className="alert error">{error}</p> : null}
+
+        {conversations === null ? (
+          <div className="inbox-chatbot-cards conversations-overview-cards">
+            <div className="skeleton inbox-chatbot-card" />
+            <div className="skeleton inbox-chatbot-card" />
+            <div className="skeleton inbox-chatbot-card" />
+          </div>
+        ) : chatbotGroups.length === 0 ? (
+          <div className="empty-state inbox-empty">
+            <strong>Aucun chatbot.</strong>
+            <span>Créez un chatbot pour voir ses conversations ici.</span>
+          </div>
+        ) : (
+          <div className="inbox-chatbot-cards conversations-overview-cards">
+            {chatbotGroups.map((group) => (
+              <article className="inbox-chatbot-card" key={group.id}>
+                <div className="inbox-chatbot-card-head">
+                  <strong>{group.label}</strong>
+                  <span className="badge">{group.total} conv.</span>
+                </div>
+                <div className="inbox-chatbot-stats">
+                  <span>
+                    <b>{group.active}</b>
+                    <small>en cours</small>
+                  </span>
+                  <span>
+                    <b>{group.awaiting}</b>
+                    <small>à répondre</small>
+                  </span>
+                  <span>
+                    <b>{group.messages}</b>
+                    <small>messages</small>
+                  </span>
+                </div>
+                <div className="inbox-chatbot-card-foot">
+                  <span className="hint">
+                    {group.lastActivity === null
+                      ? "Aucune activité"
+                      : `Dernière activité ${since(group.lastActivity, nowIso)}`}
+                    {group.incidents > 0 ? ` · ${group.incidents} incident(s)` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    onClick={() => openChatbot(group.label)}
+                  >
+                    Ouvrir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return (
     <div className={`conversations-workspace ${selectedId === null ? "" : "is-detail"}`}>
       <aside className="inbox-sidebar" aria-label="Liste des conversations">
@@ -359,15 +451,17 @@ export function ConversationsWorkspace({
           <span className="inbox-count">{filtered.length} discussion(s)</span>
         </div>
 
-        <label className="inbox-group-toggle">
-          <input
-            type="checkbox"
-            checked={grouped}
-            onChange={(event) => setGrouped(event.target.checked)}
-          />
-          <span className="inbox-group-toggle-track" aria-hidden="true" />
-          <span>Grouper par chatbot</span>
-        </label>
+        {selectedId === null ? (
+          <label className="inbox-group-toggle">
+            <input
+              type="checkbox"
+              checked={grouped}
+              onChange={(event) => setGrouped(event.target.checked)}
+            />
+            <span className="inbox-group-toggle-track" aria-hidden="true" />
+            <span>Grouper par chatbot</span>
+          </label>
+        ) : null}
 
         <div className="inbox-filters">
           <SearchInput
@@ -388,46 +482,6 @@ export function ConversationsWorkspace({
               <div className="skeleton inbox-skeleton" />
               <div className="skeleton inbox-skeleton" />
             </>
-          ) : grouped && chatbotGroups.length > 0 ? (
-            <div className="inbox-chatbot-cards">
-              {chatbotGroups.map((group) => (
-                <article className="inbox-chatbot-card" key={group.id}>
-                  <div className="inbox-chatbot-card-head">
-                    <strong>{group.label}</strong>
-                    <span className="badge">{group.total} conv.</span>
-                  </div>
-                  <div className="inbox-chatbot-stats">
-                    <span>
-                      <b>{group.active}</b>
-                      <small>en cours</small>
-                    </span>
-                    <span>
-                      <b>{group.awaiting}</b>
-                      <small>à répondre</small>
-                    </span>
-                    <span>
-                      <b>{group.messages}</b>
-                      <small>messages</small>
-                    </span>
-                  </div>
-                  <div className="inbox-chatbot-card-foot">
-                    <span className="hint">
-                      {group.lastActivity === null
-                        ? "Aucune activité"
-                        : `Dernière activité ${since(group.lastActivity, nowIso)}`}
-                      {group.incidents > 0 ? ` · ${group.incidents} incident(s)` : ""}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn ghost small"
-                      onClick={() => openChatbot(group.label)}
-                    >
-                      Ouvrir
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
           ) : filtered.length === 0 ? (
             <div className="empty-state inbox-empty">
               <strong>
@@ -508,15 +562,13 @@ export function ConversationsWorkspace({
           )}
         </div>
 
-        {grouped ? null : (
-          <Pagination
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            total={pagination.total}
-            onPageChange={pagination.setPage}
-            label="Pagination des conversations"
-          />
-        )}
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          onPageChange={pagination.setPage}
+          label="Pagination des conversations"
+        />
       </aside>
 
       <div className="inbox-thread">
