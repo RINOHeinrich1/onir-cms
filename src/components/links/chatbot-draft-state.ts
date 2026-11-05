@@ -36,7 +36,14 @@ export type ChatbotDraftState = {
 };
 
 const STEP_MIN = 0;
-const STEP_MAX = 6;
+const STEP_MAX = 4;
+/** Ancien wizard (7 étapes) → nouveau wizard (5 étapes). */
+const LEGACY_STEP_MAP = [0, 1, 1, 3, 2, 3, 4] as const;
+
+function mapStep(value: number, legacy: boolean): number {
+  if (!legacy) return Math.min(STEP_MAX, Math.max(STEP_MIN, value));
+  return LEGACY_STEP_MAP[Math.min(6, Math.max(0, value))] ?? 0;
+}
 
 /** État initial du wizard (aucune donnée utilisateur). */
 export function defaultChatbotDraftState(defaultConfidentialiteId = ""): ChatbotDraftState {
@@ -183,7 +190,9 @@ export function hydrateChatbotDraftState(
 ): ChatbotDraftState {
   const source = record(input);
   const channelsInput = record(source.channels);
-  const step = typeof source.step === "number" ? Math.trunc(source.step) : fallback.step;
+  const rawStep = typeof source.step === "number" ? Math.trunc(source.step) : fallback.step;
+  const legacyWizard = source.wizardVersion !== 2;
+  const step = mapStep(rawStep, legacyWizard);
   const config = draftFromConfig(source.config) ?? fallback.config;
   const type =
     typeof source.type === "string" && isChatLinkType(source.type) ? source.type : fallback.type;
@@ -192,7 +201,7 @@ export function hydrateChatbotDraftState(
       ? source.activeChannel
       : fallback.activeChannel;
   return {
-    step: Math.min(STEP_MAX, Math.max(STEP_MIN, step)),
+    step,
     type,
     prospectId: text(source.prospectId),
     label: text(source.label),
@@ -216,6 +225,7 @@ export function hydrateChatbotDraftState(
 /** Représentation JSONB : aucun `File`, aucun objet non sérialisable. */
 export function serializeChatbotDraftState(state: ChatbotDraftState): Record<string, unknown> {
   return {
+    wizardVersion: 2,
     step: state.step,
     type: state.type,
     prospectId: state.prospectId,

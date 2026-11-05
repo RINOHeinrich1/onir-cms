@@ -38,7 +38,7 @@ export function ChatbotMissionField({
       {value === "inform" ? (
         <span className="hint">
           Aucune fiche de collecte n’est utilisée. Les sources actives sont définies dans l’étape
-          Données et Outils.
+          Alimentation.
         </span>
       ) : null}
       {value === "collect" ? (

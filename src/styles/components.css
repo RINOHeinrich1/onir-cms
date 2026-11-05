@@ -6479,6 +6479,20 @@ a.subtab {
   font-size: 1rem;
 }
 
+.chatbot-subsection {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.chatbot-subsection h5 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .chatbot-step-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
