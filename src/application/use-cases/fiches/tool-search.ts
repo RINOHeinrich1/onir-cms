@@ -379,6 +379,9 @@ export async function executeFicheTool(
 ): Promise<
   FicheSearchToolResult | FicheCountToolResult | FicheTypeToolResult[] | FicheToolResultItem
 > {
+  if (!context.config.enabled) {
+    throw new ValidationError("Outil de recherche désactivé pour ce chatbot");
+  }
   const logger = context.deps.logger ?? ((message: string) => console.info(message));
   logger(
     `[fiche-tools] ${short(tool, 32)} org=${short(context.organizationId)} link=${short(

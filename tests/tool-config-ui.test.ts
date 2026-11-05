@@ -15,6 +15,7 @@ describe("payload public de l'outil de recherche", () => {
   it("force les valeurs publiques même si le brouillon porte une politique backoffice", () => {
     const draft = defaultChatbotConfigDraft();
     draft.searchTool = {
+      enabled: true,
       ficheTypes: ["fournisseur"],
       statusMode: "internal_filter",
       fixedStatusKeys: ["publie"],
@@ -24,6 +25,7 @@ describe("payload public de l'outil de recherche", () => {
 
     const payload = chatbotConfigPayload(draft, { publicLink: true });
     expect(payload.searchTool).toEqual({
+      enabled: true,
       ficheTypes: ["fournisseur"],
       statusMode: "hidden_fixed",
       fixedStatusKeys: ["publie"],
@@ -38,6 +40,7 @@ describe("payload public de l'outil de recherche", () => {
 
   it("signale les violations d'un lien public", () => {
     const internal = {
+      enabled: true,
       ficheTypes: [],
       statusMode: "internal_filter" as const,
       fixedStatusKeys: [],
@@ -65,6 +68,7 @@ describe("payload public de l'outil de recherche", () => {
   it("ne modifie pas une politique backoffice sur un lien non public", () => {
     const draft = defaultChatbotConfigDraft();
     draft.searchTool = {
+      enabled: true,
       ficheTypes: ["fournisseur"],
       statusMode: "internal_filter",
       fixedStatusKeys: ["publie"],

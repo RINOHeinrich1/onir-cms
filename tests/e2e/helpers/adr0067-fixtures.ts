@@ -126,6 +126,7 @@ export async function loginAs(email: string, password: string): Promise<string> 
 
 export function searchToolPayload(overrides: Record<string, unknown> = {}) {
   return {
+    enabled: true,
     ficheTypes: [FICHE_KEY],
     statusMode: "hidden_fixed",
     fixedStatusKeys: ["publie"],

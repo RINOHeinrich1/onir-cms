@@ -265,6 +265,7 @@ describe("validation de la requête", () => {
 describe("configuration versionnée de l'outil", () => {
   it("applique les défauts sûrs et accepte relevance structurellement", () => {
     expect(defaultSearchToolConfig()).toEqual({
+      enabled: false,
       ficheTypes: [],
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],
@@ -274,6 +275,11 @@ describe("configuration versionnée de l'outil", () => {
     expect(parseSearchToolConfig(undefined)).toEqual({
       ok: true,
       value: defaultSearchToolConfig(),
+    });
+    expect(defaultSearchToolConfig().enabled).toBe(false);
+    expect(parseSearchToolConfig({ ...defaultSearchToolConfig(), enabled: true })).toMatchObject({
+      ok: true,
+      value: { enabled: true },
     });
     const parsed = parseSearchToolConfig({
       ficheTypes: ["maison", "maison"],
@@ -285,6 +291,7 @@ describe("configuration versionnée de l'outil", () => {
     expect(parsed).toEqual({
       ok: true,
       value: {
+        enabled: false,
         ficheTypes: ["maison"],
         statusMode: "internal_filter",
         fixedStatusKeys: ["publie"],

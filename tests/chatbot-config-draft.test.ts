@@ -120,6 +120,7 @@ describe("brouillon de configuration chatbot", () => {
   it("porte la configuration de l'outil de recherche avec des valeurs sûres par défaut", () => {
     const draft = defaultChatbotConfigDraft();
     expect(draft.searchTool).toEqual({
+      enabled: false,
       ficheTypes: [],
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],
@@ -132,6 +133,7 @@ describe("brouillon de configuration chatbot", () => {
   it("sérialise puis relit searchTool sans perte", () => {
     const draft = defaultChatbotConfigDraft();
     draft.searchTool = {
+      enabled: true,
       ficheTypes: ["fournisseur", "partenaire"],
       statusMode: "hidden_fixed",
       fixedStatusKeys: ["publie"],
@@ -149,6 +151,7 @@ describe("brouillon de configuration chatbot", () => {
     expect(absent?.searchTool.statusMode).toBe("hidden_fixed");
     const invalid = draftFromConfig({ fiches: [], searchTool: { statusMode: "bogus" } });
     expect(invalid?.searchTool).toEqual({
+      enabled: false,
       ficheTypes: [],
       statusMode: "hidden_fixed",
       fixedStatusKeys: [],

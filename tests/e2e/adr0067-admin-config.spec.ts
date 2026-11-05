@@ -46,6 +46,7 @@ test("l'éditeur expose les politiques versionnées avec les gardes publiques", 
   await openEditor(page);
   const group = page.getByRole("group", { name: "Outil de recherche" });
   await expect(group).toBeVisible();
+  await expect(group.getByRole("checkbox", { name: /Activer l’outil de recherche/ })).toBeChecked();
 
   const statusMode = group.getByLabel("Mode de statut");
   await expect(statusMode).toHaveValue("hidden_fixed");
@@ -90,6 +91,7 @@ test("saisit, enregistre et recharge searchTool sans perte", async ({ page }) =>
     [fixture.linkId],
   );
   expect(stored.rows[0]?.search_tool).toEqual({
+    enabled: true,
     ficheTypes: ["fournisseur"],
     statusMode: "hidden_fixed",
     fixedStatusKeys: ["publie"],

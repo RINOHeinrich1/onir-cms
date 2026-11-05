@@ -280,7 +280,7 @@ export function searchToolDraftViolations(
   searchTool: ChatbotSearchToolDraft,
   publicLink: boolean,
 ): string[] {
-  if (!publicLink) return [];
+  if (!publicLink || !searchTool.enabled) return [];
   const errors: string[] = [];
   if (searchTool.statusMode !== "hidden_fixed") {
     errors.push("Le mode de statut backoffice est interdit sur un lien public");
