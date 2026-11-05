@@ -539,6 +539,12 @@ export function LinkEditModal({
                       publicLink={publicLink}
                       sources={sources}
                       onSourcesChange={setSources}
+                      usageHint={config.ficheUsageHint}
+                      onUsageHintChange={(ficheUsageHint) =>
+                        setConfig((current) =>
+                          current === null ? current : { ...current, ficheUsageHint },
+                        )
+                      }
                     />
                   )}
                 </section>
