@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, useSelectedLayoutSegment } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -32,6 +32,78 @@ function since(iso: string, nowIso: string): string {
   return `il y a ${Math.floor(hours / 24)} j`;
 }
 
+type ChatbotOption = { id: string; label: string };
+
+type ChatbotGroup = {
+  id: string;
+  label: string;
+  total: number;
+  active: number;
+  awaiting: number;
+  finalized: number;
+  archived: number;
+  incidents: number;
+  messages: number;
+  lastActivity: string | null;
+};
+
+function groupByChatbot(
+  conversations: readonly ConversationRowDto[],
+  chatbots: readonly ChatbotOption[],
+): ChatbotGroup[] {
+  const groups = new Map<string, ChatbotGroup>();
+  for (const chatbot of chatbots) {
+    groups.set(chatbot.id, {
+      id: chatbot.id,
+      label: chatbot.label.trim() === "" ? "Chatbot sans nom" : chatbot.label,
+      total: 0,
+      active: 0,
+      awaiting: 0,
+      finalized: 0,
+      archived: 0,
+      incidents: 0,
+      messages: 0,
+      lastActivity: null,
+    });
+  }
+  for (const conversation of conversations) {
+    const existing = groups.get(conversation.linkId);
+    const label =
+      existing?.label ??
+      (conversation.linkLabel.trim() === "" ? "Chatbot sans nom" : conversation.linkLabel);
+    const group =
+      existing ??
+      ({
+        id: conversation.linkId,
+        label,
+        total: 0,
+        active: 0,
+        awaiting: 0,
+        finalized: 0,
+        archived: 0,
+        incidents: 0,
+        messages: 0,
+        lastActivity: null,
+      } satisfies ChatbotGroup);
+    group.total += 1;
+    if (conversation.archivee) group.archived += 1;
+    else if (conversation.statut === "finalisee") group.finalized += 1;
+    else group.active += 1;
+    if (conversation.awaitingOperator) group.awaiting += 1;
+    if (conversation.incidentKinds.length > 0) group.incidents += 1;
+    group.messages += conversation.messageCount;
+    const activity = conversation.lastMessageAt ?? conversation.createdAt;
+    if (group.lastActivity === null || activity > group.lastActivity) {
+      group.lastActivity = activity;
+    }
+    groups.set(conversation.linkId, group);
+  }
+  return [...groups.values()].sort((left, right) => {
+    if (right.total !== left.total) return right.total - left.total;
+    return left.label.localeCompare(right.label, "fr");
+  });
+}
+
 function mergeById(left: ConversationRowDto[], right: ConversationRowDto[]): ConversationRowDto[] {
   const byId = new Map(left.map((conversation) => [conversation.id, conversation]));
   for (const conversation of right) byId.set(conversation.id, conversation);
@@ -44,6 +116,7 @@ function mergeById(left: ConversationRowDto[], right: ConversationRowDto[]): Con
 export function ConversationsWorkspace({
   children,
   linkLabels,
+  chatbots,
   canWrite,
   canGenerateFiche,
   canViewLeads,
@@ -51,6 +124,7 @@ export function ConversationsWorkspace({
 }: {
   children: ReactNode;
   linkLabels: string[];
+  chatbots: ChatbotOption[];
   canWrite: boolean;
   canGenerateFiche: boolean;
   canViewLeads: boolean;
@@ -82,6 +156,7 @@ export function ConversationsWorkspace({
   const [conversations, setConversations] = useState<ConversationRowDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const grouped = searchParams.get("grouper") !== "0";
   useToastOnMessage(error);
 
   const load = useCallback(async (): Promise<void> => {
@@ -161,6 +236,7 @@ export function ConversationsWorkspace({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
+  const chatbotGroups = useMemo(() => groupByChatbot(filtered, chatbots), [filtered, chatbots]);
   const pagination = usePagination(
     filtered,
     15,
@@ -176,6 +252,7 @@ export function ConversationsWorkspace({
     prise_en_main: readonly string[];
   }): URLSearchParams => {
     const params = new URLSearchParams();
+    if (!grouped) params.set("grouper", "0");
     if (values.statut.length === 0) params.append("statut", "");
     for (const value of values.statut) params.append("statut", value);
     if (values.archive.length === 0) params.append("archive", "");
@@ -188,6 +265,26 @@ export function ConversationsWorkspace({
 
   const currentPath = (): string =>
     selectedId === null ? "/conversations" : `/conversations/${selectedId}`;
+
+  const setGrouped = (next: boolean): void => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) params.delete("grouper");
+    else params.set("grouper", "0");
+    const suffix = params.toString();
+    router.replace(`${currentPath()}${suffix === "" ? "" : `?${suffix}`}`, { scroll: false });
+  };
+
+  const openChatbot = (label: string): void => {
+    const params = filterParams({
+      statut: statuses,
+      archive: archives,
+      lien: [label === "Chatbot sans nom" ? "" : label],
+      incident: incidents,
+      prise_en_main: priseEnMain,
+    });
+    params.set("grouper", "0");
+    router.push(`/conversations?${params.toString()}`, { scroll: false });
+  };
 
   const applyFilters = (values: Record<string, string[]>): void => {
     const params = filterParams({
@@ -262,6 +359,16 @@ export function ConversationsWorkspace({
           <span className="inbox-count">{filtered.length} discussion(s)</span>
         </div>
 
+        <label className="inbox-group-toggle">
+          <input
+            type="checkbox"
+            checked={grouped}
+            onChange={(event) => setGrouped(event.target.checked)}
+          />
+          <span className="inbox-group-toggle-track" aria-hidden="true" />
+          <span>Grouper par chatbot</span>
+        </label>
+
         <div className="inbox-filters">
           <SearchInput
             value={search}
@@ -281,6 +388,46 @@ export function ConversationsWorkspace({
               <div className="skeleton inbox-skeleton" />
               <div className="skeleton inbox-skeleton" />
             </>
+          ) : grouped && chatbotGroups.length > 0 ? (
+            <div className="inbox-chatbot-cards">
+              {chatbotGroups.map((group) => (
+                <article className="inbox-chatbot-card" key={group.id}>
+                  <div className="inbox-chatbot-card-head">
+                    <strong>{group.label}</strong>
+                    <span className="badge">{group.total} conv.</span>
+                  </div>
+                  <div className="inbox-chatbot-stats">
+                    <span>
+                      <b>{group.active}</b>
+                      <small>en cours</small>
+                    </span>
+                    <span>
+                      <b>{group.awaiting}</b>
+                      <small>à répondre</small>
+                    </span>
+                    <span>
+                      <b>{group.messages}</b>
+                      <small>messages</small>
+                    </span>
+                  </div>
+                  <div className="inbox-chatbot-card-foot">
+                    <span className="hint">
+                      {group.lastActivity === null
+                        ? "Aucune activité"
+                        : `Dernière activité ${since(group.lastActivity, nowIso)}`}
+                      {group.incidents > 0 ? ` · ${group.incidents} incident(s)` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      onClick={() => openChatbot(group.label)}
+                    >
+                      Ouvrir
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="empty-state inbox-empty">
               <strong>
@@ -361,13 +508,15 @@ export function ConversationsWorkspace({
           )}
         </div>
 
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={pagination.setPage}
-          label="Pagination des conversations"
-        />
+        {grouped ? null : (
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            onPageChange={pagination.setPage}
+            label="Pagination des conversations"
+          />
+        )}
       </aside>
 
       <div className="inbox-thread">
