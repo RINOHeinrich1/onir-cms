@@ -805,7 +805,14 @@ export function LinkForm({
         ) : null}
 
         {step === 0 && !resumed ? (
-          <section className="chatbot-form-section">
+          <section className="chatbot-form-section template-ai-toggle-card">
+            <div>
+              <strong>Créer avec l’IA</strong>
+              <p className="hint">
+                Décrivez le chatbot, l’IA prépare une première version. Vous relisez et validez
+                avant l’enregistrement.
+              </p>
+            </div>
             <button
               type="button"
               className="btn ghost small"
