@@ -1,9 +1,9 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import type { FicheCollecteDto } from "@/components/fiches-collecte/types";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { TemplateField } from "@/domain/entities/chat-template";
-import { MANUAL_FICHE_DEFINITION } from "@/domain/entities/fiche";
 
 type LinkedChatbot = { id: string; label: string };
 
@@ -25,30 +25,65 @@ function initialValues(fields: readonly TemplateField[]): Record<string, unknown
   return Object.fromEntries(fields.map((field) => [field.name, field.type === "multi" ? [] : ""]));
 }
 
-const FIELDS = MANUAL_FICHE_DEFINITION.fields;
-
-/** Création manuelle d'une fiche à partir de la définition intégrée (ADR-0055). */
+/** Création manuelle d'une fiche à partir d'une fiche de collecte (ADR-0055). */
 export function FicheForm({ links, onSaved, onCancel }: FicheFormProps) {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
-  const [values, setValues] = useState<Record<string, unknown>>(() => initialValues(FIELDS));
+  const [collectes, setCollectes] = useState<FicheCollecteDto[] | null>(null);
+  const [collecteId, setCollecteId] = useState("");
+  const selected = collectes?.find((collecte) => collecte.id === collecteId) ?? null;
+  const fields = selected?.fields ?? [];
+  const [values, setValues] = useState<Record<string, unknown>>({});
   const [chatLinkIds, setChatLinkIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/fiches-collecte");
+        const json = (await response.json()) as { fiches?: FicheCollecteDto[]; error?: string };
+        if (!response.ok || json.fiches === undefined) {
+          throw new Error(json.error ?? "Impossible de charger les fiches de collecte");
+        }
+        if (!cancelled) setCollectes(json.fiches);
+      } catch (cause) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "Erreur réseau");
+          setCollectes([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setField = (name: string, value: unknown): void => {
     setValues((current) => ({ ...current, [name]: value }));
+  };
+
+  const selectCollecte = (id: string): void => {
+    setCollecteId(id);
+    const collecte = collectes?.find((entry) => entry.id === id) ?? null;
+    setValues(collecte === null ? {} : initialValues(collecte.fields));
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setPending(true);
     setError(null);
+    if (selected === null) {
+      setError("Choisissez une fiche de collecte");
+      setPending(false);
+      return;
+    }
     try {
       const response = await fetch("/api/fiches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: values, chatLinkIds }),
+        body: JSON.stringify({ ficheCollecteId: selected.id, data: values, chatLinkIds }),
       });
       const json = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -172,11 +207,43 @@ export function FicheForm({ links, onSaved, onCancel }: FicheFormProps) {
     <form className="form" onSubmit={onSubmit} noValidate>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <p className="hint">
-        La fiche utilise la définition de prospection intégrée : {MANUAL_FICHE_DEFINITION.label}.
-      </p>
+      <label className="field">
+        Fiche de collecte *
+        <select
+          value={collecteId}
+          disabled={pending || collectes === null}
+          required
+          onChange={(event) => selectCollecte(event.target.value)}
+        >
+          <option value="">— Choisir une fiche de collecte —</option>
+          {(collectes ?? []).map((collecte) => (
+            <option key={collecte.id} value={collecte.id}>
+              {collecte.label} (v{collecte.version})
+            </option>
+          ))}
+        </select>
+      </label>
 
-      {FIELDS.map(renderField)}
+      {collectes !== null && collectes.length === 0 ? (
+        <p className="hint">
+          Aucune fiche de collecte disponible. Créez-en une dans{" "}
+          <a className="link" href="/fiches-collecte">
+            Fiches de collecte
+          </a>
+          .
+        </p>
+      ) : null}
+
+      {selected === null ? (
+        <p className="hint">Choisissez une fiche pour afficher ses champs.</p>
+      ) : (
+        <>
+          <p className="hint">
+            {selected.label} · {fields.length} champ(s) · version {selected.version}
+          </p>
+          {fields.map(renderField)}
+        </>
+      )}
 
       <fieldset className="field">
         <legend>Chatbots associés (optionnel, 0..N)</legend>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/application/actor";
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { createFiche } from "@/application/use-cases/fiche/manage-fiches";
@@ -74,6 +75,48 @@ describe("fiche manuelle sans modèle de raisonnement", () => {
         data: { ...DATA, description: "" },
       }),
     ).rejects.toThrow(/Description du projet/);
+  });
+
+  it("utilise le snapshot d'une fiche de collecte choisie", async () => {
+    const create = vi.fn(async (_organizationId: string, _input: unknown) => fiche());
+    const ficheCollecte = {
+      id: "fc-1",
+      organizationId: "org-1",
+      key: "hotel",
+      label: "Hôtel",
+      description: "Fiche hôtel",
+      intent: "",
+      fields: [{ name: "nom", label: "Nom", type: "text" as const, required: true }],
+      statuses: [],
+      renderTemplate: "# {{nom}}",
+      instructions: "",
+      version: 1,
+      createdBy: null,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    };
+    const deps = {
+      fiches: { create } as unknown as FicheRepository,
+      ficheCollectes: {
+        findById: async () => ficheCollecte,
+      } as unknown as FicheCollecteRepository,
+    };
+    await createFiche(deps, ACTOR, {
+      ficheCollecteId: "fc-1",
+      data: { nom: "Hôtel Anosibe" },
+    });
+    expect(create).toHaveBeenCalledWith(
+      "org-1",
+      expect.objectContaining({
+        ficheKey: "hotel",
+        definition: expect.objectContaining({
+          key: "hotel",
+          label: "Hôtel",
+          fields: ficheCollecte.fields,
+        }),
+        data: { nom: "Hôtel Anosibe" },
+      }),
+    );
   });
 
   it("rend une fiche depuis son snapshot", async () => {
