@@ -76,6 +76,38 @@ describe("génération IA de chatbot", () => {
     expect(complete.mock.calls.every(([input]) => input.structured === true)).toBe(true);
   });
 
+  it("propage le cluster partagé au client IA", async () => {
+    const complete = vi
+      .fn<(input: AiCompletionInput) => Promise<string>>()
+      .mockResolvedValue(AI_JSON);
+    let seenTarget: Parameters<AiClientFactory["forTarget"]>[0] = null;
+    const usedFactory: AiClientFactory = {
+      resolve: async () => resolvedTarget(),
+      resolveForUsage: async () => ({ ...resolvedTarget(), clusterId: "cluster-1" }),
+      forTarget: async (target) => {
+        seenTarget = target;
+        return { complete };
+      },
+      optionalTarget: async () => ({ complete }),
+    };
+
+    await generateChatbotAiDraft(
+      {
+        aiFactory: usedFactory,
+        documents: { extract: vi.fn() } as unknown as DocumentTextExtractor,
+        websites: { read: vi.fn() } as unknown as WebsiteContextReader,
+      },
+      ACTOR,
+      { description: "Créer un assistant.", files: [] },
+    );
+
+    expect(seenTarget).toMatchObject({
+      aiProviderId: "provider-1",
+      aiModel: "model-1",
+      aiClusterId: "cluster-1",
+    });
+  });
+
   it("retente après un contenu non JSON, puis réussit", async () => {
     const complete = vi
       .fn<(input: AiCompletionInput) => Promise<string>>()
