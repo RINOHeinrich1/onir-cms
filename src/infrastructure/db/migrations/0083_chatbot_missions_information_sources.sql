@@ -42,7 +42,9 @@ WITH source_flags AS (
     COALESCE((l.sources->>'connaissances')::boolean, true) AS connaissances,
     COALESCE((l.sources->>'phototheque')::boolean, true) AS phototheque,
     COALESCE((l.sources->>'lien')::boolean, true) AS liens,
-    COALESCE((c.search_tool->>'enabled')::boolean, false) AS recherche_active
+    COALESCE((c.search_tool->>'enabled')::boolean, false)
+      AND jsonb_array_length(COALESCE(c.search_tool->'ficheTypes', '[]'::jsonb)) > 0
+      AS recherche_active
   FROM chatbot_configs c
   JOIN chat_links l ON l.id = c.chat_link_id
 )

@@ -240,6 +240,8 @@ export function chatbotDraftStateSignature(state: ChatbotDraftState): string {
 
 function configComparable(config: ChatbotConfigDraft): string {
   return JSON.stringify({
+    mission: config.mission,
+    sourceMeta: config.sourceMeta,
     behaviorMode: config.behaviorMode,
     systemPrompt: config.systemPrompt,
     simple: config.simple,
