@@ -174,7 +174,7 @@ export function FichesTable({
                 <div>
                   <h2>
                     {prospect === null ? (
-                      "Prospect libre"
+                      "Ajout Manuel"
                     ) : (
                       <a className="link" href={`/prospects?prospect=${fiche.prospectId}`}>
                         {prospect.nom}
