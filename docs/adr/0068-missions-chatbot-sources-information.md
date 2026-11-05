@@ -442,6 +442,48 @@ Exemple pour la demande mixte :
 }
 ```
 
+#### 5.2.1 SearchPlan — source A
+
+Le plan de source A ne transmet jamais le message brut à `search_fiches`.
+Un **SearchPlan** est produit à partir :
+
+- du message courant ;
+- de l'historique ;
+- des clés de fiches autorisées ;
+- du **schéma réel des fiches** : champs, libellés, types et options.
+
+Le SearchPlan contient :
+
+```json
+{
+  "query": "",
+  "conditions": [
+    {
+      "field": "localisation_principale",
+      "operator": "contains",
+      "value": "Anosibe"
+    }
+  ],
+  "limit": 5
+}
+```
+
+Règles :
+
+- le message brut, une politesse ou une confirmation (« Oui ») ne devient
+  jamais une `query` ;
+- les critères identifiables deviennent des `conditions` validées par
+  `validateSearchRequest` ;
+- un champ inconnu, un opérateur incompatible ou un plan invalide déclenche une
+  recherche large bornée, jamais une erreur envoyée au visiteur ;
+- si aucun critère fiable n'est extrait, la recherche est élargie à la portée
+  configurée et le modèle en est informé ;
+- la sélection des champs et des opérateurs reste dans le domaine
+  `fiche-search-plan`, pas dans le prompt de réponse.
+
+Le SearchPlan vit dans `src/domain/fiche-search-plan.ts` et son exécution IA
+dans `src/application/use-cases/fiches/plan-fiche-search.ts`.
+
 #### 5.3 Exécution parallèle des sources
 
 Les sources retenues sont exécutées en **parallèle**, pas séquentiellement.

@@ -12,11 +12,12 @@ import {
   buildContexteInterne,
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
+import { planFicheSearch } from "@/application/use-cases/fiches/plan-fiche-search";
 import {
   executeFicheTool,
   type FicheToolContext,
 } from "@/application/use-cases/fiches/tool-search";
-import type { ChatLink } from "@/domain/entities/chat";
+import type { ChatLink, ChatMessage } from "@/domain/entities/chat";
 import type { ChatbotConfig, ChatbotDataSelection } from "@/domain/entities/chatbot-config";
 import type {
   ChatbotInformationSources,
@@ -81,6 +82,9 @@ async function executeFichesSource(input: {
   sources: ChatbotInformationSources;
   plan: SourcePlan;
   content: string;
+  history: readonly ChatMessage[];
+  ai: AiClient;
+  recordUsage: RecordAiUsage;
 }): Promise<MissionSourceResult> {
   const source = input.sources.fiches;
   if (input.deps.ficheTools === undefined || input.deps.searchSessions === undefined) {
@@ -115,26 +119,29 @@ async function executeFichesSource(input: {
       sessions: input.deps.searchSessions,
     },
   };
-  const query = requestedQuery(input.plan, input.content);
-  const limit = input.plan.limit ?? 5;
-  let result = await executeFicheTool(toolContext, "search_fiches", { query, limit });
-  let broadened = false;
-  if (
-    query.trim() !== "" &&
-    typeof result === "object" &&
-    result !== null &&
-    "total" in result &&
-    result.total === 0
-  ) {
-    // Repli borné : une question conversationnelle ("Oui", "je cherche un
-    // hôtel") ne doit pas produire zéro résultat alors que la portée contient
-    // des fiches. On élargit sans changer la portée ni les statuts.
-    result = await executeFicheTool(toolContext, "search_fiches", { limit });
-    broadened = true;
+  const searchPlan = await planFicheSearch({
+    ai: input.ai,
+    recordUsage: input.recordUsage,
+    message: input.content,
+    history: input.history,
+    config: source,
+    definitions: searchable,
+  });
+  if (searchPlan.request === null) {
+    return {
+      key: "fiches",
+      label: source.label,
+      context: "",
+      blocks: [],
+      connaissances: [],
+      medias: [],
+      error: "Aucun plan de recherche exploitable",
+    };
   }
+  const result = await executeFicheTool(toolContext, "search_fiches", searchPlan.request);
   const modelItems = toModelItems(result);
-  const prefix = broadened
-    ? `Aucun résultat exact pour « ${query} ». Recherche élargie dans la portée ${source.label} :`
+  const prefix = searchPlan.fallback
+    ? `Aucun critère structuré exploitable. Recherche élargie dans la portée ${source.label} :`
     : `Résultats de la source ${source.label} :`;
   return {
     key: "fiches",
@@ -245,6 +252,7 @@ export async function executeMissionSource(input: {
   sources: ChatbotInformationSources;
   plan: SourcePlan;
   content: string;
+  history: readonly ChatMessage[];
   ai: AiClient;
   recordUsage: RecordAiUsage;
 }): Promise<MissionSourceResult> {
