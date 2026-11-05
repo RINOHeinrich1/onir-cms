@@ -22,7 +22,9 @@ import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
+import { ChatbotMissionField } from "./ChatbotMissionField";
 import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
+import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigDraftFromAi,
@@ -475,7 +477,7 @@ export function LinkForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          config: chatbotConfigPayload(config, { publicLink }),
+          config: chatbotConfigPayload(config, { publicLink, sources }),
           type,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
@@ -856,6 +858,10 @@ export function LinkForm({
                 </span>
               </label>
             ) : null}
+            <ChatbotMissionField
+              value={config.mission}
+              onChange={(mission) => setConfig((current) => ({ ...current, mission }))}
+            />
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
             <label className="field">
               Expiration (optionnel)
@@ -879,16 +885,26 @@ export function LinkForm({
                 Choisissez les fiches que ce chatbot pourra remplir (au moins une).
               </p>
             </div>
-            <ChatbotFichePicker
-              value={config.fiches}
-              onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
-            />
-            <ChatbotSearchToolFields
-              value={config.searchTool}
-              onChange={(searchTool) => setConfig((current) => ({ ...current, searchTool }))}
-              fiches={config.fiches}
-              publicLink={publicLink}
-            />
+            {config.mission !== "inform" ? (
+              <ChatbotFichePicker
+                value={config.fiches}
+                onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
+              />
+            ) : null}
+            {config.mission !== "collect" ? (
+              <>
+                <ChatbotSearchToolFields
+                  value={config.searchTool}
+                  onChange={(searchTool) => setConfig((current) => ({ ...current, searchTool }))}
+                  fiches={config.fiches}
+                  publicLink={publicLink}
+                />
+                <ChatbotSourceLabelsFields
+                  value={config.sourceMeta}
+                  onChange={(sourceMeta) => setConfig((current) => ({ ...current, sourceMeta }))}
+                />
+              </>
+            ) : null}
           </section>
         ) : null}
 
@@ -946,7 +962,9 @@ export function LinkForm({
               visualTemplates={visualTemplates}
               confidentialites={confidentialites}
             />
-            <SourcesField value={sources} onChange={setSources} />
+            {config.mission !== "collect" ? (
+              <SourcesField value={sources} onChange={setSources} />
+            ) : null}
             <details className="chatbot-advanced">
               <summary>Options avancées</summary>
               <div className="chatbot-advanced-body">

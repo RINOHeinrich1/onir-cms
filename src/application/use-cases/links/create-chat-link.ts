@@ -186,7 +186,12 @@ export async function createChatLinkForOrganization(
   if (configInput.ok === false) {
     throw new ValidationError(configInput.errors.join(" ; "));
   }
-  assertPublicSearchToolConfig(channels, configInput.value.searchTool ?? defaultSearchToolConfig());
+  assertPublicSearchToolConfig(
+    channels,
+    configInput.value.informationSources?.fiches ??
+      configInput.value.searchTool ??
+      defaultSearchToolConfig(),
+  );
   const knowledge = parseProvisioningKnowledge(source.knowledge);
 
   if (type === "specifique") {

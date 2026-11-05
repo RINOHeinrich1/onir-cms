@@ -1,4 +1,11 @@
 import type { TemplateField } from "@/domain/entities/chat-template";
+import {
+  type ChatbotInformationSources,
+  type ChatbotMission,
+  isChatbotMission,
+  parseChatbotInformationSources,
+  validateChatbotMission,
+} from "@/domain/entities/chatbot-information";
 import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import type { FicheSearchToolConfig } from "@/domain/fiche-search-tool";
 import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
@@ -234,6 +241,10 @@ export function parseChatbotFallback(
 }
 
 export type ChatbotConfigInput = {
+  /** Mission stable du chatbot (ADR-0068). Absente sur les snapshots legacy. */
+  mission?: ChatbotMission;
+  /** Sources d'information versionnées avec la configuration. */
+  informationSources?: ChatbotInformationSources;
   /** Mode guidé (réglages simples) ou expert (prompt libre). */
   behaviorMode: ChatbotBehaviorMode;
   /** Prompt effectif stocké en snapshot (généré en guidé, saisi en expert). */
@@ -380,10 +391,31 @@ export function parseChatbotConfig(
   if (!parsedFallback.ok) errors.push(parsedFallback.error);
   const parsedSearchTool = parseSearchToolConfig(raw.searchTool);
   if (!parsedSearchTool.ok) errors.push(...parsedSearchTool.errors);
+  const rawMission = raw.mission;
+  if (rawMission !== undefined && !isChatbotMission(rawMission)) {
+    errors.push("Mission invalide (collect, inform ou hybrid)");
+  }
+  const mission = isChatbotMission(rawMission) ? rawMission : undefined;
+  const hasInformationSources = raw.informationSources !== undefined;
+  const parsedSources = hasInformationSources
+    ? parseChatbotInformationSources(raw.informationSources)
+    : null;
+  if (parsedSources !== null && !parsedSources.ok) errors.push(...parsedSources.errors);
+  if (mission !== undefined) {
+    if (parsedSources === null) {
+      errors.push("Les sources d'information sont requises avec une mission");
+    } else if (parsedSources.ok) {
+      errors.push(...validateChatbotMission(mission, fiches, parsedSources.value));
+    }
+  } else if (hasInformationSources) {
+    errors.push("La mission est requise avec des sources d'information");
+  }
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
     value: {
+      ...(mission === undefined ? {} : { mission }),
+      ...(parsedSources?.ok ? { informationSources: parsedSources.value } : {}),
       behaviorMode,
       systemPrompt,
       simple: simple as TemplateSimpleSettings,

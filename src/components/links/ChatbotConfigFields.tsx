@@ -6,6 +6,7 @@ import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
 import { ficheKeyFromLabel } from "@/domain/entities/fiche-collecte";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
 import type { FicheCollecteOption } from "./ChatbotFichePicker";
+import { ChatbotMissionField } from "./ChatbotMissionField";
 import {
   type ChatbotConfigDraft,
   draftFromFicheCollecte,
@@ -85,6 +86,10 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
 
   return (
     <div className="chatbot-config">
+      <ChatbotMissionField
+        value={value.mission}
+        onChange={(mission) => onChange({ ...value, mission })}
+      />
       <fieldset className="fieldset">
         <legend>Choisir une fiche existante</legend>
         <div className="field-row">

@@ -99,8 +99,9 @@ async function insertConfig(
   const { rows } = await client.query<ConfigRow>(
     `INSERT INTO chatbot_configs
        (organization_id, chat_link_id, version, system_prompt, simple_settings,
-        fiche_definitions, data_selection, fallback, search_tool, created_by)
-     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9)
+        fiche_definitions, data_selection, fallback, search_tool, mission,
+        information_sources, created_by)
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING id`,
     [
       organizationId,
@@ -124,6 +125,10 @@ async function insertConfig(
       ),
       JSON.stringify(input.config.fallback ?? defaultChatbotFallback()),
       JSON.stringify(input.config.searchTool ?? defaultSearchToolConfig()),
+      input.config.mission ?? null,
+      input.config.informationSources === undefined
+        ? null
+        : JSON.stringify(input.config.informationSources),
       input.createdBy,
     ],
   );
