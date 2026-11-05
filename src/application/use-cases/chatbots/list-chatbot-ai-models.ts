@@ -21,6 +21,8 @@ export type ChatbotAiModelsResult = {
   }>;
   defaultProviderId: string | null;
   defaultModel: string | null;
+  /** Cluster partagé utilisable sans exposer ses membres (ADR-0077). */
+  sharedDefault: { id: string; label: string } | null;
 };
 
 export async function listChatbotAiModels(
@@ -50,6 +52,7 @@ export async function listChatbotAiModels(
     defaultProvider?.models.find((model) => model.modelId === settings?.defaultModel)?.modelId ??
     null;
 
+  let sharedDefault: ChatbotAiModelsResult["sharedDefault"] = null;
   if (deps.usage !== undefined) {
     const refs = await resolveUsageTargets(
       { usage: deps.usage },
@@ -64,11 +67,20 @@ export async function listChatbotAiModels(
         defaultModel = model.modelId;
       }
     }
+    if (result.length === 0 && assistant !== undefined) {
+      const clusters = await deps.usage.listClusters(organizationId, false);
+      const cluster = clusters.find((entry) => entry.id === assistant.aiClusterId);
+      sharedDefault = {
+        id: cluster?.id ?? assistant.aiClusterId ?? "shared",
+        label: cluster?.label ?? "IA partagée",
+      };
+    }
   }
 
   return {
     providers: result,
     defaultProviderId: defaultProvider?.id ?? null,
     defaultModel,
+    sharedDefault,
   };
 }
