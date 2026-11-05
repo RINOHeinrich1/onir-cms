@@ -4344,6 +4344,32 @@ a.subtab {
   margin-top: 0.2rem;
 }
 
+.template-ai-toggle-card {
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-md);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.1rem;
+}
+
+.template-ai-toggle-card > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.template-ai-toggle-card strong {
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.template-ai-toggle-card .hint {
+  margin: 0;
+}
+
 .template-ai-panel,
 .template-ai-review {
   display: grid;
@@ -6466,8 +6492,8 @@ a.subtab {
   min-height: 100dvh;
 }
 
-.chatbot-config-page .chatbot-wizard-stepper {
-  padding-top: 3.4rem;
+.chatbot-config-page .chatbot-wizard-page .chatbot-wizard-stepper {
+  padding-top: 4rem;
 }
 
 .chatbot-page-overlay {
@@ -7092,6 +7118,10 @@ a.subtab {
     display: flex;
     flex-direction: column;
     min-height: 0;
+  }
+
+  .chatbot-config-page .chatbot-wizard-page .chatbot-wizard-stepper {
+    padding-top: 4rem;
   }
 
   .chatbot-wizard-page .chatbot-wizard-stepper {
