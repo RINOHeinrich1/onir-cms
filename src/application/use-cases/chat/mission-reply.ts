@@ -277,6 +277,7 @@ async function runInform(
               sources,
               plan,
               content: input.content,
+              history: input.history,
               ai: input.ai,
               recordUsage: input.recordUsage,
             }),
