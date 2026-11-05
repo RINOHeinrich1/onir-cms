@@ -6638,9 +6638,18 @@ a.subtab {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
 }
 
-.chatbot-fiche-option input {
+.chatbot-fiche-option input[type="checkbox"] {
+  display: inline-block;
   flex: none;
-  margin-top: 0.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  min-width: 1.05rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  accent-color: var(--navy);
 }
 
 .chatbot-fiche-option span {
