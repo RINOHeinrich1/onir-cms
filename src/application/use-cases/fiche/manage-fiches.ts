@@ -1,17 +1,21 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
+import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import { defaultStatusKeyFor } from "@/application/use-cases/fiche/manage-fiche-status";
+import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import {
   type Fiche,
   type FicheArchiveFilter,
   MANUAL_FICHE_DEFINITION,
   MANUAL_FICHE_KEY,
 } from "@/domain/entities/fiche";
+import { ficheToDefinitionSnapshot } from "@/domain/entities/fiche-collecte";
 import { validateTemplateData } from "@/domain/validate-template-data";
 
 export type ManageFichesDependencies = {
   fiches: FicheRepository;
+  ficheCollectes?: FicheCollecteRepository;
 };
 
 export type ReadFichesDependencies = {
@@ -31,7 +35,7 @@ export async function createFiche(
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
-  const definition = MANUAL_FICHE_DEFINITION;
+  const definition = await resolveFicheDefinition(deps, organizationId, source);
   const rawData =
     source.data !== null && typeof source.data === "object" && !Array.isArray(source.data)
       ? (source.data as Record<string, unknown>)
@@ -55,11 +59,36 @@ export async function createFiche(
     prospectId: typeof source.prospectId === "string" ? source.prospectId : null,
     createdBy: actor.id,
     definition,
-    ficheKey: MANUAL_FICHE_KEY,
+    ficheKey: definition.key === MANUAL_FICHE_KEY ? MANUAL_FICHE_KEY : definition.key,
     chatLinkIds,
     data: validated.value,
     qualificationStatusKey: defaultStatusKeyFor(definition),
   });
+}
+
+async function resolveFicheDefinition(
+  deps: ManageFichesDependencies,
+  organizationId: string,
+  source: Record<string, unknown>,
+): Promise<TemplateDefinition> {
+  const ficheCollecteId =
+    typeof source.ficheCollecteId === "string" ? source.ficheCollecteId.trim() : "";
+  if (ficheCollecteId === "") return MANUAL_FICHE_DEFINITION;
+  if (deps.ficheCollectes === undefined) {
+    throw new ValidationError("Bibliothèque de fiches de collecte indisponible");
+  }
+  const fiche = await deps.ficheCollectes.findById(organizationId, ficheCollecteId);
+  if (fiche === null) throw new NotFoundError("Fiche de collecte introuvable");
+  const snapshot = ficheToDefinitionSnapshot(fiche);
+  return {
+    key: snapshot.key,
+    label: snapshot.label,
+    description: snapshot.description,
+    systemPrompt: "",
+    fields: snapshot.fields,
+    statuses: snapshot.statuses,
+    renderTemplate: snapshot.renderTemplate,
+  };
 }
 
 /** US-FICHE-001 — liste des fiches (lecture tous rôles). */
