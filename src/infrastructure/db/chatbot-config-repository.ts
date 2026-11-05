@@ -10,6 +10,10 @@ import {
   parseChatbotDataSelection,
   parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
+import {
+  isChatbotMission,
+  parseChatbotInformationSources,
+} from "@/domain/entities/chatbot-information";
 import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
@@ -25,12 +29,14 @@ type Row = {
   data_selection: unknown;
   fallback: unknown;
   search_tool: unknown;
+  mission: string | null;
+  information_sources: unknown;
   created_by: string | null;
   created_at: Date;
 };
 
 const COLUMNS =
-  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, search_tool, created_by, created_at";
+  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, search_tool, mission, information_sources, created_by, created_at";
 
 function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -60,11 +66,25 @@ function toConfig(row: Row): ChatbotConfig {
   if (!searchTool.ok) {
     throw new Error(`Configuration ${row.id} invalide : outil de recherche illisible`);
   }
+  const mission = isChatbotMission(row.mission) ? row.mission : undefined;
+  const informationSources =
+    row.information_sources === null
+      ? null
+      : parseChatbotInformationSources(row.information_sources);
+  if (informationSources !== null && !informationSources.ok) {
+    throw new Error(
+      `Configuration ${row.id} invalide : sources d'information illisibles (${informationSources.errors.join(" ; ")})`,
+    );
+  }
   return {
     id: row.id,
     organizationId: row.organization_id,
     chatLinkId: row.chat_link_id,
     version: row.version,
+    ...(mission === undefined ? {} : { mission }),
+    ...(informationSources === null || !informationSources.ok
+      ? {}
+      : { informationSources: informationSources.value }),
     behaviorMode: behaviorModeFromSettings(row.simple_settings),
     systemPrompt: row.system_prompt,
     simple: simple satisfies TemplateSimpleSettings,
@@ -126,8 +146,9 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO chatbot_configs
              (organization_id, chat_link_id, version, system_prompt, simple_settings,
-              fiche_definitions, data_selection, fallback, search_tool, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              fiche_definitions, data_selection, fallback, search_tool, mission,
+              information_sources, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -139,6 +160,10 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             JSON.stringify(input.dataSelection),
             JSON.stringify(input.fallback ?? defaultChatbotFallback()),
             JSON.stringify(input.searchTool ?? defaultSearchToolConfig()),
+            input.mission ?? null,
+            input.informationSources === undefined
+              ? null
+              : JSON.stringify(input.informationSources),
             createdBy,
           ],
         );

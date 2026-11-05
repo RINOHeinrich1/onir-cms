@@ -15,8 +15,12 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
+import { ChatbotFichePicker } from "./ChatbotFichePicker";
+import { ChatbotMissionField } from "./ChatbotMissionField";
 import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
+import { ChatbotSourceLabelsFields } from "./ChatbotSourceLabelsFields";
 import {
   type ChatbotConfigDraft,
   chatbotConfigPayload,
@@ -248,7 +252,9 @@ export function LinkEditModal({
             widget: channelApiPayload(channels.widget),
           },
           ...(dataBindingsLoaded ? { dataBindings } : {}),
-          ...(config === null ? {} : { config: chatbotConfigPayload(config, { publicLink }) }),
+          ...(config === null
+            ? {}
+            : { config: chatbotConfigPayload(config, { publicLink, sources }) }),
         }),
       });
       const json = (await response.json()) as { link?: ChatLinkRow; error?: string };
@@ -386,7 +392,27 @@ export function LinkEditModal({
                     </span>
                   </label>
                   {config !== null ? (
-                    <ChatbotBehaviorFields value={config} onChange={setConfig} />
+                    <>
+                      <ChatbotMissionField
+                        value={config.mission}
+                        onChange={(mission) =>
+                          setConfig((current) =>
+                            current === null ? current : { ...current, mission },
+                          )
+                        }
+                      />
+                      <ChatbotBehaviorFields value={config} onChange={setConfig} />
+                      {config.mission !== "inform" ? (
+                        <ChatbotFichePicker
+                          value={config.fiches}
+                          onChange={(fiches) =>
+                            setConfig((current) =>
+                              current === null ? current : { ...current, fiches },
+                            )
+                          }
+                        />
+                      ) : null}
+                    </>
                   ) : null}
                   <CategoryPicker contentType="link" contentId={link.id} />
                 </section>
@@ -418,17 +444,36 @@ export function LinkEditModal({
                       Activez et paramétrez l’outil de recherche de fiches pour ce chatbot.
                     </p>
                   </div>
-                  {config !== null ? (
-                    <ChatbotSearchToolFields
-                      value={config.searchTool}
-                      onChange={(searchTool) =>
-                        setConfig((current) =>
-                          current === null ? current : { ...current, searchTool },
-                        )
-                      }
-                      fiches={config.fiches}
-                      publicLink={publicLink}
-                    />
+                  {config !== null && config.mission !== "collect" ? (
+                    <>
+                      <ChatbotSearchToolFields
+                        value={config.searchTool}
+                        onChange={(searchTool) =>
+                          setConfig((current) =>
+                            current === null ? current : { ...current, searchTool },
+                          )
+                        }
+                        fiches={config.fiches}
+                        publicLink={publicLink}
+                      />
+                      <ChatbotSourceLabelsFields
+                        value={config.sourceMeta}
+                        onChange={(sourceMeta) =>
+                          setConfig((current) =>
+                            current === null ? current : { ...current, sourceMeta },
+                          )
+                        }
+                      />
+                      <ChatbotDataSelection
+                        selection={config.dataSelection}
+                        chatLinkId={link.id}
+                        onChange={(dataSelection) =>
+                          setConfig((current) =>
+                            current === null ? current : { ...current, dataSelection },
+                          )
+                        }
+                      />
+                    </>
                   ) : null}
                 </section>
               ) : null}
@@ -472,7 +517,9 @@ export function LinkEditModal({
                     visualTemplates={visualTemplates}
                     confidentialites={confidentialites}
                   />
-                  <SourcesField value={sources} onChange={setSources} />
+                  {config?.mission !== "collect" ? (
+                    <SourcesField value={sources} onChange={setSources} />
+                  ) : null}
                   <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
                   <LinkDataBindingsField
                     templateId={activeTemplate.id}

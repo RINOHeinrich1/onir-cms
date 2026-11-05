@@ -219,7 +219,12 @@ export async function updateChatLinkForOrganization(
     if (!parsed.ok) {
       throw new ValidationError(parsed.errors.join(" ; "));
     }
-    assertPublicSearchToolConfig(channels, parsed.value.searchTool ?? defaultSearchToolConfig());
+    assertPublicSearchToolConfig(
+      channels,
+      parsed.value.informationSources?.fiches ??
+        parsed.value.searchTool ??
+        defaultSearchToolConfig(),
+    );
     if (configRepository === undefined) {
       throw new ValidationError("Configuration chatbot indisponible");
     }

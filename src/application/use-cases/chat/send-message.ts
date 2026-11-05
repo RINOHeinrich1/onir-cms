@@ -40,6 +40,7 @@ import {
   fallbackToPrimaryFiche,
   instanceForFiche,
 } from "@/application/use-cases/chat/fiche-instances";
+import { runMissionReply } from "@/application/use-cases/chat/mission-reply";
 import {
   interruptedAnswerMarker,
   replyLengthGuardrail,
@@ -395,6 +396,50 @@ export async function sendMessage(
   const definition = templateDefinition;
   if (definition === null) {
     throw new NotFoundError("Configuration du chatbot introuvable");
+  }
+
+  if (config.mission !== undefined && config.informationSources !== undefined) {
+    const missionResult = await runMissionReply({
+      deps,
+      organizationId,
+      link,
+      config,
+      conversation,
+      content,
+      history,
+      ai,
+      recordUsage,
+      activeInstance,
+    });
+    if (missionResult !== null) {
+      const refreshed = await deps.links.findById(organizationId, link.id);
+      if (refreshed !== null) assertChatLinkAvailable(refreshed);
+      const appended = await deps.conversations.appendMessage(
+        organizationId,
+        conversation.id,
+        "assistant",
+        missionResult.answer,
+        undefined,
+        undefined,
+        missionResult.blocks,
+      );
+      const withMedias =
+        missionResult.medias.length === 0
+          ? appended
+          : ((await deps.conversations.setMessageMedias(
+              organizationId,
+              appended.id,
+              missionResult.medias,
+            )) ?? appended);
+      return {
+        organizationId,
+        userMessage,
+        message: withMedias,
+        connaissances: missionResult.connaissances,
+        mediaPending: missionResult.mediaPending,
+        mode: conversation.interventionMode,
+      };
+    }
   }
 
   let prospect = null;
