@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CategoryPicker } from "@/components/categories/CategoryPicker";
-import { HelpHint } from "@/components/ui/HelpHint";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -79,6 +78,7 @@ export function LinkEditModal({
   visualTemplates,
   aiProviders,
   canAssignAi,
+  variant = "modal",
   onSaved,
   onClose,
 }: {
@@ -87,6 +87,7 @@ export function LinkEditModal({
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
   canAssignAi: boolean;
+  variant?: "modal" | "page";
   onSaved: (updated: ChatLinkRow) => void;
   onClose: () => void;
 }) {
@@ -400,10 +401,12 @@ export function LinkEditModal({
   const canFinish = stepIndices.every((index) => validateStep(index) === null);
 
   return (
-    <div className="modal-overlay chatbot-wizard-overlay">
+    <div
+      className={`modal-overlay chatbot-wizard-overlay${variant === "page" ? " chatbot-page-overlay" : ""}`}
+    >
       <button type="button" className="modal-backdrop" aria-label="Fermer" onClick={onClose} />
       <div
-        className="modal wide chatbot-wizard-modal"
+        className={`modal wide chatbot-wizard-modal${variant === "page" ? " chatbot-page-modal" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Modifier le chatbot"
@@ -418,7 +421,11 @@ export function LinkEditModal({
         </div>
 
         <div className="modal-body chatbot-wizard-host">
-          <form className="chatbot-wizard" onSubmit={onSubmit} noValidate>
+          <form
+            className={`chatbot-wizard${variant === "page" ? " chatbot-wizard-page" : ""}`}
+            onSubmit={onSubmit}
+            noValidate
+          >
             <nav className="chatbot-wizard-stepper" aria-label="Étapes de modification">
               {stepIndices.map((index, position) => {
                 const entry = CHATBOT_STEPS[index];

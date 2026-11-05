@@ -46,3 +46,11 @@ export type CreatedLink = {
 
 /** Brouillon de création de chatbot exposé à la liste (jamais public). */
 export type ChatbotDraftRow = WithCreatorLabel<ChatbotDraft>;
+
+export type ChatbotFormOptions = {
+  prospects: ProspectOption[];
+  confidentialites: ConfidentialiteOption[];
+  visualTemplates: VisualTemplateOption[];
+  aiProviders: AiProviderOption[];
+  canAssignAi: boolean;
+};

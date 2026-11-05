@@ -75,6 +75,8 @@ type LinkFormProps = {
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
   canAssignAi: boolean;
+  /** Rendu dans une page dédiée au lieu d'une modale. */
+  layout?: "modal" | "page";
   /** État sérialisé d'un brouillon existant à reprendre (null = création). */
   initialDraft?: Record<string, unknown> | null;
   /** Identifiant du brouillon repris (null pour une création). */
@@ -90,6 +92,7 @@ export function LinkForm({
   visualTemplates,
   aiProviders,
   canAssignAi,
+  layout = "modal",
   initialDraft = null,
   draftId = null,
   onCreated,
@@ -755,7 +758,11 @@ export function LinkForm({
         ].join(" · ");
 
   return (
-    <form className="chatbot-wizard" onSubmit={onSubmit} noValidate>
+    <form
+      className={`chatbot-wizard${layout === "page" ? " chatbot-wizard-page" : ""}`}
+      onSubmit={onSubmit}
+      noValidate
+    >
       <nav className="chatbot-wizard-stepper" aria-label="Étapes de création">
         {stepIndices.map((index, position) => {
           const entry = CHATBOT_STEPS[index];

@@ -15,23 +15,14 @@ import {
   NO_CREATOR,
 } from "@/components/ui/creator-options";
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
-import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { RoundCheckbox } from "@/components/ui/RoundCheckbox";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
-import { LinkEditModal } from "./LinkEditModal";
-import { LinkForm } from "./LinkForm";
-import type {
-  AiProviderOption,
-  ChatbotDraftRow,
-  ChatLinkRow,
-  ConfidentialiteOption,
-  ProspectOption,
-  VisualTemplateOption,
-} from "./types";
+import { CHATBOT_STEPS } from "./chatbot-steps";
+import type { AiProviderOption, ChatbotDraftRow, ChatLinkRow } from "./types";
 import { WidgetCodeModal } from "./WidgetCodeModal";
 
 /** Icône de copie (presse-papiers). */
@@ -76,20 +67,12 @@ function LienUrl({ url }: { url: string }) {
 export function LinksTable({
   initialLinks,
   initialDrafts,
-  prospects,
-  confidentialites,
-  visualTemplates,
   aiProviders,
-  canAssignAi,
   nowIso,
 }: {
   initialLinks: ChatLinkRow[];
   initialDrafts: ChatbotDraftRow[];
-  prospects: ProspectOption[];
-  confidentialites: ConfidentialiteOption[];
-  visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
-  canAssignAi: boolean;
   /** Instant de référence (calcul serveur) → rendu identique SSR/client. */
   nowIso: string;
 }) {
@@ -97,9 +80,6 @@ export function LinksTable({
   const toast = useToast();
   const [links, setLinks] = useState<ChatLinkRow[]>(initialLinks);
   const [drafts, setDrafts] = useState<ChatbotDraftRow[]>(initialDrafts);
-  const [creating, setCreating] = useState(false);
-  const [resumeDraft, setResumeDraft] = useState<ChatbotDraftRow | null>(null);
-  const [editing, setEditing] = useState<ChatLinkRow | null>(null);
 
   useEffect(() => {
     setDrafts(initialDrafts);
@@ -157,34 +137,6 @@ export function LinksTable({
     router.refresh();
   };
 
-  const refreshDrafts = async (): Promise<void> => {
-    try {
-      const response = await fetch("/api/chatbot-drafts", { cache: "no-store" });
-      if (response.ok) {
-        const json = (await response.json()) as { drafts: ChatbotDraftRow[] };
-        setDrafts(json.drafts);
-      }
-    } catch {
-      setError("Impossible de recharger les brouillons");
-    }
-  };
-
-  const closeWizard = (): void => {
-    setCreating(false);
-    setResumeDraft(null);
-    // L'autosave de fermeture part au démontage : laisser le temps au POST/PATCH
-    // puis recharger la liste (et la vue serveur).
-    window.setTimeout(() => {
-      void refreshDrafts();
-      router.refresh();
-    }, 500);
-  };
-
-  const resume = (draft: ChatbotDraftRow): void => {
-    setCreating(false);
-    setResumeDraft(draft);
-  };
-
   const removeDraft = async (draft: ChatbotDraftRow): Promise<void> => {
     setError(null);
     if (!(await confirmDialog("Supprimer ce brouillon et ses photos temporaires ?"))) return;
@@ -200,12 +152,6 @@ export function LinksTable({
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     }
-  };
-
-  const onEdited = (updated: ChatLinkRow): void => {
-    setEditing(null);
-    setLinks((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
-    router.refresh();
   };
 
   const openWidgetCode = async (link: ChatLinkRow): Promise<void> => {
@@ -383,14 +329,7 @@ export function LinksTable({
           {visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
           <span className="connaissance-select-count">({visibleIds.length})</span>
         </RoundCheckbox>
-        <button
-          type="button"
-          className="btn small"
-          onClick={() => {
-            setResumeDraft(null);
-            setCreating(true);
-          }}
-        >
+        <button type="button" className="btn small" onClick={() => router.push("/liens/nouveau")}>
           Nouveau chatbot
         </button>
       </div>
@@ -425,7 +364,7 @@ export function LinksTable({
             {drafts.map((draft) => {
               const rawStep = draft.state.step;
               const stepIndex = typeof rawStep === "number" ? Math.trunc(rawStep) : 0;
-              const step = Math.min(4, Math.max(0, stepIndex));
+              const step = Math.min(CHATBOT_STEPS.length - 1, Math.max(0, stepIndex));
               return (
                 <article className="chatbot-card" key={draft.id}>
                   <header className="chatbot-card-head">
@@ -440,7 +379,9 @@ export function LinksTable({
                   <dl className="chatbot-facts">
                     <div>
                       <dt>Étape</dt>
-                      <dd>{step + 1} / 5</dd>
+                      <dd>
+                        {step + 1} / {CHATBOT_STEPS.length}
+                      </dd>
                     </div>
                     <div>
                       <dt>Dernière sauvegarde</dt>
@@ -448,7 +389,11 @@ export function LinksTable({
                     </div>
                   </dl>
                   <footer className="chatbot-card-actions">
-                    <button type="button" className="btn small" onClick={() => resume(draft)}>
+                    <button
+                      type="button"
+                      className="btn small"
+                      onClick={() => router.push(`/liens/brouillons/${draft.id}`)}
+                    >
                       Reprendre
                     </button>
                     <button
@@ -653,7 +598,7 @@ export function LinksTable({
                         {loadingWidgetId === link.id ? "Chargement…" : "Code widget"}
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => setEditing(link)}>
+                    <button type="button" onClick={() => router.push(`/liens/${link.id}/modifier`)}>
                       Modifier
                     </button>
                     <button type="button" className="danger" onClick={() => void remove(link)}>
@@ -681,56 +626,11 @@ export function LinksTable({
         label="Pagination des chatbots"
       />
 
-      {creating || resumeDraft !== null ? (
-        <Modal
-          title={resumeDraft === null ? "Nouveau chatbot" : "Reprendre un brouillon"}
-          wide
-          dialogClassName="chatbot-wizard-modal"
-          bodyClassName="chatbot-wizard-host"
-          overlayClassName="chatbot-wizard-overlay"
-          onClose={closeWizard}
-        >
-          <LinkForm
-            key={resumeDraft?.id ?? "nouveau"}
-            prospects={prospects}
-            confidentialites={confidentialites}
-            visualTemplates={visualTemplates}
-            aiProviders={aiProviders}
-            canAssignAi={canAssignAi}
-            initialDraft={resumeDraft?.state ?? null}
-            draftId={resumeDraft?.id ?? null}
-            onCreated={(created) => {
-              closeWizard();
-              if (created.widgetSnippet !== undefined && created.widgetEmbedUrl !== undefined) {
-                setWidgetCode({
-                  snippet: created.widgetSnippet,
-                  embedUrl: created.widgetEmbedUrl,
-                });
-              }
-              void refresh();
-            }}
-            onCancel={closeWizard}
-          />
-        </Modal>
-      ) : null}
-
       {widgetCode !== null ? (
         <WidgetCodeModal
           snippet={widgetCode.snippet}
           embedUrl={widgetCode.embedUrl}
           onClose={() => setWidgetCode(null)}
-        />
-      ) : null}
-
-      {editing !== null ? (
-        <LinkEditModal
-          confidentialites={confidentialites}
-          visualTemplates={visualTemplates}
-          aiProviders={aiProviders}
-          canAssignAi={canAssignAi}
-          link={editing}
-          onSaved={(updated) => onEdited(updated)}
-          onClose={() => setEditing(null)}
         />
       ) : null}
     </div>
