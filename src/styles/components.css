@@ -6504,7 +6504,7 @@ a.subtab {
   display: none;
 }
 
-.chatbot-wizard-page {
+.chatbot-wizard.chatbot-wizard-page {
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -7088,7 +7088,7 @@ a.subtab {
 }
 
 @media (max-width: 56rem) {
-  .chatbot-wizard-page {
+  .chatbot-wizard.chatbot-wizard-page {
     display: flex;
     flex-direction: column;
     min-height: 0;
