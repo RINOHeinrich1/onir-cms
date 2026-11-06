@@ -8802,3 +8802,29 @@ a.subtab {
     flex-wrap: wrap;
   }
 }
+
+.chatbot-wizard-page .chatbot-fiches-head {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+}
+
+.chatbot-wizard-page .chatbot-fiches-head strong {
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.chatbot-wizard-page .chatbot-fiches-head .btn {
+  flex: none;
+}
+
+@media (max-width: 40rem) {
+  .chatbot-wizard-page .chatbot-fiches-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

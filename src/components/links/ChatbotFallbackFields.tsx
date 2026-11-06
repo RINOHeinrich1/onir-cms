@@ -58,7 +58,7 @@ export function ChatbotFallbackFields({ value, onChange }: Props) {
   return (
     <section className="chatbot-card chatbot-fallback">
       <fieldset className="fieldset">
-        <legend>Activation</legend>
+        <legend>Secours heuristique</legend>
         <label className="chatbot-tool-toggle">
           <input
             type="checkbox"
