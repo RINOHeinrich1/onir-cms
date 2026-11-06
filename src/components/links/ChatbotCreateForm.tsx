@@ -8,6 +8,7 @@ import type {
 } from "@/components/chatbots/ai-types";
 import { ChatbotAiAssistPanel } from "@/components/chatbots/ChatbotAiAssistPanel";
 import { HelpHint } from "@/components/ui/HelpHint";
+import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -820,28 +821,44 @@ export function ChatbotCreateForm({
         ) : null}
 
         {step === 0 && !resumed ? (
-          <section className="chatbot-form-section template-ai-toggle-card">
-            <div>
-              <strong>Créer avec l’IA</strong>
-              <p className="hint">
-                Décrivez le chatbot, l’IA prépare une première version. Vous relisez et validez
-                avant l’enregistrement.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn ghost small"
-              onClick={() => setAiAssistOpen((current) => !current)}
-            >
-              {aiAssistOpen ? "Masquer l’assistant IA" : "Créer avec l’IA"}
-            </button>
+          <>
+            <section className="chatbot-form-section template-ai-toggle-card">
+              <div>
+                <strong>Créer avec l’IA</strong>
+                <p className="hint">
+                  Décrivez le chatbot, l’IA prépare une première version. Vous relisez et validez
+                  avant l’enregistrement.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn ghost small"
+                onClick={() => setAiAssistOpen(true)}
+              >
+                Créer avec l’IA
+              </button>
+            </section>
+
             {aiAssistOpen ? (
-              <div className="template-ai-panel">
+              <Modal
+                title="Créer avec l’IA"
+                onClose={() => setAiAssistOpen(false)}
+                wide
+                dialogClassName="chatbot-ai-dialog"
+                bodyClassName="chatbot-ai-body"
+              >
+                <p className="hint chatbot-ai-intro">
+                  L’IA analyse la description, le site et les documents, puis prépare la fiche de
+                  collecte et le comportement. Vous relisez et validez avant l’enregistrement.
+                </p>
                 <ChatbotAiAssistPanel
                   endpoint="/api/chatbots/ai/generate"
                   modelsEndpoint="/api/chatbots/ai/models"
                   submitLabel="Générer le chatbot"
-                  onGenerated={onAiGenerated}
+                  onGenerated={(result) => {
+                    onAiGenerated(result);
+                    setAiAssistOpen(false);
+                  }}
                 />
                 {aiSources !== null ? (
                   <p className="hint">
@@ -854,9 +871,9 @@ export function ChatbotCreateForm({
                     {aiKnowledgeCount} connaissance(s) ajoutée(s) au brouillon du chatbot.
                   </p>
                 ) : null}
-              </div>
+              </Modal>
             ) : null}
-          </section>
+          </>
         ) : null}
 
         {step === 0 ? (

@@ -8828,3 +8828,35 @@ a.subtab {
     flex-wrap: wrap;
   }
 }
+
+.chatbot-ai-dialog {
+  max-width: min(56rem, calc(100vw - 2rem));
+}
+
+.chatbot-ai-body {
+  display: grid;
+  gap: 1rem;
+  max-height: min(78dvh, 52rem);
+  overflow-y: auto;
+}
+
+.chatbot-ai-intro {
+  margin: 0;
+}
+
+.chatbot-ai-dialog .template-ai-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.chatbot-ai-dialog .template-ai-head {
+  margin-bottom: 0.25rem;
+}
+
+@media (max-width: 40rem) {
+  .chatbot-ai-dialog {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
