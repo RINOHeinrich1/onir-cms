@@ -5,8 +5,10 @@
 -- Cette migration importe une seule fois ces lignes historiques, en les
 -- identifiant par `legacy_usage_id` pour rendre l'opération idempotente.
 --
--- Les lignes legacy postérieures au journal ne sont pas importées : elles
--- doublonnent les événements `live` déjà écrits par le runtime.
+-- La coupure est le premier événement `live` (démarrage du runtime qui écrit
+-- le journal), ou l'instant de migration s'il n'y en a pas encore. Les lignes
+-- legacy postérieures ne sont pas importées : elles doublonnent les événements
+-- `live`. Le read model complète ce backfill avec le même calcul de coupure.
 
 ALTER TABLE ai_usage_events
   ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'live',
@@ -31,10 +33,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS ai_usage_events_legacy_usage_uidx
   ON ai_usage_events (legacy_usage_id)
   WHERE legacy_usage_id IS NOT NULL;
 
-WITH cutover AS (
-  SELECT applied_at
-    FROM schema_migrations
-   WHERE name = '0073_organization_ai_quotas.sql'
+WITH live AS (
+  SELECT min(created_at) AS at
+    FROM ai_usage_events
+   WHERE source = 'live'
+),
+cutover AS (
+  SELECT COALESCE((SELECT at FROM live), now()) AS applied_at
 )
 INSERT INTO ai_usage_events
   (organization_id, provider_id, provider_label, model, cluster_id,

@@ -223,10 +223,13 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
         [organizationId],
       );
       const totalRows = await client.query<{ total: string }>(
-        `WITH cutover AS (
-           SELECT applied_at
-             FROM schema_migrations
-            WHERE name = '0073_organization_ai_quotas.sql'
+        `WITH live AS (
+           SELECT min(created_at) AS at
+             FROM ai_usage_events
+            WHERE source = 'live'
+         ),
+         cutover AS (
+           SELECT COALESCE((SELECT at FROM live), now()) AS applied_at
          )
          SELECT (
            COALESCE((
