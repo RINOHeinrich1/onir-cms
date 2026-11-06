@@ -177,49 +177,38 @@ export function ChatbotDataStep({
   const total = chatbotDataDraftCount(value);
 
   return (
-    <section className="chatbot-data-step">
-      <div className="chatbot-data-globals">
-        <div className="chatbot-step-head">
-          <h4>Sources d’information</h4>
+    <section className="chatbot-card chatbot-data-step">
+      <div className="chatbot-card-head">
+        <div>
+          <h2>Sources d’information</h2>
           <p className="hint">
             Sélectionnez les contenus que ce chatbot peut utiliser. Leur portée n’est jamais
             modifiée.
           </p>
-          <div className="tools">
-            <button
-              type="button"
-              className="btn ghost small"
-              onClick={() => setMode(mode === "choose" ? "none" : "choose")}
-            >
-              + Ajouter un contenu
-            </button>
-          </div>
         </div>
-
-        <ChatbotDataSelection
-          selection={selection}
-          onChange={onSelectionChange}
-          chatLinkId={chatLinkId}
-          onCountsChange={onGlobalCountsChange}
-          searchTool={searchTool}
-          onSearchToolChange={onSearchToolChange}
-          fiches={fiches}
-          publicLink={publicLink}
-          sources={sources}
-          onSourcesChange={onSourcesChange}
-          usageHint={usageHint}
-          onUsageHintChange={onUsageHintChange}
-        />
-
-        <div className="tools">
-          <a className="btn ghost small" href="/connaissances" target="_blank" rel="noreferrer">
-            Gérer les connaissances
-          </a>
-          <a className="btn ghost small" href="/medias" target="_blank" rel="noreferrer">
-            Gérer les photos et liens
-          </a>
-        </div>
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={() => setMode(mode === "choose" ? "none" : "choose")}
+        >
+          + Ajouter un contenu
+        </button>
       </div>
+
+      <ChatbotDataSelection
+        selection={selection}
+        onChange={onSelectionChange}
+        chatLinkId={chatLinkId}
+        onCountsChange={onGlobalCountsChange}
+        searchTool={searchTool}
+        onSearchToolChange={onSearchToolChange}
+        fiches={fiches}
+        publicLink={publicLink}
+        sources={sources}
+        onSourcesChange={onSourcesChange}
+        usageHint={usageHint}
+        onUsageHintChange={onUsageHintChange}
+      />
 
       {mode === "choose" ? (
         <div className="tools chatbot-data-add-choices">
@@ -363,11 +352,7 @@ export function ChatbotDataStep({
         </div>
       ) : null}
 
-      {total === 0 ? (
-        <p className="hint">
-          Aucun contenu ajouté à ce chatbot : il utilisera uniquement la bibliothèque.
-        </p>
-      ) : (
+      {total > 0 ? (
         <ul className="chatbot-data-drafts">
           {value.connaissances.map((item) => (
             <li key={item.id}>
@@ -412,7 +397,7 @@ export function ChatbotDataStep({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </section>
   );
 }
