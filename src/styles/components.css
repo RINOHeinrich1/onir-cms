@@ -8899,3 +8899,146 @@ a.subtab {
     width: 100%;
   }
 }
+
+/* ---------- Consommation IA du dashboard ---------- */
+.dashboard-ai-usage {
+  margin-top: 1.25rem;
+}
+
+.dashboard-ai-usage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-ai-usage-head h2 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.dashboard-ai-usage-head .hint {
+  margin: 0;
+  max-width: 44rem;
+}
+
+.dashboard-ai-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+}
+
+.dashboard-ai-total span,
+.dashboard-ai-total small {
+  color: var(--fg-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.dashboard-ai-total strong {
+  color: var(--head);
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.dashboard-ai-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.dashboard-ai-block {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.dashboard-ai-block h3 {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.dashboard-ai-block > .hint {
+  margin: 0;
+}
+
+.dashboard-ai-quota-head,
+.dashboard-ai-allocation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-ai-quota-head {
+  margin-bottom: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.dashboard-ai-quota-head small {
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+}
+
+.dashboard-ai-bar {
+  display: block;
+  width: 100%;
+}
+
+.dashboard-ai-block > .hint:last-child {
+  margin-top: 0.55rem;
+}
+
+.dashboard-ai-allocations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.65rem;
+}
+
+.dashboard-ai-allocation {
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--surface-raised);
+}
+
+.dashboard-ai-allocation-head {
+  margin-bottom: 0.4rem;
+}
+
+.dashboard-ai-allocation-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+
+.dashboard-ai-allocation .quota-bar {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 850px) {
+  .dashboard-ai-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-ai-total {
+    align-items: flex-start;
+  }
+}

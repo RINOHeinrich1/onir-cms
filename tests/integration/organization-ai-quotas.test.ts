@@ -170,6 +170,48 @@ describe("quotas organisation — persistance et absence de reset", () => {
     expect(events.rows[0]?.count).toBe(1);
   });
 
+  it("expose le total historique et les quotas enrichis pour le dashboard", async () => {
+    const quotas = pgOrganizationAiQuotaRepository(pool);
+    const { providerId, modelId } = await createProviderAndModel();
+    const clusterId = await createCluster();
+    await quotas.saveLimits(orgId, {
+      maxChatbots: null,
+      maxTokens: 100,
+      tokenResetMode: "manual",
+      tokenResetDays: null,
+      allocations: [
+        { target: { kind: "model", providerId, model: modelId }, maxTokens: 80 },
+        { target: { kind: "cluster", clusterId }, maxTokens: 60 },
+      ],
+    });
+    await quotas.recordUsage({
+      organizationId: orgId,
+      providerId,
+      providerLabel: "Provider test",
+      model: modelId,
+      clusterId,
+      usage: "chat_reply",
+      promptTokens: 15,
+      completionTokens: 5,
+      totalTokens: 20,
+    });
+
+    const overview = await quotas.getUsageOverview(orgId);
+    expect(overview.totalTokens).toBe(20);
+    expect(overview.budget?.tokensUsed).toBe(20);
+    expect(overview.allocations.map((allocation) => allocation.label).sort()).toEqual([
+      "Cluster test",
+      "Provider test · model-test",
+    ]);
+    expect(overview.allocations.every((allocation) => allocation.tokensUsed === 20)).toBe(true);
+
+    await quotas.resetBudget(orgId);
+    const afterReset = await quotas.getUsageOverview(orgId);
+    expect(afterReset.totalTokens).toBe(20);
+    expect(afterReset.budget?.tokensUsed).toBe(0);
+    expect(afterReset.allocations.every((allocation) => allocation.tokensUsed === 0)).toBe(true);
+  });
+
   it("réinitialise automatiquement une période duration expirée", async () => {
     const quotas = pgOrganizationAiQuotaRepository(pool);
     const { providerId, modelId } = await createProviderAndModel();
