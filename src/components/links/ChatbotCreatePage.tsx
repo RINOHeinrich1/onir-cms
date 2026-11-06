@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LinkForm } from "./LinkForm";
+import { ChatbotCreateForm } from "./ChatbotCreateForm";
 import type { ChatbotDraftRow, ChatbotFormOptions } from "./types";
 
 /** Page dédiée création / reprise : même wizard que la modale, en pleine page. */
@@ -20,9 +20,8 @@ export function ChatbotCreatePage({
 
   return (
     <section className="chatbot-config-page">
-      <LinkForm
+      <ChatbotCreateForm
         key={draft?.id ?? "nouveau"}
-        layout="page"
         prospects={options.prospects}
         confidentialites={options.confidentialites}
         visualTemplates={options.visualTemplates}
