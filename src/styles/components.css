@@ -8575,3 +8575,20 @@ a.subtab {
     grid-template-columns: 1fr;
   }
 }
+
+/* Onglets de bibliothèque : rendu souligné de la maquette, même après les styles génériques. */
+.chatbot-wizard-page .chatbot-data-tabs .chatbot-data-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--fg-muted);
+  padding: 0.55rem 0.1rem;
+}
+
+.chatbot-wizard-page .chatbot-data-tabs .chatbot-data-tab.active {
+  background: transparent;
+  border-bottom-color: var(--orange);
+  border-radius: 0;
+  color: var(--fg);
+}
