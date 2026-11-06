@@ -175,7 +175,7 @@ export function ChatbotFallbackFields({ value, onChange }: Props) {
               rows={4}
               maxLength={MAX_FALLBACK_ANSWER_LENGTH}
               value={question.answer}
-              placeholder="Nos tarifs démarrent à ..."
+              placeholder="Nos tarifs démarrent à …"
               onChange={(event) =>
                 onChange(updateQuestion(value, index, { answer: event.target.value }))
               }

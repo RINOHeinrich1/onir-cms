@@ -8771,3 +8771,34 @@ a.subtab {
   margin-bottom: 0.65rem;
   padding: 0;
 }
+
+.chatbot-wizard-page .chatbot-fiche-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+}
+
+.chatbot-wizard-page .chatbot-fiche-head {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.chatbot-wizard-page .chatbot-fiche-head .tools {
+  gap: 0.35rem;
+}
+
+.chatbot-wizard-page .chatbot-fiche-card > .field {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .chatbot-wizard-page .chatbot-fiche-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
