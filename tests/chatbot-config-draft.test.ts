@@ -80,6 +80,7 @@ describe("brouillon de configuration chatbot", () => {
 
   it("convertit un select sans options en texte dans le payload", () => {
     const draft = defaultChatbotConfigDraft();
+    draft.mission = "collect";
     draft.fiches = [
       {
         id: "f1",
@@ -169,6 +170,7 @@ describe("brouillon de configuration chatbot", () => {
       },
     ];
     const draft = defaultChatbotConfigDraft();
+    draft.mission = "collect";
     draft.fiches = [
       {
         id: "f1",
