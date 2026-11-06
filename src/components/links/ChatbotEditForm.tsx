@@ -576,15 +576,12 @@ export function ChatbotEditForm({
               canAssign={canAssignAi}
             />
             {config !== null ? (
-              <div className="chatbot-subsection">
-                <h5>Si l’IA ne répond pas</h5>
-                <ChatbotFallbackFields
-                  value={config.fallback}
-                  onChange={(fallback) =>
-                    setConfig((current) => (current === null ? current : { ...current, fallback }))
-                  }
-                />
-              </div>
+              <ChatbotFallbackFields
+                value={config.fallback}
+                onChange={(fallback) =>
+                  setConfig((current) => (current === null ? current : { ...current, fallback }))
+                }
+              />
             ) : null}
           </section>
         ) : null}

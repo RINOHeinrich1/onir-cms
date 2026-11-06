@@ -8755,3 +8755,19 @@ a.subtab {
     flex-basis: 100%;
   }
 }
+
+.chatbot-wizard-page .chatbot-fallback > .fieldset {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.chatbot-wizard-page .chatbot-fallback > .fieldset > legend {
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.65rem;
+  padding: 0;
+}

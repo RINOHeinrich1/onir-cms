@@ -56,16 +56,20 @@ function moveQuestion(value: ChatbotFallback, index: number, direction: -1 | 1):
 export function ChatbotFallbackFields({ value, onChange }: Props) {
   const canAdd = value.questions.length < MAX_FALLBACK_QUESTIONS;
   return (
-    <div className="chatbot-fallback">
+    <section className="chatbot-card chatbot-fallback">
       <fieldset className="fieldset">
         <legend>Activation</legend>
-        <label className="checkbox">
+        <label className="chatbot-tool-toggle">
           <input
             type="checkbox"
+            className="chatbot-tool-toggle-input"
             checked={value.enabled}
             onChange={(event) => onChange({ ...value, enabled: event.target.checked })}
           />
-          Activer le secours heuristique quand l’IA est indisponible
+          <span className="chatbot-tool-toggle-track" aria-hidden="true" />
+          <span className="chatbot-tool-toggle-text">
+            Activer le secours heuristique quand l’IA est indisponible
+          </span>
         </label>
         <label className="field">
           Message d’introduction
@@ -182,6 +186,6 @@ export function ChatbotFallbackFields({ value, onChange }: Props) {
           </label>
         </div>
       ))}
-    </div>
+    </section>
   );
 }
