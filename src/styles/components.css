@@ -6802,6 +6802,12 @@ a.subtab {
   overflow-x: auto;
 }
 
+.chatbot-wizard-page .chatbot-data-mode .field.checkbox {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
 .chatbot-wizard-page .chatbot-data-tab,
 .chatbot-wizard-page .channel-tab {
   background: transparent;
@@ -6811,6 +6817,7 @@ a.subtab {
   flex: none;
   font-size: 0.72rem;
   font-weight: 700;
+  gap: 0.35rem;
   padding: 0.55rem 0.1rem;
 }
 
