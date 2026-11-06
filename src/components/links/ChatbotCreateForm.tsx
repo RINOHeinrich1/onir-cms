@@ -69,14 +69,12 @@ import {
   widgetDisplayForSelection,
 } from "./visual-template-selection";
 
-type LinkFormProps = {
+type ChatbotCreateFormProps = {
   prospects: ProspectOption[];
   confidentialites: ConfidentialiteOption[];
   visualTemplates: VisualTemplateOption[];
   aiProviders: AiProviderOption[];
   canAssignAi: boolean;
-  /** Rendu dans une page dédiée au lieu d'une modale. */
-  layout?: "modal" | "page";
   /** État sérialisé d'un brouillon existant à reprendre (null = création). */
   initialDraft?: Record<string, unknown> | null;
   /** Identifiant du brouillon repris (null pour une création). */
@@ -86,18 +84,17 @@ type LinkFormProps = {
 };
 
 /** Création d'un chatbot en 7 étapes, dont deux conditionnées par l'opération. */
-export function LinkForm({
+export function ChatbotCreateForm({
   prospects,
   confidentialites,
   visualTemplates,
   aiProviders,
   canAssignAi,
-  layout = "modal",
   initialDraft = null,
   draftId = null,
   onCreated,
   onCancel,
-}: LinkFormProps) {
+}: ChatbotCreateFormProps) {
   const fallbackState = useMemo(
     () => defaultChatbotDraftState(confidentialites[0]?.id ?? ""),
     [confidentialites],
@@ -758,11 +755,7 @@ export function LinkForm({
         ].join(" · ");
 
   return (
-    <form
-      className={`chatbot-wizard${layout === "page" ? " chatbot-wizard-page" : ""}`}
-      onSubmit={onSubmit}
-      noValidate
-    >
+    <form className="chatbot-wizard chatbot-wizard-page" onSubmit={onSubmit} noValidate>
       <nav className="chatbot-wizard-stepper" aria-label="Étapes de création">
         {stepIndices.map((index, position) => {
           const entry = CHATBOT_STEPS[index];
@@ -781,9 +774,7 @@ export function LinkForm({
               <span className="chatbot-step-number">{position + 1}</span>
               <span className="chatbot-step-label">
                 <span className="chatbot-step-title">{entry.title}</span>
-                <span className="chatbot-step-short">
-                  {layout === "page" ? entry.sidebar : entry.short}
-                </span>
+                <span className="chatbot-step-short">{entry.sidebar}</span>
               </span>
             </button>
           );
@@ -791,27 +782,25 @@ export function LinkForm({
       </nav>
 
       <div className="chatbot-wizard-body">
-        {layout === "page" ? (
-          <header className="chatbot-page-head">
+        <header className="chatbot-page-head">
+          <div>
+            <p className="chatbot-page-eyebrow">
+              Étape {stepPosition + 1} sur {stepIndices.length}
+            </p>
+            <h1>{CHATBOT_STEPS[step]?.title}</h1>
+            <p>{CHATBOT_STEPS[step]?.description}</p>
+          </div>
+          <div className="chatbot-page-progress">
+            <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
             <div>
-              <p className="chatbot-page-eyebrow">
-                Étape {stepPosition + 1} sur {stepIndices.length}
-              </p>
-              <h1>{CHATBOT_STEPS[step]?.title}</h1>
-              <p>{CHATBOT_STEPS[step]?.description}</p>
+              <span
+                style={{
+                  width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
+                }}
+              />
             </div>
-            <div className="chatbot-page-progress">
-              <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
-              <div>
-                <span
-                  style={{
-                    width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </header>
-        ) : null}
+          </div>
+        </header>
         {stepError !== null ? <p className="alert error">{stepError}</p> : null}
         {error !== null ? <p className="alert error">{error}</p> : null}
         {saveError !== null ? (

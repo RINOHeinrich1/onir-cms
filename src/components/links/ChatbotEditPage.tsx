@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LinkEditModal } from "./LinkEditModal";
+import { ChatbotEditForm } from "./ChatbotEditForm";
 import type { ChatbotFormOptions, ChatLinkRow } from "./types";
 
 /** Page dédiée modification : même wizard que la création, en pleine page. */
@@ -20,8 +20,7 @@ export function ChatbotEditPage({
 
   return (
     <section className="chatbot-config-page">
-      <LinkEditModal
-        variant="page"
+      <ChatbotEditForm
         link={link}
         confidentialites={options.confidentialites}
         visualTemplates={options.visualTemplates}
@@ -31,7 +30,7 @@ export function ChatbotEditPage({
           router.push("/liens");
           router.refresh();
         }}
-        onClose={goBack}
+        onCancel={goBack}
       />
     </section>
   );
