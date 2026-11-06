@@ -6763,6 +6763,12 @@ a.subtab {
   width: 100%;
 }
 
+.chatbot-wizard-page .chatbot-step.active {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--fg);
+}
+
 .chatbot-wizard-page .chatbot-step-title {
   display: block;
   overflow: visible;
@@ -6814,7 +6820,9 @@ a.subtab {
 
 .chatbot-wizard-page .chatbot-data-tab,
 .chatbot-wizard-page .channel-tab {
+  align-items: center;
   background: transparent;
+  display: inline-flex;
   border: 0;
   border-bottom: 2px solid transparent;
   color: var(--fg-muted);

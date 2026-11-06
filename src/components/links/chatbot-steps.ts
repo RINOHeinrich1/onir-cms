@@ -5,37 +5,44 @@ export const CHATBOT_STEPS = [
   {
     title: "Cadrage",
     short: "Cadrage",
+    sidebar: "Identité, opération, comportement",
     description: "Définir l’identité du chatbot et son opération avant de choisir ses contenus.",
   },
   {
     title: "Collecte",
     short: "Collecte",
+    sidebar: "Choix de la fiche à remplir",
     description:
       "Choisir la fiche que le chatbot remplira lorsque le visiteur veut recueillir des informations.",
   },
   {
     title: "Alimentation",
     short: "Alimentation",
+    sidebar: "Sources et contenus à consulter",
     description: "Choisir les sources que le chatbot consulte et les contenus qu’il peut utiliser.",
   },
   {
     title: "Publication",
     short: "Publication",
+    sidebar: "Canaux et apparence",
     description: "Choisir les canaux et l’apparence une fois le contenu défini.",
   },
   {
     title: "IA & secours",
     short: "IA & secours",
+    sidebar: "Modèles et repli",
     description: "Configurer les modèles IA et le comportement de secours.",
   },
   {
     title: "Restrictions et quotas",
     short: "Restrictions",
+    sidebar: "Limites d’usage",
     description: "Définir les limites d’usage et l’expiration du chatbot.",
   },
   {
     title: "Validation",
     short: "Validation",
+    sidebar: "Récapitulatif",
     description: "Vérifier la cohérence puis créer le chatbot.",
   },
 ] as const;
