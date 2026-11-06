@@ -20,9 +20,6 @@ export function ChatbotEditPage({
 
   return (
     <section className="chatbot-config-page">
-      <button type="button" className="chatbot-page-exit" onClick={goBack}>
-        ← Chatbots
-      </button>
       <LinkEditModal
         variant="page"
         link={link}
