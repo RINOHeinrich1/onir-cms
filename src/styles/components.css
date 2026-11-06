@@ -8860,3 +8860,23 @@ a.subtab {
     max-width: calc(100vw - 1.5rem);
   }
 }
+
+/* Les sélecteurs de défauts IA restent dans leur carte, même sur un écran étroit. */
+.ai-usage-defaults .ai-usage-row {
+  grid-template-columns:
+    minmax(0, 1.15fr)
+    minmax(0, 0.75fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+}
+
+.ai-usage-defaults .ai-usage-row > * {
+  min-width: 0;
+}
+
+.ai-usage-defaults .ai-usage-row select,
+.ai-usage-defaults .ai-usage-row input {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}

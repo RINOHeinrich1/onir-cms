@@ -84,6 +84,39 @@ export function LinksTable({
   useEffect(() => {
     setDrafts(initialDrafts);
   }, [initialDrafts]);
+
+  useEffect(() => {
+    const closeMenus = (): void => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach((details) => {
+          details.open = false;
+        });
+    };
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!(event.target instanceof Node)) return;
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach((details) => {
+          if (!details.contains(event.target as Node)) details.open = false;
+        });
+    };
+    const onClick = (event: MouseEvent): void => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest(".action-menu-panel") !== null) closeMenus();
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") closeMenus();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
   const [widgetCode, setWidgetCode] = useState<{
     snippet: string;
     embedUrl: string;
