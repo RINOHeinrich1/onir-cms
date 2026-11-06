@@ -184,8 +184,35 @@ async function errorMessage(response: Response, fallback: string): Promise<strin
   }
 }
 
+export async function checkConnaissanceConflicts(
+  items: readonly { titre: string }[],
+): Promise<
+  import("@/application/use-cases/connaissances/resolve-connaissance-conflicts").ConnaissanceConflict[]
+> {
+  const response = await fetch("/api/connaissances/conflicts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: items.map((item) => ({ titre: item.titre })) }),
+  });
+  const json = (await response.json().catch(() => ({}))) as {
+    conflicts?: import("@/application/use-cases/connaissances/resolve-connaissance-conflicts").ConnaissanceConflict[];
+    error?: string;
+  };
+  if (!response.ok) throw new Error(json.error ?? "Vérification des connaissances impossible");
+  return json.conflicts ?? [];
+}
+
+export type ConnaissanceConflictResolution = {
+  titre: string;
+  existingId: string;
+  existingChatLinkIds: string[];
+  action: "update" | "keep";
+};
+
 export type SubmitChatbotDataResult = {
   created: number;
+  updated: number;
+  skipped: string[];
   failures: string[];
   /**
    * Photos temporaires dont la finalisation a échoué : elles ne doivent pas
@@ -202,14 +229,53 @@ export type SubmitChatbotDataResult = {
 export async function submitChatbotDataDraft(
   draft: ChatbotDataDraft,
   chatLinkId: string,
+  conflictResolutions: readonly ConnaissanceConflictResolution[] = [],
 ): Promise<SubmitChatbotDataResult> {
   const failures: string[] = [];
+  const skipped: string[] = [];
   const failedPhotoMediaIds: string[] = [];
   let created = 0;
+  let updated = 0;
   const chatLinkIds = [chatLinkId];
+  const resolutions = new Map(
+    conflictResolutions.map((resolution) => [
+      resolution.titre.trim().toLocaleLowerCase("fr"),
+      resolution,
+    ]),
+  );
 
   for (const connaissance of draft.connaissances) {
     try {
+      const conflict = resolutions.get(connaissance.titre.trim().toLocaleLowerCase("fr"));
+      if (conflict?.action === "keep") {
+        skipped.push(connaissance.titre.trim());
+        continue;
+      }
+      if (conflict?.action === "update") {
+        const scope =
+          conflict.existingChatLinkIds.length === 0
+            ? undefined
+            : [...new Set([...conflict.existingChatLinkIds, chatLinkId])];
+        const response = await fetch(`/api/connaissances/${conflict.existingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contenu: connaissance.contenu.trim(),
+            ...(scope === undefined ? {} : { chatLinkIds: scope }),
+          }),
+        });
+        if (!response.ok) {
+          failures.push(
+            `Connaissance « ${connaissance.titre.trim()} » : ${await errorMessage(
+              response,
+              "mise à jour impossible",
+            )}`,
+          );
+          continue;
+        }
+        updated += 1;
+        continue;
+      }
       const response = await fetch("/api/connaissances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -310,7 +376,7 @@ export async function submitChatbotDataDraft(
     }
   }
 
-  return { created, failures, failedPhotoMediaIds };
+  return { created, updated, skipped, failures, failedPhotoMediaIds };
 }
 
 /**

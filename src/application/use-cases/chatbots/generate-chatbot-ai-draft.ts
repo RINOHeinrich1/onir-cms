@@ -28,6 +28,7 @@ import {
   type ChatbotAiKnowledgeCandidate,
   parseChatbotAiDraft,
 } from "@/domain/chatbot-ai-draft";
+import type { ChatbotMission } from "@/domain/entities/chatbot-information";
 import { EMPTY_SITE_PALETTE, type SitePalette } from "@/domain/site-palette";
 import { toTemplateKey } from "@/domain/template-defaults";
 
@@ -52,6 +53,9 @@ export type GenerateChatbotAiInput = {
   files: ChatbotAiUploadFile[];
   providerId?: string;
   model?: string;
+  mission?: ChatbotMission;
+  descriptionAsSource?: boolean;
+  briefMessages?: string[];
   crawl?: {
     maxPages?: number;
     maxDepth?: number;
@@ -290,6 +294,9 @@ export async function generateChatbotAiDraft(
       text: document.text,
     })),
     existing: null,
+    mission: input.mission ?? null,
+    descriptionAsSource: input.descriptionAsSource === true,
+    ...(input.briefMessages === undefined ? {} : { briefMessages: input.briefMessages }),
   });
 
   const json = await callStructuredAi(client, {

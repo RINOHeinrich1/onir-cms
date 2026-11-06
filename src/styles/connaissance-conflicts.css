@@ -1,0 +1,95 @@
+.connaissance-conflict-modal {
+  max-width: 42rem;
+}
+
+.connaissance-conflict-body {
+  gap: 0.9rem;
+}
+
+.connaissance-conflict-intro {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.connaissance-conflict-list {
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(36dvh, 22rem);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.connaissance-conflict-item {
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.connaissance-conflict-item > strong {
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.connaissance-conflict-item > p {
+  margin: 0.2rem 0 0.45rem;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.connaissance-conflict-impact {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+}
+
+.connaissance-conflict-impact > span {
+  color: var(--fg-muted);
+  font-weight: 700;
+}
+
+.connaissance-conflict-impact em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.connaissance-conflict-impact ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.connaissance-conflict-impact li {
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.connaissance-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.connaissance-conflict-actions .btn {
+  flex: 1;
+}
+
+.connaissance-conflict-note {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}

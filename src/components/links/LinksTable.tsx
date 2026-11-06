@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import {
   pruneSelection,
   selectionState,
@@ -22,6 +23,7 @@ import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
 import { CHATBOT_STEPS } from "./chatbot-steps";
+import { NewChatbotChoiceModal } from "./NewChatbotChoiceModal";
 import type { AiProviderOption, ChatbotDraftRow, ChatLinkRow } from "./types";
 import { WidgetCodeModal } from "./WidgetCodeModal";
 
@@ -78,6 +80,8 @@ export function LinksTable({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const { openBuilder } = useChatbotBuilder();
+  const [newChatbotOpen, setNewChatbotOpen] = useState(false);
   const [links, setLinks] = useState<ChatLinkRow[]>(initialLinks);
   const [drafts, setDrafts] = useState<ChatbotDraftRow[]>(initialDrafts);
 
@@ -408,7 +412,7 @@ export function LinksTable({
           {visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
           <span className="connaissance-select-count">({visibleIds.length})</span>
         </RoundCheckbox>
-        <button type="button" className="btn small" onClick={() => router.push("/liens/nouveau")}>
+        <button type="button" className="btn small" onClick={() => setNewChatbotOpen(true)}>
           Nouveau chatbot
         </button>
       </div>
@@ -742,6 +746,19 @@ export function LinksTable({
         label="Pagination des chatbots"
       />
 
+      {newChatbotOpen ? (
+        <NewChatbotChoiceModal
+          onClose={() => setNewChatbotOpen(false)}
+          onAi={() => {
+            setNewChatbotOpen(false);
+            openBuilder();
+          }}
+          onManual={() => {
+            setNewChatbotOpen(false);
+            router.push("/liens/nouveau");
+          }}
+        />
+      ) : null}
       {widgetCode !== null ? (
         <WidgetCodeModal
           snippet={widgetCode.snippet}

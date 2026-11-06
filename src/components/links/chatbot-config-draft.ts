@@ -108,8 +108,17 @@ function newId(): string {
   return `draft-${Math.random().toString(36).slice(2)}`;
 }
 
+export type ChatbotConfigDraftFromAiOptions = {
+  mission?: ChatbotMission;
+  dataSelection?: ChatbotDataSelection;
+};
+
 /** Convertit un brouillon IA de chatbot en configuration éditable (fiches actuelles). */
-export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDraft {
+export function chatbotConfigDraftFromAi(
+  draft: ChatbotAiDraft,
+  options: ChatbotConfigDraftFromAiOptions = {},
+): ChatbotConfigDraft {
+  const mission = options.mission ?? (draft.fields.length > 0 ? "hybrid" : "inform");
   const fields: FicheFieldDraft[] = draft.fields.map((field) => ({
     id: newId(),
     name: field.name,
@@ -123,7 +132,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
     ...(field.file === undefined ? {} : { file: field.file }),
   }));
   const fiches: FicheDraft[] =
-    fields.length === 0
+    fields.length === 0 || mission === "inform"
       ? []
       : [
           {
@@ -138,7 +147,7 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
           },
         ];
   return {
-    mission: fields.length > 0 ? "hybrid" : "inform",
+    mission,
     behaviorMode: "guided",
     systemPrompt: draft.systemPrompt,
     simple: {
@@ -154,9 +163,13 @@ export function chatbotConfigDraftFromAi(draft: ChatbotAiDraft): ChatbotConfigDr
       extraInstructions: draft.extraInstructions,
     },
     fiches,
-    dataSelection: defaultChatbotDataSelection(),
+    dataSelection: options.dataSelection ?? {
+      mode: "selected",
+      connaissanceIds: [],
+      mediaIds: [],
+    },
     fallback:
-      fields.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
+      fiches.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
     searchTool: defaultChatbotSearchToolDraft(),
     ficheUsageHint: defaultChatbotInformationSources().fiches.usageHint,
     replyMaxTokens: DEFAULT_CHATBOT_REPLY_MAX_TOKENS,

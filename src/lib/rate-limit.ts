@@ -65,3 +65,6 @@ export const invitationLimiter = createRateLimiter({ limit: 10, windowMs: 10 * 6
 
 /** Assistance IA de création de chatbot : 5 générations / minute par utilisateur. */
 export const chatbotAiLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 1000 });
+
+/** Assistant conversationnel de création de chatbot : 30 messages / minute. */
+export const chatbotBuilderLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });

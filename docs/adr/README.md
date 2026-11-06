@@ -68,3 +68,6 @@ ADR qui remplace la précédente.
 | [0066](./0066-profils-de-limites-vivants.md) | Profils de limites vivants | Accepté |
 | [0067](./0067-outils-internes-fiches-statuts-qualification.md) | Outils internes sur les fiches et statuts de qualification | Accepté |
 | [0068](./0068-missions-chatbot-sources-information.md) | Missions du chatbot et sources d'information | Accepté |
+| [0069](./0069-creation-chatbot-assistant-conversationnel.md) | Création de chatbot par assistant conversationnel — intake, génération et revue | Accepté |
+| [0070](./0070-resolution-conflits-connaissances-creation.md) | Résolution des conflits de connaissances à la création d’un chatbot | Accepté |
+| [0071](./0071-texte-fourni-source-connaissances-chatbot.md) | Texte fourni comme source de connaissances du chatbot | Accepté |

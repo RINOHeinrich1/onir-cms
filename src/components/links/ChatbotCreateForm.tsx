@@ -2,13 +2,8 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ChatbotAiGenerationDto,
-  ChatbotTemplateParamsDto,
-} from "@/components/chatbots/ai-types";
-import { ChatbotAiAssistPanel } from "@/components/chatbots/ChatbotAiAssistPanel";
+import type { ConnaissanceConflict } from "@/application/use-cases/connaissances/resolve-connaissance-conflicts";
 import { HelpHint } from "@/components/ui/HelpHint";
-import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { AiLinkTarget, AiLinkUsage } from "@/domain/entities/ai-usage";
 import {
@@ -25,15 +20,20 @@ import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
 import { ChatbotMissionField } from "./ChatbotMissionField";
 import {
+  type ConnaissanceConflictAction,
+  ConnaissanceConflictModal,
+} from "./ConnaissanceConflictModal";
+import {
   type ChatbotConfigDraft,
-  chatbotConfigDraftFromAi,
   chatbotConfigPayload,
   guidedPromptFromDraft,
   searchToolDraftViolations,
 } from "./chatbot-config-draft";
 import {
   type ChatbotDataDraft,
+  type ConnaissanceConflictResolution,
   chatbotDataDraftCount,
+  checkConnaissanceConflicts,
   submitChatbotDataDraft,
 } from "./chatbot-data-draft";
 import {
@@ -65,7 +65,6 @@ import type {
 } from "./types";
 import { UserStateField } from "./UserStateField";
 import {
-  defaultsForSchema,
   parseVisualTemplateSelection,
   widgetDisplayForSelection,
 } from "./visual-template-selection";
@@ -118,9 +117,9 @@ export function ChatbotCreateForm({
   const toast = useToast();
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
-  const [aiAssistOpen, setAiAssistOpen] = useState(false);
-  const [aiSources, setAiSources] = useState<ChatbotAiGenerationDto["sources"] | null>(null);
-  const [aiKnowledgeCount, setAiKnowledgeCount] = useState(0);
+  const [connaissanceConflicts, setConnaissanceConflicts] = useState<ConnaissanceConflict[] | null>(
+    null,
+  );
   const [config, setConfig] = useState<ChatbotConfigDraft>(initial.config);
   const [type, setType] = useState<ChatLinkType>(initial.type);
   const [channels, setChannels] = useState<ChannelDrafts>(initial.channels);
@@ -480,7 +479,7 @@ export function ChatbotCreateForm({
     onCancel();
   };
 
-  const createChatbot = async (): Promise<void> => {
+  const createChatbot = async (conflictAction?: ConnaissanceConflictAction): Promise<void> => {
     const invalid = firstInvalidStep();
     if (invalid !== null) {
       setStep(invalid.index);
@@ -488,17 +487,51 @@ export function ChatbotCreateForm({
       setStepError(invalid.message);
       return;
     }
+    if (
+      conflictAction === undefined &&
+      dataDraft.connaissances.length > 0 &&
+      config.mission !== "collect"
+    ) {
+      try {
+        const found = await checkConnaissanceConflicts(dataDraft.connaissances);
+        if (found.length > 0) {
+          setConnaissanceConflicts(found);
+          return;
+        }
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Vérification des connaissances impossible",
+        );
+        return;
+      }
+    }
     setError(null);
     setStepError(null);
     setPending(true);
     try {
       // Le brouillon doit refléter le dernier état même si la création échoue.
       await flushDraft();
+      const conflictIds =
+        conflictAction === "update" && connaissanceConflicts !== null
+          ? connaissanceConflicts.map((conflict) => conflict.existingId)
+          : [];
+      const configForCreate =
+        conflictIds.length > 0 && config.dataSelection.mode === "selected"
+          ? {
+              ...config,
+              dataSelection: {
+                ...config.dataSelection,
+                connaissanceIds: [
+                  ...new Set([...config.dataSelection.connaissanceIds, ...conflictIds]),
+                ],
+              },
+            }
+          : config;
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          config: chatbotConfigPayload(config, { publicLink, sources }),
+          config: chatbotConfigPayload(configForCreate, { publicLink, sources }),
           type,
           ...(type === "specifique" ? { prospectId } : {}),
           ...(label.trim() === "" ? {} : { label: label.trim() }),
@@ -528,13 +561,30 @@ export function ChatbotCreateForm({
       }
       let failures: string[] = [];
       let failedPhotoMediaIds: string[] = [];
+      const resolutions: ConnaissanceConflictResolution[] =
+        conflictAction === undefined || connaissanceConflicts === null
+          ? []
+          : connaissanceConflicts.map((conflict) => ({
+              titre: conflict.titre,
+              existingId: conflict.existingId,
+              existingChatLinkIds: conflict.existingChatLinkIds,
+              action: conflictAction,
+            }));
       if (pendingDataCount > 0 && config.mission !== "collect") {
         try {
-          const result = await submitChatbotDataDraft(dataDraft, json.link.id);
+          const result = await submitChatbotDataDraft(dataDraft, json.link.id, resolutions);
           failures = result.failures;
           failedPhotoMediaIds = result.failedPhotoMediaIds;
           if (result.created > 0) {
             toast.success(`${result.created} donnée(s) rattachée(s) au chatbot.`);
+          }
+          if (result.updated > 0) {
+            toast.success(`${result.updated} connaissance(s) mise(s) à jour.`);
+          }
+          if (result.skipped.length > 0) {
+            toast.info(
+              `${result.skipped.length} connaissance(s) conservée(s) : les doublons n'ont pas été ajoutés.`,
+            );
           }
         } catch {
           failures = ["Ajout des données impossible (erreur inattendue)."];
@@ -577,6 +627,7 @@ export function ChatbotCreateForm({
         }
       }
       toast.success("Chatbot créé.");
+      setConnaissanceConflicts(null);
       if (Object.keys(aiUsage).length > 0) {
         const aiResponse = await fetch(`/api/links/${json.link.id}/ai-usage`, {
           method: "PATCH",
@@ -600,128 +651,6 @@ export function ChatbotCreateForm({
     } finally {
       setPending(false);
     }
-  };
-
-  const onAiGenerated = (result: ChatbotAiGenerationDto): void => {
-    const next = chatbotConfigDraftFromAi(result.draft);
-    const staged = result.draft.knowledge.map((item, index) => ({
-      id: `ai-${result.generationId}-${index + 1}`,
-      titre: item.titre,
-      contenu: item.contenu,
-    }));
-
-    let widgetSelection = "";
-    let widgetParams: Record<string, string | number | boolean> = {};
-    let widgetPosition: ChannelDrafts["widget"]["widgetPosition"] = "bottom-right";
-    let selectedTemplateId = "";
-    let selectedTemplateVersion = "";
-    let selectedParamsSchema: (typeof visualTemplates)[number]["versions"][number]["params"] = [];
-    for (const template of visualTemplates) {
-      const version = template.versions.find((entry) => entry.widget !== null);
-      if (version === undefined || version.widget === null) continue;
-      widgetSelection = `${template.id}@${version.version}`;
-      widgetParams = defaultsForSchema(version.params);
-      widgetPosition = version.widget.defaultPosition;
-      selectedTemplateId = template.id;
-      selectedTemplateVersion = version.version;
-      selectedParamsSchema = version.params;
-      break;
-    }
-
-    setConfig(next);
-    setLabel(result.draft.label);
-    setDataDraft((current) => ({
-      ...current,
-      connaissances: [...current.connaissances, ...staged],
-    }));
-    setChannels((current) => ({
-      page: {
-        ...current.page,
-        enabled: true,
-        identificationMode: "contact",
-      },
-      widget:
-        widgetSelection === ""
-          ? { ...current.widget, enabled: false, visualTemplate: "" }
-          : {
-              ...current.widget,
-              enabled: true,
-              identificationMode: "anonymous",
-              visualTemplate: widgetSelection,
-              params: widgetParams,
-              widgetPosition,
-            },
-    }));
-    setSources((current) => ({ ...current, phototheque: false, lien: false }));
-    setAiSources(result.sources);
-    setAiKnowledgeCount(staged.length);
-
-    if (widgetSelection === "") {
-      toast.success(
-        "Brouillon appliqué. Aucun template widget compatible : le widget est désactivé.",
-      );
-      return;
-    }
-    if (selectedParamsSchema.length === 0) {
-      toast.success("Brouillon appliqué et template widget sélectionné.");
-      return;
-    }
-
-    toast.success("Brouillon appliqué. Préremplissage des paramètres du template…");
-    void (async () => {
-      try {
-        const response = await fetch("/api/chatbots/ai/template-params", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            templateId: selectedTemplateId,
-            templateVersion: selectedTemplateVersion,
-            chatbot: {
-              label: result.draft.label,
-              description: result.draft.description,
-              role: result.draft.role,
-              objective: result.draft.objective,
-              tone: result.draft.tone,
-              extraInstructions: result.draft.extraInstructions,
-            },
-            knowledge: result.draft.knowledge.map((item) => ({
-              titre: item.titre,
-              contenu: item.contenu,
-            })),
-            palette: result.sitePalette,
-            ...(result.providerId === null ? {} : { providerId: result.providerId }),
-            ...(result.model === "" ? {} : { model: result.model }),
-          }),
-        });
-        const json = (await response.json()) as Partial<ChatbotTemplateParamsDto> & {
-          error?: string;
-        };
-        if (!response.ok || json.params === undefined) {
-          throw new Error(json.error ?? "Préremplissage impossible");
-        }
-        setChannels((current) => {
-          if (current.widget.visualTemplate !== widgetSelection) return current;
-          // Ne pas écraser les valeurs si l'utilisateur les a déjà modifiées.
-          if (JSON.stringify(current.widget.params) !== JSON.stringify(widgetParams))
-            return current;
-          return {
-            ...current,
-            widget: {
-              ...current.widget,
-              params: json.params as Record<string, string | number | boolean>,
-            },
-          };
-        });
-        for (const warning of json.warnings ?? []) toast.warning(warning);
-        toast.success("Paramètres du template préremplis par l’IA.");
-      } catch (error) {
-        toast.warning(
-          error instanceof Error
-            ? `${error.message}. Paramètres du template laissés par défaut.`
-            : "Paramètres du template laissés par défaut.",
-        );
-      }
-    })();
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
@@ -759,497 +688,454 @@ export function ChatbotCreateForm({
         ].join(" · ");
 
   return (
-    <form className="chatbot-wizard chatbot-wizard-page" onSubmit={onSubmit} noValidate>
-      <nav className="chatbot-wizard-stepper" aria-label="Étapes de création">
-        {stepIndices.map((index, position) => {
-          const entry = CHATBOT_STEPS[index];
-          if (entry === undefined) return null;
-          const current = index === step;
-          const done = position < stepPosition;
-          return (
-            <button
-              key={entry.title}
-              type="button"
-              className={`chatbot-step${current ? " active" : ""}${done ? " done" : ""}`}
-              aria-current={current ? "step" : undefined}
-              disabled={pending || index > maxVisited}
-              onClick={() => goToStep(index)}
-            >
-              <span className="chatbot-step-number">{position + 1}</span>
-              <span className="chatbot-step-label">
-                <span className="chatbot-step-title">{entry.title}</span>
-                <span className="chatbot-step-short">{entry.sidebar}</span>
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+    <>
+      <form className="chatbot-wizard chatbot-wizard-page" onSubmit={onSubmit} noValidate>
+        <nav className="chatbot-wizard-stepper" aria-label="Étapes de création">
+          {stepIndices.map((index, position) => {
+            const entry = CHATBOT_STEPS[index];
+            if (entry === undefined) return null;
+            const current = index === step;
+            const done = position < stepPosition;
+            return (
+              <button
+                key={entry.title}
+                type="button"
+                className={`chatbot-step${current ? " active" : ""}${done ? " done" : ""}`}
+                aria-current={current ? "step" : undefined}
+                disabled={pending || index > maxVisited}
+                onClick={() => goToStep(index)}
+              >
+                <span className="chatbot-step-number">{position + 1}</span>
+                <span className="chatbot-step-label">
+                  <span className="chatbot-step-title">{entry.title}</span>
+                  <span className="chatbot-step-short">{entry.sidebar}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-      <div className="chatbot-wizard-body">
-        <header className="chatbot-page-head">
-          <div>
-            <p className="chatbot-page-eyebrow">
-              Étape {stepPosition + 1} sur {stepIndices.length}
-            </p>
-            <h1>{CHATBOT_STEPS[step]?.title}</h1>
-            <p>{CHATBOT_STEPS[step]?.description}</p>
-          </div>
-          <div className="chatbot-page-progress">
-            <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
+        <div className="chatbot-wizard-body">
+          <header className="chatbot-page-head">
             <div>
-              <span
-                style={{
-                  width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
-                }}
-              />
+              <p className="chatbot-page-eyebrow">
+                Étape {stepPosition + 1} sur {stepIndices.length}
+              </p>
+              <h1>{CHATBOT_STEPS[step]?.title}</h1>
+              <p>{CHATBOT_STEPS[step]?.description}</p>
             </div>
-          </div>
-        </header>
-        {stepError !== null ? <p className="alert error">{stepError}</p> : null}
-        {error !== null ? <p className="alert error">{error}</p> : null}
-        {saveError !== null ? (
-          <p className="alert error">
-            Brouillon non sauvegardé : {saveError} Vos modifications restent dans cette fenêtre ;
-            réessayez avant de fermer.
-          </p>
-        ) : null}
-        {resumed ? (
-          <p className="alert info">
-            Reprise du brouillon : toutes les données enregistrées (configuration, canaux, sélection
-            de données, connaissances, liens et photos) ont été restaurées.
-          </p>
-        ) : null}
-
-        {step === 0 && !resumed ? (
-          <>
-            <section className="chatbot-form-section template-ai-toggle-card">
+            <div className="chatbot-page-progress">
+              <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
               <div>
-                <strong>Créer avec l’IA</strong>
+                <span
+                  style={{
+                    width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </header>
+          {stepError !== null ? <p className="alert error">{stepError}</p> : null}
+          {error !== null ? <p className="alert error">{error}</p> : null}
+          {saveError !== null ? (
+            <p className="alert error">
+              Brouillon non sauvegardé : {saveError} Vos modifications restent dans cette fenêtre ;
+              réessayez avant de fermer.
+            </p>
+          ) : null}
+          {resumed ? (
+            <p className="alert info">
+              Reprise du brouillon : toutes les données enregistrées (configuration, canaux,
+              sélection de données, connaissances, liens et photos) ont été restaurées.
+            </p>
+          ) : null}
+
+          {step === 0 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[0].title}>
+              <div className="chatbot-step-head">
+                <h4>Cadrage</h4>
                 <p className="hint">
-                  Décrivez le chatbot, l’IA prépare une première version. Vous relisez et validez
-                  avant l’enregistrement.
+                  Identifiez le chatbot puis choisissez la façon de définir son comportement.
                 </p>
               </div>
+              <div className="chatbot-card">
+                <div className="chatbot-card-head">
+                  <div>
+                    <h2>Identité</h2>
+                    <p className="hint">Les informations visibles par l’utilisateur et l’équipe.</p>
+                  </div>
+                  <span className="badge info">Obligatoire</span>
+                </div>
+                <div className="chatbot-step-grid">
+                  <label className="field">
+                    Nom du chatbot *
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex. Salon IT, Stand, Campagne"
+                      maxLength={120}
+                      value={label}
+                      onChange={(event) => setLabel(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Prospect cible
+                    <HelpHint label="Aide sur le prospect cible">
+                      Aucun prospect : chatbot standard. Un prospect : lien dédié à ce prospect,
+                      sans formulaire de contact.
+                    </HelpHint>
+                    <select
+                      value={type === "specifique" ? prospectId : ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "") {
+                          changeType("standard");
+                          setProspectId("");
+                        } else {
+                          changeType("specifique");
+                          setProspectId(value);
+                        }
+                      }}
+                    >
+                      <option value="">Aucun prospect (standard)</option>
+                      {prospects.map((prospect) => (
+                        <option key={prospect.id} value={prospect.id}>
+                          {prospect.nom} {prospect.prenom} ({prospect.email})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <ChatbotMissionField value={config.mission} onChange={changeMission} />
+              <ChatbotBehaviorFields value={config} onChange={setConfig} />
+            </section>
+          ) : null}
+
+          {step === 1 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[1].title}>
+              <div className="chatbot-step-head">
+                <h4>Collecte</h4>
+                <p className="hint">
+                  Choisissez la fiche que le chatbot remplira lorsque l’utilisateur veut recueillir
+                  des informations.
+                </p>
+              </div>
+              <ChatbotFichePicker
+                value={config.fiches}
+                onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
+              />
+            </section>
+          ) : null}
+
+          {step === 2 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[2].title}>
+              <div className="chatbot-step-head">
+                <h4>Alimentation</h4>
+                <p className="hint">
+                  Les sources que le chatbot consulte et les contenus qu’il peut utiliser.
+                </p>
+              </div>
+              <ChatbotDataStep
+                value={dataDraft}
+                onChange={setDataDraft}
+                selection={config.dataSelection}
+                onSelectionChange={(dataSelection) =>
+                  setConfig((current) => ({ ...current, dataSelection }))
+                }
+                onGlobalCountsChange={setGlobalDataCounts}
+                onUploadPhoto={uploadDraftPhoto}
+                onRemovePhoto={removeDraftPhoto}
+                searchTool={config.searchTool}
+                onSearchToolChange={(searchTool) =>
+                  setConfig((current) => ({ ...current, searchTool }))
+                }
+                fiches={config.fiches}
+                publicLink={publicLink}
+                sources={sources}
+                onSourcesChange={setSources}
+                usageHint={config.ficheUsageHint}
+                onUsageHintChange={(ficheUsageHint) =>
+                  setConfig((current) => ({ ...current, ficheUsageHint }))
+                }
+              />
+            </section>
+          ) : null}
+
+          {step === 3 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[3].title}>
+              <div className="chatbot-step-head">
+                <h4>Publication</h4>
+                <p className="hint">
+                  Choisissez où le chatbot est publié, puis ajustez les options avancées de
+                  diffusion.
+                </p>
+              </div>
+              <LinkChannelsFields
+                value={channels}
+                onChange={setChannels}
+                active={activeChannel}
+                onActiveChange={(channel) => {
+                  setActiveChannel(channel);
+                  setDataBindings({});
+                }}
+                type={type}
+                visualTemplates={visualTemplates}
+                confidentialites={confidentialites}
+              />
+              <details className="chatbot-advanced">
+                <summary>Options avancées</summary>
+                <div className="chatbot-advanced-body">
+                  <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
+                  <LinkDataBindingsField
+                    templateId={activeTemplate.id}
+                    templateVersion={activeTemplate.version}
+                    value={dataBindings}
+                    onChange={setDataBindings}
+                  />
+                </div>
+              </details>
+            </section>
+          ) : null}
+
+          {step === 4 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[4].title}>
+              <div className="chatbot-step-head">
+                <h4>IA & secours</h4>
+                <p className="hint">
+                  Choisissez les modèles IA et le comportement de secours si l’IA ne répond pas.
+                </p>
+              </div>
+              <AiUsageOverridesField
+                providers={aiProviders}
+                value={aiUsage}
+                onChange={setAiUsage}
+                canAssign={canAssignAi}
+              />
+              <ChatbotFallbackFields
+                value={config.fallback}
+                onChange={(fallback) => setConfig((current) => ({ ...current, fallback }))}
+              />
+            </section>
+          ) : null}
+
+          {step === 5 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[5].title}>
+              <div className="chatbot-step-head">
+                <h4>Restrictions et quotas</h4>
+                <p className="hint">Définissez les limites d’usage et l’expiration du chatbot.</p>
+              </div>
+              <div className="chatbot-card">
+                <div className="chatbot-card-head">
+                  <div>
+                    <h2>Limites du chatbot</h2>
+                    <p className="hint">Fiches, tokens et expiration du lien.</p>
+                  </div>
+                </div>
+                <LinkQuotaFields value={quota} onChange={setQuota} />
+                <label className="field">
+                  Expiration (optionnel)
+                  <input
+                    type="date"
+                    value={expiresAt}
+                    onChange={(event) => setExpiresAt(event.target.value)}
+                  />
+                  <span className="hint">
+                    Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
+                  </span>
+                </label>
+              </div>
+            </section>
+          ) : null}
+
+          {step === 6 ? (
+            <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[6].title}>
+              <div className="chatbot-step-head">
+                <h4>Validation</h4>
+                <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
+              </div>
+              <dl className="kv chatbot-summary">
+                <dt>Prospect cible</dt>
+                <dd>
+                  {type === "specifique"
+                    ? selectedProspect === null
+                      ? "— Prospect non sélectionné —"
+                      : `${selectedProspect.nom} ${selectedProspect.prenom} (${selectedProspect.email})`
+                    : "Aucun prospect (standard)"}
+                </dd>
+                <dt>Comportement</dt>
+                <dd>
+                  {config.behaviorMode === "guided"
+                    ? "Guidé (prompt généré)"
+                    : "Expert (prompt libre)"}
+                </dd>
+                <dt>Fiches</dt>
+                <dd>
+                  {config.fiches.length === 0
+                    ? "— Aucune —"
+                    : config.fiches.map((fiche) => fiche.label || fiche.key).join(", ")}
+                </dd>
+                <dt>Sources</dt>
+                <dd>
+                  {config.mission === "collect"
+                    ? "Désactivées par l’opération"
+                    : [
+                        config.searchTool.enabled ? "Fiches existantes" : "",
+                        sources.connaissances ? "Connaissances" : "",
+                        sources.phototheque ? "Photos" : "",
+                        sources.lien ? "Liens" : "",
+                      ]
+                        .filter((entry) => entry !== "")
+                        .join(", ") || "Aucune source active"}
+                </dd>
+                <dt>Contenus ajoutés</dt>
+                <dd>
+                  {pendingDataCount === 0
+                    ? "Aucune"
+                    : [
+                        dataDraft.connaissances.length > 0
+                          ? `${dataDraft.connaissances.length} connaissance(s)`
+                          : "",
+                        dataDraft.liens.length > 0 ? `${dataDraft.liens.length} lien(s)` : "",
+                        dataDraft.photos.length > 0 ? `${dataDraft.photos.length} photo(s)` : "",
+                      ]
+                        .filter((entry) => entry !== "")
+                        .join(" · ")}
+                </dd>
+                <dt>Sources d’information</dt>
+                <dd>
+                  {config.dataSelection.mode === "all"
+                    ? `Toute la bibliothèque (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
+                    : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} photo(s)/lien(s) sélectionné(s) + contenus déjà rattachés`}
+                </dd>
+                <dt>Configuration IA</dt>
+                <dd>
+                  {Object.keys(aiUsage).length === 0
+                    ? "Réglages par défaut de l’organisation"
+                    : `${Object.keys(aiUsage).length} usage(s) personnalisé(s)`}
+                </dd>
+                <dt>Canaux</dt>
+                <dd>
+                  {enabledChannels.length === 0
+                    ? "— Aucun —"
+                    : enabledChannels
+                        .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
+                        .join(", ")}
+                </dd>
+                <dt>Secours</dt>
+                <dd>
+                  {config.fallback.enabled
+                    ? `${config.fallback.questions.length} question(s)${config.fallback.showCollectionForm ? " · fiche de collecte" : ""}`
+                    : "Désactivé"}
+                </dd>
+                <dt>Quotas</dt>
+                <dd>{quotasSummary}</dd>
+                <dt>Expiration</dt>
+                <dd>{expiresAt === "" ? "Sans expiration" : expiresAt}</dd>
+              </dl>
+              <ul className="chatbot-checklist">
+                <li className={type === "specifique" && prospectId === "" ? "warn" : "ok"}>
+                  {type === "specifique" ? "Prospect rattaché" : "Type standard sans prospect"}
+                </li>
+                <li className="ok">
+                  {config.fiches.length === 0
+                    ? "Aucune fiche de collecte"
+                    : `${config.fiches.length} fiche${config.fiches.length > 1 ? "s" : ""} de collecte`}
+                </li>
+                <li className="ok">
+                  {config.dataSelection.mode === "all"
+                    ? "Toute la bibliothèque"
+                    : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} contenu(s) de la bibliothèque sélectionné(s)`}
+                  {pendingDataCount === 0
+                    ? ""
+                    : ` · ${pendingDataCount} contenu(s) ajouté(s) à ce chatbot`}
+                </li>
+                <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
+                  Au moins un canal de publication
+                </li>
+                <li className={channels.widget.enabled && widgetDisplay === null ? "warn" : "ok"}>
+                  Template widget compatible
+                </li>
+                <li
+                  className={
+                    config.behaviorMode === "expert" && config.systemPrompt.trim() === ""
+                      ? "warn"
+                      : "ok"
+                  }
+                >
+                  {config.behaviorMode === "expert"
+                    ? "Prompt expert renseigné"
+                    : "Prompt guidé généré"}
+                </li>
+              </ul>
+              {config.behaviorMode === "guided" ? (
+                <details className="prompt-preview-block">
+                  <summary>Voir le prompt généré</summary>
+                  <pre className="prompt-preview">{guidedPrompt === "" ? "—" : guidedPrompt}</pre>
+                </details>
+              ) : null}
+            </section>
+          ) : null}
+        </div>
+
+        <div className="chatbot-wizard-footer">
+          <div>
+            {stepPosition > 0 ? (
+              <button type="button" className="btn ghost small" disabled={pending} onClick={goBack}>
+                Retour
+              </button>
+            ) : (
               <button
                 type="button"
                 className="btn ghost small"
-                onClick={() => setAiAssistOpen(true)}
+                disabled={pending}
+                onClick={() => void cancelWizard()}
               >
-                Créer avec l’IA
+                Annuler
               </button>
-            </section>
-
-            {aiAssistOpen ? (
-              <Modal
-                title="Créer avec l’IA"
-                onClose={() => setAiAssistOpen(false)}
-                wide
-                dialogClassName="chatbot-ai-dialog"
-                bodyClassName="chatbot-ai-body"
-              >
-                <p className="hint chatbot-ai-intro">
-                  L’IA analyse la description, le site et les documents, puis prépare la fiche de
-                  collecte et le comportement. Vous relisez et validez avant l’enregistrement.
-                </p>
-                <ChatbotAiAssistPanel
-                  endpoint="/api/chatbots/ai/generate"
-                  modelsEndpoint="/api/chatbots/ai/models"
-                  submitLabel="Générer le chatbot"
-                  onGenerated={(result) => {
-                    onAiGenerated(result);
-                    setAiAssistOpen(false);
-                  }}
-                />
-                {aiSources !== null ? (
-                  <p className="hint">
-                    Sources : {aiSources.pages.length} page(s), {aiSources.files.length}{" "}
-                    document(s), {aiSources.chars.toLocaleString("fr-FR")} caractères extraits.
-                  </p>
-                ) : null}
-                {aiKnowledgeCount > 0 ? (
-                  <p className="hint">
-                    {aiKnowledgeCount} connaissance(s) ajoutée(s) au brouillon du chatbot.
-                  </p>
-                ) : null}
-              </Modal>
+            )}
+          </div>
+          <div className="tools">
+            <span className="hint chatbot-draft-save-status" aria-live="polite">
+              {savingDraft
+                ? "Sauvegarde du brouillon…"
+                : saveError !== null
+                  ? "Sauvegarde en échec"
+                  : draftMeaningful
+                    ? "Brouillon enregistré"
+                    : ""}
+            </span>
+            <span className="hint chatbot-step-counter">
+              Étape {stepPosition + 1} / {stepIndices.length}
+            </span>
+            {stepPosition < stepIndices.length - 1 ? (
+              <button type="button" className="btn small" disabled={pending} onClick={goNext}>
+                Suivant
+              </button>
             ) : null}
-          </>
-        ) : null}
-
-        {step === 0 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[0].title}>
-            <div className="chatbot-step-head">
-              <h4>Cadrage</h4>
-              <p className="hint">
-                Identifiez le chatbot puis choisissez la façon de définir son comportement.
-              </p>
-            </div>
-            <div className="chatbot-card">
-              <div className="chatbot-card-head">
-                <div>
-                  <h2>Identité</h2>
-                  <p className="hint">Les informations visibles par l’utilisateur et l’équipe.</p>
-                </div>
-                <span className="badge info">Obligatoire</span>
-              </div>
-              <div className="chatbot-step-grid">
-                <label className="field">
-                  Nom du chatbot *
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex. Salon IT, Stand, Campagne"
-                    maxLength={120}
-                    value={label}
-                    onChange={(event) => setLabel(event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  Prospect cible
-                  <HelpHint label="Aide sur le prospect cible">
-                    Aucun prospect : chatbot standard. Un prospect : lien dédié à ce prospect, sans
-                    formulaire de contact.
-                  </HelpHint>
-                  <select
-                    value={type === "specifique" ? prospectId : ""}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      if (value === "") {
-                        changeType("standard");
-                        setProspectId("");
-                      } else {
-                        changeType("specifique");
-                        setProspectId(value);
-                      }
-                    }}
-                  >
-                    <option value="">Aucun prospect (standard)</option>
-                    {prospects.map((prospect) => (
-                      <option key={prospect.id} value={prospect.id}>
-                        {prospect.nom} {prospect.prenom} ({prospect.email})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-            <ChatbotMissionField value={config.mission} onChange={changeMission} />
-            <ChatbotBehaviorFields value={config} onChange={setConfig} />
-          </section>
-        ) : null}
-
-        {step === 1 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[1].title}>
-            <div className="chatbot-step-head">
-              <h4>Collecte</h4>
-              <p className="hint">
-                Choisissez la fiche que le chatbot remplira lorsque l’utilisateur veut recueillir
-                des informations.
-              </p>
-            </div>
-            <ChatbotFichePicker
-              value={config.fiches}
-              onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
-            />
-          </section>
-        ) : null}
-
-        {step === 2 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[2].title}>
-            <div className="chatbot-step-head">
-              <h4>Alimentation</h4>
-              <p className="hint">
-                Les sources que le chatbot consulte et les contenus qu’il peut utiliser.
-              </p>
-            </div>
-            <ChatbotDataStep
-              value={dataDraft}
-              onChange={setDataDraft}
-              selection={config.dataSelection}
-              onSelectionChange={(dataSelection) =>
-                setConfig((current) => ({ ...current, dataSelection }))
-              }
-              onGlobalCountsChange={setGlobalDataCounts}
-              onUploadPhoto={uploadDraftPhoto}
-              onRemovePhoto={removeDraftPhoto}
-              searchTool={config.searchTool}
-              onSearchToolChange={(searchTool) =>
-                setConfig((current) => ({ ...current, searchTool }))
-              }
-              fiches={config.fiches}
-              publicLink={publicLink}
-              sources={sources}
-              onSourcesChange={setSources}
-              usageHint={config.ficheUsageHint}
-              onUsageHintChange={(ficheUsageHint) =>
-                setConfig((current) => ({ ...current, ficheUsageHint }))
-              }
-            />
-          </section>
-        ) : null}
-
-        {step === 3 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[3].title}>
-            <div className="chatbot-step-head">
-              <h4>Publication</h4>
-              <p className="hint">
-                Choisissez où le chatbot est publié, puis ajustez les options avancées de diffusion.
-              </p>
-            </div>
-            <LinkChannelsFields
-              value={channels}
-              onChange={setChannels}
-              active={activeChannel}
-              onActiveChange={(channel) => {
-                setActiveChannel(channel);
-                setDataBindings({});
-              }}
-              type={type}
-              visualTemplates={visualTemplates}
-              confidentialites={confidentialites}
-            />
-            <details className="chatbot-advanced">
-              <summary>Options avancées</summary>
-              <div className="chatbot-advanced-body">
-                <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
-                <LinkDataBindingsField
-                  templateId={activeTemplate.id}
-                  templateVersion={activeTemplate.version}
-                  value={dataBindings}
-                  onChange={setDataBindings}
-                />
-              </div>
-            </details>
-          </section>
-        ) : null}
-
-        {step === 4 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[4].title}>
-            <div className="chatbot-step-head">
-              <h4>IA & secours</h4>
-              <p className="hint">
-                Choisissez les modèles IA et le comportement de secours si l’IA ne répond pas.
-              </p>
-            </div>
-            <AiUsageOverridesField
-              providers={aiProviders}
-              value={aiUsage}
-              onChange={setAiUsage}
-              canAssign={canAssignAi}
-            />
-            <ChatbotFallbackFields
-              value={config.fallback}
-              onChange={(fallback) => setConfig((current) => ({ ...current, fallback }))}
-            />
-          </section>
-        ) : null}
-
-        {step === 5 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[5].title}>
-            <div className="chatbot-step-head">
-              <h4>Restrictions et quotas</h4>
-              <p className="hint">Définissez les limites d’usage et l’expiration du chatbot.</p>
-            </div>
-            <div className="chatbot-card">
-              <div className="chatbot-card-head">
-                <div>
-                  <h2>Limites du chatbot</h2>
-                  <p className="hint">Fiches, tokens et expiration du lien.</p>
-                </div>
-              </div>
-              <LinkQuotaFields value={quota} onChange={setQuota} />
-              <label className="field">
-                Expiration (optionnel)
-                <input
-                  type="date"
-                  value={expiresAt}
-                  onChange={(event) => setExpiresAt(event.target.value)}
-                />
-                <span className="hint">
-                  Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
-                </span>
-              </label>
-            </div>
-          </section>
-        ) : null}
-
-        {step === 6 ? (
-          <section className="chatbot-step-panel" aria-label={CHATBOT_STEPS[6].title}>
-            <div className="chatbot-step-head">
-              <h4>Validation</h4>
-              <p className="hint">Vérifiez la configuration avant de créer le chatbot.</p>
-            </div>
-            <dl className="kv chatbot-summary">
-              <dt>Prospect cible</dt>
-              <dd>
-                {type === "specifique"
-                  ? selectedProspect === null
-                    ? "— Prospect non sélectionné —"
-                    : `${selectedProspect.nom} ${selectedProspect.prenom} (${selectedProspect.email})`
-                  : "Aucun prospect (standard)"}
-              </dd>
-              <dt>Comportement</dt>
-              <dd>
-                {config.behaviorMode === "guided"
-                  ? "Guidé (prompt généré)"
-                  : "Expert (prompt libre)"}
-              </dd>
-              <dt>Fiches</dt>
-              <dd>
-                {config.fiches.length === 0
-                  ? "— Aucune —"
-                  : config.fiches.map((fiche) => fiche.label || fiche.key).join(", ")}
-              </dd>
-              <dt>Sources</dt>
-              <dd>
-                {config.mission === "collect"
-                  ? "Désactivées par l’opération"
-                  : [
-                      config.searchTool.enabled ? "Fiches existantes" : "",
-                      sources.connaissances ? "Connaissances" : "",
-                      sources.phototheque ? "Photos" : "",
-                      sources.lien ? "Liens" : "",
-                    ]
-                      .filter((entry) => entry !== "")
-                      .join(", ") || "Aucune source active"}
-              </dd>
-              <dt>Contenus ajoutés</dt>
-              <dd>
-                {pendingDataCount === 0
-                  ? "Aucune"
-                  : [
-                      dataDraft.connaissances.length > 0
-                        ? `${dataDraft.connaissances.length} connaissance(s)`
-                        : "",
-                      dataDraft.liens.length > 0 ? `${dataDraft.liens.length} lien(s)` : "",
-                      dataDraft.photos.length > 0 ? `${dataDraft.photos.length} photo(s)` : "",
-                    ]
-                      .filter((entry) => entry !== "")
-                      .join(" · ")}
-              </dd>
-              <dt>Sources d’information</dt>
-              <dd>
-                {config.dataSelection.mode === "all"
-                  ? `Toute la bibliothèque (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
-                  : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} photo(s)/lien(s) sélectionné(s) + contenus déjà rattachés`}
-              </dd>
-              <dt>Configuration IA</dt>
-              <dd>
-                {Object.keys(aiUsage).length === 0
-                  ? "Réglages par défaut de l’organisation"
-                  : `${Object.keys(aiUsage).length} usage(s) personnalisé(s)`}
-              </dd>
-              <dt>Canaux</dt>
-              <dd>
-                {enabledChannels.length === 0
-                  ? "— Aucun —"
-                  : enabledChannels
-                      .map((channel) => (channel === "page" ? "Page publique" : "Widget"))
-                      .join(", ")}
-              </dd>
-              <dt>Secours</dt>
-              <dd>
-                {config.fallback.enabled
-                  ? `${config.fallback.questions.length} question(s)${config.fallback.showCollectionForm ? " · fiche de collecte" : ""}`
-                  : "Désactivé"}
-              </dd>
-              <dt>Quotas</dt>
-              <dd>{quotasSummary}</dd>
-              <dt>Expiration</dt>
-              <dd>{expiresAt === "" ? "Sans expiration" : expiresAt}</dd>
-            </dl>
-            <ul className="chatbot-checklist">
-              <li className={type === "specifique" && prospectId === "" ? "warn" : "ok"}>
-                {type === "specifique" ? "Prospect rattaché" : "Type standard sans prospect"}
-              </li>
-              <li className="ok">
-                {config.fiches.length === 0
-                  ? "Aucune fiche de collecte"
-                  : `${config.fiches.length} fiche${config.fiches.length > 1 ? "s" : ""} de collecte`}
-              </li>
-              <li className="ok">
-                {config.dataSelection.mode === "all"
-                  ? "Toute la bibliothèque"
-                  : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} contenu(s) de la bibliothèque sélectionné(s)`}
-                {pendingDataCount === 0
-                  ? ""
-                  : ` · ${pendingDataCount} contenu(s) ajouté(s) à ce chatbot`}
-              </li>
-              <li className={enabledChannels.length > 0 ? "ok" : "warn"}>
-                Au moins un canal de publication
-              </li>
-              <li className={channels.widget.enabled && widgetDisplay === null ? "warn" : "ok"}>
-                Template widget compatible
-              </li>
-              <li
-                className={
-                  config.behaviorMode === "expert" && config.systemPrompt.trim() === ""
-                    ? "warn"
-                    : "ok"
-                }
+            {canFinish ? (
+              <button
+                type="button"
+                className="btn small"
+                disabled={pending}
+                onClick={() => void createChatbot()}
               >
-                {config.behaviorMode === "expert"
-                  ? "Prompt expert renseigné"
-                  : "Prompt guidé généré"}
-              </li>
-            </ul>
-            {config.behaviorMode === "guided" ? (
-              <details className="prompt-preview-block">
-                <summary>Voir le prompt généré</summary>
-                <pre className="prompt-preview">{guidedPrompt === "" ? "—" : guidedPrompt}</pre>
-              </details>
+                {pending ? "Création…" : "Terminer"}
+              </button>
             ) : null}
-          </section>
-        ) : null}
-      </div>
-
-      <div className="chatbot-wizard-footer">
-        <div>
-          {stepPosition > 0 ? (
-            <button type="button" className="btn ghost small" disabled={pending} onClick={goBack}>
-              Retour
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn ghost small"
-              disabled={pending}
-              onClick={() => void cancelWizard()}
-            >
-              Annuler
-            </button>
-          )}
+          </div>
         </div>
-        <div className="tools">
-          <span className="hint chatbot-draft-save-status" aria-live="polite">
-            {savingDraft
-              ? "Sauvegarde du brouillon…"
-              : saveError !== null
-                ? "Sauvegarde en échec"
-                : draftMeaningful
-                  ? "Brouillon enregistré"
-                  : ""}
-          </span>
-          <span className="hint chatbot-step-counter">
-            Étape {stepPosition + 1} / {stepIndices.length}
-          </span>
-          {stepPosition < stepIndices.length - 1 ? (
-            <button type="button" className="btn small" disabled={pending} onClick={goNext}>
-              Suivant
-            </button>
-          ) : null}
-          {canFinish ? (
-            <button
-              type="button"
-              className="btn small"
-              disabled={pending}
-              onClick={() => void createChatbot()}
-            >
-              {pending ? "Création…" : "Terminer"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </form>
+      </form>
+      {connaissanceConflicts === null ? null : (
+        <ConnaissanceConflictModal
+          conflicts={connaissanceConflicts}
+          onClose={() => setConnaissanceConflicts(null)}
+          onResolve={(action) => {
+            setConnaissanceConflicts(null);
+            void createChatbot(action);
+          }}
+        />
+      )}
+    </>
   );
 }
