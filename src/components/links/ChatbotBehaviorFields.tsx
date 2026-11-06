@@ -188,6 +188,12 @@ export function ChatbotBehaviorFields({ value, onChange }: Props) {
 
   return (
     <div className="chatbot-behavior">
+      <div className="chatbot-card-head">
+        <div>
+          <h2>Comportement</h2>
+          <p className="hint">Le ton, les limites et le prompt du chatbot.</p>
+        </div>
+      </div>
       <fieldset className="fieldset">
         <legend>Mode de comportement</legend>
         <div className="template-mode-switch">
