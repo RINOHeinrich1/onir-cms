@@ -8589,3 +8589,8 @@ a.subtab {
   border-radius: 0;
   color: var(--fg);
 }
+
+/* Fond de la zone de travail identique à la maquette. */
+.chatbot-wizard-page .chatbot-wizard-body {
+  background: var(--surface);
+}
