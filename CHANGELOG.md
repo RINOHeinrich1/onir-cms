@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.28.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.27.0...v0.28.0) (2026-11-06)
+
+
+### Features
+
+* **assistant:** livrer le builder IA et les améliorations de création ([#249](https://github.com/RINOHeinrich1/onir-cms/issues/249)) ([7fbca7c](https://github.com/RINOHeinrich1/onir-cms/commit/7fbca7c08c0ec0b256d771aa93e69f7ef4b39217))
+
 ## [0.27.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.26.0...v0.27.0) (2026-11-06)
 
 
