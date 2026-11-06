@@ -32,6 +32,7 @@ export function ChatbotMissionField({
             <input
               type="radio"
               name="chatbot-mission"
+              value={mission}
               checked={value === mission}
               onChange={() => onChange(mission)}
             />{" "}
