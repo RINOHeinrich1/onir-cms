@@ -6637,10 +6637,6 @@ a.subtab {
   border-bottom: 0;
 }
 
-.chatbot-wizard-page .chatbot-wizard-stepper {
-  padding-top: 4rem;
-}
-
 .chatbot-page-overlay {
   background: transparent;
   display: block;
@@ -6848,6 +6844,7 @@ a.subtab {
 
 .chatbot-wizard-page .chatbot-wizard-stepper {
   align-items: stretch;
+  background: var(--surface-raised);
   border-bottom: 0;
   border-right: 1px solid var(--border);
   display: flex;
@@ -7606,10 +7603,6 @@ a.subtab {
   .chatbot-wizard-page .chatbot-summary {
     overflow: hidden;
     padding: 0;
-  }
-
-  .chatbot-wizard-page .chatbot-wizard-stepper {
-    padding-top: 4rem;
   }
 
   .chatbot-page-head {
