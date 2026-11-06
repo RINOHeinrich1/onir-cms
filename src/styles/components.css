@@ -8707,3 +8707,51 @@ a.subtab {
     width: 100%;
   }
 }
+
+.chatbot-wizard-page .chatbot-ai-usage {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.chatbot-wizard-page .chatbot-ai-usage > legend {
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.65rem;
+  padding: 0;
+}
+
+.chatbot-wizard-page .ai-usage-row {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.75rem 0;
+}
+
+.chatbot-wizard-page .ai-usage-row:last-child {
+  border-bottom: 0;
+}
+
+.chatbot-wizard-page .ai-usage-row > strong {
+  flex: 0 0 10rem;
+  font-size: 0.78rem;
+}
+
+.chatbot-wizard-page .ai-usage-row > select {
+  max-width: 100%;
+  min-width: 10rem;
+}
+
+@media (max-width: 56rem) {
+  .chatbot-wizard-page .ai-usage-row > strong {
+    flex-basis: 100%;
+  }
+}

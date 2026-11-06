@@ -1010,15 +1010,12 @@ export function ChatbotCreateForm({
                 Choisissez les modèles IA et le comportement de secours si l’IA ne répond pas.
               </p>
             </div>
-            <div className="chatbot-subsection">
-              <h5>Modèles IA</h5>
-              <AiUsageOverridesField
-                providers={aiProviders}
-                value={aiUsage}
-                onChange={setAiUsage}
-                canAssign={canAssignAi}
-              />
-            </div>
+            <AiUsageOverridesField
+              providers={aiProviders}
+              value={aiUsage}
+              onChange={setAiUsage}
+              canAssign={canAssignAi}
+            />
             <div className="chatbot-subsection">
               <h5>Si l’IA ne répond pas</h5>
               <ChatbotFallbackFields
