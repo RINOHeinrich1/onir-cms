@@ -215,38 +215,58 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
     try {
       await client.query("BEGIN");
       await resetExpiredBudget(client, organizationId);
-      const [budgetRows, totalRows, allocationRows] = await Promise.all([
-        client.query<BudgetRow>(
-          `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
-                  token_reset_days, token_period_started_at
-             FROM organization_ai_budgets
-            WHERE organization_id = $1`,
-          [organizationId],
-        ),
-        client.query<{ total: string }>(
-          `SELECT COALESCE(sum(total_tokens), 0)::text AS total
-             FROM ai_usage_events
-            WHERE organization_id = $1`,
-          [organizationId],
-        ),
-        client.query<AllocationOverviewRow>(
-          `SELECT a.id, a.organization_id, a.target_kind, a.provider_id, a.model,
-                  a.cluster_id, a.max_tokens, a.tokens_used,
-                  CASE
-                    WHEN a.target_kind = 'cluster'
-                      THEN COALESCE(NULLIF(c.label, ''), 'Cluster IA')
-                    WHEN p.label IS NULL OR p.label = ''
-                      THEN a.model
-                    ELSE p.label || ' · ' || a.model
-                  END AS label
-             FROM organization_ai_allocations a
-             LEFT JOIN ai_providers p ON p.id = a.provider_id
-             LEFT JOIN ai_clusters c ON c.id = a.cluster_id
-            WHERE a.organization_id = $1
-            ORDER BY a.created_at, a.id`,
-          [organizationId],
-        ),
-      ]);
+      const budgetRows = await client.query<BudgetRow>(
+        `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
+                token_reset_days, token_period_started_at
+           FROM organization_ai_budgets
+          WHERE organization_id = $1`,
+        [organizationId],
+      );
+      const totalRows = await client.query<{ total: string }>(
+        `WITH cutover AS (
+           SELECT applied_at
+             FROM schema_migrations
+            WHERE name = '0073_organization_ai_quotas.sql'
+         )
+         SELECT (
+           COALESCE((
+             SELECT sum(total_tokens)
+               FROM ai_usage_events
+              WHERE organization_id = $1
+           ), 0)
+           +
+           COALESCE((
+             SELECT sum(u.total_tokens)
+               FROM chat_link_ai_usage u
+               CROSS JOIN cutover c
+              WHERE u.organization_id = $1
+                AND u.created_at < c.applied_at
+                AND NOT EXISTS (
+                  SELECT 1
+                    FROM ai_usage_events e
+                   WHERE e.legacy_usage_id = u.id
+                )
+           ), 0)
+         )::text AS total`,
+        [organizationId],
+      );
+      const allocationRows = await client.query<AllocationOverviewRow>(
+        `SELECT a.id, a.organization_id, a.target_kind, a.provider_id, a.model,
+                a.cluster_id, a.max_tokens, a.tokens_used,
+                CASE
+                  WHEN a.target_kind = 'cluster'
+                    THEN COALESCE(NULLIF(c.label, ''), 'Cluster IA')
+                  WHEN p.label IS NULL OR p.label = ''
+                    THEN a.model
+                  ELSE p.label || ' · ' || a.model
+                END AS label
+           FROM organization_ai_allocations a
+           LEFT JOIN ai_providers p ON p.id = a.provider_id
+           LEFT JOIN ai_clusters c ON c.id = a.cluster_id
+          WHERE a.organization_id = $1
+          ORDER BY a.created_at, a.id`,
+        [organizationId],
+      );
       const budget = budgetRows.rows[0];
       await client.query("COMMIT");
       return {

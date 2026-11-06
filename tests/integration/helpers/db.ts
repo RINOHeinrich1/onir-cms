@@ -32,11 +32,18 @@ export async function setupDb(): Promise<Pool> {
   const pool = new Pool({ connectionString: testDatabaseUrl(), max: 5 });
   await pool.query("DROP SCHEMA IF EXISTS public CASCADE");
   await pool.query("CREATE SCHEMA public");
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+       name text PRIMARY KEY,
+       applied_at timestamptz NOT NULL DEFAULT now()
+     )`,
+  );
 
   const files = (await readdir(MIGRATIONS_DIR)).filter((name) => name.endsWith(".sql")).sort();
   for (const name of files) {
     const sql = await readFile(join(MIGRATIONS_DIR, name), "utf8");
     await pool.query(sql);
+    await pool.query("INSERT INTO schema_migrations (name) VALUES ($1)", [name]);
   }
   return pool;
 }

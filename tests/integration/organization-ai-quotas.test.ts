@@ -170,6 +170,40 @@ describe("quotas organisation — persistance et absence de reset", () => {
     expect(events.rows[0]?.count).toBe(1);
   });
 
+  it("réconcilie l'historique legacy sans double compter le backfill", async () => {
+    const quotas = pgOrganizationAiQuotaRepository(pool);
+    const link = await pgChatLinkRepository(pool).create(orgId, linkInput());
+    const cutover = await pool.query<{ applied_at: Date }>(
+      "SELECT applied_at FROM schema_migrations WHERE name = '0073_organization_ai_quotas.sql'",
+    );
+    const appliedAt = cutover.rows[0]?.applied_at;
+    if (appliedAt === undefined) throw new Error("cutover introuvable");
+    const legacy = await pool.query<{ id: string }>(
+      `INSERT INTO chat_link_ai_usage
+         (organization_id, link_id, operation, prompt_tokens, completion_tokens, total_tokens, created_at)
+       VALUES ($1, $2, 'chat_reply', 10, 5, 15, $3)
+       RETURNING id`,
+      [orgId, link.id, new Date(appliedAt.getTime() - 86_400_000)],
+    );
+    const legacyId = legacy.rows[0]?.id;
+    if (legacyId === undefined) throw new Error("legacy introuvable");
+
+    const beforeBackfill = await quotas.getUsageOverview(orgId);
+    expect(beforeBackfill.totalTokens).toBe(15);
+
+    await pool.query(
+      `INSERT INTO ai_usage_events
+         (organization_id, provider_label, model, usage, link_id,
+          prompt_tokens, completion_tokens, total_tokens, created_at, source, legacy_usage_id)
+       VALUES ($1, 'Historique pré-journal', 'legacy-import', 'chat_reply', $2,
+               10, 5, 15, $3, 'legacy_backfill', $4)`,
+      [orgId, link.id, new Date(appliedAt.getTime() - 86_400_000), legacyId],
+    );
+
+    const afterBackfill = await quotas.getUsageOverview(orgId);
+    expect(afterBackfill.totalTokens).toBe(15);
+  });
+
   it("expose le total historique et les quotas enrichis pour le dashboard", async () => {
     const quotas = pgOrganizationAiQuotaRepository(pool);
     const { providerId, modelId } = await createProviderAndModel();

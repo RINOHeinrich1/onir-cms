@@ -47,7 +47,7 @@ export function DashboardAiUsageCard({ usage }: { usage: OrganizationAiUsageOver
 
       <div className="dashboard-ai-grid">
         <section className="dashboard-ai-block">
-          <h3>Quota global</h3>
+          <h3>Quota global — période en cours</h3>
           {budget === null ? (
             <p className="hint">Aucun quota global configuré : consommation illimitée.</p>
           ) : (
@@ -83,7 +83,7 @@ export function DashboardAiUsageCard({ usage }: { usage: OrganizationAiUsageOver
         </section>
 
         <section className="dashboard-ai-block">
-          <h3>Quotas par modèle / cluster</h3>
+          <h3>Quotas par modèle / cluster — période en cours</h3>
           {usage.allocations.length === 0 ? (
             <p className="hint">Aucun quota par modèle ou cluster configuré.</p>
           ) : (
