@@ -202,7 +202,7 @@ export function emptyFiche(index: number): FicheDraft {
 
 export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
   return {
-    mission: "collect",
+    mission: "inform",
     behaviorMode: DEFAULT_CHATBOT_BEHAVIOR_MODE,
     systemPrompt: "",
     simple: {
