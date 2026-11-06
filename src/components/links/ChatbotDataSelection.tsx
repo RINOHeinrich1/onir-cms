@@ -34,6 +34,7 @@ const TABS: Array<{ id: TabId; label: string; empty: string }> = [
   },
   { id: "photos", label: "Photos", empty: "Aucune photo dans la bibliothèque." },
   { id: "liens", label: "Liens", empty: "Aucun lien dans la bibliothèque." },
+  { id: "fiches", label: "Fiches", empty: "" },
 ];
 
 function normalize(value: string): string {
