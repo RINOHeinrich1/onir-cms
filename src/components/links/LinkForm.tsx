@@ -782,7 +782,7 @@ export function LinkForm({
               <span className="chatbot-step-label">
                 <span className="chatbot-step-title">{entry.title}</span>
                 <span className="chatbot-step-short">
-                  {layout === "page" ? entry.description : entry.short}
+                  {layout === "page" ? entry.sidebar : entry.short}
                 </span>
               </span>
             </button>
