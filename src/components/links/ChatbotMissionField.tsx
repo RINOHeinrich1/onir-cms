@@ -17,7 +17,7 @@ export function ChatbotMissionField({
   onChange: (value: ChatbotMission) => void;
 }) {
   return (
-    <fieldset className="field">
+    <fieldset className="field chatbot-mission">
       <legend>
         Opération du chatbot *
         <HelpHint label="Aide sur l’opération">

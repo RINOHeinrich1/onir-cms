@@ -20,9 +20,6 @@ export function ChatbotCreatePage({
 
   return (
     <section className="chatbot-config-page">
-      <button type="button" className="chatbot-page-exit" onClick={goBack}>
-        ← Chatbots
-      </button>
       <LinkForm
         key={draft?.id ?? "nouveau"}
         layout="page"
