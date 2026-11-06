@@ -156,6 +156,7 @@ export function ConversationsWorkspace({
   const [conversations, setConversations] = useState<ConversationRowDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
   const grouped = searchParams.get("grouper") !== "0";
   const overviewMode = grouped && selectedId === null;
   useToastOnMessage(error);
@@ -225,7 +226,7 @@ export function ConversationsWorkspace({
     ) {
       return false;
     }
-    if (query === "") return true;
+    if (overviewMode || query === "") return true;
     return [
       conversation.visitorNom,
       conversation.visitorEmail,
@@ -238,6 +239,11 @@ export function ConversationsWorkspace({
       .includes(query);
   });
   const chatbotGroups = useMemo(() => groupByChatbot(filtered, chatbots), [filtered, chatbots]);
+  const groupQuery = groupSearch.trim().toLocaleLowerCase("fr");
+  const visibleChatbotGroups =
+    groupQuery === ""
+      ? chatbotGroups
+      : chatbotGroups.filter((group) => group.label.toLocaleLowerCase("fr").includes(groupQuery));
   const pagination = usePagination(
     filtered,
     15,
@@ -268,6 +274,7 @@ export function ConversationsWorkspace({
     selectedId === null ? "/conversations" : `/conversations/${selectedId}`;
 
   const setGrouped = (next: boolean): void => {
+    setGroupSearch("");
     const params = new URLSearchParams(searchParams.toString());
     if (next) params.delete("grouper");
     else params.set("grouper", "0");
@@ -276,6 +283,7 @@ export function ConversationsWorkspace({
   };
 
   const openChatbot = (label: string): void => {
+    setGroupSearch("");
     const params = filterParams({
       statut: statuses,
       archive: archives,
@@ -374,10 +382,10 @@ export function ConversationsWorkspace({
 
         <div className="conversations-overview-filters">
           <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher un visiteur, un email…"
-            label="Rechercher une conversation"
+            value={groupSearch}
+            onChange={setGroupSearch}
+            placeholder="Rechercher un chatbot…"
+            label="Rechercher un chatbot"
           />
           <FilterMenu sections={filterSections} onApply={applyFilters} />
         </div>
@@ -390,14 +398,20 @@ export function ConversationsWorkspace({
             <div className="skeleton inbox-chatbot-card" />
             <div className="skeleton inbox-chatbot-card" />
           </div>
-        ) : chatbotGroups.length === 0 ? (
+        ) : visibleChatbotGroups.length === 0 ? (
           <div className="empty-state inbox-empty">
-            <strong>Aucun chatbot.</strong>
-            <span>Créez un chatbot pour voir ses conversations ici.</span>
+            <strong>
+              {chatbotGroups.length === 0 ? "Aucun chatbot." : "Aucun chatbot trouvé."}
+            </strong>
+            <span>
+              {chatbotGroups.length === 0
+                ? "Créez un chatbot pour voir ses conversations ici."
+                : "Modifiez votre recherche."}
+            </span>
           </div>
         ) : (
           <div className="inbox-chatbot-cards conversations-overview-cards">
-            {chatbotGroups.map((group) => (
+            {visibleChatbotGroups.map((group) => (
               <article className="inbox-chatbot-card" key={group.id}>
                 <div className="inbox-chatbot-card-head">
                   <strong>{group.label}</strong>
