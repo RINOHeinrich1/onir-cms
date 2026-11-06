@@ -8678,3 +8678,32 @@ a.subtab {
   letter-spacing: -0.015em;
   margin: 0 0 0.75rem;
 }
+
+.chatbot-add-action {
+  position: relative;
+}
+.chatbot-data-add-choices {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 10px 28px rgb(0 53 40 / 0.18);
+  display: grid;
+  gap: 0.4rem;
+  min-width: 10rem;
+  padding: 0.5rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 25;
+}
+.chatbot-data-add-choices .btn {
+  justify-content: flex-start;
+  width: 100%;
+}
+@media (max-width: 40rem) {
+  .chatbot-data-add-choices {
+    left: 0;
+    right: auto;
+    width: 100%;
+  }
+}

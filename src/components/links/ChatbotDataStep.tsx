@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Modal } from "@/components/ui/Modal";
 import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
@@ -186,13 +187,28 @@ export function ChatbotDataStep({
             modifiée.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={() => setMode(mode === "choose" ? "none" : "choose")}
-        >
-          + Ajouter un contenu
-        </button>
+        <div className="chatbot-add-action">
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={() => setMode(mode === "choose" ? "none" : "choose")}
+          >
+            + Ajouter un contenu
+          </button>
+          {mode === "choose" ? (
+            <div className="chatbot-data-add-choices">
+              <button type="button" className="btn small" onClick={() => setMode("connaissance")}>
+                Connaissance
+              </button>
+              <button type="button" className="btn small" onClick={() => setMode("photo")}>
+                Photo
+              </button>
+              <button type="button" className="btn small" onClick={() => setMode("lien")}>
+                Lien
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <ChatbotDataSelection
@@ -210,146 +226,149 @@ export function ChatbotDataStep({
         onUsageHintChange={onUsageHintChange}
       />
 
-      {mode === "choose" ? (
-        <div className="tools chatbot-data-add-choices">
-          <button type="button" className="btn small" onClick={() => setMode("connaissance")}>
-            Connaissance
-          </button>
-          <button type="button" className="btn small" onClick={() => setMode("photo")}>
-            Photo
-          </button>
-          <button type="button" className="btn small" onClick={() => setMode("lien")}>
-            Lien
-          </button>
-        </div>
-      ) : null}
+      {mode === "connaissance" || mode === "lien" || mode === "photo" ? (
+        <Modal
+          title={
+            mode === "connaissance"
+              ? "Ajouter une connaissance"
+              : mode === "lien"
+                ? "Ajouter un lien"
+                : "Ajouter une photo"
+          }
+          onClose={resetForms}
+        >
+          {formError !== null ? <p className="alert error">{formError}</p> : null}
 
-      {formError !== null ? <p className="alert error">{formError}</p> : null}
+          {mode === "connaissance" ? (
+            <div className="chatbot-data-form">
+              <label className="field">
+                Titre *
+                <input
+                  type="text"
+                  maxLength={120}
+                  required
+                  value={connaissance.titre}
+                  onChange={(event) =>
+                    setConnaissance({ ...connaissance, titre: event.target.value })
+                  }
+                />
+              </label>
+              <label className="field">
+                Contenu *
+                <textarea
+                  rows={3}
+                  required
+                  value={connaissance.contenu}
+                  onChange={(event) =>
+                    setConnaissance({ ...connaissance, contenu: event.target.value })
+                  }
+                />
+              </label>
+              <div className="tools">
+                <button type="button" className="btn small" onClick={addConnaissance}>
+                  Ajouter
+                </button>
+                <button type="button" className="btn ghost small" onClick={resetForms}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
 
-      {mode === "connaissance" ? (
-        <div className="chatbot-data-form">
-          <label className="field">
-            Titre *
-            <input
-              type="text"
-              maxLength={120}
-              required
-              value={connaissance.titre}
-              onChange={(event) => setConnaissance({ ...connaissance, titre: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            Contenu *
-            <textarea
-              rows={3}
-              required
-              value={connaissance.contenu}
-              onChange={(event) =>
-                setConnaissance({ ...connaissance, contenu: event.target.value })
-              }
-            />
-          </label>
-          <div className="tools">
-            <button type="button" className="btn small" onClick={addConnaissance}>
-              Ajouter
-            </button>
-            <button type="button" className="btn ghost small" onClick={resetForms}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
+          {mode === "lien" ? (
+            <div className="chatbot-data-form">
+              <div className="grid-2">
+                <label className="field">
+                  Libellé *
+                  <input
+                    type="text"
+                    maxLength={120}
+                    required
+                    value={lien.libelle}
+                    onChange={(event) => setLien({ ...lien, libelle: event.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  URL *
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://…"
+                    value={lien.url}
+                    onChange={(event) => setLien({ ...lien, url: event.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="field">
+                Description
+                <textarea
+                  rows={2}
+                  value={lien.description}
+                  onChange={(event) => setLien({ ...lien, description: event.target.value })}
+                />
+              </label>
+              <div className="tools">
+                <button type="button" className="btn small" onClick={addLien}>
+                  Ajouter
+                </button>
+                <button type="button" className="btn ghost small" onClick={resetForms}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
 
-      {mode === "lien" ? (
-        <div className="chatbot-data-form">
-          <div className="grid-2">
-            <label className="field">
-              Libellé *
-              <input
-                type="text"
-                maxLength={120}
-                required
-                value={lien.libelle}
-                onChange={(event) => setLien({ ...lien, libelle: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              URL *
-              <input
-                type="url"
-                required
-                placeholder="https://…"
-                value={lien.url}
-                onChange={(event) => setLien({ ...lien, url: event.target.value })}
-              />
-            </label>
-          </div>
-          <label className="field">
-            Description
-            <textarea
-              rows={2}
-              value={lien.description}
-              onChange={(event) => setLien({ ...lien, description: event.target.value })}
-            />
-          </label>
-          <div className="tools">
-            <button type="button" className="btn small" onClick={addLien}>
-              Ajouter
-            </button>
-            <button type="button" className="btn ghost small" onClick={resetForms}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "photo" ? (
-        <div className="chatbot-data-form">
-          <label className="field">
-            Fichier image *
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
-              onChange={(event) => setPhoto({ ...photo, fichier: event.target.files?.[0] ?? null })}
-            />
-          </label>
-          <label className="field">
-            Libellé *
-            <input
-              type="text"
-              maxLength={120}
-              required
-              value={photo.libelle}
-              onChange={(event) => setPhoto({ ...photo, libelle: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            Description
-            <textarea
-              rows={2}
-              value={photo.description}
-              onChange={(event) => setPhoto({ ...photo, description: event.target.value })}
-            />
-          </label>
-          <div className="tools">
-            <button
-              type="button"
-              className="btn small"
-              disabled={uploading}
-              onClick={() => void addPhoto()}
-            >
-              {uploading ? "Import…" : "Ajouter"}
-            </button>
-            <button
-              type="button"
-              className="btn ghost small"
-              disabled={uploading}
-              onClick={resetForms}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
+          {mode === "photo" ? (
+            <div className="chatbot-data-form">
+              <label className="field">
+                Fichier image *
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                  onChange={(event) =>
+                    setPhoto({ ...photo, fichier: event.target.files?.[0] ?? null })
+                  }
+                />
+              </label>
+              <label className="field">
+                Libellé *
+                <input
+                  type="text"
+                  maxLength={120}
+                  required
+                  value={photo.libelle}
+                  onChange={(event) => setPhoto({ ...photo, libelle: event.target.value })}
+                />
+              </label>
+              <label className="field">
+                Description
+                <textarea
+                  rows={2}
+                  value={photo.description}
+                  onChange={(event) => setPhoto({ ...photo, description: event.target.value })}
+                />
+              </label>
+              <div className="tools">
+                <button
+                  type="button"
+                  className="btn small"
+                  disabled={uploading}
+                  onClick={() => void addPhoto()}
+                >
+                  {uploading ? "Import…" : "Ajouter"}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  disabled={uploading}
+                  onClick={resetForms}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </Modal>
       ) : null}
 
       {total > 0 ? (
