@@ -6,6 +6,7 @@ import type {
 } from "@/application/ports/chatbot-draft-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { MediaStorage } from "@/application/ports/media-storage";
+import { isBuilderDraftState } from "@/domain/chatbot-builder";
 import { collectTemporaryPhotoMediaIds } from "@/domain/entities/chatbot-draft";
 
 const LABEL_MAX = 120;
@@ -38,7 +39,8 @@ export async function listChatbotDrafts(
   actor: Actor,
 ): Promise<ChatbotDraft[]> {
   assertCan(actor, "links:list");
-  return deps.drafts.list(organizationOf(actor));
+  const drafts = await deps.drafts.list(organizationOf(actor));
+  return drafts.filter((draft) => !isBuilderDraftState(draft.state));
 }
 
 /** Détail d'un brouillon (admin/marketeur). */

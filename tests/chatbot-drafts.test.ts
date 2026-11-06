@@ -262,7 +262,13 @@ describe("finalisation des données du brouillon", () => {
 
     const result = await submitChatbotDataDraft(draft(), "link-1");
 
-    expect(result).toEqual({ created: 3, failures: [], failedPhotoMediaIds: [] });
+    expect(result).toEqual({
+      created: 3,
+      updated: 0,
+      skipped: [],
+      failures: [],
+      failedPhotoMediaIds: [],
+    });
     const connaissance = calls.find((call) => call.url === "/api/connaissances");
     expect(connaissance).toBeDefined();
     expect(JSON.parse(String(connaissance?.init.body))).toMatchObject({

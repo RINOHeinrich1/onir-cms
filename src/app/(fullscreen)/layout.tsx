@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
+import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -21,20 +23,23 @@ export default async function FullscreenLayout({ children }: { children: ReactNo
     ? await organizations.listAll()
     : await organizations.listForUser(context.user.id);
   return (
-    <div className="dash chatbot-fullscreen-shell">
-      <DashboardHeader
-        key={`${context.actor.organizationId ?? "none"}:${context.role ?? "none"}`}
-        role={context.role ?? "lecteur"}
-        email={context.user.email}
-        organizations={list.map((organization) => ({
-          id: organization.id,
-          name: organization.name,
-        }))}
-        activeOrganizationId={context.actor.organizationId}
-        organizationName={context.organization?.name ?? null}
-        isSuperAdmin={context.actor.isSuperAdmin}
-      />
-      <main className="chatbot-fullscreen">{children}</main>
-    </div>
+    <ChatbotBuilderProvider>
+      <div className="dash chatbot-fullscreen-shell">
+        <DashboardHeader
+          key={`${context.actor.organizationId ?? "none"}:${context.role ?? "none"}`}
+          role={context.role ?? "lecteur"}
+          email={context.user.email}
+          organizations={list.map((organization) => ({
+            id: organization.id,
+            name: organization.name,
+          }))}
+          activeOrganizationId={context.actor.organizationId}
+          organizationName={context.organization?.name ?? null}
+          isSuperAdmin={context.actor.isSuperAdmin}
+        />
+        <main className="chatbot-fullscreen">{children}</main>
+        <AssistantWidget />
+      </div>
+    </ChatbotBuilderProvider>
   );
 }
