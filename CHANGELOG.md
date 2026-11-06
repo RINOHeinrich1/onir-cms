@@ -5,6 +5,41 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.27.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.26.0...v0.27.0) (2026-11-06)
+
+
+### Features
+
+* **chatbots:** cartes de section homogènes ([#245](https://github.com/RINOHeinrich1/onir-cms/issues/245)) ([af4c2ff](https://github.com/RINOHeinrich1/onir-cms/commit/af4c2ff4d817e91ac882c2bbdae5ba8e13c63b07))
+* **chatbots:** pages dédiées de configuration ([#226](https://github.com/RINOHeinrich1/onir-cms/issues/226)) ([1f6bd2f](https://github.com/RINOHeinrich1/onir-cms/commit/1f6bd2f287e58617f6351483df1de2ac0ada5395))
+* **chatbots:** rapprocher la page de la maquette ([#232](https://github.com/RINOHeinrich1/onir-cms/issues/232)) ([116d7e3](https://github.com/RINOHeinrich1/onir-cms/commit/116d7e3524d3c9afdad9c866e6374b53a51774ca))
+* **ci:** ajouter Rapid Preprod ([#247](https://github.com/RINOHeinrich1/onir-cms/issues/247)) ([6194cd3](https://github.com/RINOHeinrich1/onir-cms/commit/6194cd3f79def8a2d32b456041c2e58299255daa))
+* finaliser les UI chatbot et le dashboard IA ([#248](https://github.com/RINOHeinrich1/onir-cms/issues/248)) ([a3dfad4](https://github.com/RINOHeinrich1/onir-cms/commit/a3dfad4719ea84706143ee58c917d32e724743b2))
+
+
+### Bug Fixes
+
+* **build:** retry du téléchargement PostgreSQL ([#231](https://github.com/RINOHeinrich1/onir-cms/issues/231)) ([4eb714d](https://github.com/RINOHeinrich1/onir-cms/commit/4eb714d7df854490e6d38260e37fe13dccb55d6b))
+* **chatbots:** carte IA de la page plein écran ([#230](https://github.com/RINOHeinrich1/onir-cms/issues/230)) ([30374db](https://github.com/RINOHeinrich1/onir-cms/commit/30374db96431a944bbc9afa5ae74fe93cb6ca3ec))
+* **chatbots:** carte modèles IA ([#235](https://github.com/RINOHeinrich1/onir-cms/issues/235)) ([fbc6df0](https://github.com/RINOHeinrich1/onir-cms/commit/fbc6df0067b9c35afdef8fdaa4de9c52fb27ee53))
+* **chatbots:** configuration en plein écran ([#227](https://github.com/RINOHeinrich1/onir-cms/issues/227)) ([f2458ba](https://github.com/RINOHeinrich1/onir-cms/commit/f2458ba61554c772ad57ff4413c93a86a2409f55))
+* **chatbots:** détails sidebar et onglets ([#236](https://github.com/RINOHeinrich1/onir-cms/issues/236)) ([624bef3](https://github.com/RINOHeinrich1/onir-cms/commit/624bef3052dcee80a1744c250788cb735d31e397))
+* **chatbots:** espacement des choix d'opération ([#239](https://github.com/RINOHeinrich1/onir-cms/issues/239)) ([cc26ba0](https://github.com/RINOHeinrich1/onir-cms/commit/cc26ba0b31d615713a5a287977a7849b2a8915f2))
+* **chatbots:** finitions de la page plein écran ([#229](https://github.com/RINOHeinrich1/onir-cms/issues/229)) ([7e89e07](https://github.com/RINOHeinrich1/onir-cms/commit/7e89e07e48cdd469677a795eb6079e93a48a2ee1))
+* **chatbots:** fond de la zone de travail ([#244](https://github.com/RINOHeinrich1/onir-cms/issues/244)) ([9078b14](https://github.com/RINOHeinrich1/onir-cms/commit/9078b14f3752ad545a3f01da6d3104cdf25010bf))
+* **chatbots:** grille plein écran du wizard ([#228](https://github.com/RINOHeinrich1/onir-cms/issues/228)) ([2688883](https://github.com/RINOHeinrich1/onir-cms/commit/268888346359e849f44610ade302d83d074ce247))
+* **chatbots:** header et fonds de la maquette ([#237](https://github.com/RINOHeinrich1/onir-cms/issues/237)) ([9dfaba6](https://github.com/RINOHeinrich1/onir-cms/commit/9dfaba693831c2f8c34be5379c4523fa3f4144ed))
+* **chatbots:** Informer par défaut ([#246](https://github.com/RINOHeinrich1/onir-cms/issues/246)) ([d185324](https://github.com/RINOHeinrich1/onir-cms/commit/d1853248a27b88e365009984521d8852d022a07a))
+* **chatbots:** onglets et choix de contenus ([#234](https://github.com/RINOHeinrich1/onir-cms/issues/234)) ([7c2f676](https://github.com/RINOHeinrich1/onir-cms/commit/7c2f6764c9594e66804f2d6dd2a40e7ac7f04cdc))
+* **chatbots:** propager le cluster IA partagé à la génération ([#220](https://github.com/RINOHeinrich1/onir-cms/issues/220)) ([df1589c](https://github.com/RINOHeinrich1/onir-cms/commit/df1589c9e3bf34c80c26d4ecf3cb77c1e96c700f))
+* **chatbots:** rétablir l'onglet Fiches ([#233](https://github.com/RINOHeinrich1/onir-cms/issues/233)) ([833f9c3](https://github.com/RINOHeinrich1/onir-cms/commit/833f9c3b1e89788a4d2aa335e3150363d101019e))
+* **chatbots:** sidebar blanche ([#238](https://github.com/RINOHeinrich1/onir-cms/issues/238)) ([63bffa3](https://github.com/RINOHeinrich1/onir-cms/commit/63bffa3664fe0093bb47940dbe25dcac2df378c6))
+* **chatbots:** utiliser l'IA partagée pour la création assistée ([#219](https://github.com/RINOHeinrich1/onir-cms/issues/219)) ([3b1e722](https://github.com/RINOHeinrich1/onir-cms/commit/3b1e722ade61ca1b337213ccdf250aad1ae4ef95))
+* **conversations:** vue chatbots plein écran sur desktop ([#216](https://github.com/RINOHeinrich1/onir-cms/issues/216)) ([77a6196](https://github.com/RINOHeinrich1/onir-cms/commit/77a6196677066a800033c80deb8796137247d24b))
+* **leads:** créer une fiche depuis une fiche de collecte ([#217](https://github.com/RINOHeinrich1/onir-cms/issues/217)) ([41d2124](https://github.com/RINOHeinrich1/onir-cms/commit/41d2124059751b276f62e9f0abc3589c61406969))
+* **leads:** libeller les fiches sans prospect Ajout Manuel ([#218](https://github.com/RINOHeinrich1/onir-cms/issues/218)) ([48d02af](https://github.com/RINOHeinrich1/onir-cms/commit/48d02af2cc0a6ed2394063be5c01a84b4f0b2a99))
+* **pdf:** interpréter le Markdown inline des fiches ([#221](https://github.com/RINOHeinrich1/onir-cms/issues/221)) ([d755ebe](https://github.com/RINOHeinrich1/onir-cms/commit/d755ebea7de8bc734b7eefd372400fe091c8c9db))
+
 ## [0.25.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.24.0...v0.25.0) (2026-11-04)
 
 
