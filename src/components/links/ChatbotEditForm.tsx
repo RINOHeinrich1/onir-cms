@@ -202,8 +202,15 @@ export function ChatbotEditForm({
   }, [link.id, link.currentConfigId]);
 
   const validateStep = (index: number): string | null => {
-    if (index === 0 && config !== null) {
-      if (config.behaviorMode === "expert" && config.systemPrompt.trim() === "") {
+    if (index === 0) {
+      if (label.trim() === "") {
+        return "Le nom du chatbot est obligatoire.";
+      }
+      if (
+        config !== null &&
+        config.behaviorMode === "expert" &&
+        config.systemPrompt.trim() === ""
+      ) {
         return "Le prompt système est obligatoire en mode expert.";
       }
     }
@@ -630,8 +637,8 @@ export function ChatbotEditForm({
               <p className="hint">Vérifiez le récapitulatif puis enregistrez les modifications.</p>
             </div>
             <dl className="kv chatbot-summary">
-              <dt>Libellé</dt>
-              <dd>{label.trim() === "" ? "Sans libellé" : label}</dd>
+              <dt>Nom du chatbot</dt>
+              <dd>{label.trim() === "" ? "—" : label}</dd>
               <dt>Comportement</dt>
               <dd>
                 {config === null

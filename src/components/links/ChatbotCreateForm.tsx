@@ -379,6 +379,9 @@ export function ChatbotCreateForm({
 
   const validateStep = (index: number): string | null => {
     if (index === 0) {
+      if (label.trim() === "") {
+        return "Le nom du chatbot est obligatoire.";
+      }
       if (type === "specifique" && prospectId === "") {
         return "Choisissez le prospect rattaché au chatbot.";
       }
@@ -874,9 +877,10 @@ export function ChatbotCreateForm({
               </div>
               <div className="chatbot-step-grid">
                 <label className="field">
-                  Libellé du chatbot (optionnel)
+                  Nom du chatbot *
                   <input
                     type="text"
+                    required
                     placeholder="Ex. Salon IT, Stand, Campagne"
                     maxLength={120}
                     value={label}
