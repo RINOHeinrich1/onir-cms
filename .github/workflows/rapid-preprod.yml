@@ -19,7 +19,7 @@ concurrency:
 jobs:
   # Un seul job : tests ciblés puis build des images. Le build Next est fait
   # une seule fois, dans l'image Docker (target runner), pas en amont.
-  verify-and-build:
+  verify:
     name: Selected tests and preprod images
     if: github.actor == 'RINOHeinrich1'
     runs-on: ubuntu-latest
@@ -130,7 +130,7 @@ jobs:
 
   deploy:
     name: Deploy rapid preprod
-    needs: verify-and-build
+    needs: verify
     if: vars.PREPROD_ENABLED == 'true'
     runs-on: [self-hosted, onir-cms-preprod]
     environment:
@@ -139,7 +139,7 @@ jobs:
     steps:
       - name: Deploy
         env:
-          IMAGE_TAG: ${{ needs.verify-and-build.outputs.tag }}
+          IMAGE_TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
           /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
