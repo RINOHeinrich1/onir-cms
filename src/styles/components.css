@@ -8880,3 +8880,22 @@ a.subtab {
   min-width: 0;
   width: 100%;
 }
+
+.chatbot-draft-toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.chatbot-card-select {
+  flex: none;
+}
+
+@media (max-width: 40rem) {
+  .chatbot-draft-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chatbot-draft-toolbar .btn {
+    width: 100%;
+  }
+}
