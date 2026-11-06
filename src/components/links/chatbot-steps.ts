@@ -2,13 +2,42 @@ import type { ChatbotMission } from "@/domain/entities/chatbot-information";
 
 /** Structure commune création, reprise de brouillon et modification. */
 export const CHATBOT_STEPS = [
-  { title: "Cadrage", short: "Cadrage" },
-  { title: "Collecte", short: "Collecte" },
-  { title: "Alimentation", short: "Alimentation" },
-  { title: "Publication", short: "Publication" },
-  { title: "IA & secours", short: "IA & secours" },
-  { title: "Restrictions et quotas", short: "Restrictions" },
-  { title: "Validation", short: "Validation" },
+  {
+    title: "Cadrage",
+    short: "Cadrage",
+    description: "Définir l’identité du chatbot et son opération avant de choisir ses contenus.",
+  },
+  {
+    title: "Collecte",
+    short: "Collecte",
+    description:
+      "Choisir la fiche que le chatbot remplira lorsque le visiteur veut recueillir des informations.",
+  },
+  {
+    title: "Alimentation",
+    short: "Alimentation",
+    description: "Choisir les sources que le chatbot consulte et les contenus qu’il peut utiliser.",
+  },
+  {
+    title: "Publication",
+    short: "Publication",
+    description: "Choisir les canaux et l’apparence une fois le contenu défini.",
+  },
+  {
+    title: "IA & secours",
+    short: "IA & secours",
+    description: "Configurer les modèles IA et le comportement de secours.",
+  },
+  {
+    title: "Restrictions et quotas",
+    short: "Restrictions",
+    description: "Définir les limites d’usage et l’expiration du chatbot.",
+  },
+  {
+    title: "Validation",
+    short: "Validation",
+    description: "Vérifier la cohérence puis créer le chatbot.",
+  },
 ] as const;
 
 /** Collecte et Alimentation sont conditionnées par l'opération. */

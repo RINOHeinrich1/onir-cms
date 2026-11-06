@@ -781,7 +781,9 @@ export function LinkForm({
               <span className="chatbot-step-number">{position + 1}</span>
               <span className="chatbot-step-label">
                 <span className="chatbot-step-title">{entry.title}</span>
-                <span className="chatbot-step-short">{entry.short}</span>
+                <span className="chatbot-step-short">
+                  {layout === "page" ? entry.description : entry.short}
+                </span>
               </span>
             </button>
           );
@@ -789,6 +791,27 @@ export function LinkForm({
       </nav>
 
       <div className="chatbot-wizard-body">
+        {layout === "page" ? (
+          <header className="chatbot-page-head">
+            <div>
+              <p className="chatbot-page-eyebrow">
+                Étape {stepPosition + 1} sur {stepIndices.length}
+              </p>
+              <h1>{CHATBOT_STEPS[step]?.title}</h1>
+              <p>{CHATBOT_STEPS[step]?.description}</p>
+            </div>
+            <div className="chatbot-page-progress">
+              <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
+              <div>
+                <span
+                  style={{
+                    width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </header>
+        ) : null}
         {stepError !== null ? <p className="alert error">{stepError}</p> : null}
         {error !== null ? <p className="alert error">{error}</p> : null}
         {saveError !== null ? (
@@ -852,44 +875,46 @@ export function LinkForm({
                 Identifiez le chatbot puis choisissez la façon de définir son comportement.
               </p>
             </div>
-            <div className="chatbot-step-grid">
-              <label className="field">
-                Libellé du chatbot (optionnel)
-                <input
-                  type="text"
-                  placeholder="Ex. Salon IT, Stand, Campagne"
-                  maxLength={120}
-                  value={label}
-                  onChange={(event) => setLabel(event.target.value)}
-                />
-              </label>
-              <label className="field">
-                Prospect cible
-                <HelpHint label="Aide sur le prospect cible">
-                  Aucun prospect : chatbot standard. Un prospect : lien dédié à ce prospect, sans
-                  formulaire de contact.
-                </HelpHint>
-                <select
-                  value={type === "specifique" ? prospectId : ""}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (value === "") {
-                      changeType("standard");
-                      setProspectId("");
-                    } else {
-                      changeType("specifique");
-                      setProspectId(value);
-                    }
-                  }}
-                >
-                  <option value="">Aucun prospect (standard)</option>
-                  {prospects.map((prospect) => (
-                    <option key={prospect.id} value={prospect.id}>
-                      {prospect.nom} {prospect.prenom} ({prospect.email})
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="chatbot-card">
+              <div className="chatbot-step-grid">
+                <label className="field">
+                  Libellé du chatbot (optionnel)
+                  <input
+                    type="text"
+                    placeholder="Ex. Salon IT, Stand, Campagne"
+                    maxLength={120}
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  Prospect cible
+                  <HelpHint label="Aide sur le prospect cible">
+                    Aucun prospect : chatbot standard. Un prospect : lien dédié à ce prospect, sans
+                    formulaire de contact.
+                  </HelpHint>
+                  <select
+                    value={type === "specifique" ? prospectId : ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (value === "") {
+                        changeType("standard");
+                        setProspectId("");
+                      } else {
+                        changeType("specifique");
+                        setProspectId(value);
+                      }
+                    }}
+                  >
+                    <option value="">Aucun prospect (standard)</option>
+                    {prospects.map((prospect) => (
+                      <option key={prospect.id} value={prospect.id}>
+                        {prospect.nom} {prospect.prenom} ({prospect.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
             <ChatbotMissionField value={config.mission} onChange={changeMission} />
             <ChatbotBehaviorFields value={config} onChange={setConfig} />
