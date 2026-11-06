@@ -865,6 +865,13 @@ export function ChatbotCreateForm({
               </p>
             </div>
             <div className="chatbot-card">
+              <div className="chatbot-card-head">
+                <div>
+                  <h2>Identité</h2>
+                  <p className="hint">Les informations visibles par l’utilisateur et l’équipe.</p>
+                </div>
+                <span className="badge info">Obligatoire</span>
+              </div>
               <div className="chatbot-step-grid">
                 <label className="field">
                   Libellé du chatbot (optionnel)
@@ -1028,18 +1035,26 @@ export function ChatbotCreateForm({
               <h4>Restrictions et quotas</h4>
               <p className="hint">Définissez les limites d’usage et l’expiration du chatbot.</p>
             </div>
-            <LinkQuotaFields value={quota} onChange={setQuota} />
-            <label className="field">
-              Expiration (optionnel)
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-              />
-              <span className="hint">
-                Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
-              </span>
-            </label>
+            <div className="chatbot-card">
+              <div className="chatbot-card-head">
+                <div>
+                  <h2>Limites du chatbot</h2>
+                  <p className="hint">Fiches, tokens et expiration du lien.</p>
+                </div>
+              </div>
+              <LinkQuotaFields value={quota} onChange={setQuota} />
+              <label className="field">
+                Expiration (optionnel)
+                <input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(event) => setExpiresAt(event.target.value)}
+                />
+                <span className="hint">
+                  Vide = sans expiration. Le lien reste valide jusqu&apos;à la fin du jour choisi.
+                </span>
+              </label>
+            </div>
           </section>
         ) : null}
 

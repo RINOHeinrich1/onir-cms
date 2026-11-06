@@ -6541,12 +6541,35 @@ a.subtab {
   display: none;
 }
 
-.chatbot-wizard-page .chatbot-mission legend {
+.chatbot-card-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.chatbot-card-head h2 {
   color: var(--fg);
   font-size: 1.05rem;
-  font-weight: 800;
   letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.chatbot-mission-options {
+  border: 0;
+  margin: 0.9rem 0 0;
   padding: 0;
+}
+
+.chatbot-mission-explanation {
+  background: var(--warning-soft);
+  border: 1px solid #f0ce9f;
+  border-radius: var(--r-md);
+  color: var(--warning);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.85rem;
 }
 
 .chatbot-wizard-page .chatbot-mission .checks-row {
@@ -6748,12 +6771,35 @@ a.subtab {
   display: none;
 }
 
-.chatbot-wizard-page .chatbot-mission legend {
+.chatbot-card-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.chatbot-card-head h2 {
   color: var(--fg);
   font-size: 1.05rem;
-  font-weight: 800;
   letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.chatbot-mission-options {
+  border: 0;
+  margin: 0.9rem 0 0;
   padding: 0;
+}
+
+.chatbot-mission-explanation {
+  background: var(--warning-soft);
+  border: 1px solid #f0ce9f;
+  border-radius: var(--r-md);
+  color: var(--warning);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.85rem;
 }
 
 .chatbot-wizard-page .chatbot-mission .checks-row {
@@ -8593,4 +8639,42 @@ a.subtab {
 /* Fond de la zone de travail identique à la maquette. */
 .chatbot-wizard-page .chatbot-wizard-body {
   background: var(--surface);
+}
+
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.chatbot-wizard-page .chatbot-step-panel > fieldset > legend,
+.chatbot-wizard-page .chatbot-fiche-picker .fieldset > legend {
+  color: var(--fg);
+  display: block;
+  float: none;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.chatbot-wizard-page .chatbot-fiche-picker .fieldset,
+.chatbot-wizard-page .chatbot-step-panel > .chatbot-card .fieldset {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.chatbot-wizard-page .chatbot-subsection > h5 {
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.75rem;
 }
