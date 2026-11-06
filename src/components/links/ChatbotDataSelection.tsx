@@ -376,7 +376,7 @@ export function ChatbotDataSelection({
             <>
               <fieldset className="chatbot-data-mode">
                 <legend>Contenus utilisés par ce chatbot</legend>
-                <label className="field checkbox">
+                <label className="check">
                   <input
                     type="radio"
                     name={modeName}
@@ -385,7 +385,7 @@ export function ChatbotDataSelection({
                   />
                   Toute la bibliothèque (par défaut)
                 </label>
-                <label className="field checkbox">
+                <label className="check" style={{ marginTop: "0.45rem" }}>
                   <input
                     type="radio"
                     name={modeName}
