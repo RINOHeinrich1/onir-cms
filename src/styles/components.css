@@ -6575,9 +6575,11 @@ a.subtab {
   padding: 1.25rem;
 }
 
-.chatbot-wizard-page .chatbot-behavior .fieldset {
+.chatbot-wizard-page .chatbot-behavior .fieldset,
+.chatbot-wizard-page .chatbot-subsection .fieldset {
   background: transparent;
   border: 0;
+  box-shadow: none;
   padding: 0;
 }
 
@@ -6723,9 +6725,11 @@ a.subtab {
   padding: 1.25rem;
 }
 
-.chatbot-wizard-page .chatbot-behavior .fieldset {
+.chatbot-wizard-page .chatbot-behavior .fieldset,
+.chatbot-wizard-page .chatbot-subsection .fieldset {
   background: transparent;
   border: 0;
+  box-shadow: none;
   padding: 0;
 }
 
