@@ -1,0 +1,166 @@
+name: Rapid Preprod
+
+on:
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: "Fichiers de test à exécuter, séparés par des virgules (ex. tests/foo.test.ts,tests/bar.test.ts)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: rapid-preprod
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and selected tests
+    if: github.actor == 'RINOHeinrich1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: onir_cms
+          POSTGRES_PASSWORD: onir_cms
+          POSTGRES_DB: onir_cms_rapid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U onir_cms"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_VERSION: "22"
+      TEST_DATABASE_URL: postgres://onir_cms:onir_cms@127.0.0.1:5432/onir_cms_rapid
+      DATABASE_URL: postgres://onir_cms:onir_cms@127.0.0.1:5432/onir_cms_rapid
+      LINK_TOKEN_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      WEBHOOK_SECRET_KEY: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      CONFIG_MASTER_KEY: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          APP_URL: http://localhost:3000
+      - name: Selected tests
+        env:
+          TESTS: ${{ inputs.tests }}
+        run: |
+          set -euo pipefail
+          input="$(printf '%s' "$TESTS" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [ -z "$input" ]; then
+            echo "::error::Aucun test fourni. Indiquez au moins un fichier tests/*.test.ts."
+            exit 1
+          fi
+          IFS=',' read -ra entries <<< "$input"
+          args=()
+          for raw in "${entries[@]}"; do
+            entry="$(printf '%s' "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            if [[ ! "$entry" =~ ^tests/[A-Za-z0-9_./-]+\.(test|spec)\.ts$ ]] || [[ "$entry" == *..* ]]; then
+              echo "::error::Chemin de test invalide: $entry"
+              exit 1
+            fi
+            if [ ! -f "$entry" ]; then
+              echo "::error::Fichier de test introuvable: $entry"
+              exit 1
+            fi
+            args+=("$entry")
+          done
+          npm test -- --run "${args[@]}"
+
+  build:
+    name: Build rapid preprod images
+    needs: verify
+    if: vars.PREPROD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute image metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
+          TAG="rapid-preprod-${SHORT_SHA}"
+          {
+            echo "image=ghcr.io/${OWNER}/onir-cms"
+            echo "tag=${TAG}"
+            echo "sha=${GITHUB_SHA}"
+          } >> "${GITHUB_OUTPUT}"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push application
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:preprod
+          build-args: |
+            VERSION=0.0.0-preprod
+            REVISION=${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=preprod-runner
+          cache-to: type=gha,mode=max,scope=preprod-runner
+      - name: Build and push migrations
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrate
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}-migrate
+            ${{ steps.meta.outputs.image }}:preprod-migrate
+          build-args: |
+            VERSION=0.0.0-preprod
+            REVISION=${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=preprod-migrate
+          cache-to: type=gha,mode=max,scope=preprod-migrate
+
+  deploy:
+    name: Deploy rapid preprod
+    needs: build
+    if: vars.PREPROD_ENABLED == 'true'
+    runs-on: [self-hosted, onir-cms-preprod]
+    environment:
+      name: preprod
+      url: https://preprod-cms.onirtech.com
+    steps:
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
+      - name: Smoke test
+        env:
+          PREPROD_BASIC_USER: ${{ secrets.PREPROD_BASIC_USER }}
+          PREPROD_BASIC_PASSWORD: ${{ secrets.PREPROD_BASIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          BASE="https://preprod-cms.onirtech.com"
+          AUTH="${PREPROD_BASIC_USER}:${PREPROD_BASIC_PASSWORD}"
+          curl -fsS "${BASE}/api/health" | grep -q '"ok":true'
+          curl -fsS -u "${AUTH}" -o /dev/null "${BASE}/login"
+          echo "Rapid preprod smoke test OK."
