@@ -83,7 +83,42 @@ export function LinksTable({
 
   useEffect(() => {
     setDrafts(initialDrafts);
+    const ids = new Set(initialDrafts.map((draft) => draft.id));
+    setSelectedDraftIds((current) => current.filter((id) => ids.has(id)));
   }, [initialDrafts]);
+
+  useEffect(() => {
+    const closeMenus = (): void => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach((details) => {
+          details.open = false;
+        });
+    };
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!(event.target instanceof Node)) return;
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach((details) => {
+          if (!details.contains(event.target as Node)) details.open = false;
+        });
+    };
+    const onClick = (event: MouseEvent): void => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest(".action-menu-panel") !== null) closeMenus();
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") closeMenus();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
   const [widgetCode, setWidgetCode] = useState<{
     snippet: string;
     embedUrl: string;
@@ -97,6 +132,8 @@ export function LinksTable({
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkPending, setBulkPending] = useState(false);
+  const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
+  const [draftBulkPending, setDraftBulkPending] = useState(false);
   const creators = creatorOptions(links);
   const showUnassigned = hasUnassignedCreator(links);
   const query = search.trim().toLocaleLowerCase("fr");
@@ -137,6 +174,47 @@ export function LinksTable({
     router.refresh();
   };
 
+  const visibleDraftIds = drafts.map((draft) => draft.id);
+  const draftSelection = selectionState(selectedDraftIds, visibleDraftIds);
+
+  const toggleDrafts = (): void => {
+    setSelectedDraftIds((current) => toggleVisibleSelection(current, visibleDraftIds));
+  };
+
+  const removeSelectedDrafts = async (): Promise<void> => {
+    if (selectedDraftIds.length === 0 || draftBulkPending) return;
+    const ids = [...selectedDraftIds];
+    setError(null);
+    if (
+      !(await confirmDialog(
+        `Supprimer ${ids.length} brouillon${ids.length > 1 ? "s" : ""} et leurs photos temporaires ?`,
+        { title: "Supprimer la sélection", confirmLabel: "Supprimer", danger: true },
+      ))
+    ) {
+      return;
+    }
+
+    setDraftBulkPending(true);
+    const failed: string[] = [];
+    try {
+      for (const id of ids) {
+        const response = await fetch(`/api/chatbot-drafts/${id}`, { method: "DELETE" });
+        if (!response.ok) failed.push(id);
+      }
+      const failedSet = new Set(failed);
+      setDrafts((previous) => previous.filter((draft) => failedSet.has(draft.id)));
+      setSelectedDraftIds(failed);
+      if (failed.length > 0) {
+        setError("Certains brouillons n’ont pas pu être supprimés.");
+      }
+      router.refresh();
+    } catch {
+      setError("Erreur réseau pendant la suppression des brouillons");
+    } finally {
+      setDraftBulkPending(false);
+    }
+  };
+
   const removeDraft = async (draft: ChatbotDraftRow): Promise<void> => {
     setError(null);
     if (!(await confirmDialog("Supprimer ce brouillon et ses photos temporaires ?"))) return;
@@ -148,6 +226,7 @@ export function LinksTable({
         return;
       }
       setDrafts((previous) => previous.filter((entry) => entry.id !== draft.id));
+      setSelectedDraftIds((current) => current.filter((id) => id !== draft.id));
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -360,6 +439,31 @@ export function LinksTable({
               actif : il n’a ni URL publique ni conversation.
             </p>
           </div>
+          <div className="links-selection-toolbar chatbot-draft-toolbar">
+            <RoundCheckbox
+              checked={draftSelection === "all"}
+              indeterminate={draftSelection === "partial"}
+              onChange={toggleDrafts}
+              ariaLabel={
+                draftSelection === "all" ? "Tout désélectionner" : "Sélectionner les brouillons"
+              }
+            >
+              {draftSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+              <span className="connaissance-select-count">({drafts.length})</span>
+            </RoundCheckbox>
+            {selectedDraftIds.length > 0 ? (
+              <button
+                type="button"
+                className="btn danger small"
+                disabled={draftBulkPending}
+                onClick={() => void removeSelectedDrafts()}
+              >
+                {draftBulkPending
+                  ? "Suppression…"
+                  : `Supprimer la sélection (${selectedDraftIds.length})`}
+              </button>
+            ) : null}
+          </div>
           <div className="chatbot-grid">
             {drafts.map((draft) => {
               const rawStep = draft.state.step;
@@ -368,6 +472,18 @@ export function LinksTable({
               return (
                 <article className="chatbot-card" key={draft.id}>
                   <header className="chatbot-card-head">
+                    <RoundCheckbox
+                      className="chatbot-card-select"
+                      checked={selectedDraftIds.includes(draft.id)}
+                      onChange={(checked) =>
+                        setSelectedDraftIds((current) =>
+                          checked
+                            ? [...current, draft.id]
+                            : current.filter((id) => id !== draft.id),
+                        )
+                      }
+                      ariaLabel={`Sélectionner ${draft.label.trim() === "" ? "le brouillon" : draft.label}`}
+                    />
                     <div>
                       <h2>{draft.label.trim() === "" ? "Brouillon sans nom" : draft.label}</h2>
                       <p>{draft.createdByLabel ?? "Créateur non renseigné"}</p>

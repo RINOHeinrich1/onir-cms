@@ -85,90 +85,92 @@ export function AiUsageOverridesField({
   };
 
   return (
-    <fieldset className="card" style={{ marginBottom: "1rem" }}>
-      <legend className="field">Modèles IA par usage</legend>
-      <p className="hint">
-        Laissez « Hériter du défaut d’usage » pour utiliser la configuration de l’usage. Un modèle
-        ou un cluster explicite prend le dessus pour ce chatbot.
-      </p>
-      {error !== null ? <p className="alert error">{error}</p> : null}
+    <section className="chatbot-card">
+      <fieldset className="fieldset chatbot-ai-usage">
+        <legend>Modèles IA par usage</legend>
+        <p className="hint">
+          Laissez « Hériter du défaut d’usage » pour utiliser la configuration de l’usage. Un modèle
+          ou un cluster explicite prend le dessus pour ce chatbot.
+        </p>
+        {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <div className="ai-usage-overrides">
-        {AI_LINK_USAGES.map((usage) => {
-          const target = current[usage];
-          return (
-            <div className="ai-usage-row" key={usage}>
-              <strong>{LABELS[usage]}</strong>
-              <select
-                value={target.kind}
-                disabled={!canAssign}
-                aria-label={`Cible ${LABELS[usage]}`}
-                onChange={(event) => {
-                  const kind = event.target.value as AiLinkTarget["kind"];
-                  if (kind === "inherit") patch(usage, { kind: "inherit" });
-                  else if (kind === "cluster") patch(usage, { kind: "cluster", clusterId: "" });
-                  else patch(usage, { kind: "model", providerId: "", model: "" });
-                }}
-              >
-                <option value="inherit">Hériter du défaut d’usage</option>
-                <option value="model">Modèle</option>
-                <option value="cluster">Cluster</option>
-              </select>
+        <div className="ai-usage-overrides">
+          {AI_LINK_USAGES.map((usage) => {
+            const target = current[usage];
+            return (
+              <div className="ai-usage-row" key={usage}>
+                <strong>{LABELS[usage]}</strong>
+                <select
+                  value={target.kind}
+                  disabled={!canAssign}
+                  aria-label={`Cible ${LABELS[usage]}`}
+                  onChange={(event) => {
+                    const kind = event.target.value as AiLinkTarget["kind"];
+                    if (kind === "inherit") patch(usage, { kind: "inherit" });
+                    else if (kind === "cluster") patch(usage, { kind: "cluster", clusterId: "" });
+                    else patch(usage, { kind: "model", providerId: "", model: "" });
+                  }}
+                >
+                  <option value="inherit">Hériter du défaut d’usage</option>
+                  <option value="model">Modèle</option>
+                  <option value="cluster">Cluster</option>
+                </select>
 
-              {target.kind === "model" ? (
-                <>
+                {target.kind === "model" ? (
+                  <>
+                    <select
+                      value={target.providerId}
+                      disabled={!canAssign}
+                      aria-label={`Fournisseur ${LABELS[usage]}`}
+                      onChange={(event) =>
+                        patch(usage, { kind: "model", providerId: event.target.value, model: "" })
+                      }
+                    >
+                      <option value="">— Fournisseur —</option>
+                      {providers.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.label}
+                        </option>
+                      ))}
+                    </select>
+                    <AiModelSelect
+                      providerId={target.providerId === "" ? null : target.providerId}
+                      value={target.model}
+                      disabled={!canAssign || target.providerId === ""}
+                      onChange={(model) =>
+                        patch(usage, {
+                          kind: "model",
+                          providerId: target.providerId,
+                          model,
+                        })
+                      }
+                    />
+                  </>
+                ) : null}
+
+                {target.kind === "cluster" ? (
                   <select
-                    value={target.providerId}
+                    value={target.clusterId}
                     disabled={!canAssign}
-                    aria-label={`Fournisseur ${LABELS[usage]}`}
+                    aria-label={`Cluster ${LABELS[usage]}`}
                     onChange={(event) =>
-                      patch(usage, { kind: "model", providerId: event.target.value, model: "" })
+                      patch(usage, { kind: "cluster", clusterId: event.target.value })
                     }
                   >
-                    <option value="">— Fournisseur —</option>
-                    {providers.map((provider) => (
-                      <option key={provider.id} value={provider.id}>
-                        {provider.label}
+                    <option value="">— Cluster —</option>
+                    {clusters.map((cluster) => (
+                      <option key={cluster.id} value={cluster.id}>
+                        {cluster.label}
                       </option>
                     ))}
                   </select>
-                  <AiModelSelect
-                    providerId={target.providerId === "" ? null : target.providerId}
-                    value={target.model}
-                    disabled={!canAssign || target.providerId === ""}
-                    onChange={(model) =>
-                      patch(usage, {
-                        kind: "model",
-                        providerId: target.providerId,
-                        model,
-                      })
-                    }
-                  />
-                </>
-              ) : null}
-
-              {target.kind === "cluster" ? (
-                <select
-                  value={target.clusterId}
-                  disabled={!canAssign}
-                  aria-label={`Cluster ${LABELS[usage]}`}
-                  onChange={(event) =>
-                    patch(usage, { kind: "cluster", clusterId: event.target.value })
-                  }
-                >
-                  <option value="">— Cluster —</option>
-                  {clusters.map((cluster) => (
-                    <option key={cluster.id} value={cluster.id}>
-                      {cluster.label}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-      {!canAssign ? <p className="hint">Vous ne pouvez pas modifier les modèles IA.</p> : null}
-    </fieldset>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        {!canAssign ? <p className="hint">Vous ne pouvez pas modifier les modèles IA.</p> : null}
+      </fieldset>
+    </section>
   );
 }

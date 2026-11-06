@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Modal } from "@/components/ui/Modal";
 import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
@@ -177,197 +178,200 @@ export function ChatbotDataStep({
   const total = chatbotDataDraftCount(value);
 
   return (
-    <section className="chatbot-data-step">
-      <div className="chatbot-data-globals">
-        <div className="chatbot-step-head">
-          <h4>Sources d’information</h4>
+    <section className="chatbot-card chatbot-data-step">
+      <div className="chatbot-card-head">
+        <div>
+          <h2>Sources d’information</h2>
           <p className="hint">
             Sélectionnez les contenus que ce chatbot peut utiliser. Leur portée n’est jamais
             modifiée.
           </p>
-          <div className="tools">
-            <button
-              type="button"
-              className="btn ghost small"
-              onClick={() => setMode(mode === "choose" ? "none" : "choose")}
-            >
-              + Ajouter un contenu
-            </button>
-          </div>
         </div>
-
-        <ChatbotDataSelection
-          selection={selection}
-          onChange={onSelectionChange}
-          chatLinkId={chatLinkId}
-          onCountsChange={onGlobalCountsChange}
-          searchTool={searchTool}
-          onSearchToolChange={onSearchToolChange}
-          fiches={fiches}
-          publicLink={publicLink}
-          sources={sources}
-          onSourcesChange={onSourcesChange}
-          usageHint={usageHint}
-          onUsageHintChange={onUsageHintChange}
-        />
-
-        <div className="tools">
-          <a className="btn ghost small" href="/connaissances" target="_blank" rel="noreferrer">
-            Gérer les connaissances
-          </a>
-          <a className="btn ghost small" href="/medias" target="_blank" rel="noreferrer">
-            Gérer les photos et liens
-          </a>
+        <div className="chatbot-add-action">
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={() => setMode(mode === "choose" ? "none" : "choose")}
+          >
+            + Ajouter un contenu
+          </button>
+          {mode === "choose" ? (
+            <div className="chatbot-data-add-choices">
+              <button type="button" className="btn small" onClick={() => setMode("connaissance")}>
+                Connaissance
+              </button>
+              <button type="button" className="btn small" onClick={() => setMode("photo")}>
+                Photo
+              </button>
+              <button type="button" className="btn small" onClick={() => setMode("lien")}>
+                Lien
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {mode === "choose" ? (
-        <div className="tools chatbot-data-add-choices">
-          <button type="button" className="btn small" onClick={() => setMode("connaissance")}>
-            Connaissance
-          </button>
-          <button type="button" className="btn small" onClick={() => setMode("photo")}>
-            Photo
-          </button>
-          <button type="button" className="btn small" onClick={() => setMode("lien")}>
-            Lien
-          </button>
-        </div>
+      <ChatbotDataSelection
+        selection={selection}
+        onChange={onSelectionChange}
+        chatLinkId={chatLinkId}
+        onCountsChange={onGlobalCountsChange}
+        searchTool={searchTool}
+        onSearchToolChange={onSearchToolChange}
+        fiches={fiches}
+        publicLink={publicLink}
+        sources={sources}
+        onSourcesChange={onSourcesChange}
+        usageHint={usageHint}
+        onUsageHintChange={onUsageHintChange}
+      />
+
+      {mode === "connaissance" || mode === "lien" || mode === "photo" ? (
+        <Modal
+          title={
+            mode === "connaissance"
+              ? "Ajouter une connaissance"
+              : mode === "lien"
+                ? "Ajouter un lien"
+                : "Ajouter une photo"
+          }
+          onClose={resetForms}
+        >
+          {formError !== null ? <p className="alert error">{formError}</p> : null}
+
+          {mode === "connaissance" ? (
+            <div className="chatbot-data-form">
+              <label className="field">
+                Titre *
+                <input
+                  type="text"
+                  maxLength={120}
+                  required
+                  value={connaissance.titre}
+                  onChange={(event) =>
+                    setConnaissance({ ...connaissance, titre: event.target.value })
+                  }
+                />
+              </label>
+              <label className="field">
+                Contenu *
+                <textarea
+                  rows={3}
+                  required
+                  value={connaissance.contenu}
+                  onChange={(event) =>
+                    setConnaissance({ ...connaissance, contenu: event.target.value })
+                  }
+                />
+              </label>
+              <div className="tools">
+                <button type="button" className="btn small" onClick={addConnaissance}>
+                  Ajouter
+                </button>
+                <button type="button" className="btn ghost small" onClick={resetForms}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "lien" ? (
+            <div className="chatbot-data-form">
+              <div className="grid-2">
+                <label className="field">
+                  Libellé *
+                  <input
+                    type="text"
+                    maxLength={120}
+                    required
+                    value={lien.libelle}
+                    onChange={(event) => setLien({ ...lien, libelle: event.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  URL *
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://…"
+                    value={lien.url}
+                    onChange={(event) => setLien({ ...lien, url: event.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="field">
+                Description
+                <textarea
+                  rows={2}
+                  value={lien.description}
+                  onChange={(event) => setLien({ ...lien, description: event.target.value })}
+                />
+              </label>
+              <div className="tools">
+                <button type="button" className="btn small" onClick={addLien}>
+                  Ajouter
+                </button>
+                <button type="button" className="btn ghost small" onClick={resetForms}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "photo" ? (
+            <div className="chatbot-data-form">
+              <label className="field">
+                Fichier image *
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                  onChange={(event) =>
+                    setPhoto({ ...photo, fichier: event.target.files?.[0] ?? null })
+                  }
+                />
+              </label>
+              <label className="field">
+                Libellé *
+                <input
+                  type="text"
+                  maxLength={120}
+                  required
+                  value={photo.libelle}
+                  onChange={(event) => setPhoto({ ...photo, libelle: event.target.value })}
+                />
+              </label>
+              <label className="field">
+                Description
+                <textarea
+                  rows={2}
+                  value={photo.description}
+                  onChange={(event) => setPhoto({ ...photo, description: event.target.value })}
+                />
+              </label>
+              <div className="tools">
+                <button
+                  type="button"
+                  className="btn small"
+                  disabled={uploading}
+                  onClick={() => void addPhoto()}
+                >
+                  {uploading ? "Import…" : "Ajouter"}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  disabled={uploading}
+                  onClick={resetForms}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </Modal>
       ) : null}
 
-      {formError !== null ? <p className="alert error">{formError}</p> : null}
-
-      {mode === "connaissance" ? (
-        <div className="chatbot-data-form">
-          <label className="field">
-            Titre *
-            <input
-              type="text"
-              maxLength={120}
-              required
-              value={connaissance.titre}
-              onChange={(event) => setConnaissance({ ...connaissance, titre: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            Contenu *
-            <textarea
-              rows={3}
-              required
-              value={connaissance.contenu}
-              onChange={(event) =>
-                setConnaissance({ ...connaissance, contenu: event.target.value })
-              }
-            />
-          </label>
-          <div className="tools">
-            <button type="button" className="btn small" onClick={addConnaissance}>
-              Ajouter
-            </button>
-            <button type="button" className="btn ghost small" onClick={resetForms}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "lien" ? (
-        <div className="chatbot-data-form">
-          <div className="grid-2">
-            <label className="field">
-              Libellé *
-              <input
-                type="text"
-                maxLength={120}
-                required
-                value={lien.libelle}
-                onChange={(event) => setLien({ ...lien, libelle: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              URL *
-              <input
-                type="url"
-                required
-                placeholder="https://…"
-                value={lien.url}
-                onChange={(event) => setLien({ ...lien, url: event.target.value })}
-              />
-            </label>
-          </div>
-          <label className="field">
-            Description
-            <textarea
-              rows={2}
-              value={lien.description}
-              onChange={(event) => setLien({ ...lien, description: event.target.value })}
-            />
-          </label>
-          <div className="tools">
-            <button type="button" className="btn small" onClick={addLien}>
-              Ajouter
-            </button>
-            <button type="button" className="btn ghost small" onClick={resetForms}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "photo" ? (
-        <div className="chatbot-data-form">
-          <label className="field">
-            Fichier image *
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
-              onChange={(event) => setPhoto({ ...photo, fichier: event.target.files?.[0] ?? null })}
-            />
-          </label>
-          <label className="field">
-            Libellé *
-            <input
-              type="text"
-              maxLength={120}
-              required
-              value={photo.libelle}
-              onChange={(event) => setPhoto({ ...photo, libelle: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            Description
-            <textarea
-              rows={2}
-              value={photo.description}
-              onChange={(event) => setPhoto({ ...photo, description: event.target.value })}
-            />
-          </label>
-          <div className="tools">
-            <button
-              type="button"
-              className="btn small"
-              disabled={uploading}
-              onClick={() => void addPhoto()}
-            >
-              {uploading ? "Import…" : "Ajouter"}
-            </button>
-            <button
-              type="button"
-              className="btn ghost small"
-              disabled={uploading}
-              onClick={resetForms}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {total === 0 ? (
-        <p className="hint">
-          Aucun contenu ajouté à ce chatbot : il utilisera uniquement la bibliothèque.
-        </p>
-      ) : (
+      {total > 0 ? (
         <ul className="chatbot-data-drafts">
           {value.connaissances.map((item) => (
             <li key={item.id}>
@@ -412,7 +416,7 @@ export function ChatbotDataStep({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </section>
   );
 }

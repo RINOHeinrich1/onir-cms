@@ -4,6 +4,7 @@ import type {
   OrganizationAiQuotaState,
   OrganizationAiTarget,
   OrganizationAiUsageEvent,
+  OrganizationAiUsageOverview,
 } from "@/domain/entities/organization-ai-quota";
 
 export type OrganizationLimits = {
@@ -35,6 +36,7 @@ export type SaveOrganizationLimitsInput = {
  */
 export interface OrganizationAiQuotaRepository {
   readState(organizationId: string): Promise<OrganizationAiQuotaState>;
+  getUsageOverview(organizationId: string): Promise<OrganizationAiUsageOverview>;
   recordUsage(event: OrganizationAiUsageEvent): Promise<void>;
   getLimits(organizationId: string): Promise<OrganizationLimits | null>;
   saveLimits(

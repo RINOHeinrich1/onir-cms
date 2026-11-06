@@ -8,10 +8,12 @@ import type { TokenResetMode } from "@/domain/entities/chat";
 import {
   normalizeTokenCount,
   type OrganizationAiAllocation,
+  type OrganizationAiAllocationOverview,
   type OrganizationAiBudget,
   type OrganizationAiQuotaState,
   type OrganizationAiTarget,
   type OrganizationAiUsageEvent,
+  type OrganizationAiUsageOverview,
   organizationAiTargetKey,
 } from "@/domain/entities/organization-ai-quota";
 
@@ -40,6 +42,8 @@ type OrganizationRow = {
   limit_profile_id: string | null;
   chatbots_count: number;
 };
+
+type AllocationOverviewRow = AllocationRow & { label: string };
 
 function tokenNumber(value: string | null): number | null {
   return value === null ? null : Number(value);
@@ -79,6 +83,10 @@ function allocationFromRow(row: AllocationRow): OrganizationAiAllocation {
     maxTokens: tokenNumber(row.max_tokens),
     tokensUsed: Number(row.tokens_used),
   };
+}
+
+function allocationOverviewFromRow(row: AllocationOverviewRow): OrganizationAiAllocationOverview {
+  return { ...allocationFromRow(row), label: row.label };
 }
 
 function periodExpired(budget: BudgetRow, now: Date): boolean {
@@ -202,8 +210,85 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
     }
   }
 
+  async function getUsageOverview(organizationId: string): Promise<OrganizationAiUsageOverview> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await resetExpiredBudget(client, organizationId);
+      const budgetRows = await client.query<BudgetRow>(
+        `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
+                token_reset_days, token_period_started_at
+           FROM organization_ai_budgets
+          WHERE organization_id = $1`,
+        [organizationId],
+      );
+      const totalRows = await client.query<{ total: string }>(
+        `WITH live AS (
+           SELECT min(created_at) AS at
+             FROM ai_usage_events
+            WHERE source = 'live'
+         ),
+         cutover AS (
+           SELECT COALESCE((SELECT at FROM live), now()) AS applied_at
+         )
+         SELECT (
+           COALESCE((
+             SELECT sum(total_tokens)
+               FROM ai_usage_events
+              WHERE organization_id = $1
+           ), 0)
+           +
+           COALESCE((
+             SELECT sum(u.total_tokens)
+               FROM chat_link_ai_usage u
+               CROSS JOIN cutover c
+              WHERE u.organization_id = $1
+                AND u.created_at < c.applied_at
+                AND NOT EXISTS (
+                  SELECT 1
+                    FROM ai_usage_events e
+                   WHERE e.legacy_usage_id = u.id
+                )
+           ), 0)
+         )::text AS total`,
+        [organizationId],
+      );
+      const allocationRows = await client.query<AllocationOverviewRow>(
+        `SELECT a.id, a.organization_id, a.target_kind, a.provider_id, a.model,
+                a.cluster_id, a.max_tokens, a.tokens_used,
+                CASE
+                  WHEN a.target_kind = 'cluster'
+                    THEN COALESCE(NULLIF(c.label, ''), 'Cluster IA')
+                  WHEN p.label IS NULL OR p.label = ''
+                    THEN a.model
+                  ELSE p.label || ' · ' || a.model
+                END AS label
+           FROM organization_ai_allocations a
+           LEFT JOIN ai_providers p ON p.id = a.provider_id
+           LEFT JOIN ai_clusters c ON c.id = a.cluster_id
+          WHERE a.organization_id = $1
+          ORDER BY a.created_at, a.id`,
+        [organizationId],
+      );
+      const budget = budgetRows.rows[0];
+      await client.query("COMMIT");
+      return {
+        organizationId,
+        totalTokens: Number(totalRows.rows[0]?.total ?? 0),
+        budget: budget === undefined ? null : budgetFromRow(budget),
+        allocations: allocationRows.rows.map(allocationOverviewFromRow),
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   return {
     readState,
+    getUsageOverview,
 
     async recordUsage(event: OrganizationAiUsageEvent): Promise<void> {
       const promptTokens = normalizeTokenCount(event.promptTokens);

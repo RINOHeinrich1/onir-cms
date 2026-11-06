@@ -49,6 +49,19 @@ export type OrganizationAiQuotaState = {
   allocations: OrganizationAiAllocation[];
 };
 
+/** Allocation enrichie pour l'affichage (libellé de la ressource résolu). */
+export type OrganizationAiAllocationOverview = OrganizationAiAllocation & {
+  label: string;
+};
+
+/** Lecture agrégée pour le dashboard : total historique + quotas courants. */
+export type OrganizationAiUsageOverview = {
+  organizationId: string;
+  totalTokens: number;
+  budget: OrganizationAiBudget | null;
+  allocations: OrganizationAiAllocationOverview[];
+};
+
 /** Vrai si un plafond est atteint. `null` signifie illimité. */
 export function isTokenQuotaReached(maxTokens: number | null, tokensUsed: number): boolean {
   return maxTokens !== null && tokensUsed >= maxTokens;

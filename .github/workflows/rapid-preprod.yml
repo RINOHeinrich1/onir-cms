@@ -17,11 +17,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Un seul job : tests ciblés puis build des images. Le build Next est fait
+  # une seule fois, dans l'image Docker (target runner), pas en amont.
   verify:
-    name: Build and selected tests
+    name: Selected tests and preprod images
     if: github.actor == 'RINOHeinrich1'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
     services:
       postgres:
         image: postgres:16
@@ -50,10 +54,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Build
-        run: npm run build
-        env:
-          APP_URL: http://localhost:3000
       - name: Selected tests
         env:
           TESTS: ${{ inputs.tests }}
@@ -79,16 +79,6 @@ jobs:
             args+=("$entry")
           done
           npm test -- --run "${args[@]}"
-
-  build:
-    name: Build rapid preprod images
-    needs: verify
-    if: vars.PREPROD_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
       - name: Compute image metadata
         id: meta
         run: |
@@ -140,7 +130,7 @@ jobs:
 
   deploy:
     name: Deploy rapid preprod
-    needs: build
+    needs: verify
     if: vars.PREPROD_ENABLED == 'true'
     runs-on: [self-hosted, onir-cms-preprod]
     environment:
@@ -149,7 +139,7 @@ jobs:
     steps:
       - name: Deploy
         env:
-          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+          IMAGE_TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
           /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
