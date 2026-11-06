@@ -6550,9 +6550,9 @@ a.subtab {
 }
 
 .chatbot-wizard-page .chatbot-mission .checks-row {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
   margin-top: 0.9rem;
 }
 
@@ -6569,6 +6569,8 @@ a.subtab {
 
 @media (max-width: 56rem) {
   .chatbot-wizard-page .chatbot-mission .checks-row {
+    display: grid;
+    gap: 0.75rem;
     grid-template-columns: 1fr;
   }
 }
@@ -6755,9 +6757,9 @@ a.subtab {
 }
 
 .chatbot-wizard-page .chatbot-mission .checks-row {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
   margin-top: 0.9rem;
 }
 
@@ -6774,6 +6776,8 @@ a.subtab {
 
 @media (max-width: 56rem) {
   .chatbot-wizard-page .chatbot-mission .checks-row {
+    display: grid;
+    gap: 0.75rem;
     grid-template-columns: 1fr;
   }
 }
