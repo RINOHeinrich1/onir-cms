@@ -450,6 +450,27 @@ export function LinkEditModal({
             </nav>
 
             <div className="chatbot-wizard-body">
+              {variant === "page" ? (
+                <header className="chatbot-page-head">
+                  <div>
+                    <p className="chatbot-page-eyebrow">
+                      Étape {stepPosition + 1} sur {stepIndices.length}
+                    </p>
+                    <h1>{CHATBOT_STEPS[step]?.title}</h1>
+                    <p>{CHATBOT_STEPS[step]?.description}</p>
+                  </div>
+                  <div className="chatbot-page-progress">
+                    <span>{Math.round(((stepPosition + 1) / stepIndices.length) * 100)} %</span>
+                    <div>
+                      <span
+                        style={{
+                          width: `${Math.round(((stepPosition + 1) / stepIndices.length) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </header>
+              ) : null}
               {stepError !== null ? <p className="alert error">{stepError}</p> : null}
               {error !== null ? <p className="alert error">{error}</p> : null}
 
@@ -461,24 +482,26 @@ export function LinkEditModal({
                       Identité du chatbot, opération, comportement et catégorie.
                     </p>
                   </div>
-                  <p className="hint">
-                    Prospect cible :{" "}
-                    <span className="badge">
-                      {link.type === "specifique"
-                        ? "Prospect spécifique (lecture seule)"
-                        : "Aucun prospect (standard)"}
-                    </span>
-                  </p>
-                  <label className="field">
-                    Libellé (optionnel)
-                    <input
-                      type="text"
-                      placeholder="Ex. Salon IT, Stand, Campagne"
-                      maxLength={120}
-                      value={label}
-                      onChange={(event) => setLabel(event.target.value)}
-                    />
-                  </label>
+                  <div className="chatbot-card">
+                    <p className="hint">
+                      Prospect cible :{" "}
+                      <span className="badge">
+                        {link.type === "specifique"
+                          ? "Prospect spécifique (lecture seule)"
+                          : "Aucun prospect (standard)"}
+                      </span>
+                    </p>
+                    <label className="field">
+                      Libellé (optionnel)
+                      <input
+                        type="text"
+                        placeholder="Ex. Salon IT, Stand, Campagne"
+                        maxLength={120}
+                        value={label}
+                        onChange={(event) => setLabel(event.target.value)}
+                      />
+                    </label>
+                  </div>
                   {config !== null ? (
                     <>
                       <ChatbotMissionField value={config.mission} onChange={changeMission} />
