@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.29.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.28.0...v0.29.0) (2026-11-07)
+
+
+### Features
+
+* **assistant:** import de connaissances et sélection média ([#251](https://github.com/RINOHeinrich1/onir-cms/issues/251)) ([f9c9c2e](https://github.com/RINOHeinrich1/onir-cms/commit/f9c9c2ef1db1d6846577088c868868f4224bbc1a))
+
 ## [0.28.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.27.0...v0.28.0) (2026-11-06)
 
 
