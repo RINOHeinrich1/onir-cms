@@ -3,8 +3,9 @@ import { toPublicChatMessage } from "@/application/use-cases/attachments/attachm
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { getChatEventBus } from "@/infrastructure/realtime";
 import { chatPollLimiter } from "@/lib/chat-limiters";
-import { sseFrame, subscribeChatRealtime } from "@/lib/chat-realtime";
+import { sseFrame } from "@/lib/chat-realtime";
 import { errorResponse } from "../../_lib/errors";
 import { clientIp } from "../../_lib/http";
 
@@ -47,10 +48,18 @@ export async function GET(request: Request): Promise<Response> {
         ? new Date(afterParam).toISOString()
         : null;
 
+    const eventBus = getChatEventBus();
+    if (!eventBus.supportsSse) {
+      return Response.json(
+        { error: "SSE désactivé, utilisez le polling" },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
+
     const encoder = new TextEncoder();
     let cleanup = (): void => undefined;
     const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
+      async start(controller) {
         let closed = false;
         let lastAfter = after;
         const send = (frame: string): void => {
@@ -82,22 +91,29 @@ export async function GET(request: Request): Promise<Response> {
           lastAfter = message.createdAt;
         };
 
-        const unsubscribe = subscribeChatRealtime(conversationId, (event) => {
-          if (event.type === "message") {
-            sendMessage(event.message);
-            return;
-          }
-          void sendState().catch(() => {
-            // Le polling de secours prendra le relais côté client.
+        let unsubscribe = (): void => undefined;
+        try {
+          unsubscribe = await eventBus.subscribe(conversationId, (event) => {
+            if (event.type === "message") {
+              sendMessage(event.message);
+              return;
+            }
+            void sendState().catch(() => {
+              // Le polling de secours prendra le relais côté client.
+            });
           });
-        });
+        } catch {
+          closed = true;
+          controller.close();
+          return;
+        }
         const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
 
         cleanup = (): void => {
           if (closed) return;
           closed = true;
           clearInterval(heartbeat);
-          unsubscribe();
+          void unsubscribe();
           try {
             controller.close();
           } catch {

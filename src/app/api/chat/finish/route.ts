@@ -15,7 +15,7 @@ import { pgOrganizationRepository } from "@/infrastructure/db/organization-repos
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { renderMarkdownPdf } from "@/infrastructure/pdf/markdown-pdf";
-import { publishChatRealtime } from "@/lib/chat-realtime";
+import { publishChatEvent } from "@/lib/chat-events";
 import { errorResponse } from "../../_lib/errors";
 import { readJsonObject, stringField } from "../../_lib/http";
 
@@ -65,7 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         };
       }),
     );
-    publishChatRealtime(conversationId, { type: "state" });
+    publishChatEvent(conversationId, { type: "state" });
 
     // `fiches` est la réponse de référence (0..N) ; les champs de premier
     // niveau restent exposés pour les clients historiques (première fiche).

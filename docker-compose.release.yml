@@ -19,6 +19,17 @@ x-app-environment: &app-environment
   AI_MODEL: ${AI_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
   MEDIA_DIR: /app/var/media
   ATTACHMENTS_DIR: ${ATTACHMENTS_DIR:-/app/var/media/attachments}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-auto}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  S3_PREFIX: ${S3_PREFIX:-}
+  REPLICA_COUNT: ${REPLICA_COUNT:-1}
+  REALTIME_MODE: ${REALTIME_MODE:-auto}
+  VALKEY_URL: ${VALKEY_URL:-}
 
 services:
   db:
