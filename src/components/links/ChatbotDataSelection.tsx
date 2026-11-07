@@ -89,6 +89,8 @@ function toSelectable(
 export function ChatbotDataSelection({
   selection,
   onChange,
+  mediaSelection,
+  onMediaSelectionChange,
   chatLinkId,
   onCountsChange,
   searchTool,
@@ -102,6 +104,8 @@ export function ChatbotDataSelection({
 }: {
   selection: DataSelection;
   onChange: (next: DataSelection) => void;
+  mediaSelection: DataSelection;
+  onMediaSelectionChange: (next: DataSelection) => void;
   /** Édition : inclut aussi les données déjà scopées à ce chatbot. */
   chatLinkId?: string | null | undefined;
   onCountsChange?: ((counts: DataCounts) => void) | undefined;
@@ -192,18 +196,21 @@ export function ChatbotDataSelection({
           ? sources.lien
           : true;
   const activeItems = tab === "fiches" ? [] : items[tab];
+  const activeSelection = tab === "connaissances" ? selection : mediaSelection;
   const selectedIds =
-    selection.mode !== "selected" || tab === "fiches"
+    activeSelection.mode !== "selected" || tab === "fiches"
       ? []
       : tab === "connaissances"
         ? selection.connaissanceIds
-        : selection.mediaIds;
+        : mediaSelection.mediaIds;
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedTotal =
-    selection.mode === "selected"
-      ? selection.connaissanceIds.length + selection.mediaIds.length
+    activeSelection.mode === "selected"
+      ? tab === "connaissances"
+        ? selection.connaissanceIds.length
+        : mediaSelection.mediaIds.length
       : 0;
-  const effectiveOnlySelected = onlySelected && selection.mode === "selected";
+  const effectiveOnlySelected = onlySelected && activeSelection.mode === "selected";
 
   const filtered = useMemo(() => {
     const needle = normalize(query.trim());
@@ -225,26 +232,28 @@ export function ChatbotDataSelection({
   };
 
   const setMode = (mode: DataSelection["mode"]): void => {
-    if (mode === "all") {
-      onChange({ mode: "all", connaissanceIds: [], mediaIds: [] });
-      return;
-    }
-    onChange({ ...selection, mode: "selected" });
+    const next =
+      mode === "all"
+        ? { mode: "all" as const, connaissanceIds: [], mediaIds: [] }
+        : { ...activeSelection, mode: "selected" as const };
+    if (tab === "connaissances") onChange(next);
+    else onMediaSelectionChange(next);
   };
 
   const updateSelection = (kind: "connaissances" | "media", ids: string[]): void => {
-    const next: DataSelection = {
+    if (kind === "media") {
+      onMediaSelectionChange({
+        mode: "selected",
+        connaissanceIds: [],
+        mediaIds: ids,
+      });
+      return;
+    }
+    onChange({
       ...selection,
       mode: "selected",
-      connaissanceIds:
-        kind === "connaissances"
-          ? ids
-          : selection.mode === "selected"
-            ? selection.connaissanceIds
-            : [],
-      mediaIds: kind === "media" ? ids : selection.mode === "selected" ? selection.mediaIds : [],
-    };
-    onChange(next);
+      connaissanceIds: ids,
+    });
   };
 
   const currentIds = (): string[] => {
@@ -252,7 +261,7 @@ export function ChatbotDataSelection({
     if (tab === "connaissances") {
       return selection.mode === "selected" ? selection.connaissanceIds : [];
     }
-    return selection.mode === "selected" ? selection.mediaIds : [];
+    return mediaSelection.mode === "selected" ? mediaSelection.mediaIds : [];
   };
 
   const toggleItem = (id: string): void => {
@@ -268,7 +277,11 @@ export function ChatbotDataSelection({
   };
 
   const clearAll = (): void => {
-    onChange({ mode: "selected", connaissanceIds: [], mediaIds: [] });
+    if (tab === "connaissances") {
+      onChange({ mode: "selected", connaissanceIds: [], mediaIds: [] });
+    } else {
+      onMediaSelectionChange({ mode: "selected", connaissanceIds: [], mediaIds: [] });
+    }
   };
 
   return (
@@ -380,30 +393,55 @@ export function ChatbotDataSelection({
                   <input
                     type="radio"
                     name={modeName}
-                    checked={selection.mode === "all"}
+                    checked={activeSelection.mode === "all"}
                     onChange={() => setMode("all")}
                   />
-                  Toute la bibliothèque (par défaut)
+                  {tab === "connaissances"
+                    ? "Toutes les connaissances accessibles"
+                    : "Tous les médias accessibles"}
                 </label>
                 <label className="check" style={{ marginTop: "0.45rem" }}>
                   <input
                     type="radio"
                     name={modeName}
-                    checked={selection.mode === "selected"}
+                    checked={activeSelection.mode === "selected"}
                     onChange={() => setMode("selected")}
                   />
                   Choisir des contenus
                 </label>
                 <p className="hint">
-                  {selection.mode === "selected"
+                  {activeSelection.mode === "selected"
                     ? `${selectedTotal} contenu(s) sélectionné(s) + les contenus déjà rattachés à ce chatbot.`
-                    : "Tous les contenus de la bibliothèque sont accessibles, sans modifier leur portée."}
+                    : "Inclut les données globales et celles déjà rattachées à ce chatbot. Les données des autres chatbots ne sont jamais incluses."}
                 </p>
+                {currentChatLinkId === "" ? (
+                  <p className="hint">
+                    Pendant la création, seules les données globales sont disponibles ; les données
+                    propres au chatbot seront ajoutées après sa création.
+                  </p>
+                ) : null}
               </fieldset>
 
-              {selection.mode === "all" ? (
+              {tab !== "connaissances" &&
+              contentEnabled &&
+              activeSelection.mode === "selected" &&
+              mediaSelection.mediaIds.length === 0 ? (
+                <div className="alert">
+                  <strong>Aucun média sélectionné.</strong> Activez « Tous les médias accessibles »
+                  ou sélectionnez au moins un média ; sinon cette source ne renverra rien.
+                  <button type="button" className="btn ghost small" onClick={() => setMode("all")}>
+                    Tous les médias accessibles
+                  </button>
+                </div>
+              ) : null}
+
+              {activeSelection.mode === "all" ? (
                 <div className="chatbot-data-summary">
-                  <p className="hint">Toute la bibliothèque est accessible.</p>
+                  <p className="hint">
+                    {tab === "connaissances"
+                      ? "Toutes les connaissances accessibles à ce chatbot sont utilisées."
+                      : "Tous les médias accessibles à ce chatbot sont utilisés."}
+                  </p>
                   <div className="chatbot-data-counts">
                     {(["connaissances", "photos", "liens"] as const).map((id) => (
                       <span key={id} className="badge muted">

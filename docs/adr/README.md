@@ -71,3 +71,5 @@ ADR qui remplace la précédente.
 | [0069](./0069-creation-chatbot-assistant-conversationnel.md) | Création de chatbot par assistant conversationnel — intake, génération et revue | Accepté |
 | [0070](./0070-resolution-conflits-connaissances-creation.md) | Résolution des conflits de connaissances à la création d’un chatbot | Accepté |
 | [0071](./0071-texte-fourni-source-connaissances-chatbot.md) | Texte fourni comme source de connaissances du chatbot | Accepté |
+| [0072](./0072-import-connaissances-ia.md) | Import de connaissances assisté par IA | Accepté |
+| [0073](./0073-selection-medias-independante.md) | Sélection média indépendante et portée explicite | Accepté |

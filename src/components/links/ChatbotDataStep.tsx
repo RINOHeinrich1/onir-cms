@@ -33,6 +33,8 @@ export function ChatbotDataStep({
   onChange,
   selection,
   onSelectionChange,
+  mediaSelection,
+  onMediaSelectionChange,
   onGlobalCountsChange,
   chatLinkId,
   onUploadPhoto,
@@ -50,6 +52,8 @@ export function ChatbotDataStep({
   onChange: (next: ChatbotDataDraft) => void;
   selection: ChatbotDataSelectionValue;
   onSelectionChange: (next: ChatbotDataSelectionValue) => void;
+  mediaSelection: ChatbotDataSelectionValue;
+  onMediaSelectionChange: (next: ChatbotDataSelectionValue) => void;
   onGlobalCountsChange?: (counts: { connaissances: number; photos: number; liens: number }) => void;
   chatLinkId?: string | null;
   /**
@@ -214,6 +218,8 @@ export function ChatbotDataStep({
       <ChatbotDataSelection
         selection={selection}
         onChange={onSelectionChange}
+        mediaSelection={mediaSelection}
+        onMediaSelectionChange={onMediaSelectionChange}
         chatLinkId={chatLinkId}
         onCountsChange={onGlobalCountsChange}
         searchTool={searchTool}

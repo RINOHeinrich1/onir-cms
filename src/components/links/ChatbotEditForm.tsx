@@ -520,6 +520,12 @@ export function ChatbotEditForm({
                     current === null ? current : { ...current, dataSelection },
                   )
                 }
+                mediaSelection={config.mediaSelection}
+                onMediaSelectionChange={(mediaSelection) =>
+                  setConfig((current) =>
+                    current === null ? current : { ...current, mediaSelection },
+                  )
+                }
                 chatLinkId={link.id}
                 onUploadPhoto={uploadDraftPhoto}
                 onRemovePhoto={removeDraftPhoto}

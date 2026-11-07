@@ -843,6 +843,10 @@ export function ChatbotCreateForm({
                 onSelectionChange={(dataSelection) =>
                   setConfig((current) => ({ ...current, dataSelection }))
                 }
+                mediaSelection={config.mediaSelection}
+                onMediaSelectionChange={(mediaSelection) =>
+                  setConfig((current) => ({ ...current, mediaSelection }))
+                }
                 onGlobalCountsChange={setGlobalDataCounts}
                 onUploadPhoto={uploadDraftPhoto}
                 onRemovePhoto={removeDraftPhoto}
@@ -1004,9 +1008,14 @@ export function ChatbotCreateForm({
                 </dd>
                 <dt>Sources d’information</dt>
                 <dd>
+                  Connaissances :{" "}
                   {config.dataSelection.mode === "all"
-                    ? `Toute la bibliothèque (${globalDataCounts.connaissances} connaissance(s) · ${globalDataCounts.photos} photo(s) · ${globalDataCounts.liens} lien(s))`
-                    : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.dataSelection.mediaIds.length} photo(s)/lien(s) sélectionné(s) + contenus déjà rattachés`}
+                    ? `global + ce chatbot (${globalDataCounts.connaissances})`
+                    : `${config.dataSelection.connaissanceIds.length} sélectionnée(s)`}
+                  {" · "}Médias :{" "}
+                  {config.mediaSelection.mode === "all"
+                    ? `global + ce chatbot (${globalDataCounts.photos + globalDataCounts.liens})`
+                    : `${config.mediaSelection.mediaIds.length} sélectionné(s)`}
                 </dd>
                 <dt>Configuration IA</dt>
                 <dd>
@@ -1043,9 +1052,9 @@ export function ChatbotCreateForm({
                     : `${config.fiches.length} fiche${config.fiches.length > 1 ? "s" : ""} de collecte`}
                 </li>
                 <li className="ok">
-                  {config.dataSelection.mode === "all"
-                    ? "Toute la bibliothèque"
-                    : `${config.dataSelection.connaissanceIds.length + config.dataSelection.mediaIds.length} contenu(s) de la bibliothèque sélectionné(s)`}
+                  {config.dataSelection.mode === "all" && config.mediaSelection.mode === "all"
+                    ? "Contenus globaux + ceux de ce chatbot"
+                    : `${config.dataSelection.connaissanceIds.length} connaissance(s) · ${config.mediaSelection.mediaIds.length} média(s) sélectionné(s)`}
                   {pendingDataCount === 0
                     ? ""
                     : ` · ${pendingDataCount} contenu(s) ajouté(s) à ce chatbot`}

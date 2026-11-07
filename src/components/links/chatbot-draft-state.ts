@@ -279,6 +279,7 @@ function configComparable(config: ChatbotConfigDraft): string {
       })),
     })),
     dataSelection: config.dataSelection,
+    mediaSelection: config.mediaSelection,
     fallback: config.fallback,
     searchTool: config.searchTool,
   });
@@ -330,7 +331,9 @@ export function isChatbotDraftStateMeaningful(state: ChatbotDraftState): boolean
   if (
     state.config.dataSelection.mode !== "all" ||
     state.config.dataSelection.connaissanceIds.length > 0 ||
-    state.config.dataSelection.mediaIds.length > 0
+    state.config.dataSelection.mediaIds.length > 0 ||
+    state.config.mediaSelection.mode !== "all" ||
+    state.config.mediaSelection.mediaIds.length > 0
   ) {
     return true;
   }
