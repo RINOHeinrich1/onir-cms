@@ -6,7 +6,8 @@ import {
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
-import { type ChatRealtimeEvent, sseFrame, subscribeChatRealtime } from "@/lib/chat-realtime";
+import { getChatEventBus } from "@/infrastructure/realtime";
+import { sseFrame } from "@/lib/chat-realtime";
 import { errorResponse } from "../../../_lib/errors";
 import { requireRole } from "../../../_lib/require-user";
 
@@ -39,10 +40,18 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
         : null;
     await getConversationUpdates(deps(), actor, id, after);
 
+    const eventBus = getChatEventBus();
+    if (!eventBus.supportsSse) {
+      return Response.json(
+        { error: "SSE désactivé, utilisez le polling" },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
+
     const encoder = new TextEncoder();
     let cleanup = (): void => undefined;
     const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
+      async start(controller) {
         let closed = false;
         let lastAfter = after;
         const send = (frame: string): void => {
@@ -72,23 +81,30 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
           }
         };
 
-        const unsubscribe = subscribeChatRealtime(id, (event: ChatRealtimeEvent) => {
-          if (event.type === "message") {
-            send(sseFrame("message", toDashboardChatMessage(event.message), event.message.id));
-            lastAfter = event.message.createdAt;
-            return;
-          }
-          void sendState().catch(() => {
-            // Le polling de secours prendra le relais côté client.
+        let unsubscribe = (): void => undefined;
+        try {
+          unsubscribe = await eventBus.subscribe(id, (event) => {
+            if (event.type === "message") {
+              send(sseFrame("message", toDashboardChatMessage(event.message), event.message.id));
+              lastAfter = event.message.createdAt;
+              return;
+            }
+            void sendState().catch(() => {
+              // Le polling de secours prendra le relais côté client.
+            });
           });
-        });
+        } catch {
+          closed = true;
+          controller.close();
+          return;
+        }
         const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
 
         cleanup = (): void => {
           if (closed) return;
           closed = true;
           clearInterval(heartbeat);
-          unsubscribe();
+          void unsubscribe();
           try {
             controller.close();
           } catch {

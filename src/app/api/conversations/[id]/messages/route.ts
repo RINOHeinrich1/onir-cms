@@ -8,7 +8,7 @@ import {
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
-import { publishChatRealtime } from "@/lib/chat-realtime";
+import { publishChatEvent } from "@/lib/chat-events";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject } from "../../../_lib/http";
 import { requireRole } from "../../../_lib/require-user";
@@ -51,8 +51,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     }
     const result = await replyAsOperator(deps(), actor, id, body.content);
-    publishChatRealtime(id, { type: "message", message: result.message });
-    publishChatRealtime(id, { type: "state" });
+    publishChatEvent(id, { type: "message", message: result.message });
+    publishChatEvent(id, { type: "state" });
     return NextResponse.json({
       message: toDashboardChatMessage(result.message),
       conversation: result.conversation,

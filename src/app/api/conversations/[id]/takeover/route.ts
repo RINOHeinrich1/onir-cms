@@ -3,7 +3,7 @@ import { takeOverConversation } from "@/application/use-cases/conversations/inte
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
-import { publishChatRealtime } from "@/lib/chat-realtime";
+import { publishChatEvent } from "@/lib/chat-events";
 import { errorResponse } from "../../../_lib/errors";
 import { requireRole } from "../../../_lib/require-user";
 
@@ -25,7 +25,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       actor,
       id,
     );
-    publishChatRealtime(id, { type: "state" });
+    publishChatEvent(id, { type: "state" });
     return NextResponse.json({ conversation });
   } catch (error) {
     return errorResponse(error);

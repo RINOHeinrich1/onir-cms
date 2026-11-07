@@ -22,8 +22,8 @@ import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
+import { publishChatEvent } from "@/lib/chat-events";
 import { chatMessageLimiter } from "@/lib/chat-limiters";
-import { publishChatRealtime } from "@/lib/chat-realtime";
 import { errorResponse } from "../_lib/errors";
 import { clientIp, readJsonObject, stringField } from "../_lib/http";
 
@@ -77,12 +77,12 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );
-    publishChatRealtime(conversationId, { type: "message", message: result.userMessage });
+    publishChatEvent(conversationId, { type: "message", message: result.userMessage });
     if (result.message !== null) {
-      publishChatRealtime(conversationId, { type: "message", message: result.message });
+      publishChatEvent(conversationId, { type: "message", message: result.message });
     }
     if (result.mode === "human") {
-      publishChatRealtime(conversationId, { type: "state" });
+      publishChatEvent(conversationId, { type: "state" });
     }
     return NextResponse.json({
       userMessage: toPublicChatMessage(result.userMessage, result.organizationId),

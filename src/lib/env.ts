@@ -21,6 +21,118 @@ function required(name: string): string {
   return value;
 }
 
+export type StorageDriver = "disk" | "s3";
+
+export type S3Config = {
+  endpoint: string;
+  region: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  forcePathStyle: boolean;
+  prefix: string;
+};
+
+function positiveInt(name: string, fallback: number): number {
+  const raw = env(name);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function booleanEnv(name: string, fallback: boolean): boolean {
+  const raw = env(name);
+  if (raw === undefined) return fallback;
+  return raw === "true" || raw === "1";
+}
+
+/** Nombre d’instances applicatives (utilisé pour les garde-fous de déploiement). */
+export function replicaCount(): number {
+  return positiveInt("REPLICA_COUNT", 1);
+}
+
+/** Configuration S3 si complète, sinon `null`. */
+export function s3Config(): S3Config | null {
+  const endpoint = env("S3_ENDPOINT");
+  const bucket = env("S3_BUCKET");
+  const accessKeyId = env("S3_ACCESS_KEY_ID");
+  const secretAccessKey = env("S3_SECRET_ACCESS_KEY");
+  if (
+    endpoint === undefined ||
+    bucket === undefined ||
+    accessKeyId === undefined ||
+    secretAccessKey === undefined
+  ) {
+    return null;
+  }
+  return {
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    region: env("S3_REGION") ?? "us-east-1",
+    forcePathStyle: booleanEnv("S3_FORCE_PATH_STYLE", true),
+    prefix: env("S3_PREFIX") ?? "",
+  };
+}
+
+/** Driver effectif : `auto` privilégie S3 si configuré, sinon le disque. */
+export function storageDriver(): StorageDriver {
+  const configured = env("STORAGE_DRIVER") ?? "auto";
+  if (configured !== "auto" && configured !== "disk" && configured !== "s3") {
+    throw new Error(`STORAGE_DRIVER invalide : ${configured}`);
+  }
+  if (configured === "auto") return s3Config() === null ? "disk" : "s3";
+  return configured;
+}
+
+export type RealtimeMode = "local" | "valkey" | "polling";
+
+/** URL Valkey/Redis-compatible pour le Pub/Sub temps réel. */
+export function valkeyUrl(): string | undefined {
+  return env("VALKEY_URL");
+}
+
+/** Mode temps réel effectif. */
+export function realtimeMode(): RealtimeMode {
+  const configured = env("REALTIME_MODE") ?? "auto";
+  if (
+    configured !== "auto" &&
+    configured !== "local" &&
+    configured !== "valkey" &&
+    configured !== "polling"
+  ) {
+    throw new Error(`REALTIME_MODE invalide : ${configured}`);
+  }
+  if (configured === "auto") {
+    if (valkeyUrl() !== undefined) return "valkey";
+    return replicaCount() > 1 ? "polling" : "local";
+  }
+  return configured;
+}
+
+/**
+ * Garde-fous de topologie : refuse les combinaisons qui produiraient des
+ * fichiers ou des événements incohérents entre instances.
+ */
+export function assertDeploymentConfig(): void {
+  const replicas = replicaCount();
+  const storage = storageDriver();
+  const realtime = realtimeMode();
+  if (storage === "s3" && s3Config() === null) {
+    throw new Error("STORAGE_DRIVER=s3 mais la configuration S3 est incomplète");
+  }
+  if (replicas > 1 && storage === "disk") {
+    throw new Error("REPLICA_COUNT > 1 exige STORAGE_DRIVER=s3");
+  }
+  if (replicas > 1 && realtime === "local") {
+    throw new Error("REPLICA_COUNT > 1 interdit REALTIME_MODE=local");
+  }
+  if (realtime === "valkey" && valkeyUrl() === undefined) {
+    throw new Error("REALTIME_MODE=valkey exige VALKEY_URL");
+  }
+}
+
 /** URL de connexion PostgreSQL dédiée (RM-DATA-001). */
 export function databaseUrl(): string {
   return required("DATABASE_URL");

@@ -4,6 +4,8 @@
  */
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { assertDeploymentConfig } = await import("@/lib/env");
+  assertDeploymentConfig();
   const { initAppSecrets, startAppSecretsRefresh } = await import(
     "@/infrastructure/config/app-secrets"
   );

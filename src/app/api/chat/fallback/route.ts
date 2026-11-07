@@ -6,8 +6,8 @@ import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { publishChatEvent } from "@/lib/chat-events";
 import { chatFallbackLimiter } from "@/lib/chat-limiters";
-import { publishChatRealtime } from "@/lib/chat-realtime";
 import { errorResponse } from "../../_lib/errors";
 import { clientIp, readJsonObject, stringField } from "../../_lib/http";
 
@@ -89,14 +89,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       "user",
       question.label,
     );
-    publishChatRealtime(conversation.id, { type: "message", message: userMessage });
+    publishChatEvent(conversation.id, { type: "message", message: userMessage });
     const message = await conversations.appendMessage(
       conversation.organizationId,
       conversation.id,
       "assistant",
       question.answer,
     );
-    publishChatRealtime(conversation.id, { type: "message", message });
+    publishChatEvent(conversation.id, { type: "message", message });
     return NextResponse.json({
       questionId: question.id,
       userMessage: toPublicChatMessage(userMessage, conversation.organizationId),
