@@ -92,6 +92,8 @@ export type ChatbotConfigDraft = {
   };
   fiches: FicheDraft[];
   dataSelection: ChatbotDataSelection;
+  /** Sélection indépendante des médias (Photos/Liens). */
+  mediaSelection: ChatbotDataSelection;
   fallback: ChatbotFallback;
   /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
   searchTool: ChatbotSearchToolDraft;
@@ -168,6 +170,7 @@ export function chatbotConfigDraftFromAi(
       connaissanceIds: [],
       mediaIds: [],
     },
+    mediaSelection: { mode: "selected", connaissanceIds: [], mediaIds: [] },
     fallback:
       fiches.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
     searchTool: defaultChatbotSearchToolDraft(),
@@ -229,6 +232,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     },
     fiches: [],
     dataSelection: defaultChatbotDataSelection(),
+    mediaSelection: defaultChatbotDataSelection(),
     fallback: defaultChatbotFallback(),
     searchTool: defaultChatbotSearchToolDraft(),
     ficheUsageHint: defaultChatbotInformationSources().fiches.usageHint,
@@ -334,8 +338,8 @@ function informationSourcesFromDraft(
         ...(sources.lien ? (["lien"] as const) : []),
       ],
       selection: {
-        mode: draft.dataSelection.mode,
-        ids: draft.dataSelection.mediaIds,
+        mode: draft.mediaSelection.mode,
+        ids: draft.mediaSelection.mediaIds,
       },
     },
   };
@@ -528,6 +532,15 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   const fallback = parseChatbotFallback(raw.fallback);
   const searchTool = parseSearchToolConfig(raw.searchTool);
   const informationSources = parseChatbotInformationSources(raw.informationSources);
+  const mediaSelection = informationSources.ok
+    ? {
+        mode: informationSources.value.medias.selection.mode,
+        connaissanceIds: [],
+        mediaIds: informationSources.value.medias.selection.ids,
+      }
+    : dataSelection.ok
+      ? dataSelection.value
+      : defaultChatbotDataSelection();
   const ficheUsageHint = informationSources.ok
     ? informationSources.value.fiches.usageHint
     : defaultChatbotInformationSources().fiches.usageHint;
@@ -554,6 +567,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     },
     fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
+    mediaSelection,
     fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
     searchTool: searchTool.ok ? searchTool.value : defaultChatbotSearchToolDraft(),
     ficheUsageHint,

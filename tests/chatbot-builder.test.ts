@@ -3,7 +3,11 @@ import {
   applyBuildPatch,
   parseChatbotBuildTurn,
 } from "@/application/use-cases/chatbot-builder/parse-build-turn";
-import { chatbotConfigDraftFromAi } from "@/components/links/chatbot-config-draft";
+import {
+  chatbotConfigDraftFromAi,
+  chatbotConfigPayload,
+  defaultChatbotConfigDraft,
+} from "@/components/links/chatbot-config-draft";
 import type { ChatbotAiDraft } from "@/domain/chatbot-ai-draft";
 import {
   briefMessages,
@@ -184,6 +188,31 @@ describe("chatbot builder — persistance", () => {
   });
 });
 
+describe("chatbot builder — sélection média indépendante", () => {
+  it("ne mélange pas la sélection connaissances et médias dans le payload", () => {
+    const config = defaultChatbotConfigDraft();
+    config.dataSelection = {
+      mode: "selected",
+      connaissanceIds: ["connaissance-1"],
+      mediaIds: [],
+    };
+    config.mediaSelection = { mode: "all", connaissanceIds: [], mediaIds: [] };
+    const payload = chatbotConfigPayload(config, {
+      sources: { connaissances: true, phototheque: true, lien: true },
+    }) as {
+      informationSources: {
+        connaissances: { selection: { mode: string; ids: string[] } };
+        medias: { selection: { mode: string; ids: string[] } };
+      };
+    };
+    expect(payload.informationSources.connaissances.selection).toEqual({
+      mode: "selected",
+      ids: ["connaissance-1"],
+    });
+    expect(payload.informationSources.medias.selection).toEqual({ mode: "all", ids: [] });
+  });
+});
+
 describe("chatbot builder — mapping", () => {
   it("force une sélection de connaissances sûre et respecte inform", () => {
     const draft: ChatbotAiDraft = {
@@ -214,6 +243,11 @@ describe("chatbot builder — mapping", () => {
     expect(config.mission).toBe("inform");
     expect(config.fiches).toEqual([]);
     expect(config.dataSelection.mode).toBe("selected");
+    expect(config.mediaSelection).toEqual({
+      mode: "selected",
+      connaissanceIds: [],
+      mediaIds: [],
+    });
   });
 });
 

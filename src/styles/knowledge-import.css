@@ -1,0 +1,207 @@
+.knowledge-import-modal {
+  max-width: 46rem;
+  max-height: min(90dvh, 52rem);
+}
+
+.knowledge-import-body {
+  gap: 0;
+  padding: 0;
+}
+
+.knowledge-import-form,
+.knowledge-import-done {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem 1.1rem;
+  overflow-y: auto;
+}
+
+.knowledge-import-section {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.knowledge-import-section h4 {
+  margin: 0;
+  color: var(--head);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.knowledge-import-inline {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.knowledge-import-inline input,
+.knowledge-import-tags input,
+.knowledge-import-preview-row input,
+.knowledge-import-preview-item textarea {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0.45rem 0.55rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.knowledge-import-inline input,
+.knowledge-import-tags input,
+.knowledge-import-preview-row input {
+  flex: 1;
+}
+
+.knowledge-import-preview-item textarea {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.knowledge-import-chips,
+.knowledge-import-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.knowledge-import-chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.knowledge-import-chips li,
+.knowledge-import-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.2rem 0.3rem 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-raised);
+  font-size: 0.7rem;
+}
+
+.knowledge-import-chips button,
+.knowledge-import-tag button {
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.knowledge-import-tags {
+  align-items: center;
+  min-height: 2.15rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.knowledge-import-tags input {
+  flex: 1 1 12rem;
+  border: 0;
+  padding: 0.2rem;
+  background: transparent;
+}
+
+.knowledge-import-tag {
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+}
+
+.knowledge-import-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.knowledge-import-suggestions button {
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-raised);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.knowledge-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding-top: 0.4rem;
+}
+
+.knowledge-import-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.knowledge-import-preview-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.knowledge-import-preview-head .hint {
+  margin: 0.15rem 0 0;
+}
+
+.knowledge-import-scope-summary {
+  flex: none;
+  padding: 0.18rem 0.45rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.knowledge-import-preview-list {
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(42dvh, 28rem);
+  overflow-y: auto;
+}
+
+.knowledge-import-preview-item {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.knowledge-import-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.knowledge-import-done h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.knowledge-import-done p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.86rem;
+}

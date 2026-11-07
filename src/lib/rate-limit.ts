@@ -68,3 +68,6 @@ export const chatbotAiLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 100
 
 /** Assistant conversationnel de création de chatbot : 30 messages / minute. */
 export const chatbotBuilderLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });
+
+/** Import de connaissances par IA : 10 imports / minute. */
+export const knowledgeImportLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });

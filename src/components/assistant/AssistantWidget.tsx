@@ -11,6 +11,7 @@ import {
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { Modal } from "@/components/ui/Modal";
 import { AssistantFairy } from "./AssistantFairy";
+import { KnowledgeImportDialog } from "./KnowledgeImportDialog";
 
 type AssistantPanel = "home" | "create" | "knowledge";
 type AssistantPosition = { x: number; y: number };
@@ -106,6 +107,7 @@ function ArrowIcon() {
 export function AssistantWidget() {
   const { openBuilder } = useChatbotBuilder();
   const [open, setOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [panel, setPanel] = useState<AssistantPanel>("home");
   const [position, setPosition] = useState<AssistantPosition | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -274,7 +276,10 @@ export function AssistantWidget() {
                 <button
                   type="button"
                   className="assistant-option"
-                  onClick={() => selectPanel("knowledge")}
+                  onClick={() => {
+                    close();
+                    setKnowledgeOpen(true);
+                  }}
                 >
                   <span className="assistant-option-icon">
                     <BookIcon />
@@ -288,9 +293,6 @@ export function AssistantWidget() {
                   </span>
                 </button>
               </div>
-              <p className="assistant-mock-note">
-                Aperçu interactif — aucune donnée n’est enregistrée.
-              </p>
             </div>
           ) : null}
 
@@ -384,6 +386,7 @@ export function AssistantWidget() {
           ) : null}
         </Modal>
       ) : null}
+      {knowledgeOpen ? <KnowledgeImportDialog onClose={() => setKnowledgeOpen(false)} /> : null}
     </>
   );
 }
