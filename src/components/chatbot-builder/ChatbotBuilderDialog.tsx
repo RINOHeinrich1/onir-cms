@@ -6,6 +6,7 @@ import type { StoredChatbotBuildSession } from "@/application/ports/chatbot-buil
 import type { ChatbotBuilderGeneration } from "@/application/use-cases/chatbot-builder/manage-chatbot-builder";
 import type { ConnaissanceConflict } from "@/application/use-cases/connaissances/resolve-connaissance-conflicts";
 import { AssistantFairy } from "@/components/assistant/AssistantFairy";
+import type { ChatbotTemplateParamsDto } from "@/components/chatbots/ai-types";
 import { ConnaissanceConflictModal } from "@/components/links/ConnaissanceConflictModal";
 import { chatbotConfigPayload } from "@/components/links/chatbot-config-draft";
 import {
@@ -113,13 +114,59 @@ function RefreshIcon() {
   );
 }
 
-function BuilderGenerating({ onCancel }: { onCancel: () => void }) {
+type GenerationStage = "draft" | "theme" | "finalizing";
+
+function BuilderGenerating({
+  stage,
+  themeExpected,
+  onCancel,
+}: {
+  stage: GenerationStage;
+  themeExpected: boolean;
+  onCancel: () => void;
+}) {
+  const draftState = stage === "draft" ? "active" : "done";
+  const themeState = !themeExpected
+    ? "skipped"
+    : stage === "theme"
+      ? "active"
+      : stage === "finalizing"
+        ? "done"
+        : "pending";
+
   return (
     <div className="chatbot-builder-generating" role="status" aria-live="polite" aria-busy="true">
       <div className="chatbot-builder-generating-loader" aria-hidden="true" />
       <h4>L’IA prépare votre chatbot…</h4>
-      <p>Analyse du brief, des sources et de la fiche de collecte.</p>
-      <p className="chatbot-builder-generating-hint">Cela prend généralement quelques secondes.</p>
+      <ol className="chatbot-builder-generating-phases">
+        <li className={`is-${draftState}`}>
+          <span className="chatbot-builder-generating-marker" aria-hidden="true">
+            {draftState === "done" ? "✓" : "●"}
+          </span>
+          <span>
+            <strong>Configuration du chatbot</strong>
+            <small>Analyse du brief et préparation de la fiche de collecte.</small>
+          </span>
+        </li>
+        <li className={`is-${themeState}`}>
+          <span className="chatbot-builder-generating-marker" aria-hidden="true">
+            {themeState === "done" ? "✓" : themeState === "active" ? "●" : "○"}
+          </span>
+          <span>
+            <strong>Thème et couleurs</strong>
+            <small>
+              {themeState === "skipped"
+                ? "Aucun paramètre couleur à générer."
+                : "L’IA applique les couleurs du template Starter."}
+            </small>
+          </span>
+        </li>
+      </ol>
+      <p className="chatbot-builder-generating-hint">
+        {stage === "theme"
+          ? "La palette du site est réutilisée ; aucun nouveau crawl n’est lancé."
+          : "Cela prend généralement quelques secondes."}
+      </p>
       <button type="button" className="btn subtle" onClick={onCancel}>
         Annuler la génération
       </button>
@@ -178,6 +225,8 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readyCoachVisible, setReadyCoachVisible] = useState(false);
+  const [generationStage, setGenerationStage] = useState<GenerationStage>("draft");
+  const [themeExpected, setThemeExpected] = useState(true);
   const initializedRef = useRef(false);
   const readyCoachShownRef = useRef(false);
   const generationAbortRef = useRef<AbortController | null>(null);
@@ -326,6 +375,8 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
     const controller = new AbortController();
     generationAbortRef.current = controller;
     setGenerating(true);
+    setGenerationStage("draft");
+    setThemeExpected(true);
     setReadyCoachVisible(false);
     setError(null);
     try {
@@ -338,7 +389,68 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
           signal: controller.signal,
         }),
       );
-      if (!controller.signal.aborted) setGeneration(result);
+      if (controller.signal.aborted) return;
+
+      let finalGeneration = result;
+      const template = result.visualTemplate;
+      if (template !== null && template.colorParamKeys.length > 0) {
+        setThemeExpected(true);
+        setGenerationStage("theme");
+        try {
+          const theme = await readJson<ChatbotTemplateParamsDto>(
+            await fetch("/api/chatbots/ai/template-params", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                templateId: template.templateId,
+                templateVersion: template.version,
+                chatbot: {
+                  label: result.draft.label,
+                  description: "",
+                  role: result.draft.role,
+                  objective: result.draft.objective,
+                  tone: result.draft.tone,
+                  extraInstructions: result.draft.extraInstructions,
+                },
+                knowledge: [],
+                conversation: session.messages.slice(-40).map((message) => ({
+                  role: message.role,
+                  content: message.content,
+                })),
+                palette: result.sitePalette,
+                types: ["color"],
+              }),
+              signal: controller.signal,
+            }),
+          );
+          if (controller.signal.aborted) return;
+          finalGeneration = {
+            ...result,
+            visualTemplate: {
+              ...template,
+              params: { ...template.params, ...theme.params },
+              warnings: [...template.warnings, ...theme.warnings],
+            },
+            warnings: [...result.warnings, ...theme.warnings],
+          };
+        } catch (themeCause) {
+          if (controller.signal.aborted) return;
+          finalGeneration = {
+            ...result,
+            warnings: [
+              ...result.warnings,
+              themeCause instanceof Error
+                ? `Thème non généré : ${themeCause.message}. Valeurs par défaut conservées.`
+                : "Thème non généré. Valeurs par défaut conservées.",
+            ],
+          };
+        }
+      } else {
+        setThemeExpected(false);
+      }
+
+      setGenerationStage("finalizing");
+      if (!controller.signal.aborted) setGeneration(finalGeneration);
     } catch (cause) {
       if (controller.signal.aborted) {
         toast.info("Génération annulée.");
@@ -604,7 +716,11 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
         }
       >
         {generating ? (
-          <BuilderGenerating onCancel={cancelGenerationRun} />
+          <BuilderGenerating
+            stage={generationStage}
+            themeExpected={themeExpected}
+            onCancel={cancelGenerationRun}
+          />
         ) : session === null ? (
           <div className="chatbot-builder-loading">
             <p>{error ?? "Initialisation de l’assistant…"}</p>
@@ -1002,6 +1118,27 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
                 ]
                   .filter((entry) => entry !== "")
                   .join(", ") || "Aucun"}
+              </dd>
+              <dt>Template visuel</dt>
+              <dd>
+                {generation.visualTemplate === null ? (
+                  "Défaut"
+                ) : (
+                  <span className="chatbot-builder-template-review">
+                    Starter · v{generation.visualTemplate.version}
+                    {generation.visualTemplate.colorParamKeys.map((key) => {
+                      const value = generation.visualTemplate?.params[key];
+                      return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? (
+                        <span
+                          key={key}
+                          className="chatbot-builder-color-swatch"
+                          style={{ background: value }}
+                          title={`${key} : ${value}`}
+                        />
+                      ) : null;
+                    })}
+                  </span>
+                )}
               </dd>
               <dt>Quotas</dt>
               <dd>

@@ -21,11 +21,21 @@ export function builderGenerationToDraftState(
   });
   const knowledgeEnabled =
     generation.mission !== "collect" && generation.sourceIntent.connaissances;
+  const visualTemplate = generation.visualTemplate;
+  const pageChannel =
+    visualTemplate === null
+      ? state.channels.page
+      : {
+          ...state.channels.page,
+          visualTemplate: `${visualTemplate.templateId}@${visualTemplate.version}`,
+          params: { ...visualTemplate.params },
+        };
 
   return {
     ...state,
     label: generation.draft.label,
     config,
+    channels: { ...state.channels, page: pageChannel },
     sources: {
       connaissances: knowledgeEnabled,
       phototheque: false,

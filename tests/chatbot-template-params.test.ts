@@ -143,4 +143,47 @@ describe("paramètres statiques du template", () => {
     });
     expect(complete.mock.calls[0]?.[0].structured).toBe(true);
   });
+
+  it("génère uniquement les couleurs à partir de la conversation", async () => {
+    const complete = vi.fn<(input: AiCompletionInput) => Promise<string>>(async () =>
+      JSON.stringify({
+        params: {
+          title: "Titre interdit",
+          primary_color: "#123456",
+        },
+      }),
+    );
+    const result = await generateChatbotTemplateParams(
+      { aiFactory: aiFactory(complete), visualTemplates: templateRepository() },
+      ACTOR,
+      {
+        templateId: "tpl-1",
+        templateVersion: "1.0.0",
+        chatbot: {
+          label: "Atelier",
+          description: "",
+          role: "assistant",
+          objective: "Aider",
+          tone: "chaleureux",
+          extraInstructions: "",
+        },
+        knowledge: [],
+        conversation: [
+          { role: "user", content: "Je voudrais un thème vert profond et chaleureux." },
+        ],
+        palette: EMPTY_SITE_PALETTE,
+        types: ["color"],
+      },
+    );
+
+    expect(result.params).toEqual({
+      title: "Défaut",
+      primary_color: "#123456",
+      style: "a",
+      link: "https://example.com",
+    });
+    const prompt = complete.mock.calls[0]?.[0];
+    expect(prompt?.messages[0]?.content).toContain("thème vert profond");
+    expect(prompt?.messages[0]?.content).not.toContain("description du site");
+  });
 });

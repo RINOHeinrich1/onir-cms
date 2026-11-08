@@ -1,6 +1,7 @@
 "use client";
 
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import { latestTemplateVersion } from "@/domain/template-version";
 import type { WidgetDisplay } from "@/domain/widget";
 import type { VisualTemplateOption } from "./types";
 
@@ -31,6 +32,23 @@ export function defaultsForSchema(schema: TemplateParamSchema[]): TemplateParamV
   const values: TemplateParamValues = {};
   for (const param of schema) values[param.key] = param.default;
   return values;
+}
+
+/**
+ * Sélection initiale du wizard manuel : dernière version installée de Starter.
+ * Retourne null si Starter n'est pas installé/assigné à l'organisation.
+ */
+export function defaultStarterSelection(
+  templates: VisualTemplateOption[],
+): { visualTemplate: string; params: TemplateParamValues } | null {
+  const starter = templates.find((template) => template.key.toLowerCase() === "starter");
+  if (starter === undefined) return null;
+  const latest = latestTemplateVersion(starter.versions);
+  if (latest === null) return null;
+  return {
+    visualTemplate: `${starter.id}@${latest.version}`,
+    params: defaultsForSchema(latest.params),
+  };
 }
 
 /** Encode un objet en base64url (paramètre `?params=` de l'aperçu). */

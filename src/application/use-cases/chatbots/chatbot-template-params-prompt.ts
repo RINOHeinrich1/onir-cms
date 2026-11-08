@@ -11,6 +11,7 @@ export type ChatbotTemplateParamsPromptInput = {
     extraInstructions: string;
   };
   knowledge: Array<{ titre: string; contenu: string }>;
+  conversation: Array<{ role: string; content: string }>;
   palette: SitePalette;
   params: TemplateParamSchema[];
 };
@@ -43,10 +44,11 @@ export function buildChatbotTemplateParamsPrompt(input: ChatbotTemplateParamsPro
     "Tu remplis les paramètres statiques d’un template visuel de widget ONIR CMS.",
     'Tu dois répondre uniquement avec un objet JSON de la forme {"params": { ... }}.',
     "Utilise strictement les clés fournies dans template_params.",
-    "Déduis les valeurs du libellé, de la description, du type et des options du paramètre.",
+    "Déduis les valeurs du libellé, du type et des options du paramètre.",
     "Respecte les types, les options, les bornes min/max et maxLength.",
-    "Pour les couleurs, utilise la palette du site lorsqu’elle est fournie.",
-    "Si aucune couleur fiable n’est disponible, propose une couleur cohérente avec la description et les connaissances.",
+    "Pour les couleurs, utilise la palette du site lorsqu’elle est fournie et fiable.",
+    "Si aucune couleur fiable n’est disponible, déduis les couleurs de la conversation du builder.",
+    "N’utilise pas la description du site ni les connaissances comme source de couleurs.",
     "En cas de doute, renvoie la valeur default du paramètre.",
     "N’invente aucune clé, aucune URL, aucun fichier et aucune source de données.",
     "Ne touche pas aux données dynamiques : tu ne remplis que template_params.",
@@ -58,6 +60,10 @@ export function buildChatbotTemplateParamsPrompt(input: ChatbotTemplateParamsPro
       knowledge: input.knowledge.slice(0, MAX_KNOWLEDGE_ITEMS).map((item) => ({
         titre: item.titre,
         contenu: item.contenu.slice(0, MAX_KNOWLEDGE_CHARS),
+      })),
+      conversation: input.conversation.slice(-40).map((message) => ({
+        role: message.role,
+        content: message.content.slice(0, MAX_KNOWLEDGE_CHARS),
       })),
       site_palette: input.palette,
       template_params: fillableParams(input.params),
