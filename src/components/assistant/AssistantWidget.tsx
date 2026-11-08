@@ -25,10 +25,23 @@ type DragState = {
 };
 
 const POSITION_KEY = "onir-assistant-position";
+const TIP_DISMISS_KEY = "onir-assistant-tips-dismissed-until";
+const TIP_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
+const TIP_DELAY_MS = 12_000;
+const TIP_REPEAT_MS = 60_000;
+const TIP_VISIBLE_MS = 9_000;
+const MAX_TIPS = 2;
+const TIP_WIDTH = 238;
 const WIDGET_WIDTH = 98;
 const WIDGET_HEIGHT = 108;
 const WIDGET_MARGIN = 18;
 const DRAG_THRESHOLD = 4;
+const TIP_MESSAGES = [
+  "Je suis là si besoin.",
+  "Créons un chatbot rapidement ?",
+  "Je peux vous aider à démarrer.",
+  "Une question sur ONIR ? Je suis là.",
+];
 
 function clampPosition(position: AssistantPosition): AssistantPosition {
   const maxX = Math.max(WIDGET_MARGIN, window.innerWidth - WIDGET_WIDTH - WIDGET_MARGIN);
@@ -75,6 +88,21 @@ function persistPosition(position: AssistantPosition): void {
   } catch {}
 }
 
+function tipsDismissed(): boolean {
+  try {
+    const raw = window.localStorage.getItem(TIP_DISMISS_KEY);
+    return raw !== null && Number(raw) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function dismissTips(): void {
+  try {
+    window.localStorage.setItem(TIP_DISMISS_KEY, String(Date.now() + TIP_DISMISS_MS));
+  } catch {}
+}
+
 function SparklesIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -105,7 +133,7 @@ function ArrowIcon() {
 
 /** Compagnon flottant disponible sur toutes les pages du dashboard. */
 export function AssistantWidget() {
-  const { openBuilder } = useChatbotBuilder();
+  const { openBuilder, builderOpen } = useChatbotBuilder();
   const [open, setOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [panel, setPanel] = useState<AssistantPanel>("home");
@@ -115,7 +143,11 @@ export function AssistantWidget() {
   const [idea, setIdea] = useState("");
   const [knowledgeTitle, setKnowledgeTitle] = useState("");
   const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipCount, setTipCount] = useState(0);
+  const [tipIndex, setTipIndex] = useState(0);
   const dragRef = useRef<DragState | null>(null);
+  const blocked = open || knowledgeOpen || builderOpen || dragging;
 
   useEffect(() => {
     setPosition(clampPosition(readStoredPosition() ?? defaultPosition()));
@@ -128,6 +160,32 @@ export function AssistantWidget() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    if (blocked) setTipVisible(false);
+  }, [blocked]);
+
+  useEffect(() => {
+    if (blocked || tipVisible || tipCount >= MAX_TIPS || tipsDismissed()) return;
+    const delay = tipCount === 0 ? TIP_DELAY_MS : TIP_REPEAT_MS;
+    const timer = window.setTimeout(() => {
+      setTipIndex(tipCount % TIP_MESSAGES.length);
+      setTipCount((count) => count + 1);
+      setTipVisible(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [blocked, tipVisible, tipCount]);
+
+  useEffect(() => {
+    if (!tipVisible) return;
+    const timer = window.setTimeout(() => setTipVisible(false), TIP_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [tipVisible]);
+
+  const dismissTip = () => {
+    setTipVisible(false);
+    dismissTips();
+  };
 
   const close = () => {
     setOpen(false);
@@ -181,6 +239,7 @@ export function AssistantWidget() {
       close();
       return;
     }
+    setTipVisible(false);
     setOpen(true);
   };
 
@@ -198,6 +257,7 @@ export function AssistantWidget() {
       close();
       return;
     }
+    setTipVisible(false);
     setOpen(true);
   };
 
@@ -216,30 +276,73 @@ export function AssistantWidget() {
     setMockDone(true);
   };
 
+  const tipBelow = position !== null && position.y < 120;
+  const tipStyle =
+    position === null
+      ? undefined
+      : {
+          left: `${Math.max(
+            WIDGET_MARGIN,
+            Math.min(
+              position.x + WIDGET_WIDTH - TIP_WIDTH,
+              window.innerWidth - TIP_WIDTH - WIDGET_MARGIN,
+            ),
+          )}px`,
+          top: `${tipBelow ? position.y + WIDGET_HEIGHT + 12 : position.y - 10}px`,
+        };
+
   return (
     <>
-      <button
-        type="button"
-        className={`assistant-launcher${dragging ? " is-dragging" : ""}${
-          open ? " is-dialog-open" : ""
-        }`}
-        style={
-          position === null
-            ? undefined
-            : { left: `${position.x}px`, top: `${position.y}px`, right: "auto", bottom: "auto" }
-        }
-        aria-label="Assistance IA"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        title="Assistance IA — glissez pour déplacer"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={finishDrag}
-        onPointerCancel={cancelDrag}
-        onKeyDown={onKeyDown}
-      >
-        <AssistantFairy />
-      </button>
+      {builderOpen ? null : (
+        <>
+          <button
+            type="button"
+            className={`assistant-launcher${dragging ? " is-dragging" : ""}${
+              open ? " is-dialog-open" : ""
+            }`}
+            style={
+              position === null
+                ? undefined
+                : {
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    right: "auto",
+                    bottom: "auto",
+                  }
+            }
+            aria-label="Assistante ONIR — ouvrir l’assistance"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            title="Assistante ONIR — glissez pour déplacer"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={finishDrag}
+            onPointerCancel={cancelDrag}
+            onKeyDown={onKeyDown}
+          >
+            <AssistantFairy />
+          </button>
+
+          {tipVisible && position !== null ? (
+            <div
+              className={`assistant-tip${tipBelow ? " is-below" : ""}`}
+              style={tipStyle}
+              role="status"
+              aria-live="polite"
+            >
+              <p>{TIP_MESSAGES[tipIndex]}</p>
+              <button
+                type="button"
+                className="assistant-tip-close"
+                onClick={dismissTip}
+                aria-label="Masquer l’astuce"
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
 
       {open ? (
         <Modal

@@ -1901,6 +1901,11 @@
   background: var(--surface);
 }
 
+.modal-close:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .modal-body {
   flex: 1;
   min-height: 0;

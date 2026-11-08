@@ -15,6 +15,7 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  dismissible = true,
   dialogClassName,
   bodyClassName,
   overlayClassName,
@@ -23,6 +24,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  dismissible?: boolean;
   dialogClassName?: string;
   bodyClassName?: string;
   overlayClassName?: string;
@@ -30,6 +32,8 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const dismissibleRef = useRef(dismissible);
+  dismissibleRef.current = dismissible;
   const titleId = useId();
 
   useEffect(() => {
@@ -49,6 +53,7 @@ export function Modal({
 
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
+        if (!dismissibleRef.current) return;
         event.preventDefault();
         onCloseRef.current();
         return;
@@ -88,7 +93,12 @@ export function Modal({
         overlayClassName === undefined ? "modal-overlay" : `modal-overlay ${overlayClassName}`
       }
     >
-      <button type="button" className="modal-backdrop" aria-label="Fermer" onClick={onClose} />
+      <button
+        type="button"
+        className="modal-backdrop"
+        aria-label="Fermer"
+        onClick={dismissible ? onClose : undefined}
+      />
       <div
         className={[
           "modal",
@@ -105,7 +115,13 @@ export function Modal({
       >
         <div className="modal-head">
           <h3 id={titleId}>{title}</h3>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Fermer">
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Fermer"
+            disabled={!dismissible}
+          >
             ×
           </button>
         </div>

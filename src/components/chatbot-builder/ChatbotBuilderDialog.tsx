@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { StoredChatbotBuildSession } from "@/application/ports/chatbot-build-session-repository";
 import type { ChatbotBuilderGeneration } from "@/application/use-cases/chatbot-builder/manage-chatbot-builder";
 import type { ConnaissanceConflict } from "@/application/use-cases/connaissances/resolve-connaissance-conflicts";
+import { AssistantFairy } from "@/components/assistant/AssistantFairy";
 import { ConnaissanceConflictModal } from "@/components/links/ConnaissanceConflictModal";
 import { chatbotConfigPayload } from "@/components/links/chatbot-config-draft";
 import {
@@ -19,6 +20,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BUILD_REQUIREMENT_LABELS, type ChatbotBuildSession } from "@/domain/chatbot-builder";
 import { isPublicChatLink } from "@/domain/entities/chat";
+import { canGenerateChatbot } from "./builder-readiness";
 import { builderGenerationToDraftState, serializeBuilderDraftState } from "./builder-to-draft";
 
 const SESSION_KEY = "onir-chatbot-builder-session";
@@ -111,6 +113,52 @@ function RefreshIcon() {
   );
 }
 
+function BuilderGenerating({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="chatbot-builder-generating" role="status" aria-live="polite" aria-busy="true">
+      <div className="chatbot-builder-generating-loader" aria-hidden="true" />
+      <h4>L’IA prépare votre chatbot…</h4>
+      <p>Analyse du brief, des sources et de la fiche de collecte.</p>
+      <p className="chatbot-builder-generating-hint">Cela prend généralement quelques secondes.</p>
+      <button type="button" className="btn subtle" onClick={onCancel}>
+        Annuler la génération
+      </button>
+    </div>
+  );
+}
+
+function BuilderReadyCoach({
+  onFocusGenerate,
+  onDismiss,
+}: {
+  onFocusGenerate: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="chatbot-builder-ready-coach" role="status" aria-live="polite">
+      <div className="chatbot-builder-ready-bubble">
+        <p>J’ai toutes les informations nécessaires. Cliquez ici pour créer le chatbot.</p>
+        <div className="chatbot-builder-ready-actions">
+          <button type="button" className="chatbot-builder-ready-focus" onClick={onFocusGenerate}>
+            Aller au bouton
+          </button>
+          <button
+            type="button"
+            className="chatbot-builder-ready-close"
+            onClick={onDismiss}
+            aria-label="Masquer l’indication"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+      <span className="chatbot-builder-ready-fairy" aria-hidden="true">
+        <AssistantFairy />
+      </span>
+    </div>
+  );
+}
+
 export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const toast = useToast();
@@ -129,7 +177,11 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
   const [briefOpen, setBriefOpen] = useState(false);
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [readyCoachVisible, setReadyCoachVisible] = useState(false);
   const initializedRef = useRef(false);
+  const readyCoachShownRef = useRef(false);
+  const generationAbortRef = useRef<AbortController | null>(null);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -149,6 +201,8 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
       );
       setGeneration(null);
       setFiles([]);
+      setReadyCoachVisible(false);
+      readyCoachShownRef.current = false;
       applySession(stored);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Impossible de démarrer la session");
@@ -185,6 +239,10 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
     element.scrollTop = element.scrollHeight;
     if (pending) element.scrollTop = element.scrollHeight;
   }, [session, pending]);
+
+  useEffect(() => {
+    return () => generationAbortRef.current?.abort();
+  }, []);
 
   const send = async (value?: string): Promise<void> => {
     const message = (value ?? input).trim();
@@ -265,7 +323,10 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
       setError("Rattachez à nouveau les documents avant de générer.");
       return;
     }
+    const controller = new AbortController();
+    generationAbortRef.current = controller;
     setGenerating(true);
+    setReadyCoachVisible(false);
     setError(null);
     try {
       const formData = new FormData();
@@ -274,14 +335,26 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
         await fetch(`/api/chatbots/ai/builder/sessions/${draftId}/generate`, {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         }),
       );
-      setGeneration(result);
+      if (!controller.signal.aborted) setGeneration(result);
     } catch (cause) {
+      if (controller.signal.aborted) {
+        toast.info("Génération annulée.");
+        return;
+      }
       setError(cause instanceof Error ? cause.message : "La génération a échoué");
     } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null;
       setGenerating(false);
     }
+  };
+
+  const cancelGenerationRun = (): void => {
+    generationAbortRef.current?.abort();
+    generationAbortRef.current = null;
+    setGenerating(false);
   };
 
   const cleanupBuilderSession = (): void => {
@@ -458,6 +531,8 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
     setWebsiteInput("");
     setConflicts(null);
     setError(null);
+    setReadyCoachVisible(false);
+    readyCoachShownRef.current = false;
     void start();
   };
 
@@ -465,14 +540,34 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
   const missingLabels = (session?.missingMandatory ?? []).map(
     (requirement) => BUILD_REQUIREMENT_LABELS[requirement],
   );
+  const documentsMissing =
+    session !== null && session.brief.sources.documents.length > 0 && files.length === 0;
   const canGenerate =
     session !== null &&
-    session.missingMandatory.length === 0 &&
-    !pending &&
-    !generating &&
-    generation === null;
+    canGenerateChatbot({
+      missingRequirements: session.missingMandatory.length,
+      documentCount: session.brief.sources.documents.length,
+      attachedFileCount: files.length,
+      pending,
+      sourcePending,
+      generating,
+      hasGeneration: generation !== null,
+    });
+
+  useEffect(() => {
+    if (!canGenerate) {
+      setReadyCoachVisible(false);
+      return;
+    }
+    if (readyCoachShownRef.current) return;
+    readyCoachShownRef.current = true;
+    const timer = window.setTimeout(() => setReadyCoachVisible(true), 300);
+    return () => window.clearTimeout(timer);
+  }, [canGenerate]);
+
   const generatedState = generation === null ? null : builderGenerationToDraftState(generation);
   const handleClose = (): void => {
+    if (generating) return;
     if (generation === null) {
       onClose();
       return;
@@ -483,19 +578,34 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
   return (
     <>
       <Modal
-        title={generation === null ? "Créer un chatbot avec l’IA" : "Validation du chatbot"}
+        title={
+          generating
+            ? "Création du chatbot"
+            : generation === null
+              ? "Créer un chatbot avec l’IA"
+              : "Validation du chatbot"
+        }
         onClose={handleClose}
         wide
+        dismissible={!generating}
         dialogClassName={
-          generation === null ? "chatbot-builder-modal" : "chatbot-builder-review-modal"
+          generating
+            ? "chatbot-builder-modal chatbot-builder-generating-modal"
+            : generation === null
+              ? "chatbot-builder-modal"
+              : "chatbot-builder-review-modal"
         }
         bodyClassName={
-          generation === null
-            ? "chatbot-builder-body"
-            : "chatbot-builder-body chatbot-builder-review-body"
+          generating
+            ? "chatbot-builder-body chatbot-builder-generating-body"
+            : generation === null
+              ? "chatbot-builder-body"
+              : "chatbot-builder-body chatbot-builder-review-body"
         }
       >
-        {session === null ? (
+        {generating ? (
+          <BuilderGenerating onCancel={cancelGenerationRun} />
+        ) : session === null ? (
           <div className="chatbot-builder-loading">
             <p>{error ?? "Initialisation de l’assistant…"}</p>
             {error === null ? null : (
@@ -656,16 +766,32 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
                   aria-label="Votre message"
                 />
                 <div className="chatbot-builder-composer-actions">
-                  <button
-                    type="button"
-                    className="chatbot-builder-icon-btn generate"
-                    title={canGenerate ? "Générer le chatbot" : "Complétez le brief pour générer"}
-                    aria-label="Générer le chatbot"
-                    disabled={!canGenerate || sourcePending}
-                    onClick={() => void generate()}
-                  >
-                    <SparklesIcon />
-                  </button>
+                  <div className="chatbot-builder-generate-wrap">
+                    {readyCoachVisible && canGenerate ? (
+                      <BuilderReadyCoach
+                        onFocusGenerate={() => generateButtonRef.current?.focus()}
+                        onDismiss={() => setReadyCoachVisible(false)}
+                      />
+                    ) : null}
+                    <button
+                      ref={generateButtonRef}
+                      type="button"
+                      className={`chatbot-builder-icon-btn generate${canGenerate ? " is-ready" : ""}`}
+                      title={
+                        canGenerate
+                          ? "Générer le chatbot"
+                          : documentsMissing
+                            ? "Rattachez à nouveau les documents avant de générer"
+                            : "Complétez le brief pour générer"
+                      }
+                      aria-label="Générer le chatbot"
+                      disabled={!canGenerate || sourcePending}
+                      onClick={() => void generate()}
+                    >
+                      <SparklesIcon />
+                      {canGenerate ? <span>Générer le chatbot</span> : null}
+                    </button>
+                  </div>
                   <button
                     type="submit"
                     className="chatbot-builder-icon-btn send"
