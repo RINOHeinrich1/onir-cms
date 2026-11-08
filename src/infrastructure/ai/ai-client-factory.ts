@@ -8,12 +8,14 @@ import type {
 } from "@/application/ports/ai-client-factory";
 import type { AiProviderModelRepository } from "@/application/ports/ai-model-repository";
 import type { AiProviderRepository } from "@/application/ports/ai-provider-repository";
+import type { AiRateLimiter } from "@/application/ports/ai-rate-limiter";
 import type { AiUsageRecorder } from "@/application/ports/ai-usage-recorder";
 import type { AiUsageRepository } from "@/application/ports/ai-usage-repository";
 import { createOrganizationAiUsageRecorder } from "@/application/use-cases/ai/record-organization-ai-usage";
 import { resolveUsageTargets } from "@/application/use-cases/ai/resolve-usage-targets";
 import { aiCapabilitiesFor } from "@/domain/ai-capabilities";
 import { infomaniakBaseUrl } from "@/domain/entities/ai-provider";
+import { getAiRateLimiter } from "@/infrastructure/ai/ai-rate-limiter";
 import {
   chatCompletionForProvider,
   chatCompletionWithToolsForProvider,
@@ -32,6 +34,8 @@ export type AiClientFactoryDependencies = {
   usage?: AiUsageRepository;
   /** Comptage central et quotas organisation (ADR-0065). */
   usageRecorder?: AiUsageRecorder;
+  /** Régulation globale des appels (ADR-0079). */
+  rateLimiter?: AiRateLimiter | null;
 };
 
 function unavailable(message: string): AiProviderUnavailableError {
@@ -188,47 +192,65 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
     return wrapped;
   };
 
+  const limitClient = (resolved: ResolvedAiTarget, client: AiClient): AiClient => {
+    const limiter = deps.rateLimiter;
+    if (limiter === undefined || limiter === null) return client;
+    const key = resolved.providerId ?? "legacy";
+    const wrapped: AiClient = {
+      ...(client.capabilities === undefined ? {} : { capabilities: client.capabilities }),
+      complete: (input) => limiter.run(key, () => client.complete(input)),
+    };
+    const withTools = client.completeWithTools;
+    if (withTools !== undefined) {
+      wrapped.completeWithTools = (input) => limiter.run(key, () => withTools(input));
+    }
+    return wrapped;
+  };
+
   const buildClient = async (resolved: ResolvedAiTarget, operation?: string): Promise<AiClient> => {
     if (resolved.source === "legacy") {
       const legacy = legacyAiCredentials();
       if (legacy === null) throw new AiNotConfiguredError();
-      return instrumentClient(resolved, operation, {
-        capabilities: resolved.capabilities,
-        async complete(input) {
-          return chatCompletionForProvider({
-            baseUrl: infomaniakBaseUrl(legacy.productId),
-            apiKey: legacy.token,
-            model: resolved.model,
-            dialect: "infomaniak",
-            label: resolved.providerLabel,
-            messages: [{ role: "system", content: input.system }, ...input.messages],
-            ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
-            reasoning: input.reasoning ?? resolved.reasoningMode,
-            structured: input.structured === true,
-            capabilities: resolved.capabilities,
-            onUsage: input.onUsage,
-            onFinishReason: input.onFinishReason,
-          });
-        },
-        async completeWithTools(input) {
-          return chatCompletionWithToolsForProvider({
-            baseUrl: infomaniakBaseUrl(legacy.productId),
-            apiKey: legacy.token,
-            model: resolved.model,
-            dialect: "infomaniak",
-            label: resolved.providerLabel,
-            messages: [{ role: "system", content: input.system }, ...input.messages],
-            ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
-            reasoning: input.reasoning ?? resolved.reasoningMode,
-            structured: input.structured === true,
-            ...(input.tools === undefined ? {} : { tools: input.tools }),
-            ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
-            capabilities: resolved.capabilities,
-            onUsage: input.onUsage,
-            onFinishReason: input.onFinishReason,
-          });
-        },
-      });
+      return limitClient(
+        resolved,
+        instrumentClient(resolved, operation, {
+          capabilities: resolved.capabilities,
+          async complete(input) {
+            return chatCompletionForProvider({
+              baseUrl: infomaniakBaseUrl(legacy.productId),
+              apiKey: legacy.token,
+              model: resolved.model,
+              dialect: "infomaniak",
+              label: resolved.providerLabel,
+              messages: [{ role: "system", content: input.system }, ...input.messages],
+              ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+              reasoning: input.reasoning ?? resolved.reasoningMode,
+              structured: input.structured === true,
+              capabilities: resolved.capabilities,
+              onUsage: input.onUsage,
+              onFinishReason: input.onFinishReason,
+            });
+          },
+          async completeWithTools(input) {
+            return chatCompletionWithToolsForProvider({
+              baseUrl: infomaniakBaseUrl(legacy.productId),
+              apiKey: legacy.token,
+              model: resolved.model,
+              dialect: "infomaniak",
+              label: resolved.providerLabel,
+              messages: [{ role: "system", content: input.system }, ...input.messages],
+              ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+              reasoning: input.reasoning ?? resolved.reasoningMode,
+              structured: input.structured === true,
+              ...(input.tools === undefined ? {} : { tools: input.tools }),
+              ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
+              capabilities: resolved.capabilities,
+              onUsage: input.onUsage,
+              onFinishReason: input.onFinishReason,
+            });
+          },
+        }),
+      );
     }
 
     if (resolved.providerId === null) throw new AiNotConfiguredError();
@@ -253,43 +275,46 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
         "Clé fournisseur IA illisible : vérifiez Configuration → Secrets applicatifs",
       );
     }
-    return instrumentClient(resolved, operation, {
-      capabilities: resolved.capabilities,
-      async complete(input) {
-        return chatCompletionForProvider({
-          baseUrl: provider.baseUrl,
-          apiKey,
-          model: resolved.model,
-          dialect: provider.dialect,
-          label: provider.label,
-          messages: [{ role: "system", content: input.system }, ...input.messages],
-          ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
-          reasoning: input.reasoning ?? resolved.reasoningMode,
-          structured: input.structured === true,
-          capabilities: resolved.capabilities,
-          onUsage: input.onUsage,
-          onFinishReason: input.onFinishReason,
-        });
-      },
-      async completeWithTools(input) {
-        return chatCompletionWithToolsForProvider({
-          baseUrl: provider.baseUrl,
-          apiKey,
-          model: resolved.model,
-          dialect: provider.dialect,
-          label: provider.label,
-          messages: [{ role: "system", content: input.system }, ...input.messages],
-          ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
-          reasoning: input.reasoning ?? resolved.reasoningMode,
-          structured: input.structured === true,
-          ...(input.tools === undefined ? {} : { tools: input.tools }),
-          ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
-          capabilities: resolved.capabilities,
-          onUsage: input.onUsage,
-          onFinishReason: input.onFinishReason,
-        });
-      },
-    });
+    return limitClient(
+      resolved,
+      instrumentClient(resolved, operation, {
+        capabilities: resolved.capabilities,
+        async complete(input) {
+          return chatCompletionForProvider({
+            baseUrl: provider.baseUrl,
+            apiKey,
+            model: resolved.model,
+            dialect: provider.dialect,
+            label: provider.label,
+            messages: [{ role: "system", content: input.system }, ...input.messages],
+            ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+            reasoning: input.reasoning ?? resolved.reasoningMode,
+            structured: input.structured === true,
+            capabilities: resolved.capabilities,
+            onUsage: input.onUsage,
+            onFinishReason: input.onFinishReason,
+          });
+        },
+        async completeWithTools(input) {
+          return chatCompletionWithToolsForProvider({
+            baseUrl: provider.baseUrl,
+            apiKey,
+            model: resolved.model,
+            dialect: provider.dialect,
+            label: provider.label,
+            messages: [{ role: "system", content: input.system }, ...input.messages],
+            ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+            reasoning: input.reasoning ?? resolved.reasoningMode,
+            structured: input.structured === true,
+            ...(input.tools === undefined ? {} : { tools: input.tools }),
+            ...(input.toolChoice === undefined ? {} : { toolChoice: input.toolChoice }),
+            capabilities: resolved.capabilities,
+            onUsage: input.onUsage,
+            onFinishReason: input.onFinishReason,
+          });
+        },
+      }),
+    );
   };
 
   const forUsage = async (
@@ -434,5 +459,6 @@ export function pgAiClientFactory(pool: Pool): AiClientFactory {
     models: pgAiProviderModelRepository(pool),
     usage: pgAiUsageRepository(pool),
     usageRecorder: createOrganizationAiUsageRecorder({ quotas }),
+    rateLimiter: getAiRateLimiter(),
   });
 }

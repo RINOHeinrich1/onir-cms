@@ -62,6 +62,19 @@ export class AiNotConfiguredError extends AppError {
   }
 }
 
+/** Capacité IA momentanément saturée ou limiteur indisponible (ADR-0079). */
+export class AiRateLimitError extends AppError {
+  readonly retryAfterSeconds: number;
+
+  constructor(
+    message = "Capacité IA temporairement saturée — réessayez dans un instant",
+    retryAfterSeconds = 5,
+  ) {
+    super(message, 503);
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 /** Le lien (ou le défaut d'organisation) désigne un fournisseur/modèle indisponible. */
 export class AiProviderUnavailableError extends AppError {
   constructor(message = "Fournisseur IA indisponible — réaffectez le lien") {

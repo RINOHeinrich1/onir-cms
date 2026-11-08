@@ -220,6 +220,48 @@ export function webhookWorkerEnabled(): boolean {
   return env("WEBHOOK_WORKER_ENABLED") !== "false";
 }
 
+export type AiRateLimitMode = "auto" | "local" | "distributed";
+export type AiRateLimitDegraded = "fail_closed" | "local_share" | "fail_open";
+
+export type AiRateLimitConfig = {
+  enabled: boolean;
+  mode: AiRateLimitMode;
+  degraded: AiRateLimitDegraded;
+  rpm: number;
+  maxConcurrent: number;
+  queueLimit: number;
+  maxWaitMs: number;
+  replicaCount: number;
+  valkeyUrl: string | undefined;
+  id: string;
+};
+
+function oneOf<T extends string>(name: string, values: readonly T[], fallback: T): T {
+  const raw = env(name);
+  if (raw === undefined) return fallback;
+  return values.includes(raw as T) ? (raw as T) : fallback;
+}
+
+/** Configuration du rate limiting IA (ADR-0079). */
+export function aiRateLimitConfig(): AiRateLimitConfig {
+  return {
+    enabled: booleanEnv("AI_RATE_LIMIT_ENABLED", false),
+    mode: oneOf("AI_RATE_LIMIT_MODE", ["auto", "local", "distributed"] as const, "auto"),
+    degraded: oneOf(
+      "AI_RATE_LIMIT_DEGRADED",
+      ["fail_closed", "local_share", "fail_open"] as const,
+      "local_share",
+    ),
+    rpm: positiveInt("AI_RATE_LIMIT_RPM", 55),
+    maxConcurrent: positiveInt("AI_RATE_LIMIT_MAX_CONCURRENT", 4),
+    queueLimit: positiveInt("AI_RATE_LIMIT_QUEUE_LIMIT", 100),
+    maxWaitMs: positiveInt("AI_RATE_LIMIT_MAX_WAIT_MS", 15_000),
+    replicaCount: replicaCount(),
+    valkeyUrl: valkeyUrl(),
+    id: env("AI_RATE_LIMIT_ID") ?? "onir:ai:shared",
+  };
+}
+
 /** Compte administrateur par défaut (seed), jamais exposé au client. */
 export type DefaultAdmin = {
   email: string;

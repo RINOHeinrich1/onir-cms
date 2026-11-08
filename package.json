@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
+    "bottleneck": "^2.19.5",
     "cheerio": "^1.2.0",
     "fflate": "^0.8.3",
     "ioredis": "^6.0.0",
