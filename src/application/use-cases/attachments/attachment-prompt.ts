@@ -20,12 +20,19 @@ export function buildAttachmentPromptContext(
     byField.set(attachment.fieldName, current);
   }
 
+  const labelsByName = new Map(
+    fields.map((field) => [field.name, field.label.trim() === "" ? field.name : field.label]),
+  );
   const lines = fileFields.map((field) => {
     const files = byField.get(field.name) ?? [];
+    const conditionalField =
+      field.requiredIf === undefined
+        ? ""
+        : (labelsByName.get(field.requiredIf.field) ?? field.requiredIf.field);
     const required = field.required
       ? "obligatoire"
       : field.requiredIf !== undefined
-        ? `obligatoire si ${field.requiredIf.field} = « ${field.requiredIf.equals} »`
+        ? `obligatoire si ${conditionalField} = « ${field.requiredIf.equals} »`
         : "facultatif";
     const state =
       files.length === 0

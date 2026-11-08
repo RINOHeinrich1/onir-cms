@@ -66,6 +66,7 @@ export function normalizeFicheData(
 function fieldsGuide(fiche: FicheDefinition): string {
   return buildFieldsGuide(fiche.fields, {
     label: "Informations à collecter pour cette fiche :",
+    includeTechnicalNames: false,
   });
 }
 

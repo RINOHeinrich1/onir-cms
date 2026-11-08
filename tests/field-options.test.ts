@@ -55,14 +55,40 @@ describe("options de champs", () => {
     }
   });
 
-  it("le guide expose obligatoire, options et format", () => {
+  it("le guide conversationnel n’expose pas les noms techniques", () => {
     const guide = buildFieldsGuide([
       TYPE_FIELD,
       { name: "site", label: "Site", type: "url", required: false },
     ]);
-    expect(guide).toContain("Type d’organisation [type_organisation] — obligatoire — select");
+    expect(guide).toContain("Type d’organisation — obligatoire — select");
     expect(guide).toContain("valeurs autorisées : Entreprise | Société");
-    expect(guide).toContain("Site [site] — facultatif — url — format URL http(s)");
+    expect(guide).toContain("Site — facultatif — url — format URL http(s)");
+    expect(guide).not.toContain("[type_organisation]");
+    expect(guide).not.toContain("[site]");
     expect(guide).toContain("Ne dis jamais que tout est complet");
+  });
+
+  it("le guide conversationnel ne fuit pas le champ d’une condition requiredIf", () => {
+    const guide = buildFieldsGuide([
+      { ...TYPE_FIELD, required: false },
+      {
+        name: "detail",
+        label: "Détail",
+        type: "text",
+        required: false,
+        requiredIf: { field: "type_organisation", equals: "Autre" },
+      },
+    ]);
+    expect(guide).toContain("obligatoire si Type d’organisation vaut « Autre »");
+    expect(guide).not.toContain("[type_organisation]");
+  });
+
+  it("le guide technique peut exposer les noms de champs pour l’extraction", () => {
+    const guide = buildFieldsGuide(
+      [TYPE_FIELD, { name: "site", label: "Site", type: "url", required: false }],
+      { includeTechnicalNames: true },
+    );
+    expect(guide).toContain("Type d’organisation [type_organisation] — obligatoire — select");
+    expect(guide).toContain("Site [site] — facultatif — url — format URL http(s)");
   });
 });

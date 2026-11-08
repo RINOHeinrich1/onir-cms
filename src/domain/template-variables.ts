@@ -93,6 +93,7 @@ export function buildRenderVariables(
 
   vars.champs_guide = buildFieldsGuide(definition.fields, {
     label: "Informations à réunir :",
+    includeTechnicalNames: false,
   });
 
   return vars;
