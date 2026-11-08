@@ -1,432 +1,387 @@
-# 0076. Stratégie de cache Valkey — données, TTL et invalidation
+# 0076. Cache runtime local par nœud Next.js
 
 - **Statut** : Proposé
 - **Date** : 2026-11-08
 - **Décideurs** : équipe projet
-- **Référence** : ADR-0004, ADR-0025, ADR-0036, ADR-0074, ADR-0075.
+- **Référence** : ADR-0074, ADR-0075, ADR-0078, ADR-0079.
 - **Complète** : ADR-0074, ADR-0075.
 - **Remplace** : aucune.
 
 ## Contexte
 
-L’application est passée en multi-instance derrière HAProxy, avec :
+L’application est multi-instance derrière HAProxy :
 
-- deux nœuds Next.js dans deux régions ;
-- PostgreSQL partagé ;
-- SeaweedFS pour le stockage ;
-- Valkey pour le temps réel (`REALTIME_MODE=valkey`).
+- `141` : Next.js ;
+- `167` : Next.js + PostgreSQL + Valkey + SeaweedFS ;
+- PostgreSQL est distant pour `141`.
 
-La latence réseau entre les nœuds et PostgreSQL est mesurée :
+La latence mesurée est structurante :
 
 | Liaison | RTT moyen |
 |---|---:|
-| Next.js `141` (Gravelines, FR) → PostgreSQL `167` (Montréal, CA) | **79,0 ms** |
-| HAProxy `51` (Londres, UK) → PostgreSQL `167` | **77,1 ms** |
-| HAProxy `51` → Next.js `141` | **4,2 ms** |
+| Next.js `141` → PostgreSQL `167` | **79,0 ms** |
 | Next.js `167` → PostgreSQL locale | **0,16 ms** |
+| `141` → Valkey `167` | **~79 ms** |
 
-Requête `SELECT 1` :
+Chaque requête SQL ou accès Valkey depuis `141` coûte donc environ 79 ms.
 
-| Origine | p50 | p95 |
-|---|---:|---:|
-| Next.js `141` → DB `167` | **79,26 ms** | **81,93 ms** |
-| Next.js `167` → DB locale | **0,16 ms** | **0,34 ms** |
+Le chargement d’un tour de chat peut impliquer :
 
-Conséquences :
+- le lien et sa configuration stable ;
+- la version courante du chatbot ;
+- la définition de la fiche de collecte ;
+- les connaissances actives ;
+- les médias actifs ;
+- le prompt compilé ;
+- les paramètres d’organisation.
 
-- depuis `141`, chaque requête SQL séquentielle coûte ~79 ms ;
-- 10 requêtes = ~790 ms ;
-- 50 requêtes = ~3,95 s ;
-- le cache ne doit pas être pensé uniquement comme un cache « proche de la DB » :
-  un Valkey situé à Montréal coûte aussi ~79 ms depuis `141`.
+À grande échelle, refaire toutes ces lectures PostgreSQL à chaque tour est
+nuisible à la vitesse de chargement des chatbots et à la fluidité des
+conversations.
 
-Le cache doit donc principalement :
+La priorité est donc :
 
-1. éviter les lectures répétées de **configuration** et de **contexte d’authentification** ;
-2. ne pas cacher les données métier write-heavy ;
-3. rester correct en multi-instance ;
-4. ne jamais devenir une dépendance bloquante.
+1. accélérer le runtime des chatbots ;
+2. accélérer les conversations ;
+3. ne pas dépendre d’un cache central distant ;
+4. ne pas coupler le métier au cache ;
+5. conserver PostgreSQL comme source de vérité.
+
+Les configurations d’administration, les listes du dashboard, les sessions et
+les statistiques ne sont **pas** le périmètre prioritaire de cette optimisation.
 
 ## Décision
 
-### 1. Principe directeur
+### 1. Un Valkey local par nœud Next.js
 
-Une donnée est cacheable si elle respecte les quatre critères suivants :
-
-1. elle est lue plusieurs fois ;
-2. elle est modifiée rarement ;
-3. une faible stale est acceptable ;
-4. elle n’est pas critique pour la sécurité, les quotas ou la cohérence métier.
-
-Le cache est **cache-aside** :
+Chaque nœud Next.js possède son propre Valkey de cache :
 
 ```text
-lire cache
-  hit  → retourner
-  miss → lire PostgreSQL
-         écrire cache avec TTL
+141 : Next.js + Valkey local
+167 : Next.js + Valkey local
 ```
 
-PostgreSQL reste la source de vérité. Aucune donnée métier ne doit exister
-**uniquement** dans Valkey.
+Le Valkey central existant n’est **pas** utilisé pour servir les données de
+cache à distance :
 
-### 2. Données à mettre en cache
+- il reste utilisé pour le temps réel ;
+- il peut servir de bus d’invalidation ;
+- il ne doit pas être le cache de données de `141`.
 
-#### Priorité 0 — sessions et configuration de chat
+Un cache local évite les 79 ms de WAN à chaque hit. Le cache ne doit pas
+transformer un problème de lecture PostgreSQL en problème de lecture Valkey
+distante.
 
-| Donnée | Clé | L1 mémoire | L2 Valkey | Invalidation |
-|---|---|---:|---:|---|
-| Session + user + org + rôle | `session:{sha256(token)}` | 15 s | 30 s, plafonné à `expiresAt` | logout, switch org, changement de rôle, mot de passe, compte désactivé |
-| Config stable du lien | `link:{linkId}:cfg` et `linktoken:{sha256(token)}:cfg` | 60 s | 5 min | update/revoke/token rotate du lien |
-| État du lien | `link:{linkId}:state` | 5 s | 15 s | update/revoke, changement de quota |
-| Version de config chatbot | `botcfg:{configId}` | 5 min | 1 h–24 h | aucune : nouvelle version = nouvelle clé |
-| Organisation | `org:{orgId}` | 30 s | 5 min | rename, suspension |
-
-La configuration de chat est le meilleur candidat :
-
-- `chatbot_configs` est versionnée et immuable ;
-- une nouvelle configuration crée une nouvelle ligne et un nouvel ID ;
-- le lien pointe vers `current_config_id` ;
-- le cache d’une version peut donc vivre longtemps.
-
-Attention : `chat_links` mélange des champs stables et des champs mutables
-(`actif`, `expires_at`, `tokens_used`, `fiches_generated`, `visit_count`).
-Il ne faut **pas cacher l’entité `ChatLink` complète** :
-
-```text
-link_config  → stable, cacheable
-link_state   → actif/expiré/quota, TTL court ou DB
-```
-
-La méthode `findByTokenHash` exécute aussi une remise à zéro des périodes de
-tokens expirées avant la lecture. Un cache au niveau du repository casserait
-cette logique.
-
-#### Priorité 1 — référentiels et configuration
-
-| Donnée | Clé | L1 | L2 | Invalidation |
-|---|---|---:|---:|---|
-| Catégories | `org:{orgId}:categories` | 60 s | 10 min | CRUD catégorie |
-| Confidentialités | `org:{orgId}:confidentialites` | 60 s | 10 min | CRUD confidentialité |
-| Templates visuels assignés | `org:{orgId}:visual-templates` | 60 s | 10 min | assign/unassign/import |
-| Version de template visuel | `vt:{templateId}:{version}` | 5 min | 1 h–24 h | aucune : version immuable |
-| Résultats de bindings de données | clé existante avec `revision` | selon binding | selon binding | nouvelle `revision` = nouvelle clé |
-| Médias actifs par lien et type | `media:{linkId}:{type}:{revision}` | 30 s | 2–5 min | CRUD média / assignation |
-| Connaissances actives par lien | `knowledge:{linkId}:{revision}` | 30 s | 1–5 min | CRUD connaissance / assignation |
-
-Pour les connaissances et médias :
-
-- ne pas mettre un corpus de plusieurs Mo dans une seule valeur Valkey ;
-- si la liste dépasse ~100–250 Ko, cacher un index d’IDs + une révision,
-  puis les documents individuellement ;
-- ou conserver la liste en L1 local avec une taille maximale.
-
-#### Priorité 2 — agrégats et métadonnées
-
-| Donnée | Clé | TTL | Invalidation |
-|---|---|---:|---|
-| Statistiques dashboard | `org:{orgId}:stats:{rangeHash}` | 30–60 s | TTL suffit |
-| Catalogue de modèles IA | `ai:models:{providerId}` | 5–15 min | mise à jour fournisseur |
-| Secrets applicatifs | cache mémoire existant | — | mécanisme ADR-0036 inchangé |
-| Cache de données de templates | clé existante + `revision` | TTL du binding | migrer le cache mémoire vers L2 |
-
-### 3. Données à ne pas cacher
-
-| Donnée | Raison |
-|---|---|
-| Conversations et messages | écrits en continu, SSE, ordre et cohérence importants |
-| Prospects, fiches, leads | données métier par utilisateur, write-heavy, invalidation complexe |
-| Compteurs de quotas (`tokens_used`, `fiches_generated`, `visit_count`) | une valeur stale peut autoriser un dépassement de quota |
-| Réponses IA | personnalisées, coûteuses à invalider, risque de fuite de données |
-| Hash de mot de passe et tokens bruts | jamais en cache |
-| Décisions d’autorisation longues | risque d’élévation de privilèges après retrait d’un rôle |
-| Listes paginées du dashboard | changement permanent, gain faible |
-| Corps binaire des médias | laisser S3/CDN/navigateur s’en charger |
-| Pages HTML complètes personnalisées | dépendantes de l’utilisateur et de l’organisation |
-
-Les listes de conversations, prospects, fiches et leads peuvent utiliser une
-mémoïsation **par requête** (React `cache`, DataLoader), mais pas un cache
-persistant Valkey.
-
-### 4. Convention de clés
-
-```text
-onir:v1:session:{sha256(token)}
-onir:v1:org:{orgId}
-onir:v1:link:{linkId}:cfg
-onir:v1:link:{linkId}:state
-onir:v1:linktoken:{sha256(token)}:cfg
-onir:v1:botcfg:{configId}
-onir:v1:vt:{templateId}:{version}
-onir:v1:org:{orgId}:categories
-onir:v1:org:{orgId}:confidentialites
-onir:v1:org:{orgId}:visual-templates
-onir:v1:org:{orgId}:stats:{rangeHash}
-onir:v1:media:{linkId}:{type}:{revision}
-onir:v1:knowledge:{linkId}:{revision}
-onir:v1:template-data:{bindingId}:{revision}:{contract}:{inputs}
-```
-
-Règles :
-
-- préfixe `onir:v1` pour permettre une invalidation globale par changement de
-  version de schéma ;
-- identifiant d’organisation dans toutes les clés multi-tenant ;
-- jamais de token brut dans une clé : utiliser le hash ;
-- ne pas partager les préfixes du bus temps réel (`realtime`) et des rate limits
-  (`ratelimit`) avec le cache de données ;
-- utiliser un `db` Valkey séparé ou une instance séparée pour le cache si les
-  politiques d’éviction diffèrent.
-
-### 5. Politique de TTL
-
-- TTL obligatoire sur toutes les clés de cache de données ;
-- jitter de ±10 % pour éviter les expirations simultanées ;
-- L1 plus court que L2 ;
-- session plafonnée à `expiresAt` ;
-- pas de TTL infini, même pour une version immutable : garder un plafond
-  (1 h–24 h) et une éviction LRU ;
-- une clé peut être supprimée avant son TTL par invalidation.
-
-Valeurs de départ recommandées :
-
-| Donnée | TTL L1 | TTL L2 |
-|---|---:|---:|
-| Session | 15 s | 30 s |
-| État de lien | 5 s | 15 s |
-| Config de lien | 60 s | 5 min |
-| Config chatbot | 5 min | 1 h |
-| Organisation | 30 s | 5 min |
-| Référentiels | 60 s | 10 min |
-| Connaissances / médias | 30 s | 1–5 min |
-| Statistiques | 15 s | 30–60 s |
-| Templates visuels | 5 min | 1 h |
-
-### 6. Politique d’invalidation
-
-#### Règle 1 — invalider après commit
-
-```text
-écriture PostgreSQL
-  → COMMIT
-  → suppression des clés L2
-  → publication d’un événement d’invalidation
-  → suppression des clés L1 sur chaque instance
-```
-
-Ne jamais écrire ou supprimer le cache avant le commit.
-
-#### Règle 2 — préférer les clés versionnées
-
-Pour les données versionnées ou immuables, ne pas invalider :
-
-```text
-botcfg:{configId}
-vt:{templateId}:{version}
-template-data:{bindingId}:{revision}:...
-```
-
-Une nouvelle version crée une nouvelle clé. Les anciennes expirent.
-
-#### Règle 3 — matrice d’invalidation
-
-| Événement | Clés à invalider |
-|---|---|
-| login / logout / switch organisation | `session:{hash}` ; index des sessions de l’utilisateur |
-| changement de rôle / retrait de membre | sessions de l’utilisateur + `membership:{orgId}:{userId}` |
-| mise à jour ou révocation d’un lien | `link:{id}:cfg`, `link:{id}:state`, `linktoken:{hash}:cfg` |
-| rotation du token de lien | ancien et nouveau `linktoken:{hash}:cfg` |
-| nouvelle version de config chatbot | nouvelle clé `botcfg:{configId}` ; invalider `link:{id}:cfg` |
-| suspension d’organisation | `org:{id}` + sessions de l’org + configs de liens de l’org |
-| CRUD catégories | `org:{id}:categories` |
-| CRUD confidentialité | `org:{id}:confidentialites` |
-| CRUD média | `media:{linkId}:{type}:{revision}` |
-| CRUD connaissance | `knowledge:{linkId}:{revision}` |
-| sauvegarde d’un binding de données | nouvelle `revision` ; pas de purge |
-| publication d’un template visuel | nouvelle clé `vt:{id}:{version}` |
-
-#### Règle 4 — invalidation multi-instance
-
-- supprimer la clé L2 partagée ;
-- publier un événement `cache:invalidate` sur Valkey ;
-- chaque instance supprime ses clés L1 correspondantes ;
-- en cas d’échec de publication, le TTL reste le filet de sécurité.
-
-Le bus d’invalidation doit être distinct du bus SSE métier, même s’il peut
-réutiliser la même instance Valkey.
-
-### 7. Architecture de cache
+### 2. Architecture à trois niveaux
 
 ```text
 L1 : mémoire du processus Next.js
-     TTL court, petite taille, pas de réseau
-     configs chaudes, sessions, petits référentiels
+     TTL court, pas de réseau
+     configs chaudes et pointeurs
 
-L2 : Valkey
-     TTL plus long, partagé entre instances
-     invalidation par pub/sub
+L2 : Valkey local au nœud
+     TTL plus long, données runtime
+     pas de partage de données entre nœuds
+
+Bus : Valkey central
+     uniquement événements d’invalidation
+     pas de données runtime
 
 DB : PostgreSQL
      source de vérité
 ```
 
-Le L1 est indispensable dans la topologie actuelle :
+Règles :
 
-- `141` → Valkey `167` coûte aussi ~79 ms ;
-- un cache L2 central à Montréal ne réduit donc pas la latence de `141` ;
-- il peut seulement remplacer plusieurs requêtes SQL par un seul aller-retour
-  Valkey ;
-- le L1 local évite complètement ce coût.
+- un hit L1 ne fait aucun appel réseau ;
+- un hit L2 reste sur la machine ;
+- le bus central ne transporte que des événements légers ;
+- PostgreSQL est lu immédiatement en cas de miss ou de panne cache.
 
-#### Multi-région
+### 3. Données cacheables
 
-Deux options :
+#### Priorité 0 — runtime de chat
 
-1. **Recommandé** : rapprocher les nœuds Next.js, PostgreSQL et Valkey dans la
-   même région ;
-2. si les régions restent séparées :
-   - L1 local fort ;
-   - Valkey par région ;
-   - invalidation inter-régions par pub/sub ;
-   - ou accepter 79 ms par accès L2.
+| Donnée | Clé | TTL L1 | TTL L2 local |
+|---|---|---:|---:|
+| Version de config chatbot | `runtime:config:{configId}` | 5 min | 1 h–24 h |
+| Définition de fiche | `runtime:fiche:{configId}:{ficheKey}` | 5 min | 1 h |
+| Prompt compilé | `runtime:prompt:{configId}:{revision}:{lang}` | 5 min | 1 h |
+| Config stable du lien | `runtime:link:{linkId}:cfg:{revision}` | 60 s | 5 min |
+| Connaissances actives | `runtime:knowledge:{linkId}:{revision}` | 30 s | 1–5 min |
+| Médias actifs | `runtime:media:{linkId}:{revision}` | 30 s | 1–5 min |
+| Organisation | `runtime:org:{orgId}:{revision}` | 30 s | 5 min |
 
-Un cache Valkey à Montréal n’est pas un cache local pour le nœud de Gravelines.
+Les données versionnées ou immuables sont préférées : une nouvelle version
+crée une nouvelle clé et les anciennes expirent.
 
-### 8. Gestion des accès concurrents
+### 4. Données non cacheables
 
-- **single-flight** par instance pour les clés chaudes ;
-- verrou distribué `SET NX PX 5000` pour éviter le stampede multi-instance ;
-- stale-while-revalidate toléré **30 s maximum** pour les données non critiques ;
-- TTL avec jitter ;
-- taille maximale par valeur (par exemple 100–250 Ko) ;
-- éviction LRU pour les données de cache.
+| Donnée | Raison |
+|---|---|
+| Messages et conversations | écrits en continu, SSE, cohérence |
+| Prospects, fiches générées, leads | données métier write-heavy |
+| Quotas (`tokens_used`, `fiches_generated`, `visit_count`) | risque de dépassement |
+| Réponses IA | personnalisées, coûteuses, fuite de données |
+| Sessions et rôles | hors priorité, décision séparée |
+| Listes paginées | changement permanent, gain faible |
+| Binaires médias | laisser S3/CDN/navigateur |
+| Statistiques dashboard | hors priorité runtime |
+| Référentiels d’administration | hors priorité runtime |
 
-### 9. Panne Valkey
+Les messages peuvent être mémoïsés **par requête** (`React.cache`, DataLoader),
+mais pas dans Valkey.
 
-Le cache ne doit jamais faire tomber l’application :
+### 5. Révisions et pointeurs
 
-- timeout court, par exemple **20–50 ms** ;
-- si Valkey est indisponible → lire PostgreSQL ;
-- circuit breaker ;
-- métriques de fallback ;
-- pour les sessions : fallback DB obligatoire ;
-- pour les rate limits : décision distincte à prendre, mais pas de blocage
-  silencieux de l’application.
+L’invalidation doit s’appuyer sur des révisions, pas sur des suppressions
+massives.
 
-### 10. Sécurité et multi-tenant
+Révisions nécessaires :
 
-- Valkey non exposé publiquement ;
-- accès réseau restreint et authentification si disponible ;
-- aucune valeur de secret (mot de passe, token brut, clé API) dans le cache ;
-- données de session limitées au strict nécessaire ;
-- pas de log de valeur de cache ;
+- `chatbot_configs.version` : existe déjà ;
+- révision des connaissances par lien ;
+- révision des médias par lien ;
+- révision des paramètres d’organisation ;
+- révision de la config stable du lien.
+
+Pointeurs courts :
+
+```text
+runtime:pointer:link:{linkId}
+runtime:pointer:knowledge:{linkId}
+runtime:pointer:media:{linkId}
+runtime:pointer:org:{orgId}
+```
+
+TTL : **15–30 s**.
+
+### 6. Convention de clés
+
+```text
+onir:runtime:v1:config:{configId}
+onir:runtime:v1:fiche:{configId}:{ficheKey}
+onir:runtime:v1:prompt:{configId}:{revision}:{lang}
+onir:runtime:v1:link:{linkId}:cfg:{revision}
+onir:runtime:v1:linktoken:{sha256(token)}:cfg:{revision}
+onir:runtime:v1:knowledge:{linkId}:{revision}
+onir:runtime:v1:media:{linkId}:{revision}
+onir:runtime:v1:org:{orgId}:{revision}
+onir:runtime:v1:pointer:{type}:{id}
+```
+
+Règles :
+
+- préfixe `onir:runtime:v1` ;
+- identifiant d’organisation dans les clés multi-tenant ;
+- jamais de token brut : utiliser le hash ;
+- ne pas mélanger avec le temps réel (`realtime`) ni le rate limiting
+  (`ratelimit`) ;
+- base ou namespace Valkey local dédié au cache ;
+- base locale distincte de la base de rate limiting.
+
+### 7. Chemin de lecture
+
+```text
+L1 mémoire
+  ↓ miss
+Valkey local
+  ↓ miss
+PostgreSQL
+  ↓
+écriture L2 local + L1
+```
+
+En cas d’indisponibilité du Valkey local :
+
+```text
+L1 → PostgreSQL
+```
+
+Le cache ne doit jamais faire échouer une requête.
+
+### 8. Chemin d’écriture et cohérence
+
+Après une écriture :
+
+```text
+transaction PostgreSQL
+  → incrément de révision
+  → COMMIT
+  → publication d’un événement d’invalidation
+  → mise à jour des pointeurs locaux
+  → purge L1/L2 local
+```
+
+Ne jamais publier ou supprimer avant le commit.
+
+Événement minimal :
+
+```json
+{ "type": "knowledge", "id": "link-123", "revision": 42 }
+```
+
+Le bus central ne transporte pas les données, seulement les révisions.
+
+### 9. Invalidation multi-nœuds
+
+- les données ne sont pas partagées entre les Valkey locaux ;
+- chaque nœud possède ses propres entrées ;
+- l’événement d’invalidation est publié sur le bus central ;
+- chaque nœud met à jour son pointeur et supprime ses clés locales ;
+- si un événement est perdu, le TTL reste le filet de sécurité ;
+- les clés versionnées permettent de ne pas purger les anciennes entrées.
+
+Le bus d’invalidation doit être distinct du bus SSE métier, même s’il peut
+réutiliser la même instance Valkey centrale.
+
+### 10. Cohérence attendue
+
+- **config chatbot** : stale max 30 s en cas d’événement perdu ;
+- **connaissances/médias** : stale max 1–5 min ;
+- **pointeurs** : stale max 15–30 s ;
+- **révocation de lien / suspension** : stale max 5 s ou lecture DB directe ;
+- **read-your-writes admin** : forcer la version retournée par l’écriture ou
+  bypasser le cache pour la lecture immédiate.
+
+Le cache est eventual consistent, pas fortement cohérent.
+
+### 11. Panne Valkey
+
+#### Valkey local indisponible
+
+- L1 reste utilisable ;
+- sinon lecture PostgreSQL ;
+- aucun échec applicatif ;
+- métrique `cache_degraded`.
+
+#### Bus central d’invalidation indisponible
+
+- les caches locaux continuent de servir ;
+- les TTL bornent la staleness ;
+- alerte sur l’état du bus ;
+- reprise automatique des abonnements.
+
+#### Nœud froid
+
+- miss ;
+- reconstruction progressive ;
+- pas de préchargement massif de toutes les organisations.
+
+### 12. Gestion de la mémoire
+
+- `maxmemory` explicite sur chaque Valkey local ;
+- politique `allkeys-lru` pour le cache ;
+- ne pas héberger le rate limiting dans ce Valkey local ;
+- ne pas cacher toutes les connaissances de toutes les organisations ;
+- limiter la taille d’une valeur ;
+- si un corpus est trop gros : index d’IDs + documents individuels, ou L1
+  local avec taille maximale ;
+- métrique mémoire et évictions.
+
+### 13. Sécurité et multi-tenant
+
+- Valkey local non exposé publiquement ;
+- accès local uniquement ;
 - clé toujours scopée par `organizationId` ;
-- tests d’isolation inter-organisations obligatoires ;
-- révocation d’un lien ou suspension d’une organisation : invalidation
-  immédiate, avec TTL de secours très court (15 s maximum) ;
-- les actions d’administration sensibles peuvent bypasser le cache.
+- pas de secrets, tokens bruts ou mots de passe en cache ;
+- pas de logs de valeurs ;
+- tests d’isolation inter-organisations ;
+- révocation/suspension : TTL court ou DB directe.
 
-### 11. Observabilité
+### 14. Observabilité
 
 Métriques minimales :
 
-- taux de hit/miss par famille de clés ;
-- latence de lookup L1/L2 ;
-- nombre d’évictions ;
-- taille mémoire ;
-- stale-while-revalidate servi ;
-- échecs d’invalidation ;
-- fallback Valkey → DB ;
-- taux de stampede / verrous pris.
+- hit/miss L1 et L2 ;
+- latence de lookup ;
+- requêtes PostgreSQL évitées ;
+- taux de reconstruction ;
+- mémoire et évictions ;
+- invalidations reçues et échouées ;
+- fallback Valkey local → PostgreSQL ;
+- staleness détectée ;
+- état du bus central.
 
-Un cache sans métriques de hit rate et d’invalidation est un pari, pas une
-décision d’architecture.
+### 15. Tests
 
-### 12. Tests
-
-- hit/miss et TTL ;
+- hit L1 sans réseau ;
+- hit L2 local sans PostgreSQL ;
+- miss → PostgreSQL → cache ;
 - invalidation après commit ;
-- lecture sur une seconde instance après invalidation ;
-- isolation entre organisations ;
-- fallback DB quand Valkey est indisponible ;
-- stampede sur une clé froide ;
-- révocation de lien et suspension d’organisation ;
-- changement de rôle et switch d’organisation ;
-- absence de fuite de tokens ou de secrets dans les clés et les logs.
+- propagation vers un second nœud ;
+- panne Valkey local → fallback PostgreSQL ;
+- panne bus central → TTL ;
+- révocation de lien ;
+- suspension d’organisation ;
+- isolation inter-organisations ;
+- mémoire bornée ;
+- read-your-writes admin ;
+- nœud froid.
 
-### 13. Ordre de mise en œuvre
+### 16. Ordre de mise en œuvre
 
-1. **Sessions + rôles + organisations** : gain sur toutes les pages dashboard.
-2. **Config de lien + config chatbot** : gain sur le parcours public de chat.
-3. **Templates visuels + confidentialités + catégories**.
-4. **Données de templates** : déplacer le cache mémoire vers L2.
-5. **Médias + connaissances**, avec limite de taille.
-6. **Statistiques** en TTL court.
-7. **Rate limits** en Valkey.
+Cette tâche vient **après** le rate limiting IA (ADR-0079).
 
-Le rate limiting n’est pas du cache de données, mais il est nécessaire à la
-cohérence multi-instance : `src/lib/rate-limit.ts` est aujourd’hui en mémoire
-par processus. Avec deux nœuds, chaque nœud applique sa propre limite et un
-client peut consommer le double.
+1. Mesurer la baseline : requêtes PostgreSQL par tour de chat et p95.
+2. Ajouter les révisions manquantes.
+3. Créer le port `RuntimeCache` et les adaptateurs L1 / Valkey local / noop.
+4. Cacher config, fiche et prompt.
+5. Cacher connaissances et médias avec limite de taille.
+6. Mettre en place le bus d’invalidation.
+7. Ajouter le fallback PostgreSQL.
+8. Tester deux nœuds et les pannes.
+9. Mesurer et déployer.
 
 ## Conséquences
 
 ### Positives
 
-- réduction forte des lectures répétées de configuration et de session ;
-- meilleure utilisation des deux nœuds Next.js ;
-- politique explicite sur ce qui ne doit pas être caché ;
-- invalidation traçable et testable ;
-- possibilité de garder le L1 local pour les nœuds éloignés de Valkey ;
-- pas de dépendance du cache pour la vérité métier.
+- hits de cache sans traversée WAN ;
+- réduction forte des lectures PostgreSQL par tour de chat ;
+- meilleure fluidité des conversations ;
+- cache local indépendant par nœud ;
+- pas de couplage métier à Valkey ;
+- dégradation propre vers PostgreSQL ;
+- politique de cohérence explicite et bornée.
 
 ### Négatives
 
-- complexité d’invalidation multi-instance ;
-- nécessité d’un bus d’invalidation et de métriques ;
-- risque de stale sur les sessions, les rôles et les révocations ;
-- cache L2 central peu utile pour un nœud situé dans une autre région ;
-- nécessité de tests multi-instance ;
-- le cache mémoire existant des données de templates doit être revu.
+- mémoire supplémentaire sur chaque nœud Next.js ;
+- invalidation multi-nœuds à superviser ;
+- staleness bornée mais réelle ;
+- nécessité de révisions en base ;
+- caches froids après redémarrage ;
+- pas de cache partagé entre nœuds.
 
 ## Alternatives écartées
 
-- **Cacher les entités complètes `ChatLink` / conversations** : trop de champs
-  mutables, quotas et SSE.
-- **Cacher les réponses IA** : personnalisation, coût d’invalidation et fuite de
-  données.
-- **Un seul gros cache Valkey sans préfixe** : collisions avec le temps réel et
-  les rate limits.
+- **Valkey central comme cache de données** : 79 ms par hit depuis `141`.
+- **Cache distribué répliqué** : complexité disproportionnée.
+- **Cacher les conversations ou les quotas** : incohérence métier.
 - **TTL infini** : mémoire non bornée et données obsolètes.
-- **Invalidation avant commit** : cache potentiellement désynchronisé.
-- **Cache uniquement central à Montréal** : ne corrige pas la latence de `141`.
-- **Sticky sessions** : ne règlent ni le cache ni la cohérence multi-instance.
+- **Suppression globale du cache à chaque écriture** : trop brutal et inutile.
+- **Cacher les configurations d’administration en priorité** : hors besoin.
 
-## Points ouverts à étudier
+## Points ouverts
 
-- faut-il déplacer PostgreSQL et/ou les nœuds Next.js dans la même région ?
-- faut-il un Valkey par région ou un Valkey central ?
-- niveau de stale acceptable pour les sessions et les révocations de liens ;
-- taille réelle des listes de connaissances et de médias ;
-- cache L1 mémoire versus cache L2 pour les données de templates ;
-- stratégie des rate limits : Valkey, PostgreSQL ou HAProxy ;
-- politique d’éviction et dimensionnement mémoire de Valkey ;
-- nécessité d’un cache de statistiques par utilisateur ou par organisation.
+- taille réelle des connaissances et médias actifs ;
+- valeurs exactes des TTL ;
+- schéma des révisions connaissances/médias ;
+- dimensionnement mémoire des Valkey locaux ;
+- choix du bus d’invalidation ;
+- niveau de stale acceptable pour les liens publics ;
+- politique de préchargement éventuelle des chatbots très actifs.
 
 ## Références code
 
-- `src/app/api/_lib/require-user.ts` : session + rôle lus en DB à chaque requête.
-- `src/infrastructure/session/current-user.ts` : même résolution côté server
-  components.
-- `src/infrastructure/db/session-repository.ts` : jointure session + user + org.
-- `src/infrastructure/db/chat-link-repository.ts` : lecture du lien, quotas et
-  remise à zéro des tokens.
 - `src/infrastructure/db/chatbot-config-repository.ts` : configurations
-  versionnées et immuables.
-- `src/infrastructure/db/connaissance-repository.ts` : connaissances actives par
-  lien.
-- `src/infrastructure/db/media-repository.ts` : médias actifs par lien et type.
-- `src/lib/template-data-cache.ts` : cache mémoire local des données de templates.
-- `src/lib/rate-limit.ts` : rate limiting en mémoire par processus.
-- `src/infrastructure/realtime/valkey-chat-event-bus.ts` : usage Valkey existant
-  pour le temps réel.
+  versionnées.
+- `src/infrastructure/db/chat-link-repository.ts` : lien, quotas et tokens.
+- `src/infrastructure/db/connaissance-repository.ts` : connaissances actives.
+- `src/infrastructure/db/media-repository.ts` : médias actifs.
+- `src/lib/template-data-cache.ts` : cache mémoire existant, hors périmètre
+  immédiat.
+- `src/infrastructure/realtime/valkey-chat-event-bus.ts` : usage Valkey
+  existant.
+- `src/lib/rate-limit.ts` : rate limiting, traité par ADR-0079.
