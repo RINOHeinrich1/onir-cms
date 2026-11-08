@@ -75,3 +75,4 @@ ADR qui remplace la précédente.
 | [0073](./0073-selection-medias-independante.md) | Sélection média indépendante et portée explicite | Accepté |
 | [0074](./0074-temps-reel-multi-instance.md) | Temps réel multi-instance — bus local, Valkey et repli polling | Proposé |
 | [0075](./0075-modes-deploiement-mono-multi.md) | Modes de déploiement mono-instance et multi-instance | Proposé |
+| [0076](./0076-strategie-cache-valkey.md) | Stratégie de cache Valkey — données, TTL et invalidation | Proposé |
