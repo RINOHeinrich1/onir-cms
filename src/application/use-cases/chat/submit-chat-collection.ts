@@ -146,15 +146,17 @@ export async function submitChatCollection(
   }
   const missing = missingFields(fiche, validated.value, attachmentCounts);
   const status = target.status === "complete" ? "complete" : "active";
+  // Désactiver l'ancienne fiche avant d'écrire le statut active : la base
+  // impose au plus une instance active par conversation.
+  if (status === "active" && !targetWasActive) {
+    await deps.ficheInstances.activate(conversation.organizationId, conversation.id, target.id);
+  }
   const updated = await deps.ficheInstances.update(conversation.organizationId, target.id, {
     status,
     data: validated.value,
     missingFields: missing,
   });
   if (updated === null) throw new AppError("Impossible de mettre à jour la fiche", 500);
-  if (status === "active" && !targetWasActive) {
-    await deps.ficheInstances.activate(conversation.organizationId, conversation.id, target.id);
-  }
   return {
     ficheInstanceId: updated.id,
     ficheKey: updated.ficheKey,
