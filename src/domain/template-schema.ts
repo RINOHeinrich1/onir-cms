@@ -103,6 +103,14 @@ export function validateTemplateDefinition(
         }
         field.file = constraints.value;
       }
+      if (typeRaw === "fiche" || typeRaw === "tableau_de_fiches") {
+        const ficheKey = text(raw.ficheKey);
+        if (!KEY_PATTERN.test(ficheKey)) {
+          errors.push(`Fiche modèle obligatoire (champ ${name})`);
+          continue;
+        }
+        field.ficheKey = ficheKey;
+      }
       if (typeRaw !== "select" && typeRaw !== "multi") {
         if (Array.isArray(raw.options) && raw.options.length > 0) {
           errors.push(`Options interdites pour ce type (champ ${name})`);

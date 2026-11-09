@@ -1,9 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import { TEMPLATE_FIELD_TYPES, type TemplateFieldType } from "@/domain/entities/chat-template";
+import {
+  isFicheReferenceFieldType,
+  TEMPLATE_FIELD_TYPES,
+  type TemplateFieldType,
+} from "@/domain/entities/chat-template";
 import type { FicheStatusDefinition } from "@/domain/entities/fiche-status";
 import type { FicheCollecteDto } from "./types";
 
@@ -18,7 +22,14 @@ type FieldDraft = {
   options: string;
   example: string;
   unit: string;
+  ficheKey: string;
 };
+
+const FIELD_TYPE_OPTIONS: { value: TemplateFieldType; label: string }[] = [
+  ...TEMPLATE_FIELD_TYPES.map((type) => ({ value: type, label: type })),
+  { value: "fiche", label: "Fiche liée (1..1)" },
+  { value: "tableau_de_fiches", label: "Tableau de fiches (1..n)" },
+];
 
 type Draft = {
   key: string;
@@ -57,6 +68,7 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
           options: "",
           example: "",
           unit: "",
+          ficheKey: "",
         },
       ],
       statuses: [],
@@ -79,6 +91,7 @@ function draftFromFiche(fiche: FicheCollecteDto | null): Draft {
       options: field.options?.join(", ") ?? "",
       example: field.example ?? "",
       unit: field.unit ?? "",
+      ficheKey: field.ficheKey ?? "",
     })),
   };
 }
@@ -132,6 +145,7 @@ function payload(draft: Draft): Record<string, unknown> {
           : {}),
         ...(field.example.trim() === "" ? {} : { example: field.example.trim() }),
         ...(field.type === "number" && field.unit.trim() !== "" ? { unit: field.unit.trim() } : {}),
+        ...(isFicheReferenceFieldType(field.type) ? { ficheKey: field.ficheKey.trim() } : {}),
       };
     });
   const renderTemplate =
@@ -175,7 +189,21 @@ export function FicheCollecteForm({
   const [draft, setDraft] = useState<Draft>(() => draftFromFiche(fiche));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableFiches, setAvailableFiches] = useState<FicheCollecteDto[]>([]);
   useToastOnMessage(error);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/fiches-collecte", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json: { fiches?: FicheCollecteDto[] } | null) => {
+        if (!cancelled && Array.isArray(json?.fiches)) setAvailableFiches(json.fiches);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateStatus = (index: number, patch: Partial<StatusDraft>): void => {
     setDraft((current) => ({
@@ -306,6 +334,7 @@ export function FicheCollecteForm({
                   options: "",
                   example: "",
                   unit: "",
+                  ficheKey: "",
                 },
               ],
             })
@@ -334,9 +363,9 @@ export function FicheCollecteForm({
                 updateField(index, { type: event.target.value as TemplateFieldType })
               }
             >
-              {TEMPLATE_FIELD_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+              {FIELD_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -349,6 +378,28 @@ export function FicheCollecteForm({
             />
             Obligatoire
           </label>
+          {isFicheReferenceFieldType(field.type) ? (
+            <label className="field">
+              Fiche modèle
+              <select
+                value={field.ficheKey}
+                onChange={(event) => updateField(index, { ficheKey: event.target.value })}
+                required
+              >
+                <option value="">Choisir une fiche…</option>
+                {availableFiches
+                  .filter((entry) => entry.id !== fiche?.id)
+                  .map((entry) => (
+                    <option key={entry.id} value={entry.key}>
+                      {entry.label} ({entry.key})
+                    </option>
+                  ))}
+              </select>
+              {availableFiches.length === 0 ? (
+                <span className="hint">Aucune fiche de collecte disponible.</span>
+              ) : null}
+            </label>
+          ) : null}
           {field.type === "select" || field.type === "multi" ? (
             <label className="field">
               Options (virgules)

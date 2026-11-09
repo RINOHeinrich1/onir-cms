@@ -70,6 +70,8 @@ export const OPERATORS_BY_FIELD_TYPE: Record<TemplateFieldType, readonly FicheSe
   date: DATE_OPERATORS,
   image: IMAGE_OPERATORS,
   file: [],
+  fiche: [],
+  tableau_de_fiches: [],
 };
 
 export function operatorsForFieldType(type: TemplateFieldType): readonly FicheSearchOperator[] {

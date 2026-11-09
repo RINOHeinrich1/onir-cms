@@ -120,11 +120,15 @@ export type TemplateFormField = {
     | "number"
     | "date"
     | "image"
-    | "file";
+    | "file"
+    | "fiche"
+    | "tableau_de_fiches";
   required: boolean;
   options?: string[];
   /** Unité d'affichage d'un champ `number`. */
   unit?: string;
+  /** Fiche modèle d'un champ `fiche` ou `tableau_de_fiches` (ADR-0083). */
+  ficheKey?: string;
   /** Champ `file` uniquement (ADR-0034). */
   accept?: string[];
   maxFiles?: number;

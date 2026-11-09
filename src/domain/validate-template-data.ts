@@ -88,6 +88,9 @@ function checkType(field: TemplateField, value: unknown): string | null {
     }
     case "file":
       return null;
+    case "fiche":
+    case "tableau_de_fiches":
+      return null;
   }
 }
 

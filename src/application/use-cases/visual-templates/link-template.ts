@@ -160,6 +160,7 @@ export async function buildLinkContext(
               maxFiles: field.file.maxFiles,
               maxBytes: field.file.maxBytes,
             }),
+        ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
       }));
     const fields = config?.fiches[0]?.fields;
     if (fields !== undefined && fields.length > 0) {

@@ -61,7 +61,12 @@ function projectField(field: TemplateField, value: unknown): ToolField | null {
   const text = stringValue(value);
   return text === null
     ? null
-    : { key: field.name, label: field.label, type: field.type, value: text };
+    : {
+        key: field.name,
+        label: field.label,
+        type: field.type as ToolField["type"],
+        value: text,
+      };
 }
 
 /** Projette les données d'une fiche en champs typés, dans l'ordre de la définition. */
