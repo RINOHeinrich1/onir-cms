@@ -15,6 +15,7 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import { ChatbotCollectionModeField } from "./ChatbotCollectionModeField";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
@@ -218,6 +219,12 @@ export function ChatbotEditForm({
       if (config.mission !== "inform" && config.fiches.length === 0) {
         return "Sélectionnez au moins une fiche de collecte pour cette opération.";
       }
+      if (
+        config.collectionMode === "semi_heuristic" &&
+        (config.mission === "inform" || config.fiches.length === 0)
+      ) {
+        return "La collecte semi-heuristique exige une fiche et une opération de collecte.";
+      }
     }
     if (index === 2 && config !== null) {
       if (config.mission !== "collect") {
@@ -271,7 +278,11 @@ export function ChatbotEditForm({
   };
 
   const changeMission = (mission: ChatbotConfigDraft["mission"]): void => {
-    setConfig((current) => (current === null ? current : { ...current, mission }));
+    setConfig((current) =>
+      current === null
+        ? current
+        : { ...current, mission, ...(mission === "inform" ? { collectionMode: "ai" } : {}) },
+    );
     if (!isChatbotStepVisible(step, mission)) {
       const next = nextChatbotStep(step, mission) ?? previousChatbotStep(step, mission) ?? 0;
       setStep(next);
@@ -490,12 +501,15 @@ export function ChatbotEditForm({
             {config === null ? (
               <p className="hint">Chargement de la configuration…</p>
             ) : (
-              <ChatbotFichePicker
-                value={config.fiches}
-                onChange={(fiches) =>
-                  setConfig((current) => (current === null ? current : { ...current, fiches }))
-                }
-              />
+              <>
+                <ChatbotFichePicker
+                  value={config.fiches}
+                  onChange={(fiches) =>
+                    setConfig((current) => (current === null ? current : { ...current, fiches }))
+                  }
+                />
+                <ChatbotCollectionModeField value={config} onChange={(next) => setConfig(next)} />
+              </>
             )}
           </section>
         ) : null}
@@ -652,6 +666,14 @@ export function ChatbotEditForm({
                   : config.behaviorMode === "guided"
                     ? "Guidé (prompt généré)"
                     : "Expert (prompt libre)"}
+              </dd>
+              <dt>Collecte</dt>
+              <dd>
+                {config === null
+                  ? "—"
+                  : config.collectionMode === "semi_heuristic"
+                    ? "Semi-heuristique (formulaire)"
+                    : "Conversationnelle"}
               </dd>
               <dt>Fiches</dt>
               <dd>

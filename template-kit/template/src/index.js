@@ -261,6 +261,8 @@ class StarterTemplate extends HTMLElement {
   #root;
   #ctx;
   #collectionOpen = false;
+  #collectionPicker = false;
+  #collectionFicheKey = null;
 
   constructor() {
     super();
@@ -451,6 +453,7 @@ class StarterTemplate extends HTMLElement {
         }
         .fallback-option:hover, .fallback-form:hover { border-color: var(--page-primary); }
         .fallback-form { text-align: center; }
+        .collection-open { margin-top: 10px; }
         .composer { padding: 12px 14px 14px; border-top: 1px solid var(--page-border); background: var(--page-surface); }
         .composer-box { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border: 1.5px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
         .composer-box:focus-within { border-color: var(--page-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-primary) 14%, transparent); }
@@ -603,22 +606,81 @@ class StarterTemplate extends HTMLElement {
 
     const fallback = ctx.state.fallback;
     const modelForm = Array.isArray(ctx.resources.modelForm) ? ctx.resources.modelForm : [];
-    const hasCollection = modelForm.length > 0;
-    const collectionOpen = this.#collectionOpen && hasCollection;
-    const fallbackView = fallback && !collectionOpen
-      ? el("section", { class: "fallback", "aria-live": "polite" }, [
-          el("p", { class: "fallback-intro", text: fallback.intro }),
-          el("div", { class: "fallback-options" }, fallback.questions.map((question) =>
-            el("button", {
-              type: "button",
-              class: "fallback-option",
-              text: question.label,
-              onclick: () => ctx.actions.selectFallback(question.id),
-            }),
-          )),
-
-        ])
-      : null;
+    const collection = ctx.state.collectionForm;
+    const collectionForms = Array.isArray(collection?.forms) ? collection.forms : [];
+    const selectedForm =
+      collectionForms.find((form) => form.ficheKey === this.#collectionFicheKey) ??
+      collectionForms[0];
+    const collectionFields = selectedForm?.fields ?? modelForm;
+    const hasCollection = collectionFields.length > 0;
+    const collectionOpen = this.#collectionOpen && hasCollection && !finalised;
+    const collectionPicker = this.#collectionPicker && !finalised;
+    const semiAvailable = collection?.available === true && collectionForms.length > 0;
+    const fallbackActive = fallback !== undefined && !collectionOpen && !collectionPicker;
+    const fallbackView =
+      (fallbackActive || collectionOpen || collectionPicker) && !finalised
+        ? el("section", { class: "fallback", "aria-live": "polite" }, [
+            ...(collectionPicker
+              ? [
+                  el("p", { class: "fallback-intro", text: "Choisir une fiche" }),
+                  el(
+                    "div",
+                    { class: "fallback-options" },
+                    collectionForms.map((form) =>
+                      el("button", {
+                        type: "button",
+                        class: "fallback-option",
+                        text: form.label,
+                        onclick: () => {
+                          this.#collectionFicheKey = form.ficheKey;
+                          this.#collectionPicker = false;
+                          this.#collectionOpen = true;
+                          ctx.actions.openCollectionForm({ ficheKey: form.ficheKey });
+                          this.#render();
+                        },
+                      }),
+                    ),
+                  ),
+                  el("div", { class: "collection-actions" }, [
+                    el("button", {
+                      type: "button",
+                      text: "Annuler",
+                      onclick: () => {
+                        this.#collectionPicker = false;
+                        this.#render();
+                      },
+                    }),
+                  ]),
+                ]
+              : collectionOpen
+                ? [this.#collectionForm(ctx, collectionFields, selectedForm?.ficheKey ?? null)]
+                : [
+                    el("p", { class: "fallback-intro", text: fallback.intro }),
+                    el(
+                      "div",
+                      { class: "fallback-options" },
+                      fallback.questions.map((question) =>
+                        el("button", {
+                          type: "button",
+                          class: "fallback-option",
+                          text: question.label,
+                          onclick: () => ctx.actions.selectFallback(question.id),
+                        }),
+                      ),
+                    ),
+                    ...(fallback.showCollectionForm && hasCollection
+                      ? [
+                          el("button", {
+                            type: "button",
+                            class: "fallback-form",
+                            text: "Remplir le formulaire",
+                            onclick: () => this.#openCollection(),
+                          }),
+                        ]
+                      : []),
+                  ]),
+          ])
+        : null;
 
     const textarea = el("textarea", {
       rows: "1",
@@ -706,7 +768,7 @@ class StarterTemplate extends HTMLElement {
     ]);
 
     const finish =
-      hasCollection && !fallback && !collectionOpen && !finalised && ctx.state.messages.length > 0
+      hasCollection && !fallbackActive && !collectionOpen && !collectionPicker && !finalised && ctx.state.messages.length > 0
         ? el("button", {
             type: "button",
             class: "finish",
@@ -723,13 +785,21 @@ class StarterTemplate extends HTMLElement {
       fallbackView,
     ]);
 
+    const collectionButton =
+      semiAvailable && !finalised && !fallbackActive && !collectionOpen && !collectionPicker
+        ? el("button", {
+            type: "button",
+            class: "fallback-form collection-open",
+            text: "Remplir le formulaire",
+            onclick: () => this.#openCollection(),
+          })
+        : null;
     const body = el("div", { class: "body" }, [
       log,
       finalised
         ? el("p", { class: "done", text: "Votre demande a bien été enregistrée." })
-        : fallback === undefined && !collectionOpen
-          ? composer
-          : null,
+        : collectionButton,
+      !finalised && !fallbackActive && !collectionOpen && !collectionPicker ? composer : null,
     ]);
     queueMicrotask(() => {
       log.scrollTop = log.scrollHeight;
@@ -738,7 +808,29 @@ class StarterTemplate extends HTMLElement {
     return body;
   }
 
-  #collectionForm(ctx, fields) {
+  #openCollection() {
+    const forms = this.#ctx?.state?.collectionForm?.forms ?? [];
+    if (forms.length === 0) {
+      const fields = this.#ctx?.resources?.modelForm;
+      if (!Array.isArray(fields) || fields.length === 0) return;
+      this.#collectionOpen = true;
+      this.#collectionPicker = false;
+      this.#render();
+      return;
+    }
+    if (forms.length > 1) {
+      this.#collectionPicker = true;
+      this.#render();
+      return;
+    }
+    this.#collectionFicheKey = forms[0].ficheKey;
+    this.#collectionOpen = true;
+    this.#collectionPicker = false;
+    this.#ctx?.actions?.openCollectionForm({ ficheKey: forms[0].ficheKey });
+    this.#render();
+  }
+
+  #collectionForm(ctx, fields, ficheKey) {
     const values = {};
     const controls = [];
     for (const field of fields) {
@@ -815,8 +907,12 @@ class StarterTemplate extends HTMLElement {
             const control = form.elements.namedItem(field.name);
             values[field.name] = control !== null && "value" in control ? control.value : "";
           }
-          await ctx.actions.submitCollection(values);
+          await ctx.actions.submitCollection({
+            values,
+            ...(ficheKey === null ? {} : { ficheKey }),
+          });
           this.#collectionOpen = false;
+          this.#collectionPicker = false;
           this.#render();
         },
       }, [
@@ -827,6 +923,7 @@ class StarterTemplate extends HTMLElement {
             text: "Annuler",
             onclick: () => {
               this.#collectionOpen = false;
+              this.#collectionPicker = false;
               this.#render();
             },
           }),

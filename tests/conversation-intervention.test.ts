@@ -257,6 +257,7 @@ function sendDeps(
     chatLinkId: "l1",
     version: 1,
     behaviorMode: "expert",
+    collectionMode: "ai",
     systemPrompt: "x",
     simple: {
       role: "assistant",

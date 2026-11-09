@@ -342,6 +342,7 @@ describe("createChatLink — configuration autonome (ADR-0049)", () => {
       chatLinkId: "link-1",
       version: 1,
       behaviorMode: "guided",
+      collectionMode: "ai",
       systemPrompt: "Tu collectes les demandes.",
       simple: {
         role: "assistant",

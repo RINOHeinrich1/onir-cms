@@ -15,6 +15,7 @@ import {
 import type { LinkAiValue } from "./AiAssignmentField";
 import { AiUsageOverridesField } from "./AiUsageOverridesField";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
+import { ChatbotCollectionModeField } from "./ChatbotCollectionModeField";
 import { ChatbotDataStep } from "./ChatbotDataStep";
 import { ChatbotFallbackFields } from "./ChatbotFallbackFields";
 import { ChatbotFichePicker } from "./ChatbotFichePicker";
@@ -403,6 +404,12 @@ export function ChatbotCreateForm({
       if (config.mission !== "inform" && config.fiches.length === 0) {
         return "Sélectionnez au moins une fiche de collecte pour cette opération.";
       }
+      if (
+        config.collectionMode === "semi_heuristic" &&
+        (config.mission === "inform" || config.fiches.length === 0)
+      ) {
+        return "La collecte semi-heuristique exige une fiche et une opération de collecte.";
+      }
       return null;
     }
     if (index === 2) {
@@ -467,7 +474,11 @@ export function ChatbotCreateForm({
   };
 
   const changeMission = (mission: ChatbotConfigDraft["mission"]): void => {
-    setConfig((current) => ({ ...current, mission }));
+    setConfig((current) => ({
+      ...current,
+      mission,
+      ...(mission === "inform" ? { collectionMode: "ai" } : {}),
+    }));
     if (!isChatbotStepVisible(step, mission)) {
       const next = nextChatbotStep(step, mission) ?? previousChatbotStep(step, mission);
       if (next !== undefined) setStep(next);
@@ -834,6 +845,7 @@ export function ChatbotCreateForm({
                 value={config.fiches}
                 onChange={(fiches) => setConfig((current) => ({ ...current, fiches }))}
               />
+              <ChatbotCollectionModeField value={config} onChange={setConfig} />
             </section>
           ) : null}
 
@@ -981,6 +993,12 @@ export function ChatbotCreateForm({
                   {config.behaviorMode === "guided"
                     ? "Guidé (prompt généré)"
                     : "Expert (prompt libre)"}
+                </dd>
+                <dt>Collecte</dt>
+                <dd>
+                  {config.collectionMode === "semi_heuristic"
+                    ? "Semi-heuristique (formulaire)"
+                    : "Conversationnelle"}
                 </dd>
                 <dt>Fiches</dt>
                 <dd>

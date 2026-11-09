@@ -9,13 +9,16 @@ import type {
 import {
   buildGuidedChatbotPrompt,
   type ChatbotBehaviorMode,
+  type ChatbotCollectionMode,
   type ChatbotDataSelection,
   type ChatbotFallback,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  DEFAULT_CHATBOT_COLLECTION_MODE,
   DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
   defaultChatbotDataSelection,
   defaultChatbotFallback,
   isChatbotBehaviorMode,
+  isChatbotCollectionMode,
   parseChatbotDataSelection,
   parseChatbotFallback,
   parseChatbotReplyMaxTokens,
@@ -80,6 +83,7 @@ export type ChatbotConfigDraft = {
   /** Mission stable du chatbot (ADR-0068). */
   mission: ChatbotMission;
   behaviorMode: ChatbotBehaviorMode;
+  collectionMode: ChatbotCollectionMode;
   systemPrompt: string;
   simple: {
     role: string;
@@ -151,6 +155,7 @@ export function chatbotConfigDraftFromAi(
   return {
     mission,
     behaviorMode: "guided",
+    collectionMode: DEFAULT_CHATBOT_COLLECTION_MODE,
     systemPrompt: draft.systemPrompt,
     simple: {
       role: draft.role,
@@ -220,6 +225,7 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
   return {
     mission: "inform",
     behaviorMode: DEFAULT_CHATBOT_BEHAVIOR_MODE,
+    collectionMode: DEFAULT_CHATBOT_COLLECTION_MODE,
     systemPrompt: "",
     simple: {
       role: "assistant commercial",
@@ -390,6 +396,7 @@ export function chatbotConfigPayload(
     mission: draft.mission,
     informationSources,
     behaviorMode: draft.behaviorMode,
+    collectionMode: draft.collectionMode,
     systemPrompt: effectiveSystemPrompt(draft),
     simple: draftSimpleSettings(draft.simple),
     fiches: (draft.mission === "inform" ? [] : draft.fiches).map((fiche) => {
@@ -554,6 +561,9 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     behaviorMode: isChatbotBehaviorMode(raw.behaviorMode)
       ? raw.behaviorMode
       : DEFAULT_CHATBOT_BEHAVIOR_MODE,
+    collectionMode: isChatbotCollectionMode(raw.collectionMode)
+      ? raw.collectionMode
+      : DEFAULT_CHATBOT_COLLECTION_MODE,
     systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
     simple: {
       role: typeof simpleRaw.role === "string" ? simpleRaw.role : "",

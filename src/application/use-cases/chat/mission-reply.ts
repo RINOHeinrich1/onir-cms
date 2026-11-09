@@ -72,6 +72,10 @@ export type MissionReplyResult = {
 };
 
 function baseDefinition(config: ChatbotConfig): TemplateDefinition {
+  const primary = config.fiches[0];
+  if (config.collectionMode === "semi_heuristic" && primary !== undefined) {
+    return ficheToDefinition(config, primary);
+  }
   return conversationOnlyDefinition(config);
 }
 
@@ -168,7 +172,7 @@ async function runCollect(
   const attachmentContext = buildAttachmentPromptContext(collectDefinition.fields, attachments);
   let system = buildBaseSystem(input, collectDefinition, prospect);
   if (attachmentContext !== "") system = `${system}\n\n${attachmentContext}`;
-  if (input.activeInstance !== null) {
+  if (input.activeInstance !== null && input.config.collectionMode !== "semi_heuristic") {
     const state = buildCollecteState(fiche.fields, input.activeInstance.data);
     if (state !== "") system = `${system}\n\n${state}`;
   }

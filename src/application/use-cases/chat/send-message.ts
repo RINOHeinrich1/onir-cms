@@ -324,7 +324,7 @@ export async function sendMessage(
   };
 
   if (config !== null) {
-    if (instancesRepo !== undefined) {
+    if (instancesRepo !== undefined && config.collectionMode !== "semi_heuristic") {
       activeInstance = await syncFicheInstances({
         ai: withAiUsage(ai, recordUsage, "fiche_detection"),
         config,

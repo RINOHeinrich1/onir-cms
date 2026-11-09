@@ -49,6 +49,7 @@ const CONFIG: ChatbotConfig = {
   chatLinkId: "link-1",
   version: 1,
   behaviorMode: "expert",
+  collectionMode: "ai",
   systemPrompt: DEFINITION.systemPrompt,
   simple: {
     role: "assistant",

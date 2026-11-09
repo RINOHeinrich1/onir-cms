@@ -28,8 +28,12 @@ type TemplateActions = {
   removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
   selectFallback(questionId: string): void;
-  openCollectionForm(): void;
-  submitCollection(values: Record<string, string>): Promise<void>;
+  openCollectionForm(payload?: { ficheKey?: string }): void;
+  submitCollection(payload: {
+    values: Record<string, string>;
+    ficheKey?: string;
+    ficheInstanceId?: string;
+  }): Promise<void>;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
@@ -657,15 +661,26 @@ export function TemplateHost({
       openCollectionForm: () => {
         setFallbackMenu(null);
       },
-      submitCollection: async (values) => {
-        if (conversationId === null) return;
+      submitCollection: async (payload) => {
+        const activeConversationId = conversationId ?? (await ensureConversation());
+        if (activeConversationId === null) return;
         try {
           const response = await fetch(`${platform}/fields`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ conversationId, values }),
+            body: JSON.stringify({
+              conversationId: activeConversationId,
+              values: payload.values,
+              ...(payload.ficheKey === undefined ? {} : { ficheKey: payload.ficheKey }),
+              ...(payload.ficheInstanceId === undefined
+                ? {}
+                : { ficheInstanceId: payload.ficheInstanceId }),
+            }),
           });
-          const json = (await response.json().catch(() => null)) as { error?: string } | null;
+          const json = (await response.json().catch(() => null)) as {
+            error?: string;
+            ficheInstanceId?: string;
+          } | null;
           if (!response.ok) {
             setError(json?.error ?? "Enregistrement du formulaire impossible");
             return;
@@ -855,10 +870,10 @@ export function TemplateHost({
           actions.selectFallback(action.payload.questionId);
           break;
         case "openCollectionForm":
-          actions.openCollectionForm();
+          actions.openCollectionForm(action.payload);
           break;
         case "submitCollection":
-          void actions.submitCollection(action.payload.values);
+          void actions.submitCollection(action.payload);
           break;
         case "openMedia":
           actions.openMedia(action.payload.url);

@@ -60,6 +60,18 @@ export type TemplateFallbackState = {
   showCollectionForm: boolean;
 };
 
+/** Formulaire de collecte disponible dans le chat (ADR-0082). */
+export type TemplateCollectionForm = {
+  ficheKey: string;
+  label: string;
+  fields: TemplateFormField[];
+};
+
+export type TemplateCollectionFormState = {
+  available: boolean;
+  forms: TemplateCollectionForm[];
+};
+
 export type TemplateMessage = {
   id: string;
   role: "user" | "assistant";
@@ -140,6 +152,8 @@ export type TemplateContextPayload = {
     pendingAttachments?: TemplateAttachment[];
     /** Menu de secours actif (capacité `fallback`, ADR-0059). */
     fallback?: TemplateFallbackState;
+    /** Formulaire permanent du mode semi-heuristique (ADR-0082). */
+    collectionForm?: TemplateCollectionFormState;
   };
   resources: {
     media: { photos: TemplateMediaItem[]; liens: TemplateMediaItem[] };
@@ -168,8 +182,11 @@ export type TemplateAction =
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
-  | { action: "openCollectionForm" }
-  | { action: "submitCollection"; payload: { values: Record<string, string> } }
+  | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
+  | {
+      action: "submitCollection";
+      payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, string> };
+    }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -199,8 +216,14 @@ export function parseTemplateAction(
   switch (action) {
     case "ready":
     case "finish":
-    case "openCollectionForm":
       return { ok: true, value: { action } };
+    case "openCollectionForm": {
+      const ficheKey = typeof payload.ficheKey === "string" ? payload.ficheKey.trim() : "";
+      return {
+        ok: true,
+        value: { action, ...(ficheKey === "" ? {} : { payload: { ficheKey } }) },
+      };
+    }
     case "submitCollection": {
       const values = payload.values;
       if (values === null || typeof values !== "object" || Array.isArray(values)) {
@@ -214,7 +237,20 @@ export function parseTemplateAction(
         cleaned[key] = value;
       }
       if (Object.keys(cleaned).length === 0) return { ok: false, error: "values vide" };
-      return { ok: true, value: { action, payload: { values: cleaned } } };
+      const ficheKey = typeof payload.ficheKey === "string" ? payload.ficheKey.trim() : "";
+      const ficheInstanceId =
+        typeof payload.ficheInstanceId === "string" ? payload.ficheInstanceId.trim() : "";
+      return {
+        ok: true,
+        value: {
+          action,
+          payload: {
+            values: cleaned,
+            ...(ficheKey === "" ? {} : { ficheKey }),
+            ...(ficheInstanceId === "" ? {} : { ficheInstanceId }),
+          },
+        },
+      };
     }
     case "selectFallback": {
       const questionId = typeof payload.questionId === "string" ? payload.questionId.trim() : "";
@@ -359,6 +395,8 @@ export type BuildTemplateContextInput = {
   modelForm: TemplateFormField[] | null;
   /** Pièces en attente (capacité `attachments`, ADR-0034). */
   pendingAttachments?: TemplateAttachment[];
+  /** État du formulaire permanent (mode semi-heuristique, ADR-0082). */
+  collectionForm?: TemplateCollectionFormState;
   /** Flag lien : l'état du visiteur est activé (double garde, ADR-0020). */
   userStateEnabled?: boolean;
   /** Flag lien : la source connaissances est active (double garde, ADR-0020). */
@@ -425,6 +463,9 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
       typing: input.typing,
       ...(allowAttachments && input.pendingAttachments !== undefined
         ? { pendingAttachments: input.pendingAttachments }
+        : {}),
+      ...(capabilities.has("modelForm") && input.collectionForm !== undefined
+        ? { collectionForm: input.collectionForm }
         : {}),
     },
     resources: {

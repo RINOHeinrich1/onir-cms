@@ -149,6 +149,7 @@ function assertNamedConversation(link: ChatLink, conversation: Conversation): vo
 
 type FicheBuildMeta = {
   definition: TemplateDefinition;
+  collectionMode?: "ai" | "semi_heuristic";
   configId?: string | null;
   ficheKey?: string | null;
   ficheInstanceKey?: string | null;
@@ -173,9 +174,6 @@ async function buildFicheForDefinition(
     aiProviderId: link.aiProviderId,
     aiModel: link.aiModel,
   };
-  const clients = deps.ai.forExtraction
-    ? await deps.ai.forExtraction(target, link.id)
-    : [{ label: "lien", client: await deps.ai.forTarget(target) }];
   const recordUsage = async (operation: string, usage: AiTokenUsage): Promise<void> => {
     await deps.links.recordAiUsage?.(organizationId, link.id, {
       conversationId: conversation.id,
@@ -183,17 +181,23 @@ async function buildFicheForDefinition(
       ...usage,
     });
   };
-  const trackedClients = clients.map((entry) => ({
-    ...entry,
-    client: withAiUsage(entry.client, recordUsage, "fiche_extraction"),
-  }));
-  const aiDraft = await draftTemplateDataWithClients(
-    { conversations: deps.conversations },
-    trackedClients,
-    organizationId,
-    conversation.id,
-    definition,
-  );
+  let aiDraft: Record<string, unknown> = {};
+  if (meta.collectionMode !== "semi_heuristic") {
+    const clients = deps.ai.forExtraction
+      ? await deps.ai.forExtraction(target, link.id)
+      : [{ label: "lien", client: await deps.ai.forTarget(target) }];
+    const trackedClients = clients.map((entry) => ({
+      ...entry,
+      client: withAiUsage(entry.client, recordUsage, "fiche_extraction"),
+    }));
+    aiDraft = await draftTemplateDataWithClients(
+      { conversations: deps.conversations },
+      trackedClients,
+      organizationId,
+      conversation.id,
+      definition,
+    );
+  }
   const instanceValidation = validatePartialTemplateData(definition, meta.instanceData ?? {});
   const draft: Record<string, unknown> = {
     ...aiDraft,
@@ -523,6 +527,7 @@ async function finishConfigConversation(
           definition,
           {
             definition,
+            collectionMode: config.collectionMode,
             configId: config.id,
             ficheKey: ficheDefinition.key,
             ficheInstanceKey: instance.instanceKey,

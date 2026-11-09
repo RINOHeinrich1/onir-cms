@@ -9,6 +9,21 @@ import {
 import { buildFieldsGuide } from "@/domain/field-guide";
 import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 
+/** Consigne opérationnelle du mode de collecte semi-heuristique (ADR-0082). */
+export const SEMI_HEURISTIC_COLLECTION_INSTRUCTION = [
+  "Mode de collecte semi-heuristique :",
+  "- Ne collecte pas les champs un par un dans la conversation.",
+  "- Présente brièvement le formulaire et invite le visiteur à cliquer sur « Remplir le formulaire ».",
+  "- Explique les champs, leurs options et leur utilité à la demande.",
+  "- Si le visiteur donne des informations en texte, refuse poliment et demande-lui de remplir le formulaire.",
+  "- Ne prétends jamais que la fiche est complète avant le remplissage du formulaire.",
+  "- N'affiche jamais les noms techniques des champs.",
+].join("\n");
+
+function collectionInstruction(config: ChatbotConfig): string {
+  return config.collectionMode === "semi_heuristic" ? SEMI_HEURISTIC_COLLECTION_INSTRUCTION : "";
+}
+
 /** Configuration courante d'un lien (ADR-0049), lue via `current_config_id`. */
 export async function resolveCurrentConfig(
   configs: ChatbotConfigRepository | undefined,
@@ -89,7 +104,9 @@ export function conversationOnlyDefinition(config: ChatbotConfig): TemplateDefin
     key: "presentation",
     label: config.simple.role.trim() === "" ? "Assistant" : config.simple.role.trim(),
     description: "",
-    systemPrompt,
+    systemPrompt: [systemPrompt, collectionInstruction(config)]
+      .filter((part) => part !== "")
+      .join("\n\n"),
     fields: [],
     renderTemplate: "",
     simple: config.simple,
@@ -114,6 +131,8 @@ export function ficheToDefinition(
   const hasGuidePlaceholder = basePrompt.includes("{{champs_guide}}");
   if (!hasGuidePlaceholder && guide !== "") ficheBlock.push(guide);
   blocks.push(ficheBlock.join("\n"));
+  const instruction = collectionInstruction(config);
+  if (instruction !== "") blocks.push(instruction);
 
   return {
     key: fiche.key,

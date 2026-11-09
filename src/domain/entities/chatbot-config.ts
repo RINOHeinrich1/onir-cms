@@ -29,6 +29,11 @@ export type ChatbotBehaviorMode = "guided" | "expert";
 
 export const DEFAULT_CHATBOT_BEHAVIOR_MODE: ChatbotBehaviorMode = "guided";
 
+/** Stratégie de collecte : par conversation IA ou formulaire semi-heuristique. */
+export type ChatbotCollectionMode = "ai" | "semi_heuristic";
+
+export const DEFAULT_CHATBOT_COLLECTION_MODE: ChatbotCollectionMode = "ai";
+
 export const DEFAULT_CHATBOT_REPLY_MAX_TOKENS = 400;
 export const MIN_CHATBOT_REPLY_MAX_TOKENS = 100;
 export const MAX_CHATBOT_REPLY_MAX_TOKENS = 2000;
@@ -59,6 +64,10 @@ export function buildGuidedChatbotPrompt(simple: TemplateSimpleSettings): string
 
 export function isChatbotBehaviorMode(value: unknown): value is ChatbotBehaviorMode {
   return value === "guided" || value === "expert";
+}
+
+export function isChatbotCollectionMode(value: unknown): value is ChatbotCollectionMode {
+  return value === "ai" || value === "semi_heuristic";
 }
 
 export type FicheDefinition = {
@@ -247,6 +256,8 @@ export type ChatbotConfigInput = {
   informationSources?: ChatbotInformationSources;
   /** Mode guidé (réglages simples) ou expert (prompt libre). */
   behaviorMode: ChatbotBehaviorMode;
+  /** Stratégie de collecte (défaut `ai`, conversationnelle). */
+  collectionMode?: ChatbotCollectionMode;
   /** Prompt effectif stocké en snapshot (généré en guidé, saisi en expert). */
   systemPrompt: string;
   simple: TemplateSimpleSettings;
@@ -262,6 +273,7 @@ export type ChatbotConfigInput = {
 };
 
 export type ChatbotConfig = ChatbotConfigInput & {
+  collectionMode: ChatbotCollectionMode;
   id: string;
   organizationId: string;
   chatLinkId: string;
@@ -343,6 +355,13 @@ export function parseChatbotConfig(
   const behaviorMode: ChatbotBehaviorMode = isChatbotBehaviorMode(rawBehaviorMode)
     ? rawBehaviorMode
     : DEFAULT_CHATBOT_BEHAVIOR_MODE;
+  const rawCollectionMode = raw.collectionMode;
+  if (rawCollectionMode !== undefined && !isChatbotCollectionMode(rawCollectionMode)) {
+    errors.push("Stratégie de collecte invalide (ai ou semi_heuristic)");
+  }
+  const collectionMode: ChatbotCollectionMode = isChatbotCollectionMode(rawCollectionMode)
+    ? rawCollectionMode
+    : DEFAULT_CHATBOT_COLLECTION_MODE;
   const rawReplyMaxTokens = raw.replyMaxTokens;
   const replyMaxTokens =
     rawReplyMaxTokens === undefined
@@ -410,6 +429,14 @@ export function parseChatbotConfig(
   } else if (hasInformationSources) {
     errors.push("La mission est requise avec des sources d'information");
   }
+  if (
+    collectionMode === "semi_heuristic" &&
+    (mission === undefined || mission === "inform" || fiches.length === 0)
+  ) {
+    errors.push(
+      "La collecte semi-heuristique exige une mission collect ou hybrid et au moins une fiche",
+    );
+  }
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -417,6 +444,7 @@ export function parseChatbotConfig(
       ...(mission === undefined ? {} : { mission }),
       ...(parsedSources?.ok ? { informationSources: parsedSources.value } : {}),
       behaviorMode,
+      collectionMode,
       systemPrompt,
       simple: simple as TemplateSimpleSettings,
       fiches,
