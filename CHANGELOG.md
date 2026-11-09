@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.33.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.33.0...v0.33.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* publication récursive des sous-fiches ([#264](https://github.com/RINOHeinrich1/onir-cms/issues/264)) ([4ef300b](https://github.com/RINOHeinrich1/onir-cms/commit/4ef300bf41e24806478b981103c7760d29081e53))
+
 ## [0.33.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.32.1...v0.33.0) (2026-11-09)
 
 
