@@ -243,6 +243,41 @@ export async function applyFicheDetection(input: {
 }
 
 /**
+ * Analyse la conversation puis applique le résultat aux instances.
+ * Utilisé aussi bien en mono-fiche qu'en multi-fiches : dans les deux cas,
+ * les données de l'instance sont enrichies à chaque message.
+ */
+export async function syncFicheInstances(input: {
+  ai: AiClient;
+  config: ChatbotConfig;
+  messages: AiMessage[];
+  repo: ConversationFicheInstanceRepository;
+  conversationId: string;
+  organizationId: string;
+}): Promise<ConversationFicheInstance | null> {
+  const detected = await detectFicheInstances({
+    ai: input.ai,
+    config: input.config,
+    messages: input.messages,
+  });
+  if (detected === null) {
+    return fallbackToPrimaryFiche({
+      repo: input.repo,
+      config: input.config,
+      conversationId: input.conversationId,
+      organizationId: input.organizationId,
+    });
+  }
+  return applyFicheDetection({
+    repo: input.repo,
+    config: input.config,
+    conversationId: input.conversationId,
+    organizationId: input.organizationId,
+    detected,
+  });
+}
+
+/**
  * Repli après échec d'analyse : la fiche principale redevient active sans
  * toucher aux données déjà enregistrées.
  */

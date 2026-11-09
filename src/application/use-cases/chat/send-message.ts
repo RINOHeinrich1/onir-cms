@@ -35,11 +35,9 @@ import {
 } from "@/application/use-cases/chat/chatbot-data-runtime";
 import { buildCollecteState } from "@/application/use-cases/chat/collecte-state";
 import {
-  applyFicheDetection,
-  detectFicheInstances,
   ensureMonoFicheInstance,
-  fallbackToPrimaryFiche,
   instanceForFiche,
+  syncFicheInstances,
 } from "@/application/use-cases/chat/fiche-instances";
 import { runMissionReply } from "@/application/use-cases/chat/mission-reply";
 import {
@@ -326,30 +324,18 @@ export async function sendMessage(
   };
 
   if (config !== null) {
-    if (config.fiches.length > 1 && instancesRepo !== undefined) {
-      const detected = await detectFicheInstances({
+    if (instancesRepo !== undefined) {
+      activeInstance = await syncFicheInstances({
         ai: withAiUsage(ai, recordUsage, "fiche_detection"),
         config,
         messages: safeHistory.map((message) => ({
           role: toAiRole(message.role),
           content: message.content,
         })),
+        repo: instancesRepo,
+        conversationId: conversation.id,
+        organizationId,
       });
-      activeInstance =
-        detected === null
-          ? await fallbackToPrimaryFiche({
-              repo: instancesRepo,
-              config,
-              conversationId: conversation.id,
-              organizationId,
-            })
-          : await applyFicheDetection({
-              repo: instancesRepo,
-              config,
-              conversationId: conversation.id,
-              organizationId,
-              detected,
-            });
     }
     const activeFiche = activeInstance === null ? null : findFiche(config, activeInstance.ficheKey);
     const fiche = activeFiche ?? config.fiches[0] ?? null;
