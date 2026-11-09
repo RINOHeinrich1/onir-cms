@@ -815,6 +815,9 @@ export function TemplateHost({
         ...(template.capabilities.includes("fallback") && fallbackMenu !== null
           ? { fallback: fallbackMenu }
           : {}),
+        ...(baseContext.state.collectionForm === undefined
+          ? {}
+          : { collectionForm: baseContext.state.collectionForm }),
       },
       actions,
       data: { load: loadData },
