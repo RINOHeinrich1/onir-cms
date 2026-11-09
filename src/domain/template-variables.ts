@@ -55,6 +55,50 @@ export function buildServerVariables(context: ServerVariableContext): Record<str
  * Variables de rendu : valeurs brutes + dérivés.
  * `extra` porte les variables libres (`date` de la fiche, `prospect_*`…).
  */
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map((entry) => cellText(entry)).join(", ");
+  if (typeof value === "object") return "";
+  return "";
+}
+
+function renderChildFiche(definition: TemplateDefinition | undefined, value: unknown): string {
+  if (
+    definition === undefined ||
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return "";
+  }
+  const data = value as Record<string, unknown>;
+  return definition.fields
+    .map((field) => `- **${field.label}** : ${cellText(data[field.name])}`)
+    .filter((line) => !line.endsWith(" : "))
+    .join("\n");
+}
+
+function renderChildTable(definition: TemplateDefinition | undefined, value: unknown): string {
+  if (definition === undefined || !Array.isArray(value) || value.length === 0) return "";
+  const fields = definition.fields.filter((field) => field.type !== "file");
+  const header = `| ${fields.map((field) => field.label).join(" | ")} |`;
+  const separator = `| ${fields.map(() => "---").join(" | ")} |`;
+  const rows = value
+    .filter(
+      (row): row is Record<string, unknown> =>
+        row !== null && typeof row === "object" && !Array.isArray(row),
+    )
+    .map(
+      (row) =>
+        `| ${fields
+          .map((field) => cellText(row[field.name]).replaceAll("|", "\\|"))
+          .join(" | ")} |`,
+    );
+  return [header, separator, ...rows].join("\n");
+}
+
 export function buildRenderVariables(
   definition: TemplateDefinition,
   data: Record<string, unknown>,
@@ -72,6 +116,12 @@ export function buildRenderVariables(
       continue;
     }
     const value = data[field.name];
+    if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+      const child = definition.subFiches?.find((entry) => entry.key === field.ficheKey);
+      vars[field.name] =
+        field.type === "fiche" ? renderChildFiche(child, value) : renderChildTable(child, value);
+      continue;
+    }
     if (field.type === "multi") {
       const items = Array.isArray(value)
         ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "")

@@ -71,6 +71,8 @@ export type TemplateDefinition = {
   simple?: TemplateSimpleSettings;
   /** Statuts de qualification versionnés avec le snapshot (ADR-0067). */
   statuses?: FicheStatusDefinition[];
+  /** Schémas des sous-fiches référencées (ADR-0083). */
+  subFiches?: TemplateDefinition[];
   /** Origine du snapshot, si la définition vient d'une fiche de collecte. */
   sourceFicheId?: string;
   sourceVersion?: number;

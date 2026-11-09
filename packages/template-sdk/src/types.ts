@@ -296,6 +296,8 @@ export type TemplateFormField = {
   unit?: string;
   /** Fiche modèle d'un champ `fiche` ou `tableau_de_fiches` (ADR-0083). */
   ficheKey?: string;
+  /** Schéma enfant d'un champ `fiche` ou `tableau_de_fiches`. */
+  fields?: TemplateFormField[];
   /** Champ `file` uniquement (ADR-0034). */
   accept?: string[];
   maxFiles?: number;
@@ -334,8 +336,11 @@ export type TemplateAction =
   | { action: "submitIdentity"; payload: TemplateIdentity }
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
-  | { action: "openCollectionForm" }
-  | { action: "submitCollection"; payload: { values: Record<string, string> } }
+  | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
+  | {
+      action: "submitCollection";
+      payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, unknown> };
+    }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
@@ -387,8 +392,12 @@ export type TemplateActions = {
   removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
   selectFallback(questionId: string): void;
-  openCollectionForm(): void;
-  submitCollection(values: Record<string, string>): Promise<void>;
+  openCollectionForm(payload?: { ficheKey?: string }): void;
+  submitCollection(payload: {
+    values: Record<string, unknown>;
+    ficheKey?: string;
+    ficheInstanceId?: string;
+  }): Promise<void>;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;

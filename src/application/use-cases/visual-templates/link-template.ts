@@ -145,23 +145,37 @@ export async function buildLinkContext(
       deps.configs !== undefined && typeof link.currentConfigId === "string"
         ? await deps.configs.findById(link.organizationId, link.currentConfigId)
         : null;
-    const toFormFields = (fields: NonNullable<typeof config>["fiches"][number]["fields"]) =>
-      fields.map((field) => ({
-        name: field.name,
-        label: field.label,
-        type: field.type,
-        required: field.required,
-        ...(field.options === undefined ? {} : { options: field.options }),
-        ...(field.unit === undefined ? {} : { unit: field.unit }),
-        ...(field.file === undefined
-          ? {}
-          : {
-              accept: field.file.accept,
-              maxFiles: field.file.maxFiles,
-              maxBytes: field.file.maxBytes,
-            }),
-        ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
-      }));
+    const byKey = new Map<string, NonNullable<typeof config>["fiches"][number]>();
+    const addFiches = (fiches: NonNullable<typeof config>["fiches"]): void => {
+      for (const fiche of fiches) {
+        byKey.set(fiche.key, fiche);
+        if (fiche.subFiches !== undefined) addFiches(fiche.subFiches);
+      }
+    };
+    if (config !== null) addFiches(config.fiches);
+    const toFormFields = (
+      fields: NonNullable<typeof config>["fiches"][number]["fields"],
+    ): TemplateFormField[] =>
+      fields.map((field) => {
+        const child = field.ficheKey === undefined ? undefined : byKey.get(field.ficheKey);
+        return {
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          ...(field.options === undefined ? {} : { options: field.options }),
+          ...(field.unit === undefined ? {} : { unit: field.unit }),
+          ...(field.file === undefined
+            ? {}
+            : {
+                accept: field.file.accept,
+                maxFiles: field.file.maxFiles,
+                maxBytes: field.file.maxBytes,
+              }),
+          ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
+          ...(child === undefined ? {} : { fields: toFormFields(child.fields) }),
+        };
+      });
     const fields = config?.fiches[0]?.fields;
     if (fields !== undefined && fields.length > 0) {
       modelForm = toFormFields(fields);

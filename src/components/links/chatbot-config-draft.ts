@@ -50,6 +50,8 @@ export type FicheFieldDraft = {
   requiredIf?: TemplateRequiredIf;
   /** Contraintes fichier conservées lors d'un import/édition. */
   file?: FileFieldConstraints;
+  /** Fiche modèle d'un champ `fiche` ou `tableau_de_fiches`. */
+  ficheKey?: string;
 };
 
 export type FicheDraft = {
@@ -64,6 +66,8 @@ export type FicheDraft = {
   fields: FicheFieldDraft[];
   /** Statuts de qualification versionnés avec la fiche (ADR-0067 §2.2). */
   statuses?: FicheStatusDefinition[];
+  /** Schémas enfants embarqués dans le snapshot (ADR-0083). */
+  subFiches?: FicheDraft[];
   /** Fiche réutilisable d'origine (traçabilité du snapshot, optionnel). */
   sourceFicheId?: string;
   sourceVersion?: number;
@@ -302,6 +306,9 @@ function fieldPayload(field: FicheFieldDraft, name: string): Record<string, unkn
     ...(field.type === "number" && field.unit.trim() !== "" ? { unit: field.unit.trim() } : {}),
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
+    ...(field.ficheKey === undefined || field.ficheKey.trim() === ""
+      ? {}
+      : { ficheKey: field.ficheKey.trim() }),
   };
 }
 
@@ -385,6 +392,39 @@ export function publicSafeSearchToolDraft(
   };
 }
 
+function serializeSubFiche(fiche: FicheDraft): Record<string, unknown> {
+  const used = new Set<string>();
+  const fields = fiche.fields
+    .filter((field) => field.label.trim() !== "")
+    .map((field) => {
+      const base = field.name.trim() === "" ? fieldNameFromLabel(field.label) : field.name.trim();
+      let name = base;
+      let suffix = 2;
+      while (used.has(name)) {
+        name = `${base}_${suffix}`;
+        suffix += 1;
+      }
+      used.add(name);
+      return { draft: field, name };
+    });
+  return {
+    key: fiche.key.trim(),
+    label: fiche.label.trim(),
+    description: fiche.description.trim(),
+    intent: fiche.intent.trim(),
+    fields: fields.map(({ draft: field, name }) => fieldPayload(field, name)),
+    renderTemplate:
+      `# ${fiche.label.trim() === "" ? "Sous-fiche" : fiche.label.trim()}\n\n` +
+      fields
+        .map(({ draft: field, name }) => `- **${field.label.trim()}** : {{${name}}}`)
+        .join("\n") +
+      "\n",
+    instructions: fiche.instructions.trim(),
+    ...(fiche.statuses === undefined ? {} : { statuses: fiche.statuses }),
+    ...(fiche.subFiches === undefined ? {} : { subFiches: fiche.subFiches.map(serializeSubFiche) }),
+  };
+}
+
 export function chatbotConfigPayload(
   draft: ChatbotConfigDraft,
   options: ChatbotConfigPayloadOptions = {},
@@ -430,6 +470,9 @@ export function chatbotConfigPayload(
         intent: fiche.intent.trim(),
         fields: fields.map(({ draft: field, name }) => fieldPayload(field, name)),
         ...(fiche.statuses === undefined ? {} : { statuses: fiche.statuses }),
+        ...(fiche.subFiches === undefined
+          ? {}
+          : { subFiches: fiche.subFiches.map(serializeSubFiche) }),
         renderTemplate,
         instructions: fiche.instructions.trim(),
         ...(fiche.sourceFicheId === undefined
@@ -445,6 +488,82 @@ export function chatbotConfigPayload(
 }
 
 /** Charge une configuration API existante dans le brouillon d'éditeur. */
+function ficheDraftFromRaw(entry: unknown, index: number, depth = 0): FicheDraft {
+  const fiche =
+    entry !== null && typeof entry === "object" && !Array.isArray(entry)
+      ? (entry as Record<string, unknown>)
+      : {};
+  const fieldsRaw = Array.isArray(fiche.fields) ? fiche.fields : [];
+  const statusesParsed = parseFicheStatuses(fiche.statuses);
+  const fields: FicheFieldDraft[] = fieldsRaw.map((fieldEntry) => {
+    const field =
+      fieldEntry !== null && typeof fieldEntry === "object" && !Array.isArray(fieldEntry)
+        ? (fieldEntry as Record<string, unknown>)
+        : {};
+    return {
+      id: newId(),
+      name: typeof field.name === "string" ? field.name : "",
+      label: typeof field.label === "string" ? field.label : "",
+      type: (typeof field.type === "string" ? field.type : "text") as TemplateFieldType,
+      required: field.required === true,
+      options: Array.isArray(field.options)
+        ? field.options.filter((item): item is string => typeof item === "string").join(", ")
+        : "",
+      example: typeof field.example === "string" ? field.example : "",
+      unit: typeof field.unit === "string" ? field.unit : "",
+      ...(field.requiredIf !== null &&
+      typeof field.requiredIf === "object" &&
+      !Array.isArray(field.requiredIf) &&
+      typeof (field.requiredIf as Record<string, unknown>).field === "string" &&
+      typeof (field.requiredIf as Record<string, unknown>).equals === "string"
+        ? {
+            requiredIf: {
+              field: (field.requiredIf as Record<string, unknown>).field as string,
+              equals: (field.requiredIf as Record<string, unknown>).equals as string,
+            },
+          }
+        : {}),
+      ...(field.file !== null && typeof field.file === "object" && !Array.isArray(field.file)
+        ? { file: field.file as FileFieldConstraints }
+        : {}),
+      ...(typeof field.ficheKey === "string" && field.ficheKey.trim() !== ""
+        ? { ficheKey: field.ficheKey.trim() }
+        : {}),
+    };
+  });
+  return {
+    id: newId(),
+    key: typeof fiche.key === "string" ? fiche.key : `fiche-${index + 1}`,
+    label: typeof fiche.label === "string" ? fiche.label : "",
+    description: typeof fiche.description === "string" ? fiche.description : "",
+    intent: typeof fiche.intent === "string" ? fiche.intent : "",
+    instructions: typeof fiche.instructions === "string" ? fiche.instructions : "",
+    renderTemplate:
+      typeof fiche.renderTemplate === "string" && fiche.renderTemplate.trim() !== ""
+        ? fiche.renderTemplate
+        : "# {{contact}}\n",
+    fields: fields.length === 0 ? [emptyField()] : fields,
+    ...(statusesParsed.ok && statusesParsed.value.length > 0
+      ? { statuses: statusesParsed.value }
+      : {}),
+    ...(Array.isArray(fiche.subFiches) && depth < 3
+      ? {
+          subFiches: fiche.subFiches.map((subEntry, subIndex) =>
+            ficheDraftFromRaw(subEntry, subIndex, depth + 1),
+          ),
+        }
+      : {}),
+    ...(typeof fiche.sourceFicheId === "string" && fiche.sourceFicheId !== ""
+      ? {
+          sourceFicheId: fiche.sourceFicheId,
+          ...(typeof fiche.sourceVersion === "number"
+            ? { sourceVersion: fiche.sourceVersion }
+            : {}),
+        }
+      : {}),
+  };
+}
+
 export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   if (input === null || typeof input !== "object" || Array.isArray(input)) return null;
   const raw = input as Record<string, unknown>;
@@ -459,71 +578,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
       ? (simpleRaw.language as Record<string, unknown>)
       : {};
   const fichesRaw = Array.isArray(raw.fiches) ? raw.fiches : [];
-  const fiches: FicheDraft[] = fichesRaw.map((entry, index) => {
-    const fiche =
-      entry !== null && typeof entry === "object" && !Array.isArray(entry)
-        ? (entry as Record<string, unknown>)
-        : {};
-    const fieldsRaw = Array.isArray(fiche.fields) ? fiche.fields : [];
-    const statusesParsed = parseFicheStatuses(fiche.statuses);
-    const fields: FicheFieldDraft[] = fieldsRaw.map((fieldEntry) => {
-      const field =
-        fieldEntry !== null && typeof fieldEntry === "object" && !Array.isArray(fieldEntry)
-          ? (fieldEntry as Record<string, unknown>)
-          : {};
-      return {
-        id: newId(),
-        name: typeof field.name === "string" ? field.name : "",
-        label: typeof field.label === "string" ? field.label : "",
-        type: (typeof field.type === "string" ? field.type : "text") as TemplateFieldType,
-        required: field.required === true,
-        options: Array.isArray(field.options)
-          ? field.options.filter((item): item is string => typeof item === "string").join(", ")
-          : "",
-        example: typeof field.example === "string" ? field.example : "",
-        unit: typeof field.unit === "string" ? field.unit : "",
-        ...(field.requiredIf !== null &&
-        typeof field.requiredIf === "object" &&
-        !Array.isArray(field.requiredIf) &&
-        typeof (field.requiredIf as Record<string, unknown>).field === "string" &&
-        typeof (field.requiredIf as Record<string, unknown>).equals === "string"
-          ? {
-              requiredIf: {
-                field: (field.requiredIf as Record<string, unknown>).field as string,
-                equals: (field.requiredIf as Record<string, unknown>).equals as string,
-              },
-            }
-          : {}),
-        ...(field.file !== null && typeof field.file === "object" && !Array.isArray(field.file)
-          ? { file: field.file as FileFieldConstraints }
-          : {}),
-      };
-    });
-    return {
-      id: newId(),
-      key: typeof fiche.key === "string" ? fiche.key : `fiche-${index + 1}`,
-      label: typeof fiche.label === "string" ? fiche.label : "",
-      description: typeof fiche.description === "string" ? fiche.description : "",
-      intent: typeof fiche.intent === "string" ? fiche.intent : "",
-      instructions: typeof fiche.instructions === "string" ? fiche.instructions : "",
-      renderTemplate:
-        typeof fiche.renderTemplate === "string" && fiche.renderTemplate.trim() !== ""
-          ? fiche.renderTemplate
-          : "# {{contact}}\n",
-      fields: fields.length === 0 ? [emptyField()] : fields,
-      ...(statusesParsed.ok && statusesParsed.value.length > 0
-        ? { statuses: statusesParsed.value }
-        : {}),
-      ...(typeof fiche.sourceFicheId === "string" && fiche.sourceFicheId !== ""
-        ? {
-            sourceFicheId: fiche.sourceFicheId,
-            ...(typeof fiche.sourceVersion === "number"
-              ? { sourceVersion: fiche.sourceVersion }
-              : {}),
-          }
-        : {}),
-    };
-  });
+  const fiches: FicheDraft[] = fichesRaw.map((entry, index) => ficheDraftFromRaw(entry, index));
   const guardrails = Array.isArray(simpleRaw.guardrails)
     ? simpleRaw.guardrails
         .filter((entry): entry is string => typeof entry === "string")
@@ -586,8 +641,7 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   };
 }
 
-/** Fiche réutilisable (API) → brouillon d'éditeur, avec traçabilité snapshot. */
-export function draftFromFicheCollecte(input: {
+export type FicheCollecteSource = {
   id: string;
   key: string;
   label: string;
@@ -598,7 +652,36 @@ export function draftFromFicheCollecte(input: {
   version: number;
   fields: TemplateField[];
   statuses?: FicheStatusDefinition[];
-}): FicheDraft {
+};
+
+function collectSubFiches(
+  input: FicheCollecteSource,
+  resolve: (key: string) => FicheCollecteSource | undefined,
+  seen: Set<string>,
+): FicheDraft[] {
+  const keys = new Set(
+    input.fields
+      .filter((field) => field.type === "fiche" || field.type === "tableau_de_fiches")
+      .map((field) => field.ficheKey ?? "")
+      .filter((key) => key !== ""),
+  );
+  const result: FicheDraft[] = [];
+  for (const key of keys) {
+    if (seen.has(key)) continue;
+    const child = resolve(key);
+    if (child === undefined) continue;
+    result.push(draftFromFicheCollecte(child, resolve, new Set(seen).add(key)));
+  }
+  return result;
+}
+
+/** Fiche réutilisable (API) → brouillon d'éditeur, avec traçabilité snapshot. */
+export function draftFromFicheCollecte(
+  input: FicheCollecteSource,
+  resolve: (key: string) => FicheCollecteSource | undefined = () => undefined,
+  seen: Set<string> = new Set([input.key]),
+): FicheDraft {
+  const subFiches = collectSubFiches(input, resolve, seen);
   return {
     id: newId(),
     key: input.key,
@@ -610,6 +693,7 @@ export function draftFromFicheCollecte(input: {
     sourceFicheId: input.id,
     sourceVersion: input.version,
     ...(input.statuses === undefined ? {} : { statuses: input.statuses }),
+    ...(subFiches.length === 0 ? {} : { subFiches }),
     fields: input.fields.map((field) => ({
       id: newId(),
       name: field.name,
@@ -621,6 +705,7 @@ export function draftFromFicheCollecte(input: {
       unit: field.unit ?? "",
       ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
       ...(field.file === undefined ? {} : { file: field.file }),
+      ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
     })),
   };
 }
@@ -635,5 +720,8 @@ export function draftFieldsToTemplateFields(fields: FicheFieldDraft[]): Template
       type: field.type,
       required: field.required,
       ...(field.unit.trim() === "" ? {} : { unit: field.unit.trim() }),
+      ...(field.ficheKey === undefined || field.ficheKey.trim() === ""
+        ? {}
+        : { ficheKey: field.ficheKey.trim() }),
     }));
 }

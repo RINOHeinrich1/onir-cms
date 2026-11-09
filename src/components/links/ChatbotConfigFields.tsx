@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TEMPLATE_FIELD_TYPES } from "@/domain/entities/chat-template";
+import { FICHE_REFERENCE_FIELD_TYPES, TEMPLATE_FIELD_TYPES } from "@/domain/entities/chat-template";
 import { MAX_FICHES_PER_CHATBOT } from "@/domain/entities/chatbot-config";
 import { ficheKeyFromLabel } from "@/domain/entities/fiche-collecte";
 import { ChatbotBehaviorFields } from "./ChatbotBehaviorFields";
@@ -80,7 +80,13 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
       return;
     }
     setImportError(null);
-    onChange({ ...value, fiches: [...value.fiches, draftFromFicheCollecte(fiche)] });
+    onChange({
+      ...value,
+      fiches: [
+        ...value.fiches,
+        draftFromFicheCollecte(fiche, (key) => fichesCollecte.find((entry) => entry.key === key)),
+      ],
+    });
     setSelectedFiche("");
   };
 
@@ -253,7 +259,7 @@ export function ChatbotConfigFields({ value, onChange }: Props) {
                     )
                   }
                 >
-                  {TEMPLATE_FIELD_TYPES.map((type) => (
+                  {[...TEMPLATE_FIELD_TYPES, ...FICHE_REFERENCE_FIELD_TYPES].map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>

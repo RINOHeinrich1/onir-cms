@@ -46,6 +46,10 @@ export function findFiche(config: ChatbotConfig, key: string): FicheDefinition |
 }
 
 /** Normalise les valeurs d'une instance selon les types de champs de sa fiche. */
+function childFiche(fiche: FicheDefinition, key: string): FicheDefinition | undefined {
+  return fiche.subFiches?.find((entry) => entry.key === key);
+}
+
 export function normalizeFicheData(
   fiche: FicheDefinition,
   input: Record<string, unknown>,
@@ -56,10 +60,36 @@ export function normalizeFicheData(
     const value = input[field.name];
     if (value === null || value === undefined) continue;
     if (field.type === "file") continue;
+    if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+      const child = field.ficheKey === undefined ? undefined : childFiche(fiche, field.ficheKey);
+      if (child === undefined) continue;
+      if (field.type === "fiche") {
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+          const normalizedChild = normalizeFicheData(child, value as Record<string, unknown>);
+          if (Object.keys(normalizedChild).length > 0) output[field.name] = normalizedChild;
+        }
+        continue;
+      }
+      if (Array.isArray(value)) {
+        const rows = value
+          .filter(
+            (row): row is Record<string, unknown> =>
+              row !== null && typeof row === "object" && !Array.isArray(row),
+          )
+          .map((row) => normalizeFicheData(child, row))
+          .filter((row) => Object.keys(row).length > 0);
+        if (rows.length > 0) output[field.name] = rows;
+      }
+      continue;
+    }
     if (field.type === "multi") {
       const { values, invalid } = canonicalMultiValue(field, value);
       const merged = [...values, ...invalid];
       if (merged.length > 0) output[field.name] = merged;
+      continue;
+    }
+    if (typeof value === "number" && field.type === "number") {
+      output[field.name] = value;
       continue;
     }
     const normalized =
@@ -78,11 +108,25 @@ export function normalizeFicheData(
   return output;
 }
 
-function fieldsGuide(fiche: FicheDefinition): string {
-  return buildFieldsGuide(fiche.fields, {
-    label: "Informations à collecter pour cette fiche :",
+function fieldsGuide(fiche: FicheDefinition, depth = 0): string {
+  const prefix = depth === 0 ? "" : `${"  ".repeat(depth)}Sous-fiche `;
+  const lines: string[] = [];
+  if (depth > 0) lines.push(`${prefix}"${fiche.label}" (${fiche.key}) :`);
+  const guide = buildFieldsGuide(fiche.fields, {
+    label:
+      depth === 0 ? "Informations à collecter pour cette fiche :" : "  Champs de la sous-fiche :",
     includeTechnicalNames: false,
   });
+  if (guide !== "") lines.push(guide);
+  for (const field of fiche.fields) {
+    if (field.type !== "fiche" && field.type !== "tableau_de_fiches") continue;
+    const child =
+      field.ficheKey === undefined
+        ? undefined
+        : fiche.subFiches?.find((entry) => entry.key === field.ficheKey);
+    if (child !== undefined) lines.push(fieldsGuide(child, depth + 1));
+  }
+  return lines.join("\n");
 }
 
 /**
@@ -140,6 +184,9 @@ export function ficheToDefinition(
     description: fiche.description,
     systemPrompt: blocks.filter((block) => block !== "").join("\n\n"),
     fields: fiche.fields,
+    ...(fiche.subFiches === undefined
+      ? {}
+      : { subFiches: fiche.subFiches.map((child) => ficheToDefinition(config, child)) }),
     renderTemplate: fiche.renderTemplate,
     simple: config.simple,
   };

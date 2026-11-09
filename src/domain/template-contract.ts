@@ -129,6 +129,8 @@ export type TemplateFormField = {
   unit?: string;
   /** Fiche modèle d'un champ `fiche` ou `tableau_de_fiches` (ADR-0083). */
   ficheKey?: string;
+  /** Schéma enfant d'un champ `fiche` ou `tableau_de_fiches`. */
+  fields?: TemplateFormField[];
   /** Champ `file` uniquement (ADR-0034). */
   accept?: string[];
   maxFiles?: number;
@@ -191,7 +193,7 @@ export type TemplateAction =
   | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
   | {
       action: "submitCollection";
-      payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, string> };
+      payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, unknown> };
     }
   | { action: "request"; payload: { capability: TemplateCapability } }
   | { action: "openMedia"; payload: { url: string } }
@@ -235,7 +237,7 @@ export function parseTemplateAction(
       if (values === null || typeof values !== "object" || Array.isArray(values)) {
         return { ok: false, error: "values requis" };
       }
-      const cleaned: Record<string, string> = {};
+      const cleaned: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(values)) {
         if (typeof key !== "string" || key.trim() === "") continue;
         if (typeof value !== "string") continue;

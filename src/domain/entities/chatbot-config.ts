@@ -79,6 +79,8 @@ export type FicheDefinition = {
   statuses?: FicheStatusDefinition[];
   renderTemplate: string;
   instructions: string;
+  /** Schémas des sous-fiches référencées (snapshot, ADR-0083). */
+  subFiches?: FicheDefinition[];
   /** Fiche réutilisable d'origine (snapshot, optionnel). */
   sourceFicheId?: string;
   sourceVersion?: number;
@@ -317,6 +319,19 @@ function parseFiche(
       error: `Fiche « ${label || key} » : ${validated.errors.join(" ; ")}`,
     };
   }
+  const subFiches: FicheDefinition[] = [];
+  if (Array.isArray(raw.subFiches)) {
+    for (const [subIndex, subEntry] of raw.subFiches.entries()) {
+      const parsedSub = parseFiche(subEntry, subIndex);
+      if (!parsedSub.ok) {
+        return {
+          ok: false,
+          error: `Sous-fiche de « ${label || key} » : ${parsedSub.error}`,
+        };
+      }
+      subFiches.push(parsedSub.value);
+    }
+  }
   return {
     ok: true,
     value: {
@@ -326,6 +341,7 @@ function parseFiche(
       intent: text(raw.intent),
       fields: validated.value.fields,
       ...(validated.value.statuses === undefined ? {} : { statuses: validated.value.statuses }),
+      ...(subFiches.length === 0 ? {} : { subFiches }),
       renderTemplate: validated.value.renderTemplate,
       instructions: text(raw.instructions).slice(0, 4000),
       ...(text(raw.sourceFicheId) === ""

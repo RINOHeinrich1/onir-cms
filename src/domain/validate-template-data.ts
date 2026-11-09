@@ -54,6 +54,13 @@ function textList(value: unknown): string[] {
   return [...seen];
 }
 
+function childDefinition(
+  definition: TemplateDefinition,
+  field: TemplateField,
+): TemplateDefinition | undefined {
+  return definition.subFiches?.find((entry) => entry.key === field.ficheKey);
+}
+
 function checkType(field: TemplateField, value: unknown): string | null {
   switch (field.type) {
     case "text":
@@ -96,6 +103,7 @@ function checkType(field: TemplateField, value: unknown): string | null {
 
 function isEmpty(field: TemplateField, value: unknown): boolean {
   if (field.type === "multi") return textList(value).length === 0;
+  if (field.type === "tableau_de_fiches") return !Array.isArray(value) || value.length === 0;
   if (field.type === "number") {
     return (
       value === null || value === undefined || (typeof value === "string" && value.trim() === "")
@@ -161,6 +169,48 @@ export function validateTemplateData(
       continue;
     }
 
+    if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+      const child = childDefinition(definition, field);
+      if (child === undefined) {
+        errors.push(`Sous-fiche introuvable (${field.name})`);
+        continue;
+      }
+      if (field.type === "fiche") {
+        if (value === null || typeof value !== "object" || Array.isArray(value)) {
+          errors.push(`« ${field.label} » doit être un objet`);
+          continue;
+        }
+        const nested = validateTemplateData(child, value);
+        if (!nested.ok) {
+          errors.push(...nested.errors.map((error) => `${field.label} : ${error}`));
+          continue;
+        }
+        normalized[field.name] = nested.value;
+        continue;
+      }
+      if (!Array.isArray(value)) {
+        errors.push(`« ${field.label} » doit être un tableau`);
+        continue;
+      }
+      const rows: Record<string, unknown>[] = [];
+      let rowError = false;
+      for (const row of value) {
+        if (row === null || typeof row !== "object" || Array.isArray(row)) {
+          errors.push(`« ${field.label} » contient une ligne invalide`);
+          rowError = true;
+          continue;
+        }
+        const nested = validateTemplateData(child, row);
+        if (!nested.ok) {
+          errors.push(...nested.errors.map((error) => `${field.label} : ${error}`));
+          rowError = true;
+          continue;
+        }
+        rows.push(nested.value);
+      }
+      if (!rowError) normalized[field.name] = rows;
+      continue;
+    }
     const typeError = checkType(field, value);
     if (typeError !== null) {
       errors.push(typeError);
@@ -196,6 +246,49 @@ export function validatePartialTemplateData(
     if (!Object.hasOwn(source, field.name)) continue;
     const value = source[field.name];
     if (field.type === "file") continue;
+
+    if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+      const child = childDefinition(definition, field);
+      if (child === undefined) {
+        errors.push(`Sous-fiche introuvable (${field.name})`);
+        continue;
+      }
+      if (field.type === "fiche") {
+        if (value === null || typeof value !== "object" || Array.isArray(value)) {
+          errors.push(`« ${field.label} » doit être un objet`);
+          continue;
+        }
+        const nested = validatePartialTemplateData(child, value);
+        if (!nested.ok) {
+          errors.push(...nested.errors.map((error) => `${field.label} : ${error}`));
+          continue;
+        }
+        normalized[field.name] = nested.value;
+        continue;
+      }
+      if (!Array.isArray(value)) {
+        errors.push(`« ${field.label} » doit être un tableau`);
+        continue;
+      }
+      const rows: Record<string, unknown>[] = [];
+      let rowError = false;
+      for (const row of value) {
+        if (row === null || typeof row !== "object" || Array.isArray(row)) {
+          errors.push(`« ${field.label} » contient une ligne invalide`);
+          rowError = true;
+          continue;
+        }
+        const nested = validatePartialTemplateData(child, row);
+        if (!nested.ok) {
+          errors.push(...nested.errors.map((error) => `${field.label} : ${error}`));
+          rowError = true;
+          continue;
+        }
+        rows.push(nested.value);
+      }
+      if (!rowError) normalized[field.name] = rows;
+      continue;
+    }
 
     if (isEmpty(field, value)) {
       normalized[field.name] = field.type === "multi" ? [] : "";

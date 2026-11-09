@@ -30,7 +30,7 @@ type TemplateActions = {
   selectFallback(questionId: string): void;
   openCollectionForm(payload?: { ficheKey?: string }): void;
   submitCollection(payload: {
-    values: Record<string, string>;
+    values: Record<string, unknown>;
     ficheKey?: string;
     ficheInstanceId?: string;
   }): Promise<void>;

@@ -15,6 +15,42 @@ export type ManageFicheCollectesDependencies = {
   fiches: FicheCollecteRepository;
 };
 
+const MAX_FICHE_DEPTH = 3;
+
+function assertFicheGraph(
+  fiches: readonly Pick<FicheCollecteInput, "key" | "label" | "fields">[],
+): void {
+  const byKey = new Map(fiches.map((fiche) => [fiche.key, fiche]));
+  for (const fiche of fiches) {
+    for (const field of fiche.fields) {
+      if (field.type !== "fiche" && field.type !== "tableau_de_fiches") continue;
+      if (field.ficheKey === undefined || !byKey.has(field.ficheKey)) {
+        throw new ValidationError(
+          `Fiche « ${fiche.label} » : sous-fiche introuvable (${field.ficheKey ?? "vide"})`,
+        );
+      }
+    }
+  }
+  const visit = (key: string, path: readonly string[], depth: number): void => {
+    if (depth > MAX_FICHE_DEPTH) {
+      throw new ValidationError(
+        `Profondeur de sous-fiches trop grande (${MAX_FICHE_DEPTH} maximum)`,
+      );
+    }
+    if (path.includes(key)) {
+      throw new ValidationError(`Cycle de sous-fiches détecté : ${[...path, key].join(" → ")}`);
+    }
+    const fiche = byKey.get(key);
+    if (fiche === undefined) return;
+    for (const field of fiche.fields) {
+      if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+        if (field.ficheKey !== undefined) visit(field.ficheKey, [...path, key], depth + 1);
+      }
+    }
+  };
+  for (const fiche of fiches) visit(fiche.key, [], 0);
+}
+
 export async function listFicheCollectes(
   deps: ManageFicheCollectesDependencies,
   actor: Actor,
@@ -110,6 +146,7 @@ export async function createFicheCollecte(
     key = `${validated.value.key}-${suffix}`;
     suffix += 1;
   }
+  assertFicheGraph([...(await deps.fiches.list(organizationId)), { ...validated.value, key }]);
   return deps.fiches.create(organizationId, { ...validated.value, key }, actor.id);
 }
 
@@ -142,6 +179,10 @@ export async function updateFicheCollecte(
   if (homonym !== null && homonym.id !== id) {
     throw new ConflictError(`Clé déjà utilisée : ${validated.value.key}`);
   }
+  assertFicheGraph([
+    ...(await deps.fiches.list(organizationId)).filter((fiche) => fiche.id !== id),
+    validated.value,
+  ]);
   const updated = await deps.fiches.updateVersion(organizationId, id, validated.value, actor.id);
   if (updated === null) throw new NotFoundError("Fiche de collecte introuvable");
   return updated;
@@ -153,6 +194,24 @@ export async function deleteFicheCollecte(
   id: string,
 ): Promise<void> {
   assertCan(actor, "fiches_collecte:delete");
-  const deleted = await deps.fiches.delete(organizationOf(actor), id);
+  const organizationId = organizationOf(actor);
+  const target = await deps.fiches.findById(organizationId, id);
+  if (target === null) throw new NotFoundError("Fiche de collecte introuvable");
+  const fiches = await deps.fiches.list(organizationId);
+  const usedBy = fiches.find(
+    (fiche) =>
+      fiche.id !== id &&
+      fiche.fields.some(
+        (field) =>
+          (field.type === "fiche" || field.type === "tableau_de_fiches") &&
+          field.ficheKey === target.key,
+      ),
+  );
+  if (usedBy !== undefined) {
+    throw new ConflictError(
+      `Fiche utilisée par « ${usedBy.label} » : détachez-la avant suppression`,
+    );
+  }
+  const deleted = await deps.fiches.delete(organizationId, id);
   if (!deleted) throw new NotFoundError("Fiche de collecte introuvable");
 }

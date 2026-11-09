@@ -73,13 +73,26 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const values: Record<string, unknown> = {};
     for (const [fieldName, rawValue] of Object.entries(rawValues)) {
-      if (typeof rawValue !== "string") continue;
-      const value = rawValue.trim();
-      if (value === "") continue;
-      if (value.length > 4000) {
-        throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
+      if (typeof rawValue === "string") {
+        const value = rawValue.trim();
+        if (value === "") continue;
+        if (value.length > 4000) {
+          throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
+        }
+        values[fieldName] = value;
+        continue;
       }
-      values[fieldName] = value;
+      if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+        values[fieldName] = rawValue;
+        continue;
+      }
+      if (rawValue !== null && typeof rawValue === "object") {
+        const serialized = JSON.stringify(rawValue);
+        if (serialized.length > 20000) {
+          throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
+        }
+        values[fieldName] = rawValue;
+      }
     }
     if (Object.keys(values).length === 0) {
       throw new ValidationError("Aucun champ valide à enregistrer");
