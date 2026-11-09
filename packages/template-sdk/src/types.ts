@@ -59,6 +59,7 @@ export type TemplateParamType =
   | "boolean"
   | "color"
   | "url"
+  | "image"
   | "select";
 
 /** Valeur scalaire d'un paramètre. */

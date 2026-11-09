@@ -79,3 +79,4 @@ ADR qui remplace la précédente.
 | [0077](./0077-template-starter-defaut-et-couleurs-ia.md) | Template Starter par défaut et génération IA des couleurs | Proposé |
 | [0078](./0078-acces-prive-wireguard-services-donnees.md) | Accès privés aux services de données via WireGuard | Proposé |
 | [0079](./0079-rate-limit-ia-bottleneck-multinode.md) | Rate limiting IA avec Bottleneck en mono et multi-instance | Proposé |
+| [0080](./0080-type-image-parametres-template.md) | Type image générique pour les paramètres de template | Proposé |

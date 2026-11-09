@@ -31,6 +31,7 @@ export type TemplateManifestParamInput =
   | (ParamBase & { type: "boolean"; default: boolean })
   | (ParamBase & { type: "color"; default: string })
   | (ParamBase & { type: "url"; default: string })
+  | (ParamBase & { type: "image"; default: string })
   | (ParamBase & { type: "select"; default: string; options: readonly TemplateParamOption[] });
 
 /** Entrée de `defineManifest` (valeurs fixes non incluses). */
@@ -107,6 +108,7 @@ function toParamSchema(param: TemplateManifestParamInput): TemplateParamSchema {
     case "boolean":
     case "color":
     case "url":
+    case "image":
       return { ...base, type: param.type };
     case "select":
       return { ...base, type: param.type, options: [...param.options] };

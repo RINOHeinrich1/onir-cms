@@ -44,6 +44,7 @@ const PARAM_TYPE_DESCRIPTIONS: Record<TemplateParamType, string> = {
   boolean: "Vrai / faux (interrupteur).",
   color: "Couleur #rrggbb (sélecteur).",
   url: "URL http(s).",
+  image: "Image importée (PNG, JPEG, WebP).",
   select: "Choix parmi les options déclarées.",
 };
 

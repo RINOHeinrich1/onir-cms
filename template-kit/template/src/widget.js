@@ -262,6 +262,8 @@ const STYLE = `
   }
   .msg.user .avatar { background: var(--onir-accent); color: var(--onir-accent-ink); }
   .msg.operator .avatar { background: #0f766e; color: #fff; }
+  .msg.assistant .avatar { background: var(--onir-surface); padding: 3px; }
+  .msg.assistant .avatar img, .typing-row .avatar img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .msg-author { padding: 0 3px; color: #0f766e; font-size: 9px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
   .msg-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; max-width: 84%; }
   .msg.user .msg-body { align-items: flex-end; }
@@ -488,6 +490,15 @@ function safeColor(value, fallback) {
 function paramText(ctx, key, fallback) {
   const value = ctx?.params?.[key];
   return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
+}
+
+function assistantAvatar(ctx) {
+  const paramLogo = paramText(ctx, "assistant_logo", "");
+  const brandLogo = typeof ctx?.brand?.logoUrl === "string" ? ctx.brand.logoUrl.trim() : "";
+  const logo = paramLogo !== "" ? paramLogo : brandLogo;
+  return logo !== ""
+    ? el("span", { class: "avatar", "aria-hidden": "true" }, [el("img", { src: logo, alt: "" })])
+    : el("span", { class: "avatar", "aria-hidden": "true", text: "IA" });
 }
 
 function themedColor(ctx, key, themeValue, fallback) {
@@ -980,7 +991,7 @@ class StarterWidget extends HTMLElement {
     if (!this.#typing.hidden) {
       this.#typing.appendChild(
         el("div", { class: "typing-row" }, [
-          el("span", { class: "avatar", "aria-hidden": "true", text: "IA" }),
+          assistantAvatar(ctx),
           el("span", { class: "typing-bubble", "aria-label": "L'assistant écrit" }, [
             el("span"), el("span"), el("span"),
           ]),
@@ -1146,14 +1157,12 @@ class StarterWidget extends HTMLElement {
       el("span", { class: "msg-time", text: formatTime(message.at) }),
     ]);
     const kind = isUser ? "user" : author === null ? "assistant" : "operator";
-    const node = el("li", { class: `msg ${kind}` }, [
-      el("span", {
-        class: "avatar",
-        "aria-hidden": "true",
-        text: isUser ? "Moi" : author === null ? "IA" : "Hum.",
-      }),
-      body,
-    ]);
+    const avatar = isUser
+      ? el("span", { class: "avatar", "aria-hidden": "true", text: "Moi" })
+      : author === null
+        ? assistantAvatar(ctx)
+        : el("span", { class: "avatar", "aria-hidden": "true", text: "Hum." });
+    const node = el("li", { class: `msg ${kind}` }, [avatar, body]);
     node.__onirSignature = messageSignature(message);
     return node;
   }

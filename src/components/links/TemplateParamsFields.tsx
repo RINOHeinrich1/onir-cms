@@ -53,6 +53,15 @@ export function TemplateParamsFields({
                 />{" "}
                 {param.label}
               </label>
+            ) : param.type === "image" ? (
+              <div>
+                <span className="param-label">{param.label}</span>
+                <ImageParamField
+                  id={controlId}
+                  value={typeof value === "string" ? value : ""}
+                  onChange={(next) => set(param.key, next)}
+                />
+              </div>
             ) : param.type === "color" ? (
               <div>
                 <span className="param-label">{param.label}</span>
@@ -108,6 +117,95 @@ export function TemplateParamsFields({
         </div>
       )}
     </fieldset>
+  );
+}
+
+type ImageParamFieldProps = {
+  id: string;
+  value: string;
+  onChange: (next: string) => void;
+};
+
+function assetIdFromUrl(url: string): string | null {
+  const match = /^\/api\/template-param-assets\/([0-9a-f-]+)$/i.exec(url);
+  return match?.[1] ?? null;
+}
+
+function ImageParamField({ id, value, onChange }: ImageParamFieldProps) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  const upload = async (file: File): Promise<void> => {
+    setUploading(true);
+    setError(null);
+    setPreviewFailed(false);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/template-param-assets", { method: "POST", body });
+      const payload = (await response.json()) as { url?: unknown; error?: unknown };
+      if (!response.ok || typeof payload.url !== "string") {
+        throw new Error(typeof payload.error === "string" ? payload.error : "Upload impossible");
+      }
+      onChange(payload.url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Upload impossible");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async (): Promise<void> => {
+    const assetId = assetIdFromUrl(value);
+    if (assetId !== null) {
+      await fetch(`/api/template-param-assets/${assetId}`, { method: "DELETE" }).catch(
+        () => undefined,
+      );
+    }
+    onChange("");
+    setPreviewFailed(false);
+  };
+
+  return (
+    <span className="param-image">
+      {value === "" ? (
+        <span className="hint">Aucune image.</span>
+      ) : (
+        <span className="param-image-preview">
+          {/* biome-ignore lint/performance/noImgElement: aperçu local d'un asset contrôlé */}
+          <img src={value} alt="" onError={() => setPreviewFailed(true)} hidden={previewFailed} />
+          {previewFailed ? <span className="hint">Image indisponible.</span> : null}
+        </span>
+      )}
+      <span className="param-image-actions">
+        <label className="btn subtle small" htmlFor={id}>
+          {uploading ? "Upload…" : value === "" ? "Choisir un fichier" : "Remplacer"}
+        </label>
+        <input
+          id={id}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          disabled={uploading}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file !== undefined) void upload(file);
+          }}
+        />
+        {value === "" ? null : (
+          <button type="button" className="btn ghost small" onClick={() => void remove()}>
+            Supprimer
+          </button>
+        )}
+      </span>
+      {error === null ? null : (
+        <span className="param-image-error" role="alert">
+          {error}
+        </span>
+      )}
+      <span className="hint">PNG, JPEG ou WebP — 2 Mo maximum.</span>
+    </span>
   );
 }
 
