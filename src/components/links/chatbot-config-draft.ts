@@ -1,4 +1,4 @@
-import type { ChatbotAiDraft } from "@/domain/chatbot-ai-draft";
+import type { ChatbotAiDraft, ChatbotAiForm } from "@/domain/chatbot-ai-draft";
 import type { FileFieldConstraints } from "@/domain/entities/attachment";
 import type { ChatLinkSources } from "@/domain/entities/chat";
 import type {
@@ -123,13 +123,9 @@ export type ChatbotConfigDraftFromAiOptions = {
   dataSelection?: ChatbotDataSelection;
 };
 
-/** Convertit un brouillon IA de chatbot en configuration éditable (fiches actuelles). */
-export function chatbotConfigDraftFromAi(
-  draft: ChatbotAiDraft,
-  options: ChatbotConfigDraftFromAiOptions = {},
-): ChatbotConfigDraft {
-  const mission = options.mission ?? (draft.fields.length > 0 ? "hybrid" : "inform");
-  const fields: FicheFieldDraft[] = draft.fields.map((field) => ({
+/** Convertit un brouillon IA de chatbot en configuration éditable. */
+function aiFieldToDraft(field: TemplateField): FicheFieldDraft {
+  return {
     id: newId(),
     name: field.name,
     label: field.label,
@@ -137,25 +133,77 @@ export function chatbotConfigDraftFromAi(
     required: field.required,
     options: field.options?.join(", ") ?? "",
     example: field.example ?? "",
-    unit: "",
+    unit: field.unit ?? "",
     ...(field.requiredIf === undefined ? {} : { requiredIf: field.requiredIf }),
     ...(field.file === undefined ? {} : { file: field.file }),
-  }));
+    ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
+  };
+}
+
+function aiFormRenderTemplate(form: ChatbotAiForm): string {
+  return (
+    `# ${form.label}\n\n` +
+    form.fields.map((field) => `- **${field.label}** : {{${field.name}}}`).join("\n") +
+    "\n"
+  );
+}
+
+function aiFormToDraft(form: ChatbotAiForm, forms: ChatbotAiForm[], seen: Set<string>): FicheDraft {
+  const childKeys = new Set(
+    form.fields
+      .filter((field) => field.type === "fiche" || field.type === "tableau_de_fiches")
+      .map((field) => field.ficheKey ?? "")
+      .filter((key) => key !== ""),
+  );
+  const subFiches = [...childKeys]
+    .filter((key) => !seen.has(key))
+    .map((key) => forms.find((entry) => entry.key === key))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined)
+    .map((entry) => aiFormToDraft(entry, forms, new Set(seen).add(entry.key)));
+  return {
+    id: newId(),
+    key: form.key,
+    label: form.label,
+    description: form.description,
+    intent: form.intent,
+    instructions: "",
+    renderTemplate: aiFormRenderTemplate(form),
+    fields: form.fields.map(aiFieldToDraft),
+    ...(subFiches.length === 0 ? {} : { subFiches }),
+  };
+}
+
+export function chatbotConfigDraftFromAi(
+  draft: ChatbotAiDraft,
+  options: ChatbotConfigDraftFromAiOptions = {},
+): ChatbotConfigDraft {
+  const mission = options.mission ?? (draft.fields.length > 0 ? "hybrid" : "inform");
+  const forms = draft.forms ?? [];
+  const rootForm = forms.find((form) => form.key === draft.rootFormKey) ?? forms[0];
+  const fields: FicheFieldDraft[] =
+    rootForm === undefined
+      ? draft.fields.map((field) => ({
+          ...aiFieldToDraft(field),
+          id: newId(),
+        }))
+      : rootForm.fields.map(aiFieldToDraft);
   const fiches: FicheDraft[] =
     fields.length === 0 || mission === "inform"
       ? []
-      : [
-          {
-            id: newId(),
-            key: toTemplateKey(draft.label),
-            label: draft.label,
-            description: draft.description,
-            intent: draft.objective,
-            instructions: draft.extraInstructions,
-            renderTemplate: draft.renderTemplate,
-            fields,
-          },
-        ];
+      : rootForm === undefined
+        ? [
+            {
+              id: newId(),
+              key: toTemplateKey(draft.label),
+              label: draft.label,
+              description: draft.description,
+              intent: draft.objective,
+              instructions: draft.extraInstructions,
+              renderTemplate: draft.renderTemplate,
+              fields,
+            },
+          ]
+        : [aiFormToDraft(rootForm, forms, new Set([rootForm.key]))];
   return {
     mission,
     behaviorMode: "guided",
