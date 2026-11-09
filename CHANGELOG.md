@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.30.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.29.0...v0.30.0) (2026-11-07)
+
+
+### Features
+
+* **scalability:** stockage S3 et temps réel multi-instance ([#253](https://github.com/RINOHeinrich1/onir-cms/issues/253)) ([ea1162e](https://github.com/RINOHeinrich1/onir-cms/commit/ea1162ef1c40244a07b9a43e41032b841838b916))
+
 ## [0.29.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.28.0...v0.29.0) (2026-11-07)
 
 
