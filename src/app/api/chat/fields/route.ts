@@ -8,6 +8,7 @@ import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-re
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { publishChatEvent } from "@/lib/chat-events";
 import { chatFallbackLimiter } from "@/lib/chat-limiters";
 import { errorResponse } from "../../_lib/errors";
 import { clientIp, readJsonObject, stringField } from "../../_lib/http";
@@ -116,6 +117,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         values,
       },
     );
+    publishChatEvent(conversation.id, { type: "state" });
     return NextResponse.json({
       ok: true,
       ficheInstanceId: result.ficheInstanceId,
