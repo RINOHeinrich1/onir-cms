@@ -454,6 +454,8 @@ class StarterTemplate extends HTMLElement {
         .fallback-option:hover, .fallback-form:hover { border-color: var(--page-primary); }
         .fallback-form { text-align: center; }
         .collection-open { margin-top: 10px; }
+        .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
+        .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
         .composer { padding: 12px 14px 14px; border-top: 1px solid var(--page-border); background: var(--page-surface); }
         .composer-box { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border: 1.5px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
         .composer-box:focus-within { border-color: var(--page-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-primary) 14%, transparent); }
@@ -831,9 +833,9 @@ class StarterTemplate extends HTMLElement {
     this.#render();
   }
 
-  #collectionForm(ctx, fields, ficheKey) {
-    const values = {};
-    const controls = [];
+  #collectionInputs(ctx, fields) {
+    const nodes = [];
+    const readers = [];
     for (const field of fields) {
       if (field.type === "file") {
         const pending = (ctx.state.pendingAttachments ?? []).filter(
@@ -862,7 +864,7 @@ class StarterTemplate extends HTMLElement {
                 }),
               ]),
             ));
-        controls.push(
+        nodes.push(
           el("label", {}, [
             `${field.label}${field.required ? " *" : ""}`,
             fileInput,
@@ -873,6 +875,55 @@ class StarterTemplate extends HTMLElement {
             files,
           ]),
         );
+        continue;
+      }
+      if (field.type === "fiche" && Array.isArray(field.fields)) {
+        const nested = this.#collectionInputs(ctx, field.fields);
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            ...nested.nodes,
+          ]),
+        );
+        readers.push({ field, read: () => nested.read() });
+        continue;
+      }
+      if (field.type === "tableau_de_fiches" && Array.isArray(field.fields)) {
+        const rows = [];
+        const rowsNode = el("div", { class: "collection-rows" });
+        const addRow = () => {
+          const nested = this.#collectionInputs(ctx, field.fields);
+          const row = el("div", { class: "collection-row" });
+          row.append(...nested.nodes);
+          const reader = () => nested.read();
+          rows.push(reader);
+          const remove = el("button", {
+            type: "button",
+            class: "btn ghost small",
+            text: "Retirer la ligne",
+            onclick: () => {
+              if (rows.length <= 1) return;
+              rows.splice(rows.indexOf(reader), 1);
+              row.remove();
+            },
+          });
+          row.appendChild(remove);
+          rowsNode.appendChild(row);
+        };
+        addRow();
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            rowsNode,
+            el("button", {
+              type: "button",
+              class: "btn ghost small",
+              text: "Ajouter une ligne",
+              onclick: addRow,
+            }),
+          ]),
+        );
+        readers.push({ field, read: () => rows.map((read) => read()) });
         continue;
       }
       let control;
@@ -890,26 +941,31 @@ class StarterTemplate extends HTMLElement {
           maxlength: "4000",
         });
       }
-      controls.push(
-        el("label", {}, [
-          `${field.label}${field.required ? " *" : ""}`,
-          control,
-        ]),
-      );
+      nodes.push(el("label", {}, [`${field.label}${field.required ? " *" : ""}`, control]));
+      readers.push({
+        field,
+        read: () => (control.value === undefined ? "" : control.value),
+      });
     }
+    return {
+      nodes,
+      read: () => {
+        const values = {};
+        for (const reader of readers) values[reader.field.name] = reader.read();
+        return values;
+      },
+    };
+  }
+
+  #collectionForm(ctx, fields, ficheKey) {
+    const inputs = this.#collectionInputs(ctx, fields);
     return el("section", { class: "collection" }, [
       el("h3", { text: "Compléter la fiche" }),
       el("form", {
         onsubmit: async (event) => {
           event.preventDefault();
-          const form = event.currentTarget;
-          for (const field of fields) {
-            if (field.type === "file") continue;
-            const control = form.elements.namedItem(field.name);
-            values[field.name] = control !== null && "value" in control ? control.value : "";
-          }
           await ctx.actions.submitCollection({
-            values,
+            values: inputs.read(),
             ...(ficheKey === null ? {} : { ficheKey }),
           });
           this.#collectionOpen = false;
@@ -917,7 +973,7 @@ class StarterTemplate extends HTMLElement {
           this.#render();
         },
       }, [
-        ...controls,
+        ...inputs.nodes,
         el("div", { class: "collection-actions" }, [
           el("button", {
             type: "button",

@@ -350,6 +350,8 @@ const STYLE = `
   .fallback-option:hover, .fallback-form:hover { border-color: var(--onir-primary); background: var(--onir-bg); }
   .fallback-form { margin-top: 8px; text-align: center; }
   .collection-open { margin: 10px 11px 0; width: calc(100% - 22px); }
+  .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
+  .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
   .collection-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 11px 8px; padding: 12px; border: 1px solid var(--onir-border); border-radius: 14px; background: var(--onir-surface); }
   .collection-form h3 { margin: 0 0 2px; color: var(--onir-primary); font-size: 12px; }
   .collection-form label { display: flex; flex-direction: column; gap: 4px; color: var(--onir-ink); font-size: 10.5px; font-weight: 700; }
@@ -1146,11 +1148,60 @@ class StarterWidget extends HTMLElement {
     this.#updatePanel();
   }
 
-  #collectionForm(ctx, fields, ficheKey) {
-    const values = {};
-    const controls = [];
+  #collectionInputs(fields) {
+    const nodes = [];
+    const readers = [];
     for (const field of fields) {
       if (field.type === "file") continue;
+      if (field.type === "fiche" && Array.isArray(field.fields)) {
+        const nested = this.#collectionInputs(field.fields);
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            ...nested.nodes,
+          ]),
+        );
+        readers.push({ field, read: () => nested.read() });
+        continue;
+      }
+      if (field.type === "tableau_de_fiches" && Array.isArray(field.fields)) {
+        const rows = [];
+        const rowsNode = el("div", { class: "collection-rows" });
+        const addRow = () => {
+          const nested = this.#collectionInputs(field.fields);
+          const row = el("div", { class: "collection-row" });
+          row.append(...nested.nodes);
+          const remove = el("button", {
+            type: "button",
+            class: "btn ghost small",
+            text: "Retirer la ligne",
+            onclick: () => {
+              if (rows.length <= 1) return;
+              rows.splice(rows.indexOf(reader), 1);
+              row.remove();
+            },
+          });
+          const reader = () => nested.read();
+          rows.push(reader);
+          row.appendChild(remove);
+          rowsNode.appendChild(row);
+        };
+        addRow();
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            rowsNode,
+            el("button", {
+              type: "button",
+              class: "btn ghost small",
+              text: "Ajouter une ligne",
+              onclick: addRow,
+            }),
+          ]),
+        );
+        readers.push({ field, read: () => rows.map((read) => read()) });
+        continue;
+      }
       let control;
       if (field.type === "textarea") {
         control = el("textarea", { name: field.name, maxlength: "4000" });
@@ -1166,21 +1217,31 @@ class StarterWidget extends HTMLElement {
           maxlength: "4000",
         });
       }
-      controls.push(el("label", {}, [`${field.label}${field.required ? " *" : ""}`, control]));
+      nodes.push(el("label", {}, [`${field.label}${field.required ? " *" : ""}`, control]));
+      readers.push({
+        field,
+        read: () => (control.value === undefined ? "" : control.value),
+      });
     }
+    return {
+      nodes,
+      read: () => {
+        const values = {};
+        for (const reader of readers) values[reader.field.name] = reader.read();
+        return values;
+      },
+    };
+  }
+
+  #collectionForm(ctx, fields, ficheKey) {
+    const inputs = this.#collectionInputs(fields);
     return el("section", { class: "collection-form" }, [
       el("h3", { text: "Compléter la fiche" }),
       el("form", {
         onsubmit: async (event) => {
           event.preventDefault();
-          const form = event.currentTarget;
-          for (const field of fields) {
-            if (field.type === "file") continue;
-            const control = form.elements.namedItem(field.name);
-            values[field.name] = control !== null && "value" in control ? control.value : "";
-          }
           await ctx.actions.submitCollection({
-            values,
+            values: inputs.read(),
             ...(ficheKey === null ? {} : { ficheKey }),
           });
           this.#collectionOpen = false;
@@ -1188,7 +1249,7 @@ class StarterWidget extends HTMLElement {
           this.#updatePanel();
         },
       }, [
-        ...controls,
+        ...inputs.nodes,
         el("div", { class: "collection-actions" }, [
           el("button", {
             type: "button",
