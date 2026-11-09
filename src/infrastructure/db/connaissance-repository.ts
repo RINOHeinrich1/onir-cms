@@ -5,6 +5,8 @@ import type {
   UpdateConnaissanceInput,
 } from "@/application/ports/connaissance-repository";
 import type { Connaissance } from "@/domain/entities/connaissance";
+import { getRuntimeCache } from "@/infrastructure/cache/runtime-cache";
+import { cachedConnaissanceRepository } from "@/infrastructure/db/runtime-cache-repositories";
 
 type ConnaissanceRow = {
   id: string;
@@ -39,7 +41,7 @@ function toEntity(row: ConnaissanceRow): Connaissance {
 
 /** Adapter PostgreSQL du port `ConnaissanceRepository` (scopé ADR-0025). */
 export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
-  return {
+  const base: ConnaissanceRepository = {
     async findById(organizationId, id): Promise<Connaissance | null> {
       const { rows } = await pool.query<ConnaissanceRow>(
         `SELECT ${COLUMNS} FROM base_connaissances
@@ -165,4 +167,6 @@ export function pgConnaissanceRepository(pool: Pool): ConnaissanceRepository {
       return result.rowCount ?? 0;
     },
   };
+  const cache = getRuntimeCache();
+  return cache === null ? base : cachedConnaissanceRepository(base, cache);
 }

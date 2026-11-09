@@ -17,6 +17,8 @@ import {
 import { defaultSearchToolConfig, parseSearchToolConfig } from "@/domain/fiche-search-tool-config";
 import type { TemplateSimpleSettings } from "@/domain/template-settings";
 import { normalizeTemplateSimpleSettings } from "@/domain/template-settings";
+import { getRuntimeCache } from "@/infrastructure/cache/runtime-cache";
+import { cachedChatbotConfigRepository } from "@/infrastructure/db/runtime-cache-repositories";
 
 type Row = {
   id: string;
@@ -98,7 +100,7 @@ function toConfig(row: Row): ChatbotConfig {
 }
 
 export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
-  return {
+  const base: ChatbotConfigRepository = {
     async currentForLink(organizationId, chatLinkId) {
       const { rows } = await pool.query<Row>(
         `SELECT ${COLUMNS} FROM chatbot_configs
@@ -183,4 +185,6 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
       }
     },
   };
+  const cache = getRuntimeCache();
+  return cache === null ? base : cachedChatbotConfigRepository(base, cache);
 }
