@@ -7,6 +7,7 @@ import {
   CHATBOT_AI_TOKEN_BUDGETS,
   generateChatbotAiDraft,
 } from "@/application/use-cases/chatbots/generate-chatbot-ai-draft";
+import { chatbotConfigDraftFromAi } from "@/components/links/chatbot-config-draft";
 
 const ACTOR = {
   id: "admin-1",
@@ -131,6 +132,10 @@ describe("génération IA de chatbot", () => {
     expect(result.draft.forms).toHaveLength(2);
     expect(result.draft.fields.some((field) => field.type === "tableau_de_fiches")).toBe(true);
     expect(result.draft.forms?.find((form) => form.key === "module")?.fields).toHaveLength(2);
+    const config = chatbotConfigDraftFromAi(result.draft);
+    expect(config.fiches).toHaveLength(1);
+    expect(config.fiches[0]?.subFiches).toHaveLength(1);
+    expect(config.fiches[0]?.subFiches?.[0]?.fields).toHaveLength(2);
   });
 
   it("propage le cluster partagé au client IA", async () => {
