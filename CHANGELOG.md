@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.31.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.30.0...v0.31.0) (2026-11-09)
+
+
+### Features
+
+* rate limiting IA, cache runtime et sécurité infra ([#255](https://github.com/RINOHeinrich1/onir-cms/issues/255)) ([c83eccd](https://github.com/RINOHeinrich1/onir-cms/commit/c83eccda48d72fe8a249e227597d53d03a1f0c85))
+
 ## [0.30.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.29.0...v0.30.0) (2026-11-07)
 
 
