@@ -38,15 +38,6 @@ describe("contenu assistant — noms techniques", () => {
     ).toBe("Votre intention : apporter son soutien\nRéférence [externe] conservée");
   });
 
-  it("retire une mention Clé technique entre parenthèses", () => {
-    expect(
-      sanitizeAssistantContent(
-        "Pour commencer, quel est votre nom ? (Clé technique : `message`)",
-        fieldLabelsFromFields(FIELDS),
-      ).trim(),
-    ).toBe("Pour commencer, quel est votre nom ?");
-  });
-
   it("ne nettoie que les messages assistant de l’historique", () => {
     const history = sanitizeAssistantHistory(
       [

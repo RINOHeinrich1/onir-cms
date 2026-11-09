@@ -33,13 +33,6 @@ export function sanitizeAssistantContent(content: string, fieldLabels: FieldLabe
       () => label,
     );
     result = result.replace(new RegExp(`\\[\\s*${technicalName}\\s*\\]`, "gi"), () => label);
-    result = result.replace(
-      new RegExp(
-        `\\s*[\\(\\[]?\\s*Cl[ée]\\s+technique\\s*:\\s*\`?${technicalName}\`?\\s*[\\)\\]]?`,
-        "gi",
-      ),
-      "",
-    );
   }
   return result;
 }
