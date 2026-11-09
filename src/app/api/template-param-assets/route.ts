@@ -6,6 +6,7 @@ import {
 import { getPool } from "@/infrastructure/db/pool";
 import { pgTemplateParamAssetRepository } from "@/infrastructure/db/template-param-asset-repository";
 import { mediaStorage } from "@/infrastructure/storage";
+import { publicLinkBaseUrl } from "@/lib/env";
 import { errorResponse } from "../_lib/errors";
 import { requireRole } from "../_lib/require-user";
 
@@ -36,7 +37,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       { data: Buffer.from(await file.arrayBuffer()), contentType: file.type },
     );
     return NextResponse.json(
-      { url: new URL(result.url, request.url).toString(), assetId: result.asset.id },
+      {
+        url: `${publicLinkBaseUrl().replace(/\/$/, "")}${result.url}`,
+        assetId: result.asset.id,
+      },
       { status: 201 },
     );
   } catch (error) {
