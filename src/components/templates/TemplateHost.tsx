@@ -706,20 +706,42 @@ export function TemplateHost({
         void (async () => {
           const activeConversationId = conversationId ?? (await ensureConversation());
           if (activeConversationId === null) return;
-          try {
+          const submitFinish = async (abandonPending: boolean) => {
             const response = await fetch(`${platform}/finish`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId: activeConversationId }),
+              body: JSON.stringify({
+                conversationId: activeConversationId,
+                ...(abandonPending ? { abandonPending: true } : {}),
+              }),
             });
             const json = (await response.json().catch(() => null)) as {
               error?: string;
             } | null;
-            if (!response.ok) {
-              setError(json?.error ?? "Génération impossible : pièces ou champs manquants");
+            return { response, error: json?.error };
+          };
+          try {
+            const first = await submitFinish(false);
+            if (first.response.ok) {
+              setStatus("finalisee");
               return;
             }
-            setStatus("finalisee");
+            const message = first.error ?? "Génération impossible : pièces ou champs manquants";
+            if (message.includes("encore en cours")) {
+              const confirmed = window.confirm(
+                `${message}\n\nTerminer avec les fiches complètes et abandonner les fiches incomplètes ?`,
+              );
+              if (confirmed) {
+                const second = await submitFinish(true);
+                if (second.response.ok) {
+                  setStatus("finalisee");
+                  return;
+                }
+                setError(second.error ?? "Génération impossible");
+                return;
+              }
+            }
+            setError(message);
           } catch {
             setError("Génération impossible pour le moment");
           }

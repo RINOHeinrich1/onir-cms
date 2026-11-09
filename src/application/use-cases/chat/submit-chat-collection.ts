@@ -109,20 +109,6 @@ export async function submitChatCollection(
     throw new UnprocessableError("Sélectionnez une fiche de collecte");
   }
 
-  let targetWasActive = target?.status === "active";
-  if (target === undefined) {
-    target = await deps.ficheInstances.upsert({
-      organizationId: conversation.organizationId,
-      conversationId: conversation.id,
-      configId: config.id,
-      ficheKey: fiche.key,
-      status: "detected",
-      data: {},
-      missingFields: fiche.fields.filter((field) => field.required).map((field) => field.name),
-    });
-    targetWasActive = false;
-  }
-
   const definition = ficheToDefinition(config, fiche);
   const directValues: Record<string, unknown> = {};
   for (const field of fiche.fields) {
@@ -131,7 +117,7 @@ export async function submitChatCollection(
     directValues[field.name] = input.values[field.name];
   }
   const validated = validatePartialTemplateData(definition, {
-    ...target.data,
+    ...(target?.data ?? {}),
     ...directValues,
   });
   if (!validated.ok) throw new UnprocessableError(validated.errors.join(" ; "));
@@ -145,6 +131,18 @@ export async function submitChatCollection(
     attachmentCounts[attachment.fieldName] = (attachmentCounts[attachment.fieldName] ?? 0) + 1;
   }
   const missing = missingFields(fiche, validated.value, attachmentCounts);
+  const targetWasActive = target?.status === "active";
+  if (target === undefined) {
+    target = await deps.ficheInstances.upsert({
+      organizationId: conversation.organizationId,
+      conversationId: conversation.id,
+      configId: config.id,
+      ficheKey: fiche.key,
+      status: "detected",
+      data: validated.value,
+      missingFields: missing,
+    });
+  }
   const status = target.status === "complete" ? "complete" : "active";
   // Désactiver l'ancienne fiche avant d'écrire le statut active : la base
   // impose au plus une instance active par conversation.
