@@ -99,6 +99,50 @@ function sameFiche(existing: FicheCollecte, input: FicheCollecteInput): boolean 
  * Les doublons identiques sont ignorés ; une même clé avec un contenu
  * différent reçoit un suffixe plutôt que d'écraser une fiche existante.
  */
+async function publishFiche(
+  deps: ManageFicheCollectesDependencies,
+  organizationId: string,
+  fiche: FicheDefinition,
+  createdBy: string | null,
+  seen: Set<string>,
+): Promise<string> {
+  if (seen.has(fiche.key)) {
+    throw new ValidationError(`Cycle de sous-fiches détecté autour de « ${fiche.label} »`);
+  }
+  const nextSeen = new Set(seen).add(fiche.key);
+  const childKeys = new Map<string, string>();
+  for (const child of fiche.subFiches ?? []) {
+    childKeys.set(child.key, await publishFiche(deps, organizationId, child, createdBy, nextSeen));
+  }
+  const fields = fiche.fields.map((field) => {
+    if (field.ficheKey === undefined) return field;
+    const publishedKey = childKeys.get(field.ficheKey);
+    return publishedKey === undefined ? field : { ...field, ficheKey: publishedKey };
+  });
+  const input: FicheCollecteInput = {
+    key: fiche.key,
+    label: fiche.label,
+    description: fiche.description,
+    intent: fiche.intent,
+    fields,
+    statuses: fiche.statuses ?? [],
+    renderTemplate: fiche.renderTemplate,
+    instructions: fiche.instructions,
+  };
+  let key = input.key;
+  let suffix = 2;
+  for (;;) {
+    const existing = await deps.fiches.findByKey(organizationId, key);
+    if (existing === null) {
+      await deps.fiches.create(organizationId, { ...input, key }, createdBy);
+      return key;
+    }
+    if (sameFiche(existing, input)) return existing.key;
+    key = `${input.key}-${suffix}`;
+    suffix += 1;
+  }
+}
+
 export async function publishChatbotFiches(
   deps: ManageFicheCollectesDependencies,
   organizationId: string,
@@ -106,28 +150,7 @@ export async function publishChatbotFiches(
   createdBy: string | null,
 ): Promise<void> {
   for (const fiche of fiches) {
-    const input: FicheCollecteInput = {
-      key: fiche.key,
-      label: fiche.label,
-      description: fiche.description,
-      intent: fiche.intent,
-      fields: fiche.fields,
-      statuses: fiche.statuses ?? [],
-      renderTemplate: fiche.renderTemplate,
-      instructions: fiche.instructions,
-    };
-    let key = input.key;
-    let suffix = 2;
-    for (;;) {
-      const existing = await deps.fiches.findByKey(organizationId, key);
-      if (existing === null) {
-        await deps.fiches.create(organizationId, { ...input, key }, createdBy);
-        break;
-      }
-      if (sameFiche(existing, input)) break;
-      key = `${input.key}-${suffix}`;
-      suffix += 1;
-    }
+    await publishFiche(deps, organizationId, fiche, createdBy, new Set());
   }
 }
 

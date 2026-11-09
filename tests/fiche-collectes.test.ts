@@ -160,6 +160,38 @@ describe("fiches de collecte réutilisables", () => {
     expect(all.map((fiche) => fiche.key)).toEqual(["hotel", "hotel-2"]);
   });
 
+  it("publie récursivement les sous-fiches et remappe la référence", async () => {
+    const deps = { fiches: memoryRepository() };
+    const child = {
+      ...input({
+        key: "vin",
+        label: "Vin",
+        fields: [{ name: "reference", label: "Référence", type: "text", required: true }],
+      }),
+    };
+    const parent = {
+      ...input({
+        key: "commande",
+        label: "Commande",
+        fields: [
+          { name: "contact", label: "Contact", type: "text", required: true },
+          {
+            name: "lignes",
+            label: "Lignes",
+            type: "tableau_de_fiches" as const,
+            required: true,
+            ficheKey: "vin",
+          },
+        ],
+      }),
+      subFiches: [child],
+    };
+    await publishChatbotFiches(deps, "org-1", [parent], "user-1");
+    const all = await deps.fiches.list("org-1");
+    expect(all.map((fiche) => fiche.key).sort()).toEqual(["commande", "vin"]);
+    expect(all.find((fiche) => fiche.key === "commande")?.fields[1]?.ficheKey).toBe("vin");
+  });
+
   it("produit un snapshot de fiche avec sourceFicheId/sourceVersion pour le chatbot", async () => {
     const deps = { fiches: memoryRepository() };
     const created = await createFicheCollecte(deps, ACTOR, input());
