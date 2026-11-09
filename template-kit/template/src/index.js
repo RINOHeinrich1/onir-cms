@@ -476,6 +476,18 @@ class StarterTemplate extends HTMLElement {
         .collection-actions { display: flex; gap: 8px; margin-top: 4px; }
         .collection-actions button { flex: 1; padding: 10px; border: 1px solid var(--page-border); border-radius: 9px; background: var(--page-bg); color: var(--page-ink); cursor: pointer; }
         .collection-actions button[type="submit"] { border-color: var(--page-primary); background: var(--page-primary); color: #fff; font-weight: 700; }
+        .collection input[type="file"] { padding: 7px; background: var(--page-bg); }
+        .collection-files { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; }
+        .collection-files li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--page-border); border-radius: 8px; background: var(--page-bg); font-size: 11px; }
+        .collection-files button { border: 0; background: transparent; color: var(--page-primary); cursor: pointer; font-size: 11px; }
+        .attach-bar { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 14px 0; }
+        .attach-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--page-border); border-radius: 999px; background: var(--page-surface); color: var(--page-primary); font-size: 11px; font-weight: 700; cursor: pointer; }
+        .attach-btn:hover { background: color-mix(in srgb, var(--page-primary) 7%, var(--page-surface)); }
+        .attach-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        .attach-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 14px 0; }
+        .attach-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 5px 4px 9px; border: 1px solid var(--page-border); border-radius: 999px; background: var(--page-bg); color: var(--page-ink); font-size: 10.5px; }
+        .attach-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15rem; }
+        .attach-chip button { border: 0; background: transparent; color: var(--page-primary); cursor: pointer; font-size: 14px; line-height: 1; }
         .loading { padding: 24px; text-align: center; color: #64748b; }
         @media (max-width: 520px) {
           .page { width: 100%; height: 100dvh; margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
@@ -604,18 +616,7 @@ class StarterTemplate extends HTMLElement {
               onclick: () => ctx.actions.selectFallback(question.id),
             }),
           )),
-          fallback.showCollectionForm && hasCollection
-            ? el("button", {
-                type: "button",
-                class: "fallback-form",
-                text: "Remplir le formulaire",
-                onclick: () => {
-                  this.#collectionOpen = true;
-                  ctx.actions.openCollectionForm();
-                  this.#render();
-                },
-              })
-            : null,
+
         ])
       : null;
 
@@ -643,7 +644,55 @@ class StarterTemplate extends HTMLElement {
       textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`;
     });
 
+    const fileFields = modelForm.filter((field) => field.type === "file");
+    const pendingAttachments = Array.isArray(ctx.state.pendingAttachments)
+      ? ctx.state.pendingAttachments
+      : [];
+    const attachBar = fileFields.length === 0
+      ? null
+      : el(
+          "div",
+          { class: "attach-bar" },
+          fileFields.map((field) => {
+            const maxFiles = field.maxFiles ?? 1;
+            const count = pendingAttachments.filter((item) => item.fieldName === field.name).length;
+            const input = el("input", {
+              type: "file",
+              accept: Array.isArray(field.accept) ? field.accept.join(",") : "",
+              ...(maxFiles > 1 ? { multiple: "true" } : {}),
+              disabled: count >= maxFiles,
+              onchange: (event) => {
+                const files = [...(event.currentTarget.files ?? [])];
+                event.currentTarget.value = "";
+                for (const file of files) void ctx.actions.attachFile(field.name, file);
+              },
+            });
+            return el("label", { class: "attach-btn", title: field.label }, [
+              `Joindre ${field.label}${maxFiles > 1 ? ` (${count}/${maxFiles})` : ""}`,
+              input,
+            ]);
+          }),
+        );
+    const attachChips = pendingAttachments.length === 0
+      ? null
+      : el(
+          "div",
+          { class: "attach-chips" },
+          pendingAttachments.map((item) =>
+            el("span", { class: "attach-chip" }, [
+              el("span", { text: `${item.fieldLabel} — ${item.originalName}` }),
+              el("button", {
+                type: "button",
+                text: "×",
+                "aria-label": `Retirer ${item.originalName}`,
+                onclick: () => ctx.actions.removeAttachment(item.id),
+              }),
+            ]),
+          ),
+        );
     const composer = el("div", { class: "composer" }, [
+      attachBar,
+      attachChips,
       el("div", { class: "composer-box" }, [
         textarea,
         el("button", {
@@ -656,7 +705,6 @@ class StarterTemplate extends HTMLElement {
       ]),
     ]);
 
-    const collectionForm = collectionOpen ? this.#collectionForm(ctx, modelForm) : null;
     const finish =
       hasCollection && !fallback && !collectionOpen && !finalised && ctx.state.messages.length > 0
         ? el("button", {
@@ -673,7 +721,6 @@ class StarterTemplate extends HTMLElement {
       el("ul", { class: "messages" }, items),
       ctx.state.typing ? el("p", { class: "typing", text: "L’assistant écrit…" }) : null,
       fallbackView,
-      collectionForm,
     ]);
 
     const body = el("div", { class: "body" }, [
@@ -695,7 +742,46 @@ class StarterTemplate extends HTMLElement {
     const values = {};
     const controls = [];
     for (const field of fields) {
-      if (field.type === "file") continue;
+      if (field.type === "file") {
+        const pending = (ctx.state.pendingAttachments ?? []).filter(
+          (attachment) => attachment.fieldName === field.name,
+        );
+        const maxFiles = field.maxFiles ?? 1;
+        const fileInput = el("input", {
+          type: "file",
+          accept: Array.isArray(field.accept) ? field.accept.join(",") : undefined,
+          ...(maxFiles > 1 ? { multiple: "true" } : {}),
+          onchange: (event) => {
+            const files = [...(event.currentTarget.files ?? [])];
+            event.currentTarget.value = "";
+            for (const file of files) void ctx.actions.attachFile(field.name, file);
+          },
+        });
+        const files = pending.length === 0
+          ? null
+          : el("ul", { class: "collection-files" }, pending.map((attachment) =>
+              el("li", {}, [
+                el("span", { text: attachment.originalName }),
+                el("button", {
+                  type: "button",
+                  text: "Supprimer",
+                  onclick: () => ctx.actions.removeAttachment(attachment.id),
+                }),
+              ]),
+            ));
+        controls.push(
+          el("label", {}, [
+            `${field.label}${field.required ? " *" : ""}`,
+            fileInput,
+            el("span", {
+              class: "hint",
+              text: `Formats acceptés : ${Array.isArray(field.accept) ? field.accept.join(", ") : "tous"} — ${maxFiles} fichier${maxFiles > 1 ? "s" : ""} maximum.`,
+            }),
+            files,
+          ]),
+        );
+        continue;
+      }
       let control;
       if (field.type === "textarea") {
         control = el("textarea", { name: field.name, maxlength: "4000" });
