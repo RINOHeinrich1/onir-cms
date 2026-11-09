@@ -210,7 +210,7 @@ Les templates qui ne déclarent pas le support du formulaire ne peuvent pas
 activer le mode semi-heuristique. Les anciens templates continuent de
 fonctionner avec `collectionMode = "ai"`.
 
-Le template Starter est mis à jour et versionné en `1.6.6`.
+Le template Starter est mis à jour et versionné en `1.6.7`.
 
 ### 8. Fallback heuristique conservé
 

@@ -70,6 +70,8 @@ export type TemplateCollectionForm = {
 export type TemplateCollectionFormState = {
   available: boolean;
   forms: TemplateCollectionForm[];
+  /** Fiche active connue de l'hôte, pour présélectionner le formulaire. */
+  activeFicheKey?: string | null;
 };
 
 export type TemplateMessage = {

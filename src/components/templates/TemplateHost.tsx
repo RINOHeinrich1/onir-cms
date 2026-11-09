@@ -175,6 +175,9 @@ export function TemplateHost({
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
+  const [collectionActiveFicheKey, setCollectionActiveFicheKey] = useState<string | null>(
+    baseContext.state.collectionForm?.activeFicheKey ?? null,
+  );
   const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const surface = baseContext.surface;
 
@@ -803,6 +806,33 @@ export function TemplateHost({
     [baseContext.resources.data, platform, preview, surface, token],
   );
 
+  useEffect(() => {
+    if (
+      phase !== "chat" ||
+      conversationId === null ||
+      baseContext.state.collectionForm === undefined
+    ) {
+      return;
+    }
+    void (async () => {
+      try {
+        const response = await fetch(`${platform}/collection`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId }),
+        });
+        const json = (await response.json().catch(() => null)) as {
+          activeFicheKey?: string | null;
+        } | null;
+        if (response.ok && typeof json?.activeFicheKey === "string") {
+          setCollectionActiveFicheKey(json.activeFicheKey);
+        }
+      } catch {
+        // Best-effort : le premier formulaire reste sélectionnable.
+      }
+    })();
+  }, [baseContext.state.collectionForm, conversationId, phase, platform]);
+
   const liveContext = useMemo<LiveContext>(
     () => ({
       ...baseContext,
@@ -817,7 +847,14 @@ export function TemplateHost({
           : {}),
         ...(baseContext.state.collectionForm === undefined
           ? {}
-          : { collectionForm: baseContext.state.collectionForm }),
+          : {
+              collectionForm: {
+                ...baseContext.state.collectionForm,
+                ...(collectionActiveFicheKey === null
+                  ? {}
+                  : { activeFicheKey: collectionActiveFicheKey }),
+              },
+            }),
       },
       actions,
       data: { load: loadData },
@@ -836,6 +873,7 @@ export function TemplateHost({
       typing,
       fallbackMenu,
       pendingAttachments,
+      collectionActiveFicheKey,
       actions,
       loadData,
       template.capabilities,

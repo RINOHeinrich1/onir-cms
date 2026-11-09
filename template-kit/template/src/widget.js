@@ -1023,6 +1023,7 @@ class StarterWidget extends HTMLElement {
     const collectionForms = Array.isArray(collection?.forms) ? collection.forms : [];
     const selectedForm =
       collectionForms.find((form) => form.ficheKey === this.#collectionFicheKey) ??
+      collectionForms.find((form) => form.ficheKey === collection?.activeFicheKey) ??
       collectionForms[0];
     const collectionFields =
       selectedForm?.fields ??
