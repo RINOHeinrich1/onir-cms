@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.32.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.32.0...v0.32.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **template:** utiliser l’URL publique des assets image ([#260](https://github.com/RINOHeinrich1/onir-cms/issues/260)) ([e58babb](https://github.com/RINOHeinrich1/onir-cms/commit/e58babbbd061600969b57ef5bab46435f4c40006))
+
 ## [0.32.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.31.0...v0.32.0) (2026-11-09)
 
 
