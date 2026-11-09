@@ -7,6 +7,7 @@ import type { SitePalette } from "@/domain/site-palette";
 import {
   resolveTemplateParams,
   type TemplateParamSchema,
+  type TemplateParamType,
   type TemplateParamValues,
 } from "@/domain/template-params";
 import { buildChatbotTemplateParamsPrompt } from "./chatbot-template-params-prompt";
@@ -26,6 +27,10 @@ export type GenerateChatbotTemplateParamsInput = {
   };
   knowledge: Array<{ titre: string; contenu: string }>;
   palette: SitePalette;
+  /** Conversation du builder, source de repli des couleurs. */
+  conversation?: Array<{ role: string; content: string }>;
+  /** Types de paramètres à générer ; absent = tous les types non-URL. */
+  types?: TemplateParamType[];
   description?: string;
   providerId?: string;
   model?: string;
@@ -84,7 +89,10 @@ export async function generateChatbotTemplateParams(
   if (version === null) throw new NotFoundError("Version de template introuvable");
 
   const schema: TemplateParamSchema[] = version.manifest.params;
-  const fillable = schema.filter((param) => param.type !== "url");
+  const allowedTypes = input.types === undefined ? null : new Set<TemplateParamType>(input.types);
+  const fillable = schema.filter(
+    (param) => param.type !== "url" && (allowedTypes === null || allowedTypes.has(param.type)),
+  );
   if (fillable.length === 0) {
     return { params: resolveTemplateParams(schema, {}), warnings: [] };
   }
@@ -124,8 +132,9 @@ export async function generateChatbotTemplateParams(
       extraInstructions: input.chatbot.extraInstructions,
     },
     knowledge: input.knowledge,
+    conversation: input.conversation ?? [],
     palette: input.palette,
-    params: schema,
+    params: fillable,
   });
   const json = await callStructuredAi(client, prompt);
   const rawParams =
@@ -136,14 +145,20 @@ export async function generateChatbotTemplateParams(
   const warnings: string[] = [];
   if (input.palette.confidence === "low" || input.palette.confidence === "none") {
     warnings.push(
-      "La palette du site est peu fiable : les couleurs ont été proposées à partir de la description et des connaissances.",
+      input.conversation === undefined || input.conversation.length === 0
+        ? "La palette du site est peu fiable : les valeurs par défaut du template ont été conservées."
+        : "La palette du site est peu fiable : les couleurs ont été proposées à partir de la conversation.",
     );
   }
 
   const strictParams = Object.fromEntries(
     Object.entries(rawParams).filter(([key]) => {
       const param = schema.find((entry) => entry.key === key);
-      return param !== undefined && param.type !== "url";
+      return (
+        param !== undefined &&
+        param.type !== "url" &&
+        (allowedTypes === null || allowedTypes.has(param.type))
+      );
     }),
   );
 

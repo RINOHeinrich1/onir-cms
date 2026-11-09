@@ -12,6 +12,7 @@ import type {
   StoredChatbotBuildSession,
 } from "@/application/ports/chatbot-build-session-repository";
 import type { DocumentTextExtractor } from "@/application/ports/document-text-extractor";
+import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 import type { WebsiteContextReader } from "@/application/ports/website-context-reader";
 import {
   type ChatbotAiGenerationResult,
@@ -19,6 +20,7 @@ import {
   generateChatbotAiDraft,
 } from "@/application/use-cases/chatbots/generate-chatbot-ai-draft";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
+import { resolveDefaultStarterTemplate } from "@/application/use-cases/visual-templates/resolve-default-starter-template";
 import {
   assistantGreeting,
   BUILD_DOCUMENTS_MAX,
@@ -33,6 +35,7 @@ import {
   withBuildDerivedState,
 } from "@/domain/chatbot-builder";
 import type { ChatbotMission } from "@/domain/entities/chatbot-information";
+import type { TemplateParamValues } from "@/domain/template-params";
 import { buildChatbotBuilderPrompt } from "./chatbot-builder-prompt";
 import { applyBuildPatch, parseChatbotBuildTurn } from "./parse-build-turn";
 
@@ -41,11 +44,21 @@ export type ChatbotBuilderDependencies = {
   aiFactory: AiClientFactory;
   documents: DocumentTextExtractor;
   websites: WebsiteContextReader;
+  visualTemplates: VisualTemplateRepository;
+};
+
+export type ChatbotBuilderVisualTemplate = {
+  templateId: string;
+  version: string;
+  params: TemplateParamValues;
+  colorParamKeys: string[];
+  warnings: string[];
 };
 
 export type ChatbotBuilderGeneration = ChatbotAiGenerationResult & {
   mission: ChatbotMission;
   sourceIntent: ChatbotBuildSourceIntent;
+  visualTemplate: ChatbotBuilderVisualTemplate | null;
 };
 
 function greetingSession(): ChatbotBuildSession {
@@ -224,7 +237,7 @@ export async function continueChatbotBuildSession(
 export function postProcessDraft(
   result: ChatbotAiGenerationResult,
   mission: ChatbotMission,
-): ChatbotBuilderGeneration {
+): Omit<ChatbotBuilderGeneration, "visualTemplate"> {
   const draft = {
     ...result.draft,
     fields: [...result.draft.fields],
@@ -325,6 +338,18 @@ export async function generateChatbotFromBuildSession(
   });
 
   const generation = postProcessDraft(result, session.brief.mission);
+  const starter = await resolveDefaultStarterTemplate(deps.visualTemplates, organizationOf(actor));
+  const visualTemplate: ChatbotBuilderVisualTemplate | null =
+    starter.template === null
+      ? null
+      : {
+          templateId: starter.template.templateId,
+          version: starter.template.version,
+          params: starter.template.params,
+          colorParamKeys: starter.template.colorParamKeys,
+          warnings: starter.warnings,
+        };
+  generation.warnings.push(...starter.warnings);
   if (
     session.brief.sources.useDescriptionAsSource &&
     (session.brief.mission === "inform" || session.brief.mission === "hybrid") &&
@@ -344,7 +369,7 @@ export async function generateChatbotFromBuildSession(
     warnings: [...new Set([...session.warnings, ...generation.warnings])],
   });
   await deps.sessions.save(organizationOf(actor), draftId, savedSession);
-  return generation;
+  return { ...generation, visualTemplate };
 }
 
 export type { ChatbotBuildSourceIntent };

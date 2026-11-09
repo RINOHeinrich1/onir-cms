@@ -12,6 +12,7 @@ import {
   ficheToDefinition,
   findFiche,
 } from "@/application/use-cases/chat/chatbot-config-runtime";
+import { buildCollecteState } from "@/application/use-cases/chat/collecte-state";
 import {
   analyzeChatbotIntent,
   type IntentAnalysis,
@@ -34,8 +35,6 @@ import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
 import type { ChatbotInformationSources } from "@/domain/entities/chatbot-information";
 import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
-import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-field";
-import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
 import type { MessageBlock } from "@/domain/tool-blocks";
@@ -71,51 +70,6 @@ export type MissionReplyResult = {
   mediaPending: boolean;
   intent: "inform" | "collect" | "clarify";
 };
-
-function buildCollecteState(
-  fiche: { fields: TemplateDefinition["fields"] },
-  data: Record<string, unknown>,
-): string {
-  const missing: string[] = [];
-  const invalid: string[] = [];
-  for (const field of fiche.fields) {
-    if (field.type === "file") continue;
-    if (field.type === "multi") {
-      const { invalid: bad } = canonicalMultiValue(field, data[field.name]);
-      if (bad.length > 0) invalid.push(`${field.label} (${bad.join(", ")})`);
-      if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
-        missing.push(`${field.label} [${field.name}]`);
-      }
-      continue;
-    }
-    if (field.type === "select") {
-      const value = data[field.name];
-      if (
-        typeof value === "string" &&
-        value.trim() !== "" &&
-        canonicalOption(field, value) === null
-      ) {
-        invalid.push(`${field.label} (${value})`);
-      }
-      if (isFieldRequired(field, data) && isFieldEmpty(field, value)) {
-        missing.push(`${field.label} [${field.name}]`);
-      }
-      continue;
-    }
-    if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
-      missing.push(`${field.label} [${field.name}]`);
-    }
-  }
-  if (missing.length === 0 && invalid.length === 0) return "";
-  return [
-    "État de collecte actuel (source structurée, pas ton résumé) :",
-    invalid.length > 0 ? `- Valeurs invalides à corriger : ${invalid.join(", ")}` : "",
-    missing.length > 0 ? `- Champs obligatoires manquants : ${missing.join(", ")}` : "",
-    "Ne dis pas que tout est complet tant que ces listes ne sont pas vides. Demande les informations manquantes une par une.",
-  ]
-    .filter((line) => line !== "")
-    .join("\n");
-}
 
 function baseDefinition(config: ChatbotConfig): TemplateDefinition {
   return conversationOnlyDefinition(config);
@@ -215,7 +169,7 @@ async function runCollect(
   let system = buildBaseSystem(input, collectDefinition, prospect);
   if (attachmentContext !== "") system = `${system}\n\n${attachmentContext}`;
   if (input.activeInstance !== null) {
-    const state = buildCollecteState(fiche, input.activeInstance.data);
+    const state = buildCollecteState(fiche.fields, input.activeInstance.data);
     if (state !== "") system = `${system}\n\n${state}`;
   }
   if (collectDefinition.simple !== undefined) {

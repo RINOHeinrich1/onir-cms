@@ -10,6 +10,7 @@
 
 import type { AiMessage } from "@/application/ports/ai-client";
 import { infomaniakBaseUrl } from "@/infrastructure/ai/models";
+import { ProviderHttpError, retryAfterFromHeaders } from "@/infrastructure/ai/provider-http-error";
 import { aiConfig } from "@/lib/env";
 
 /** Borne par défaut des tokens générés (latence prévisible). */
@@ -57,13 +58,17 @@ export async function chatCompletion(input: {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error("Délai d'attente IA dépassé (120 s)");
     }
-    throw new Error("Service IA injoignable");
+    throw new ProviderHttpError(0, "Service IA injoignable");
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    throw new Error(`Service IA indisponible (HTTP ${response.status})`);
+    throw new ProviderHttpError(
+      response.status,
+      `Service IA indisponible (HTTP ${response.status})`,
+      retryAfterFromHeaders(response.headers),
+    );
   }
 
   const json = (await response.json()) as {

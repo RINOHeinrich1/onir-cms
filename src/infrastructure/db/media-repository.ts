@@ -5,6 +5,8 @@ import type {
   UpdateMediaInput,
 } from "@/application/ports/media-repository";
 import { isTypeMedia, type Media, type TypeMedia } from "@/domain/entities/media";
+import { getRuntimeCache } from "@/infrastructure/cache/runtime-cache";
+import { cachedMediaRepository } from "@/infrastructure/db/runtime-cache-repositories";
 
 type MediaRow = {
   id: string;
@@ -48,7 +50,7 @@ function toEntity(row: MediaRow): Media {
 
 /** Adapter PostgreSQL du port `MediaRepository` (scopé ADR-0025). */
 export function pgMediaRepository(pool: Pool): MediaRepository {
-  return {
+  const base: MediaRepository = {
     async findById(organizationId, id): Promise<Media | null> {
       const { rows } = await pool.query<MediaRow>(
         `SELECT ${COLUMNS} FROM medias WHERE organization_id = $1 AND id = $2`,
@@ -177,4 +179,6 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
       return (result.rowCount ?? 0) > 0;
     },
   };
+  const cache = getRuntimeCache();
+  return cache === null ? base : cachedMediaRepository(base, cache);
 }

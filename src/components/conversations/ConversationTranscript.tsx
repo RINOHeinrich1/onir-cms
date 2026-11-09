@@ -4,6 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Lightbox, type LightboxImage } from "@/components/ui/Lightbox";
+import { type FieldLabelMap, sanitizeAssistantContent } from "@/domain/assistant-content";
 import type { ChatAttachmentDto, ChatMessageDto } from "./types";
 
 function formatDateTime(iso: string): string {
@@ -83,9 +84,11 @@ function authorLabel(message: ChatMessageDto, assistantLabel: string): string {
 export function ConversationTranscript({
   messages,
   assistantLabel,
+  fieldLabels = {},
 }: {
   messages: ChatMessageDto[];
   assistantLabel: string;
+  fieldLabels?: FieldLabelMap;
 }) {
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null);
 
@@ -96,67 +99,73 @@ export function ConversationTranscript({
   return (
     <>
       <ul className="chat-log-list transcript">
-        {messages.map((message) => (
-          <li key={message.id} className={`msg ${message.role}`}>
-            <span className="msg-avatar transcript-avatar" aria-hidden="true">
-              <AvatarIcon role={message.role} />
-            </span>
-            <div className="msg-body">
-              <span className="msg-role">{authorLabel(message, assistantLabel)}</span>
-              {message.role === "assistant" ? (
-                <div className="bubble">
-                  <div className="md">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+        {messages.map((message) => {
+          const content =
+            message.role === "assistant"
+              ? sanitizeAssistantContent(message.content, fieldLabels)
+              : message.content;
+          return (
+            <li key={message.id} className={`msg ${message.role}`}>
+              <span className="msg-avatar transcript-avatar" aria-hidden="true">
+                <AvatarIcon role={message.role} />
+              </span>
+              <div className="msg-body">
+                <span className="msg-role">{authorLabel(message, assistantLabel)}</span>
+                {message.role === "assistant" ? (
+                  <div className="bubble">
+                    <div className="md">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                    </div>
+                    <AttachmentList attachments={message.attachments} />
+                    {message.medias.length > 0 ? (
+                      <ul className="chat-media">
+                        {message.medias.map((media) =>
+                          media.type === "photo" ? (
+                            <li key={media.id} className="chat-media-item">
+                              <button
+                                type="button"
+                                className="chat-media-zoom"
+                                onClick={() =>
+                                  setLightbox({ url: media.url, libelle: media.libelle })
+                                }
+                                aria-label={`Agrandir : ${media.libelle}`}
+                              >
+                                {/* biome-ignore lint/performance/noImgElement: fichier servi par route (uuid) */}
+                                <img
+                                  className="chat-media-photo"
+                                  src={media.url}
+                                  alt={media.libelle}
+                                  loading="lazy"
+                                />
+                              </button>
+                            </li>
+                          ) : (
+                            <li key={media.id} className="chat-media-item">
+                              <a
+                                className="chat-media-lien"
+                                href={media.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {media.libelle}
+                              </a>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    ) : null}
                   </div>
-                  <AttachmentList attachments={message.attachments} />
-                  {message.medias.length > 0 ? (
-                    <ul className="chat-media">
-                      {message.medias.map((media) =>
-                        media.type === "photo" ? (
-                          <li key={media.id} className="chat-media-item">
-                            <button
-                              type="button"
-                              className="chat-media-zoom"
-                              onClick={() =>
-                                setLightbox({ url: media.url, libelle: media.libelle })
-                              }
-                              aria-label={`Agrandir : ${media.libelle}`}
-                            >
-                              {/* biome-ignore lint/performance/noImgElement: fichier servi par route (uuid) */}
-                              <img
-                                className="chat-media-photo"
-                                src={media.url}
-                                alt={media.libelle}
-                                loading="lazy"
-                              />
-                            </button>
-                          </li>
-                        ) : (
-                          <li key={media.id} className="chat-media-item">
-                            <a
-                              className="chat-media-lien"
-                              href={media.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {media.libelle}
-                            </a>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="bubble">
-                  {message.content !== "" ? <p>{message.content}</p> : null}
-                  <AttachmentList attachments={message.attachments} />
-                </div>
-              )}
-              <span className="msg-time">{formatDateTime(message.createdAt)}</span>
-            </div>
-          </li>
-        ))}
+                ) : (
+                  <div className="bubble">
+                    {content !== "" ? <p>{content}</p> : null}
+                    <AttachmentList attachments={message.attachments} />
+                  </div>
+                )}
+                <span className="msg-time">{formatDateTime(message.createdAt)}</span>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {lightbox !== null ? <Lightbox image={lightbox} onClose={() => setLightbox(null)} /> : null}

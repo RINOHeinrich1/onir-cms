@@ -42,6 +42,7 @@ export async function loadChatbotFormOptions(actor: Actor): Promise<ChatbotFormO
     visualTemplates: await Promise.all(
       visualTemplates.map(async (item) => ({
         id: item.id,
+        key: item.key,
         name: item.name,
         versions: (await visualTemplateRepo.listVersions(item.id)).map((version) => ({
           version: version.version,

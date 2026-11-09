@@ -65,6 +65,7 @@ import type {
 } from "./types";
 import { UserStateField } from "./UserStateField";
 import {
+  defaultStarterSelection,
   parseVisualTemplateSelection,
   widgetDisplayForSelection,
 } from "./visual-template-selection";
@@ -95,10 +96,18 @@ export function ChatbotCreateForm({
   onCreated,
   onCancel,
 }: ChatbotCreateFormProps) {
-  const fallbackState = useMemo(
-    () => defaultChatbotDraftState(confidentialites[0]?.id ?? ""),
-    [confidentialites],
-  );
+  const fallbackState = useMemo(() => {
+    const state = defaultChatbotDraftState(confidentialites[0]?.id ?? "");
+    const starter = defaultStarterSelection(visualTemplates);
+    if (starter !== null) {
+      state.channels.page = {
+        ...state.channels.page,
+        visualTemplate: starter.visualTemplate,
+        params: starter.params,
+      };
+    }
+    return state;
+  }, [confidentialites, visualTemplates]);
   const initial = useMemo(
     () =>
       initialDraft === null ? fallbackState : hydrateChatbotDraftState(initialDraft, fallbackState),

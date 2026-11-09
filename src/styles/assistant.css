@@ -44,6 +44,80 @@
   height: 100%;
 }
 
+.assistant-tip {
+  position: fixed;
+  z-index: 56;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: min(238px, calc(100vw - 2rem));
+  padding: 0.6rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: 0.8rem 0.8rem 0.25rem 0.8rem;
+  background: var(--surface-raised);
+  color: var(--fg);
+  box-shadow: 0 0.45rem 1.5rem color-mix(in srgb, var(--ink) 16%, transparent);
+  transform: translateY(-100%);
+  animation: assistant-tip-in var(--dur-base) var(--ease-out-expo) both;
+}
+
+.assistant-tip.is-below {
+  transform: none;
+}
+
+.assistant-tip p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.assistant-tip-close {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.assistant-tip-close:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+@keyframes assistant-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% + 5px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+}
+
+.assistant-tip.is-below {
+  animation-name: assistant-tip-in-below;
+}
+
+@keyframes assistant-tip-in-below {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .assistant-modal {
   max-width: 27rem;
   max-height: min(86dvh, 40rem);
@@ -279,6 +353,10 @@
     height: 78px;
   }
 
+  .assistant-tip {
+    width: min(220px, calc(100vw - 1.5rem));
+  }
+
   .assistant-modal {
     max-height: calc(100dvh - 190px);
   }
@@ -301,5 +379,9 @@
   .assistant-launcher,
   .assistant-option {
     transition: none;
+  }
+
+  .assistant-tip {
+    animation: none;
   }
 }

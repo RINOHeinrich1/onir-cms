@@ -24,6 +24,7 @@ export type AiProviderOption = {
 /** Template visuel + versions installées (rattachement d'un lien). */
 export type VisualTemplateOption = {
   id: string;
+  key: string;
   name: string;
   versions: {
     version: string;

@@ -33,6 +33,7 @@ import {
   listRuntimeConnaissances,
   listRuntimeMedias,
 } from "@/application/use-cases/chat/chatbot-data-runtime";
+import { buildCollecteState } from "@/application/use-cases/chat/collecte-state";
 import {
   applyFicheDetection,
   detectFicheInstances,
@@ -54,6 +55,12 @@ import {
   executeFicheTool,
   type FicheToolContext,
 } from "@/application/use-cases/fiches/tool-search";
+import {
+  fieldLabelsFromFields,
+  sanitizeAssistantBlocks,
+  sanitizeAssistantContent,
+  sanitizeAssistantHistory,
+} from "@/domain/assistant-content";
 import { type Attachment, DEFAULT_FILE_CONSTRAINTS } from "@/domain/entities/attachment";
 import type {
   ChatLink,
@@ -65,58 +72,13 @@ import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-t
 import {
   type ChatbotConfig,
   DEFAULT_CHATBOT_REPLY_MAX_TOKENS,
-  type FicheDefinition,
 } from "@/domain/entities/chatbot-config";
 import { type ConnaissanceRef, toConnaissanceRef } from "@/domain/entities/connaissance";
 import type { ConversationFicheInstance } from "@/domain/entities/conversation-fiche-instance";
-import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-field";
-import { canonicalMultiValue, canonicalOption } from "@/domain/field-options";
 import { languageReminder } from "@/domain/template-settings";
 import { buildServerVariables } from "@/domain/template-variables";
 import type { MessageBlock } from "@/domain/tool-blocks";
 import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt";
-
-function buildCollecteState(fiche: FicheDefinition, data: Record<string, unknown>): string {
-  const missing: string[] = [];
-  const invalid: string[] = [];
-  for (const field of fiche.fields) {
-    if (field.type === "file") continue;
-    if (field.type === "multi") {
-      const { invalid: bad } = canonicalMultiValue(field, data[field.name]);
-      if (bad.length > 0) invalid.push(`${field.label} (${bad.join(", ")})`);
-      if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
-        missing.push(`${field.label} [${field.name}]`);
-      }
-      continue;
-    }
-    if (field.type === "select") {
-      const value = data[field.name];
-      if (
-        typeof value === "string" &&
-        value.trim() !== "" &&
-        canonicalOption(field, value) === null
-      ) {
-        invalid.push(`${field.label} (${value})`);
-      }
-      if (isFieldRequired(field, data) && isFieldEmpty(field, value)) {
-        missing.push(`${field.label} [${field.name}]`);
-      }
-      continue;
-    }
-    if (isFieldRequired(field, data) && isFieldEmpty(field, data[field.name])) {
-      missing.push(`${field.label} [${field.name}]`);
-    }
-  }
-  if (missing.length === 0 && invalid.length === 0) return "";
-  return [
-    "État de collecte actuel (source structurée, pas ton résumé) :",
-    invalid.length > 0 ? `- Valeurs invalides à corriger : ${invalid.join(", ")}` : "",
-    missing.length > 0 ? `- Champs obligatoires manquants : ${missing.join(", ")}` : "",
-    "Ne dis pas que tout est complet tant que ces listes ne sont pas vides. Demande les informations manquantes une par une.",
-  ]
-    .filter((line) => line !== "")
-    .join("\n");
-}
 
 export type SendMessageDependencies = {
   organizations: OrganizationRepository;
@@ -343,6 +305,9 @@ export async function sendMessage(
   const history = (await deps.conversations.listMessages(organizationId, conversation.id)).slice(
     -HISTORY_LIMIT,
   );
+  const fieldLabels =
+    config === null ? {} : fieldLabelsFromFields(config.fiches.flatMap((fiche) => fiche.fields));
+  const safeHistory = sanitizeAssistantHistory(history, fieldLabels);
   const target = {
     organizationId,
     aiProviderId: link.aiProviderId,
@@ -365,7 +330,7 @@ export async function sendMessage(
       const detected = await detectFicheInstances({
         ai: withAiUsage(ai, recordUsage, "fiche_detection"),
         config,
-        messages: history.map((message) => ({
+        messages: safeHistory.map((message) => ({
           role: toAiRole(message.role),
           content: message.content,
         })),
@@ -406,7 +371,7 @@ export async function sendMessage(
       config,
       conversation,
       content,
-      history,
+      history: safeHistory,
       ai,
       recordUsage,
       activeInstance,
@@ -414,14 +379,16 @@ export async function sendMessage(
     if (missionResult !== null) {
       const refreshed = await deps.links.findById(organizationId, link.id);
       if (refreshed !== null) assertChatLinkAvailable(refreshed);
+      const missionAnswer = sanitizeAssistantContent(missionResult.answer, fieldLabels);
+      const missionBlocks = sanitizeAssistantBlocks(missionResult.blocks, fieldLabels);
       const appended = await deps.conversations.appendMessage(
         organizationId,
         conversation.id,
         "assistant",
-        missionResult.answer,
+        missionAnswer,
         undefined,
         undefined,
-        missionResult.blocks,
+        missionBlocks,
       );
       const withMedias =
         missionResult.medias.length === 0
@@ -472,7 +439,7 @@ ${attachmentContext}`;
   if (config !== null && activeInstance !== null) {
     const stateFiche = findFiche(config, activeInstance.ficheKey) ?? config.fiches[0] ?? null;
     if (stateFiche !== null) {
-      const state = buildCollecteState(stateFiche, activeInstance.data);
+      const state = buildCollecteState(stateFiche.fields, activeInstance.data);
       if (state !== "") systemEnrichi = `${systemEnrichi}\n\n${state}`;
     }
   }
@@ -500,7 +467,7 @@ ${attachmentContext}`;
   systemEnrichi = `${systemEnrichi}\n\n${replyLengthGuardrail(replyMaxTokens)}`;
 
   const replyAi = withAiUsage(ai, recordUsage, "chat_reply");
-  const messages = history.map((message) => ({
+  const messages = safeHistory.map((message) => ({
     role: toAiRole(message.role),
     content: message.content,
   }));
@@ -628,6 +595,8 @@ ${attachmentContext}`;
     };
   }
 
+  answer = sanitizeAssistantContent(answer, fieldLabels);
+  blocks = sanitizeAssistantBlocks(blocks, fieldLabels);
   const message = await deps.conversations.appendMessage(
     organizationId,
     conversation.id,

@@ -9,8 +9,10 @@ import { ConversationIncidentBanner } from "@/components/conversations/Conversat
 import { ConversationInfoPanel } from "@/components/conversations/ConversationInfoPanel";
 import { ConversationLive } from "@/components/conversations/ConversationLive";
 import { ConversationSummaryPanel } from "@/components/conversations/ConversationSummaryPanel";
+import { fieldLabelsFromFields } from "@/domain/assistant-content";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
+import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -80,6 +82,14 @@ export default async function ConversationDetailPage({ params, searchParams }: P
   }
 
   const { conversation, messages, link, prospect, fiches } = detail;
+  const organizationId = context.actor.organizationId;
+  const chatbotConfigs =
+    link !== null && organizationId !== null
+      ? await pgChatbotConfigRepository(pool).listVersions(organizationId, link.id)
+      : [];
+  const fieldLabels = fieldLabelsFromFields(
+    chatbotConfigs.flatMap((config) => config.fiches.flatMap((fiche) => fiche.fields)),
+  );
   const canIntervene = actorCan(context.actor, "conversations:intervene");
   const canWrite = actorCan(context.actor, "conversations:update");
   const canGenerateFiche = actorCan(context.actor, "conversations:generate_fiche");
@@ -182,6 +192,7 @@ export default async function ConversationDetailPage({ params, searchParams }: P
         initialMessages={messages.map(toDashboardChatMessage)}
         canIntervene={canIntervene}
         assistantLabel={link === null || link.label === "" ? "Chatbot sans nom" : link.label}
+        fieldLabels={fieldLabels}
       />
     </section>
   );

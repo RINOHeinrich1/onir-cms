@@ -30,16 +30,25 @@ function optionsHint(field: TemplateField): string {
  */
 export function buildFieldsGuide(
   fields: readonly TemplateField[],
-  options: { label?: string } = {},
+  options: { label?: string; includeTechnicalNames?: boolean } = {},
 ): string {
+  const labelsByName = new Map(
+    fields.map((field) => [field.name, field.label.trim() === "" ? field.name : field.label]),
+  );
   const lines = fields.map((field) => {
+    const conditionalField =
+      field.requiredIf === undefined
+        ? ""
+        : (labelsByName.get(field.requiredIf.field) ?? field.requiredIf.field);
     const required = field.required
       ? "obligatoire"
       : field.requiredIf !== undefined
-        ? `obligatoire si ${field.requiredIf.field} vaut « ${field.requiredIf.equals} »`
+        ? `obligatoire si ${conditionalField} vaut « ${field.requiredIf.equals} »`
         : "facultatif";
+    const label =
+      options.includeTechnicalNames === true ? `${field.label} [${field.name}]` : field.label;
     const parts = [
-      `${field.label} [${field.name}]`,
+      label,
       required,
       field.type,
       formatHint(field),
@@ -56,6 +65,7 @@ export function buildFieldsGuide(
     ...lines,
     "",
     "Règles de collecte :",
+    "- Utilise uniquement les libellés visibles des champs, jamais leurs identifiants techniques.",
     "- Utilise EXACTEMENT une des valeurs autorisées, en respectant la casse.",
     "- Si la réponse ne correspond à aucune valeur autorisée, demande une précision ou choisis « Autre » en conservant le détail dans le champ texte adapté.",
     "- N'invente jamais de valeur.",

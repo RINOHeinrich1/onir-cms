@@ -3,6 +3,7 @@
 import type { FormEvent, KeyboardEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
+import type { FieldLabelMap } from "@/domain/assistant-content";
 import type { Conversation, ConversationInterventionMode } from "@/domain/entities/chat";
 import { ConversationTranscript } from "./ConversationTranscript";
 import type { ChatMessageDto } from "./types";
@@ -52,11 +53,13 @@ export function ConversationLive({
   initialMessages,
   canIntervene,
   assistantLabel = "Assistant IA",
+  fieldLabels = {},
 }: {
   conversation: ConversationState;
   initialMessages: ChatMessageDto[];
   canIntervene: boolean;
   assistantLabel?: string;
+  fieldLabels?: FieldLabelMap;
 }) {
   const toast = useToast();
   const [conversation, setConversation] = useState<ConversationState>(initialConversation);
@@ -339,7 +342,11 @@ export function ConversationLive({
           if (atBottom) setNewBelow(false);
         }}
       >
-        <ConversationTranscript messages={messages} assistantLabel={assistantLabel} />
+        <ConversationTranscript
+          messages={messages}
+          assistantLabel={assistantLabel}
+          fieldLabels={fieldLabels}
+        />
       </div>
 
       {newBelow ? (
