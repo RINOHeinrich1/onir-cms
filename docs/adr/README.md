@@ -80,3 +80,6 @@ ADR qui remplace la précédente.
 | [0078](./0078-acces-prive-wireguard-services-donnees.md) | Accès privés aux services de données via WireGuard | Proposé |
 | [0079](./0079-rate-limit-ia-bottleneck-multinode.md) | Rate limiting IA avec Bottleneck en mono et multi-instance | Proposé |
 | [0080](./0080-type-image-parametres-template.md) | Type image générique pour les paramètres de template | Proposé |
+| [0081](./0081-personnalisation-generique-parametres-template.md) | Personnalisation générique des paramètres de template par l’IA | Proposé |
+| [0082](./0082-collecte-semi-heuristique-formulaire-multifiche.md) | Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche | Proposé |
+| [0083](./0083-composition-generique-fiches.md) | Composition générique de fiches — relations 1..1 et 1..n | Proposé |

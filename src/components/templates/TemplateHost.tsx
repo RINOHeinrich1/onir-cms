@@ -9,6 +9,7 @@ import {
   type TemplateAction,
   type TemplateAttachment,
   type TemplateContextPayload,
+  type TemplateGeneratedFiche,
   type TemplateMessage,
   type TemplateSpec,
 } from "@/domain/template-contract";
@@ -28,8 +29,12 @@ type TemplateActions = {
   removeAttachment(attachmentId: string): Promise<void>;
   finish(): void;
   selectFallback(questionId: string): void;
-  openCollectionForm(): void;
-  submitCollection(values: Record<string, string>): Promise<void>;
+  openCollectionForm(payload?: { ficheKey?: string }): void;
+  submitCollection(payload: {
+    values: Record<string, unknown>;
+    ficheKey?: string;
+    ficheInstanceId?: string;
+  }): Promise<void>;
   request(capability: TemplateCapability): Promise<unknown>;
   openMedia(url: string): void;
   resize(height: number): void;
@@ -171,6 +176,10 @@ export function TemplateHost({
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
+  const [generatedFiches, setGeneratedFiches] = useState<TemplateGeneratedFiche[]>([]);
+  const [collectionActiveFicheKey, setCollectionActiveFicheKey] = useState<string | null>(
+    baseContext.state.collectionForm?.activeFicheKey ?? null,
+  );
   const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const surface = baseContext.surface;
 
@@ -657,21 +666,49 @@ export function TemplateHost({
       openCollectionForm: () => {
         setFallbackMenu(null);
       },
-      submitCollection: async (values) => {
-        if (conversationId === null) return;
+      submitCollection: async (payload) => {
+        const activeConversationId = conversationId ?? (await ensureConversation());
+        if (activeConversationId === null) return;
         try {
           const response = await fetch(`${platform}/fields`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ conversationId, values }),
+            body: JSON.stringify({
+              conversationId: activeConversationId,
+              values: payload.values,
+              ...(payload.ficheKey === undefined ? {} : { ficheKey: payload.ficheKey }),
+              ...(payload.ficheInstanceId === undefined
+                ? {}
+                : { ficheInstanceId: payload.ficheInstanceId }),
+            }),
           });
-          const json = (await response.json().catch(() => null)) as { error?: string } | null;
+          const json = (await response.json().catch(() => null)) as {
+            error?: string;
+            ficheInstanceId?: string;
+          } | null;
           if (!response.ok) {
             setError(json?.error ?? "Enregistrement du formulaire impossible");
             return;
           }
           setError(null);
           setFallbackMenu(null);
+          const refreshed = await fetch(
+            `${platform}/messages?conversationId=${encodeURIComponent(activeConversationId)}`,
+            { cache: "no-store" },
+          ).catch(() => null);
+          if (refreshed !== null && refreshed.ok) {
+            const jsonMessages = (await refreshed.json().catch(() => null)) as {
+              messages?: ApiChatMessage[];
+            } | null;
+            if (Array.isArray(jsonMessages?.messages)) {
+              const converted = jsonMessages.messages.map((message) =>
+                fromApiMessage(message, allowAttachments),
+              );
+              setMessages(converted);
+              const latest = converted[converted.length - 1];
+              if (latest !== undefined) lastAtRef.current = latest.at;
+            }
+          }
         } catch {
           setError("Erreur réseau, veuillez réessayer");
         }
@@ -688,20 +725,66 @@ export function TemplateHost({
         void (async () => {
           const activeConversationId = conversationId ?? (await ensureConversation());
           if (activeConversationId === null) return;
-          try {
+          const submitFinish = async (abandonPending: boolean) => {
             const response = await fetch(`${platform}/finish`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId: activeConversationId }),
+              body: JSON.stringify({
+                conversationId: activeConversationId,
+                ...(abandonPending ? { abandonPending: true } : {}),
+              }),
             });
             const json = (await response.json().catch(() => null)) as {
               error?: string;
+              fiches?: Array<{
+                fiche?: {
+                  ficheKey?: string | null;
+                  definition?: { label?: string } | null;
+                };
+                markdown?: string;
+                pdfBase64?: string;
+              }>;
             } | null;
-            if (!response.ok) {
-              setError(json?.error ?? "Génération impossible : pièces ou champs manquants");
+            return { response, error: json?.error, json };
+          };
+          try {
+            const first = await submitFinish(false);
+            if (first.response.ok) {
+              setGeneratedFiches(
+                (first.json?.fiches ?? []).map((entry) => ({
+                  ficheKey: entry.fiche?.ficheKey ?? "fiche",
+                  label: entry.fiche?.definition?.label ?? "Fiche",
+                  markdown: entry.markdown ?? "",
+                  pdfBase64: entry.pdfBase64 ?? "",
+                })),
+              );
+              setStatus("finalisee");
               return;
             }
-            setStatus("finalisee");
+            const message = first.error ?? "Génération impossible : pièces ou champs manquants";
+            if (message.includes("encore en cours")) {
+              const confirmed = window.confirm(
+                `${message}\n\nTerminer avec les fiches complètes et abandonner les fiches incomplètes ?`,
+              );
+              if (confirmed) {
+                const second = await submitFinish(true);
+                if (second.response.ok) {
+                  setGeneratedFiches(
+                    (second.json?.fiches ?? []).map((entry) => ({
+                      ficheKey: entry.fiche?.ficheKey ?? "fiche",
+                      label: entry.fiche?.definition?.label ?? "Fiche",
+                      markdown: entry.markdown ?? "",
+                      pdfBase64: entry.pdfBase64 ?? "",
+                    })),
+                  );
+                  setStatus("finalisee");
+                  return;
+                }
+                setError(second.error ?? "Génération impossible");
+                return;
+              }
+            }
+            setError(message);
           } catch {
             setError("Génération impossible pour le moment");
           }
@@ -788,6 +871,33 @@ export function TemplateHost({
     [baseContext.resources.data, platform, preview, surface, token],
   );
 
+  useEffect(() => {
+    if (
+      phase !== "chat" ||
+      conversationId === null ||
+      baseContext.state.collectionForm === undefined
+    ) {
+      return;
+    }
+    void (async () => {
+      try {
+        const response = await fetch(`${platform}/collection`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId }),
+        });
+        const json = (await response.json().catch(() => null)) as {
+          activeFicheKey?: string | null;
+        } | null;
+        if (response.ok && typeof json?.activeFicheKey === "string") {
+          setCollectionActiveFicheKey(json.activeFicheKey);
+        }
+      } catch {
+        // Best-effort : le premier formulaire reste sélectionnable.
+      }
+    })();
+  }, [baseContext.state.collectionForm, conversationId, phase, platform]);
+
   const liveContext = useMemo<LiveContext>(
     () => ({
       ...baseContext,
@@ -800,6 +910,17 @@ export function TemplateHost({
         ...(template.capabilities.includes("fallback") && fallbackMenu !== null
           ? { fallback: fallbackMenu }
           : {}),
+        ...(generatedFiches.length === 0 ? {} : { generatedFiches }),
+        ...(baseContext.state.collectionForm === undefined
+          ? {}
+          : {
+              collectionForm: {
+                ...baseContext.state.collectionForm,
+                ...(collectionActiveFicheKey === null
+                  ? {}
+                  : { activeFicheKey: collectionActiveFicheKey }),
+              },
+            }),
       },
       actions,
       data: { load: loadData },
@@ -818,6 +939,8 @@ export function TemplateHost({
       typing,
       fallbackMenu,
       pendingAttachments,
+      collectionActiveFicheKey,
+      generatedFiches,
       actions,
       loadData,
       template.capabilities,
@@ -855,10 +978,10 @@ export function TemplateHost({
           actions.selectFallback(action.payload.questionId);
           break;
         case "openCollectionForm":
-          actions.openCollectionForm();
+          actions.openCollectionForm(action.payload);
           break;
         case "submitCollection":
-          void actions.submitCollection(action.payload.values);
+          void actions.submitCollection(action.payload);
           break;
         case "openMedia":
           actions.openMedia(action.payload.url);

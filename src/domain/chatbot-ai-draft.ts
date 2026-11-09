@@ -22,6 +22,7 @@ import {
   buildDefaultRenderTemplate,
   buildDefaultSystemPrompt,
   toFieldName,
+  toTemplateKey,
   uniqueFieldName,
 } from "@/domain/template-defaults";
 import { validateTemplateDefinition } from "@/domain/template-schema";
@@ -46,6 +47,14 @@ export type ChatbotAiKnowledgeCandidate = {
   source?: ChatbotAiKnowledgeSource;
 };
 
+export type ChatbotAiForm = {
+  key: string;
+  label: string;
+  description: string;
+  intent: string;
+  fields: TemplateField[];
+};
+
 export type ChatbotAiDraft = {
   label: string;
   description: string;
@@ -56,6 +65,10 @@ export type ChatbotAiDraft = {
   guardrails: string[];
   extraInstructions: string;
   fields: TemplateField[];
+  /** Formulaires composés proposés par l'IA (ADR-0083). */
+  forms?: ChatbotAiForm[];
+  /** Formulaire racine dans `forms`. */
+  rootFormKey?: string;
   systemPrompt: string;
   renderTemplate: string;
   knowledge: ChatbotAiKnowledgeCandidate[];
@@ -187,6 +200,7 @@ function normalizeFields(value: unknown, warnings: string[]): TemplateField[] {
       ...(type === "select" || type === "multi" ? { options } : {}),
       ...(example === "" ? {} : { example: example.slice(0, 300) }),
       ...(type === "file" ? { file: fileConstraints(raw.file) } : {}),
+      ...(type === "fiche" || type === "tableau_de_fiches" ? { ficheKey: text(raw.ficheKey) } : {}),
     });
   }
   return fields;
@@ -219,6 +233,88 @@ function normalizeKnowledge(value: unknown, warnings: string[]): ChatbotAiKnowle
   return result.slice(0, TEMPLATE_AI_MAX_KNOWLEDGE);
 }
 
+function stripFicheReference(field: TemplateField): TemplateField {
+  const { ficheKey: _ficheKey, ...rest } = field;
+  return { ...rest, type: "text" };
+}
+
+function normalizeForms(
+  value: unknown,
+  rootValue: unknown,
+  warnings: string[],
+): { forms: ChatbotAiForm[]; rootKey: string } | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const forms: ChatbotAiForm[] = [];
+  const usedKeys = new Set<string>();
+  for (const raw of value.slice(0, 5)) {
+    if (!isRecord(raw)) continue;
+    const label = text(raw.label) || text(raw.key);
+    const key = toTemplateKey(text(raw.key) || label);
+    if (key === "" || usedKeys.has(key)) {
+      warnings.push(`Formulaire IA ignoré : clé absente ou dupliquée (${key || "vide"}).`);
+      continue;
+    }
+    usedKeys.add(key);
+    forms.push({
+      key,
+      label: label.slice(0, 160),
+      description: text(raw.description),
+      intent: text(raw.intent),
+      fields: normalizeFields(raw.fields, warnings),
+    });
+  }
+  if (forms.length === 0) return null;
+
+  const normalizedFormKeys = new Set(forms.map((form) => toTemplateKey(form.key)));
+  for (const form of forms) {
+    form.fields = form.fields.map((field) => {
+      if (field.type !== "fiche" && field.type !== "tableau_de_fiches") return field;
+      const normalizedKey = toTemplateKey(field.ficheKey ?? "");
+      if (normalizedKey === "" || !normalizedFormKeys.has(normalizedKey)) {
+        warnings.push(
+          `Référence de sous-fiche invalide dans « ${form.label} » : ${field.ficheKey ?? "vide"} ; champ converti en texte.`,
+        );
+        return stripFicheReference(field);
+      }
+      return { ...field, ficheKey: normalizedKey };
+    });
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const hasCycle = (key: string): boolean => {
+    if (visiting.has(key)) return true;
+    if (visited.has(key)) return false;
+    visiting.add(key);
+    const form = forms.find((entry) => entry.key === key);
+    for (const field of form?.fields ?? []) {
+      if (field.ficheKey !== undefined && hasCycle(field.ficheKey)) return true;
+    }
+    visiting.delete(key);
+    visited.add(key);
+    return false;
+  };
+  for (const form of forms) {
+    if (hasCycle(form.key)) {
+      warnings.push(
+        `Cycle de sous-fiches détecté autour de « ${form.label} » ; composition simplifiée.`,
+      );
+      form.fields = form.fields.map((field) =>
+        field.ficheKey === undefined ? field : stripFicheReference(field),
+      );
+      break;
+    }
+  }
+
+  const requestedRoot = toTemplateKey(text(rootValue));
+  const rootKey = forms.find((form) => form.key === requestedRoot)?.key ?? forms[0]?.key ?? "";
+  if (rootKey === "") return null;
+  if (requestedRoot !== "" && forms.every((form) => form.key !== requestedRoot)) {
+    warnings.push(`Formulaire racine inconnu « ${requestedRoot} » ; « ${rootKey} » utilisé.`);
+  }
+  return { forms, rootKey };
+}
+
 /**
  * Valide et normalise la sortie brute de l'IA.
  * Les champs invalides sont corrigés quand c'est sans risque ; les erreurs
@@ -234,7 +330,17 @@ export function parseChatbotAiDraft(
   const warnings: string[] = [];
   const label = text(input.label);
   if (label === "") errors.push("L'IA n'a pas proposé de nom de chatbot");
-  const normalizedFields = normalizeFields(input.fields, warnings);
+  const normalizedForms = normalizeForms(input.forms, input.rootFormKey, warnings);
+  const normalizedFields =
+    normalizedForms === null
+      ? normalizeFields(input.fields, warnings).map((field) => {
+          if (field.type !== "fiche" && field.type !== "tableau_de_fiches") return field;
+          warnings.push(
+            `Composition sans formulaire « ${field.label} » ignorée ; champ converti en texte.`,
+          );
+          return stripFicheReference(field);
+        })
+      : (normalizedForms.forms.find((form) => form.key === normalizedForms.rootKey)?.fields ?? []);
 
   const description = text(input.description) || context.descriptionFallback?.trim() || "";
   const role = text(input.role);
@@ -298,6 +404,9 @@ export function parseChatbotAiDraft(
       guardrails,
       extraInstructions,
       fields: validated.value.fields,
+      ...(normalizedForms === null
+        ? {}
+        : { forms: normalizedForms.forms, rootFormKey: normalizedForms.rootKey }),
       systemPrompt: validated.value.systemPrompt,
       renderTemplate: validated.value.renderTemplate,
       knowledge,

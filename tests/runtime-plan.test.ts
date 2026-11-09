@@ -18,6 +18,7 @@ function config(
     mission,
     informationSources: sources,
     behaviorMode: "guided",
+    collectionMode: "ai",
     systemPrompt: "",
     simple: {
       role: "a",

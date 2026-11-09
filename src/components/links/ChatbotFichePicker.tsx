@@ -101,7 +101,10 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
       setError(`La fiche « ${option.label} » est déjà sélectionnée (clé ${option.key})`);
       return;
     }
-    onChange([...value, draftFromFicheCollecte(option)]);
+    onChange([
+      ...value,
+      draftFromFicheCollecte(option, (key) => options.find((entry) => entry.key === key)),
+    ]);
   };
 
   const remove = (fiche: FicheDraft): void => {
@@ -178,7 +181,10 @@ export function ChatbotFichePicker({ value, onChange }: Props) {
             onCancel={() => setCreating(false)}
             onSaved={(fiche: FicheCollecteDto) => {
               setOptions((current) => [...current, fiche]);
-              onChange([...value, draftFromFicheCollecte(fiche)]);
+              onChange([
+                ...value,
+                draftFromFicheCollecte(fiche, (key) => options.find((entry) => entry.key === key)),
+              ]);
               setCreating(false);
             }}
           />

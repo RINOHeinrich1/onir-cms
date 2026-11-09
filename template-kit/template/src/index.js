@@ -257,10 +257,30 @@ function renderMarkdown(target, content) {
   target.appendChild(root);
 }
 
+function generatedDownloads(ctx) {
+  const fiches = Array.isArray(ctx.state.generatedFiches) ? ctx.state.generatedFiches : [];
+  if (fiches.length === 0) return null;
+  return el("div", { class: "downloads" }, [
+    el("span", { class: "downloads-title", text: "Vos fiches :" }),
+    ...fiches.map((fiche) => {
+      const bytes = Uint8Array.from(atob(fiche.pdfBase64 ?? ""), (char) => char.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      return el("a", {
+        class: "download-link",
+        href: url,
+        download: `${fiche.ficheKey || "fiche"}.pdf`,
+        text: `Télécharger ${fiche.label || "la fiche"} (PDF)`,
+      });
+    }),
+  ]);
+}
+
 class StarterTemplate extends HTMLElement {
   #root;
   #ctx;
   #collectionOpen = false;
+  #collectionPicker = false;
+  #collectionFicheKey = null;
 
   constructor() {
     super();
@@ -346,7 +366,7 @@ class StarterTemplate extends HTMLElement {
           font-size: 16px;
           font-weight: 800;
         }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
         .head-copy { flex: 1; min-width: 0; }
         .head-copy h1 {
           margin: 0;
@@ -451,6 +471,12 @@ class StarterTemplate extends HTMLElement {
         }
         .fallback-option:hover, .fallback-form:hover { border-color: var(--page-primary); }
         .fallback-form { text-align: center; }
+        .collection-open { margin-top: 10px; }
+        .downloads { display: grid; gap: 6px; margin-top: 10px; }
+        .downloads-title { font-weight: 700; }
+        .download-link { color: #023777; text-decoration: underline; }
+        .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
+        .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
         .composer { padding: 12px 14px 14px; border-top: 1px solid var(--page-border); background: var(--page-surface); }
         .composer-box { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border: 1.5px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
         .composer-box:focus-within { border-color: var(--page-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-primary) 14%, transparent); }
@@ -476,6 +502,18 @@ class StarterTemplate extends HTMLElement {
         .collection-actions { display: flex; gap: 8px; margin-top: 4px; }
         .collection-actions button { flex: 1; padding: 10px; border: 1px solid var(--page-border); border-radius: 9px; background: var(--page-bg); color: var(--page-ink); cursor: pointer; }
         .collection-actions button[type="submit"] { border-color: var(--page-primary); background: var(--page-primary); color: #fff; font-weight: 700; }
+        .collection input[type="file"] { padding: 7px; background: var(--page-bg); }
+        .collection-files { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; }
+        .collection-files li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--page-border); border-radius: 8px; background: var(--page-bg); font-size: 11px; }
+        .collection-files button { border: 0; background: transparent; color: var(--page-primary); cursor: pointer; font-size: 11px; }
+        .attach-bar { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 14px 0; }
+        .attach-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--page-border); border-radius: 999px; background: var(--page-surface); color: var(--page-primary); font-size: 11px; font-weight: 700; cursor: pointer; }
+        .attach-btn:hover { background: color-mix(in srgb, var(--page-primary) 7%, var(--page-surface)); }
+        .attach-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        .attach-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 14px 0; }
+        .attach-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 5px 4px 9px; border: 1px solid var(--page-border); border-radius: 999px; background: var(--page-bg); color: var(--page-ink); font-size: 10.5px; }
+        .attach-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15rem; }
+        .attach-chip button { border: 0; background: transparent; color: var(--page-primary); cursor: pointer; font-size: 14px; line-height: 1; }
         .loading { padding: 24px; text-align: center; color: #64748b; }
         @media (max-width: 520px) {
           .page { width: 100%; height: 100dvh; margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
@@ -488,9 +526,13 @@ class StarterTemplate extends HTMLElement {
     });
 
     const title = paramText(ctx, "chat_title", ctx.brand.name || "Discussion");
+    const assistantLogo = paramText(ctx, "assistant_logo", "");
+    const brandLogo =
+      typeof ctx.brand.logoUrl === "string" ? ctx.brand.logoUrl.trim() : "";
+    const headerLogo = assistantLogo !== "" ? assistantLogo : brandLogo;
     const logo =
-      typeof ctx.brand.logoUrl === "string" && ctx.brand.logoUrl !== ""
-        ? el("img", { src: ctx.brand.logoUrl, alt: "" })
+      headerLogo !== ""
+        ? el("img", { src: headerLogo, alt: "" })
         : el("span", { text: (ctx.brand.name || "A").slice(0, 1).toUpperCase() });
     const finalised = ctx.state.status === "finalisee";
     const header = el("header", { class: "head" }, [
@@ -587,33 +629,82 @@ class StarterTemplate extends HTMLElement {
 
     const fallback = ctx.state.fallback;
     const modelForm = Array.isArray(ctx.resources.modelForm) ? ctx.resources.modelForm : [];
-    const hasCollection = modelForm.length > 0;
-    const collectionOpen = this.#collectionOpen && hasCollection;
-    const fallbackView = fallback && !collectionOpen
-      ? el("section", { class: "fallback", "aria-live": "polite" }, [
-          el("p", { class: "fallback-intro", text: fallback.intro }),
-          el("div", { class: "fallback-options" }, fallback.questions.map((question) =>
-            el("button", {
-              type: "button",
-              class: "fallback-option",
-              text: question.label,
-              onclick: () => ctx.actions.selectFallback(question.id),
-            }),
-          )),
-          fallback.showCollectionForm && hasCollection
-            ? el("button", {
-                type: "button",
-                class: "fallback-form",
-                text: "Remplir le formulaire",
-                onclick: () => {
-                  this.#collectionOpen = true;
-                  ctx.actions.openCollectionForm();
-                  this.#render();
-                },
-              })
-            : null,
-        ])
-      : null;
+    const collection = ctx.state.collectionForm;
+    const collectionForms = Array.isArray(collection?.forms) ? collection.forms : [];
+    const selectedForm =
+      collectionForms.find((form) => form.ficheKey === this.#collectionFicheKey) ??
+      collectionForms.find((form) => form.ficheKey === collection?.activeFicheKey) ??
+      collectionForms[0];
+    const collectionFields = selectedForm?.fields ?? modelForm;
+    const hasCollection = collectionFields.length > 0;
+    const collectionOpen = this.#collectionOpen && hasCollection && !finalised;
+    const collectionPicker = this.#collectionPicker && !finalised;
+    const semiAvailable = collection?.available === true && collectionForms.length > 0;
+    const fallbackActive = fallback !== undefined && !collectionOpen && !collectionPicker;
+    const fallbackView =
+      (fallbackActive || collectionOpen || collectionPicker) && !finalised
+        ? el("section", { class: "fallback", "aria-live": "polite" }, [
+            ...(collectionPicker
+              ? [
+                  el("p", { class: "fallback-intro", text: "Choisir une fiche" }),
+                  el(
+                    "div",
+                    { class: "fallback-options" },
+                    collectionForms.map((form) =>
+                      el("button", {
+                        type: "button",
+                        class: "fallback-option",
+                        text: form.label,
+                        onclick: () => {
+                          this.#collectionFicheKey = form.ficheKey;
+                          this.#collectionPicker = false;
+                          this.#collectionOpen = true;
+                          ctx.actions.openCollectionForm({ ficheKey: form.ficheKey });
+                          this.#render();
+                        },
+                      }),
+                    ),
+                  ),
+                  el("div", { class: "collection-actions" }, [
+                    el("button", {
+                      type: "button",
+                      text: "Annuler",
+                      onclick: () => {
+                        this.#collectionPicker = false;
+                        this.#render();
+                      },
+                    }),
+                  ]),
+                ]
+              : collectionOpen
+                ? [this.#collectionForm(ctx, collectionFields, selectedForm?.ficheKey ?? null)]
+                : [
+                    el("p", { class: "fallback-intro", text: fallback.intro }),
+                    el(
+                      "div",
+                      { class: "fallback-options" },
+                      fallback.questions.map((question) =>
+                        el("button", {
+                          type: "button",
+                          class: "fallback-option",
+                          text: question.label,
+                          onclick: () => ctx.actions.selectFallback(question.id),
+                        }),
+                      ),
+                    ),
+                    ...(fallback.showCollectionForm && hasCollection
+                      ? [
+                          el("button", {
+                            type: "button",
+                            class: "fallback-form",
+                            text: "Remplir le formulaire",
+                            onclick: () => this.#openCollection(),
+                          }),
+                        ]
+                      : []),
+                  ]),
+          ])
+        : null;
 
     const textarea = el("textarea", {
       rows: "1",
@@ -639,7 +730,55 @@ class StarterTemplate extends HTMLElement {
       textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`;
     });
 
+    const fileFields = modelForm.filter((field) => field.type === "file");
+    const pendingAttachments = Array.isArray(ctx.state.pendingAttachments)
+      ? ctx.state.pendingAttachments
+      : [];
+    const attachBar = fileFields.length === 0
+      ? null
+      : el(
+          "div",
+          { class: "attach-bar" },
+          fileFields.map((field) => {
+            const maxFiles = field.maxFiles ?? 1;
+            const count = pendingAttachments.filter((item) => item.fieldName === field.name).length;
+            const input = el("input", {
+              type: "file",
+              accept: Array.isArray(field.accept) ? field.accept.join(",") : "",
+              ...(maxFiles > 1 ? { multiple: "true" } : {}),
+              disabled: count >= maxFiles,
+              onchange: (event) => {
+                const files = [...(event.currentTarget.files ?? [])];
+                event.currentTarget.value = "";
+                for (const file of files) void ctx.actions.attachFile(field.name, file);
+              },
+            });
+            return el("label", { class: "attach-btn", title: field.label }, [
+              `Joindre ${field.label}${maxFiles > 1 ? ` (${count}/${maxFiles})` : ""}`,
+              input,
+            ]);
+          }),
+        );
+    const attachChips = pendingAttachments.length === 0
+      ? null
+      : el(
+          "div",
+          { class: "attach-chips" },
+          pendingAttachments.map((item) =>
+            el("span", { class: "attach-chip" }, [
+              el("span", { text: `${item.fieldLabel} — ${item.originalName}` }),
+              el("button", {
+                type: "button",
+                text: "×",
+                "aria-label": `Retirer ${item.originalName}`,
+                onclick: () => ctx.actions.removeAttachment(item.id),
+              }),
+            ]),
+          ),
+        );
     const composer = el("div", { class: "composer" }, [
+      attachBar,
+      attachChips,
       el("div", { class: "composer-box" }, [
         textarea,
         el("button", {
@@ -652,9 +791,8 @@ class StarterTemplate extends HTMLElement {
       ]),
     ]);
 
-    const collectionForm = collectionOpen ? this.#collectionForm(ctx, modelForm) : null;
     const finish =
-      hasCollection && !fallback && !collectionOpen && !finalised && ctx.state.messages.length > 0
+      hasCollection && !fallbackActive && !collectionOpen && !collectionPicker && !finalised
         ? el("button", {
             type: "button",
             class: "finish",
@@ -669,16 +807,26 @@ class StarterTemplate extends HTMLElement {
       el("ul", { class: "messages" }, items),
       ctx.state.typing ? el("p", { class: "typing", text: "L’assistant écrit…" }) : null,
       fallbackView,
-      collectionForm,
     ]);
 
+    const collectionButton =
+      semiAvailable && !finalised && !fallbackActive && !collectionOpen && !collectionPicker
+        ? el("button", {
+            type: "button",
+            class: "fallback-form collection-open",
+            text: "Remplir le formulaire",
+            onclick: () => this.#openCollection(),
+          })
+        : null;
     const body = el("div", { class: "body" }, [
       log,
       finalised
-        ? el("p", { class: "done", text: "Votre demande a bien été enregistrée." })
-        : fallback === undefined && !collectionOpen
-          ? composer
-          : null,
+        ? el("div", { class: "done" }, [
+            el("p", { text: "Votre demande a bien été enregistrée." }),
+            generatedDownloads(ctx),
+          ])
+        : collectionButton,
+      !finalised && !fallbackActive && !collectionOpen && !collectionPicker ? composer : null,
     ]);
     queueMicrotask(() => {
       log.scrollTop = log.scrollHeight;
@@ -687,11 +835,121 @@ class StarterTemplate extends HTMLElement {
     return body;
   }
 
-  #collectionForm(ctx, fields) {
-    const values = {};
-    const controls = [];
+  #openCollection() {
+    const forms = this.#ctx?.state?.collectionForm?.forms ?? [];
+    if (forms.length === 0) {
+      const fields = this.#ctx?.resources?.modelForm;
+      if (!Array.isArray(fields) || fields.length === 0) return;
+      this.#collectionOpen = true;
+      this.#collectionPicker = false;
+      this.#render();
+      return;
+    }
+    if (forms.length > 1) {
+      this.#collectionPicker = true;
+      this.#render();
+      return;
+    }
+    this.#collectionFicheKey = forms[0].ficheKey;
+    this.#collectionOpen = true;
+    this.#collectionPicker = false;
+    this.#ctx?.actions?.openCollectionForm({ ficheKey: forms[0].ficheKey });
+    this.#render();
+  }
+
+  #collectionInputs(ctx, fields) {
+    const nodes = [];
+    const readers = [];
     for (const field of fields) {
-      if (field.type === "file") continue;
+      if (field.type === "file") {
+        const pending = (ctx.state.pendingAttachments ?? []).filter(
+          (attachment) => attachment.fieldName === field.name,
+        );
+        const maxFiles = field.maxFiles ?? 1;
+        const fileInput = el("input", {
+          type: "file",
+          accept: Array.isArray(field.accept) ? field.accept.join(",") : undefined,
+          ...(maxFiles > 1 ? { multiple: "true" } : {}),
+          onchange: (event) => {
+            const files = [...(event.currentTarget.files ?? [])];
+            event.currentTarget.value = "";
+            for (const file of files) void ctx.actions.attachFile(field.name, file);
+          },
+        });
+        const files = pending.length === 0
+          ? null
+          : el("ul", { class: "collection-files" }, pending.map((attachment) =>
+              el("li", {}, [
+                el("span", { text: attachment.originalName }),
+                el("button", {
+                  type: "button",
+                  text: "Supprimer",
+                  onclick: () => ctx.actions.removeAttachment(attachment.id),
+                }),
+              ]),
+            ));
+        nodes.push(
+          el("label", {}, [
+            `${field.label}${field.required ? " *" : ""}`,
+            fileInput,
+            el("span", {
+              class: "hint",
+              text: `Formats acceptés : ${Array.isArray(field.accept) ? field.accept.join(", ") : "tous"} — ${maxFiles} fichier${maxFiles > 1 ? "s" : ""} maximum.`,
+            }),
+            files,
+          ]),
+        );
+        continue;
+      }
+      if (field.type === "fiche" && Array.isArray(field.fields)) {
+        const nested = this.#collectionInputs(ctx, field.fields);
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            ...nested.nodes,
+          ]),
+        );
+        readers.push({ field, read: () => nested.read() });
+        continue;
+      }
+      if (field.type === "tableau_de_fiches" && Array.isArray(field.fields)) {
+        const rows = [];
+        const rowsNode = el("div", { class: "collection-rows" });
+        const addRow = () => {
+          const nested = this.#collectionInputs(ctx, field.fields);
+          const row = el("div", { class: "collection-row" });
+          row.append(...nested.nodes);
+          const reader = () => nested.read();
+          rows.push(reader);
+          const remove = el("button", {
+            type: "button",
+            class: "btn ghost small",
+            text: "Retirer la ligne",
+            onclick: () => {
+              if (rows.length <= 1) return;
+              rows.splice(rows.indexOf(reader), 1);
+              row.remove();
+            },
+          });
+          row.appendChild(remove);
+          rowsNode.appendChild(row);
+        };
+        addRow();
+        nodes.push(
+          el("fieldset", { class: "collection-subform" }, [
+            el("legend", { text: field.label }),
+            rowsNode,
+            el("button", {
+              type: "button",
+              class: "btn ghost small",
+              text: "Ajouter une ligne",
+              onclick: addRow,
+            }),
+          ]),
+        );
+        readers.push({ field, read: () => rows.map((read) => read()) });
+        continue;
+      }
       let control;
       if (field.type === "textarea") {
         control = el("textarea", { name: field.name, maxlength: "4000" });
@@ -707,36 +965,46 @@ class StarterTemplate extends HTMLElement {
           maxlength: "4000",
         });
       }
-      controls.push(
-        el("label", {}, [
-          `${field.label}${field.required ? " *" : ""}`,
-          control,
-        ]),
-      );
+      nodes.push(el("label", {}, [`${field.label}${field.required ? " *" : ""}`, control]));
+      readers.push({
+        field,
+        read: () => (control.value === undefined ? "" : control.value),
+      });
     }
+    return {
+      nodes,
+      read: () => {
+        const values = {};
+        for (const reader of readers) values[reader.field.name] = reader.read();
+        return values;
+      },
+    };
+  }
+
+  #collectionForm(ctx, fields, ficheKey) {
+    const inputs = this.#collectionInputs(ctx, fields);
     return el("section", { class: "collection" }, [
       el("h3", { text: "Compléter la fiche" }),
       el("form", {
         onsubmit: async (event) => {
           event.preventDefault();
-          const form = event.currentTarget;
-          for (const field of fields) {
-            if (field.type === "file") continue;
-            const control = form.elements.namedItem(field.name);
-            values[field.name] = control !== null && "value" in control ? control.value : "";
-          }
-          await ctx.actions.submitCollection(values);
+          await ctx.actions.submitCollection({
+            values: inputs.read(),
+            ...(ficheKey === null ? {} : { ficheKey }),
+          });
           this.#collectionOpen = false;
+          this.#collectionPicker = false;
           this.#render();
         },
       }, [
-        ...controls,
+        ...inputs.nodes,
         el("div", { class: "collection-actions" }, [
           el("button", {
             type: "button",
             text: "Annuler",
             onclick: () => {
               this.#collectionOpen = false;
+              this.#collectionPicker = false;
               this.#render();
             },
           }),

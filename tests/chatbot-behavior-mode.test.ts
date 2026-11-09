@@ -26,6 +26,7 @@ const BASE_CONFIG: ChatbotConfig = {
   chatLinkId: "link-1",
   version: 1,
   behaviorMode: "guided",
+  collectionMode: "ai",
   systemPrompt: "ANCIEN SNAPSHOT",
   simple: {
     role: "assistant commercial",

@@ -138,29 +138,59 @@ export async function buildLinkContext(
     };
   }
   let modelForm: TemplateFormField[] | null = null;
+  let collectionForm: TemplateContextPayload["state"]["collectionForm"];
   if (caps.includes("modelForm")) {
     // Configuration chatbot actuelle (fiches portées par le snapshot).
     const config =
       deps.configs !== undefined && typeof link.currentConfigId === "string"
         ? await deps.configs.findById(link.organizationId, link.currentConfigId)
         : null;
+    const byKey = new Map<string, NonNullable<typeof config>["fiches"][number]>();
+    const addFiches = (fiches: NonNullable<typeof config>["fiches"]): void => {
+      for (const fiche of fiches) {
+        byKey.set(fiche.key, fiche);
+        if (fiche.subFiches !== undefined) addFiches(fiche.subFiches);
+      }
+    };
+    if (config !== null) addFiches(config.fiches);
+    const toFormFields = (
+      fields: NonNullable<typeof config>["fiches"][number]["fields"],
+    ): TemplateFormField[] =>
+      fields.map((field) => {
+        const child = field.ficheKey === undefined ? undefined : byKey.get(field.ficheKey);
+        return {
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          ...(field.options === undefined ? {} : { options: field.options }),
+          ...(field.unit === undefined ? {} : { unit: field.unit }),
+          ...(field.file === undefined
+            ? {}
+            : {
+                accept: field.file.accept,
+                maxFiles: field.file.maxFiles,
+                maxBytes: field.file.maxBytes,
+              }),
+          ...(field.ficheKey === undefined ? {} : { ficheKey: field.ficheKey }),
+          ...(child === undefined ? {} : { fields: toFormFields(child.fields) }),
+        };
+      });
     const fields = config?.fiches[0]?.fields;
     if (fields !== undefined && fields.length > 0) {
-      modelForm = fields.map((field) => ({
-        name: field.name,
-        label: field.label,
-        type: field.type,
-        required: field.required,
-        ...(field.options === undefined ? {} : { options: field.options }),
-        ...(field.unit === undefined ? {} : { unit: field.unit }),
-        ...(field.file === undefined
-          ? {}
-          : {
-              accept: field.file.accept,
-              maxFiles: field.file.maxFiles,
-              maxBytes: field.file.maxBytes,
-            }),
-      }));
+      modelForm = toFormFields(fields);
+    }
+    if (config?.collectionMode === "semi_heuristic") {
+      collectionForm = {
+        available: true,
+        forms: config.fiches
+          .filter((fiche) => fiche.fields.length > 0)
+          .map((fiche) => ({
+            ficheKey: fiche.key,
+            label: fiche.label,
+            fields: toFormFields(fiche.fields),
+          })),
+      };
     }
   }
   const surface = input.surface ?? link.surface;
@@ -184,6 +214,7 @@ export async function buildLinkContext(
     typing: false,
     media,
     modelForm,
+    ...(collectionForm === undefined ? {} : { collectionForm }),
     pendingAttachments: [],
     // Double garde (ADR-0020) : flag lien exposé au contexte + sources.
     userStateEnabled: link.userStateEnabled,

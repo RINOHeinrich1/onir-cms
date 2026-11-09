@@ -2,11 +2,14 @@ import type { Pool } from "pg";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import {
   type ChatbotBehaviorMode,
+  type ChatbotCollectionMode,
   type ChatbotConfig,
   DEFAULT_CHATBOT_BEHAVIOR_MODE,
+  DEFAULT_CHATBOT_COLLECTION_MODE,
   defaultChatbotFallback,
   type FicheDefinition,
   isChatbotBehaviorMode,
+  isChatbotCollectionMode,
   parseChatbotDataSelection,
   parseChatbotFallback,
 } from "@/domain/entities/chatbot-config";
@@ -30,6 +33,7 @@ type Row = {
   fiche_definitions: unknown;
   data_selection: unknown;
   fallback: unknown;
+  collection_mode: string | null;
   search_tool: unknown;
   mission: string | null;
   information_sources: unknown;
@@ -38,7 +42,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, search_tool, mission, information_sources, created_by, created_at";
+  "id, organization_id, chat_link_id, version, system_prompt, simple_settings, fiche_definitions, data_selection, fallback, collection_mode, search_tool, mission, information_sources, created_by, created_at";
 
 function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -46,6 +50,10 @@ function behaviorModeFromSettings(value: unknown): ChatbotBehaviorMode {
     if (isChatbotBehaviorMode(mode)) return mode;
   }
   return DEFAULT_CHATBOT_BEHAVIOR_MODE;
+}
+
+function collectionModeFromRow(value: string | null): ChatbotCollectionMode {
+  return isChatbotCollectionMode(value) ? value : DEFAULT_CHATBOT_COLLECTION_MODE;
 }
 
 function toConfig(row: Row): ChatbotConfig {
@@ -88,6 +96,7 @@ function toConfig(row: Row): ChatbotConfig {
       ? {}
       : { informationSources: informationSources.value }),
     behaviorMode: behaviorModeFromSettings(row.simple_settings),
+    collectionMode: collectionModeFromRow(row.collection_mode),
     systemPrompt: row.system_prompt,
     simple: simple satisfies TemplateSimpleSettings,
     fiches: row.fiche_definitions as FicheDefinition[],
@@ -148,9 +157,9 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
         const inserted = await client.query<Row>(
           `INSERT INTO chatbot_configs
              (organization_id, chat_link_id, version, system_prompt, simple_settings,
-              fiche_definitions, data_selection, fallback, search_tool, mission,
-              information_sources, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              fiche_definitions, data_selection, fallback, collection_mode, search_tool,
+              mission, information_sources, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING ${COLUMNS}`,
           [
             organizationId,
@@ -161,6 +170,7 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
             JSON.stringify(input.fiches),
             JSON.stringify(input.dataSelection),
             JSON.stringify(input.fallback ?? defaultChatbotFallback()),
+            input.collectionMode ?? DEFAULT_CHATBOT_COLLECTION_MODE,
             JSON.stringify(input.searchTool ?? defaultSearchToolConfig()),
             input.mission ?? null,
             input.informationSources === undefined

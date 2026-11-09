@@ -88,6 +88,24 @@ function FieldEditor({
           return `Requis si « ${target?.label ?? field.requiredIf.field} » = « ${field.requiredIf.equals} »`;
         })();
 
+  if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+    const rows = Array.isArray(value)
+      ? value
+      : value === null || value === undefined
+        ? []
+        : [value];
+    return (
+      <div className="info-field-value">
+        {rows.length === 0 ? (
+          <span className="hint">Aucune valeur composée.</span>
+        ) : (
+          <pre className="info-object-value">{JSON.stringify(value, null, 2)}</pre>
+        )}
+        {requiredHint !== null ? <span className="info-hint">{requiredHint}</span> : null}
+      </div>
+    );
+  }
+
   if (field.type === "file") {
     return (
       <div className="info-field-value">

@@ -91,15 +91,27 @@ RÈGLES ABSOLUES :
 - Si une langue fixe est explicitement demandée, mets language = {"mode":"fixed","value":"nom de la langue"}.
 - Le ton est un texte libre. Tu peux t'inspirer des suggestions, mais tu n'es pas limité à cette liste et tu peux combiner plusieurs facettes.
 - Les garde-fous sont des instructions libres. Tu peux t'inspirer des suggestions, mais tu peux en proposer d'autres. Ne les active pas tous par défaut.
-- Propose entre 0 et 12 informations à collecter. Si le chatbot est purement conversationnel, fields = [].
-- Types autorisés : text, textarea, select, multi, url, email, file.
+- Propose entre 0 et 12 informations à collecter. Si le chatbot est purement conversationnel, forms = [] et fields = [].
+- Types autorisés : text, textarea, select, multi, url, email, number, date, image, file, fiche, tableau_de_fiches.
 - Pour select et multi, fournis options sous forme de tableau de chaînes.
 - Pour file, ne l'utilise que si l'utilisateur doit joindre un document ou une image.
+- Utilise \`tableau_de_fiches\` quand plusieurs éléments répétés possèdent plusieurs champs (modules d'un étudiant, lignes d'une commande, participants d'une réservation).
+- Utilise \`fiche\` pour un sous-objet cohérent à plusieurs champs, utilisé comme une seule valeur.
+- Une sous-fiche doit être définie dans \`forms\` et référencée par \`ficheKey\`.
+- Ne crée pas de sous-fiche pour un simple champ texte, un choix ou une valeur unique.
+- Ne crée pas de cycle, ne référence jamais un formulaire absent, et limite la composition à deux niveaux.
+- Le champ racine est \`rootFormKey\` ; les sous-fiches ne doivent pas être des fiches racine séparées.
 - Les connaissances doivent être factuelles, courtes et directement utilisables par un RAG. Titre unique et explicite (120 caractères max).
 - Tu peux proposer des instructions supplémentaires pour les besoins non couverts par le ton ou les garde-fous.
 - Propose aussi un fallback heuristique : 4 à 8 questions/réponses fermées, factuelles, issues des sources. Aucun mot-clé, aucune invention de prix, délai ou coordonnée. "showCollectionForm" vaut true seulement si tu proposes des champs.
 - Les identifiants de questions du fallback doivent être des slugs minuscules (ex. services, localisation).
 - Ne produis pas de prompt système ni de template Markdown : le serveur les génère.
+
+EXEMPLES DE MODÉLISATION (génériques, ne pas recopier les noms) :
+- Plusieurs modules pour un étudiant : formulaire racine "inscription", champ "modules" de type tableau_de_fiches vers "module", avec les champs du module.
+- Plusieurs lignes de commande : formulaire racine "commande", champ "lignes" de type tableau_de_fiches vers "ligne", avec produit et quantité.
+- Sous-objet unique : formulaire racine avec un champ fiche vers une sous-fiche adresse, si l'adresse a plusieurs champs et est réutilisable.
+- Cas simple : une fiche plate avec des champs texte, sans sous-fiche.
 
 SUGGESTIONS DE TON (non limitatives) :
 ${toneSuggestions}
@@ -117,15 +129,49 @@ SCHÉMA JSON ATTENDU :
   "tone": "ton libre, éventuellement vide",
   "guardrails": ["instruction de garde-fou libre"],
   "extraInstructions": "instructions supplémentaires, éventuellement vide",
-  "fields": [
+  "rootFormKey": "formulaire_racine",
+  "forms": [
     {
-      "label": "Libellé de l'information",
-      "type": "text",
-      "required": true,
-      "options": [],
-      "example": "Exemple de réponse attendue"
+      "key": "formulaire_racine",
+      "label": "Formulaire racine",
+      "description": "Description courte",
+      "intent": "Quand l'utiliser",
+      "fields": [
+        {
+          "label": "Libellé de l'information",
+          "type": "text",
+          "required": true,
+          "options": [],
+          "example": "Exemple de réponse attendue"
+        },
+        {
+          "label": "Éléments",
+          "type": "tableau_de_fiches",
+          "ficheKey": "sous_formulaire",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "sous_formulaire",
+      "label": "Élément",
+      "description": "Sous-fiche réutilisable",
+      "intent": "Une ligne ou un objet répété",
+      "fields": [
+        {
+          "label": "Nom",
+          "type": "text",
+          "required": true
+        },
+        {
+          "label": "Quantité",
+          "type": "number",
+          "required": true
+        }
+      ]
     }
   ],
+  "fields": [],
   "knowledge": [
     { "titre": "Titre factuel", "contenu": "Contenu factuel issu des sources" }
   ],

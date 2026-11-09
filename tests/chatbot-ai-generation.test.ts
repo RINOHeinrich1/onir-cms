@@ -7,6 +7,7 @@ import {
   CHATBOT_AI_TOKEN_BUDGETS,
   generateChatbotAiDraft,
 } from "@/application/use-cases/chatbots/generate-chatbot-ai-draft";
+import { chatbotConfigDraftFromAi } from "@/components/links/chatbot-config-draft";
 
 const ACTOR = {
   id: "admin-1",
@@ -14,6 +15,44 @@ const ACTOR = {
   organizationId: "org-1",
   isSuperAdmin: false,
 } as const;
+
+const AI_FORMS_JSON = JSON.stringify({
+  label: "Inscription formation",
+  description: "Inscrire un étudiant à plusieurs modules.",
+  role: "l'assistant d'inscription",
+  objective: "Collecter l'inscription et les modules.",
+  tone: "clair",
+  guardrails: [],
+  rootFormKey: "inscription",
+  forms: [
+    {
+      key: "module",
+      label: "Module",
+      description: "",
+      intent: "",
+      fields: [
+        { label: "Nom du module", type: "text", required: true },
+        { label: "Crédits", type: "number", required: true },
+      ],
+    },
+    {
+      key: "inscription",
+      label: "Inscription",
+      description: "",
+      intent: "",
+      fields: [
+        { label: "Étudiant", type: "text", required: true },
+        {
+          label: "Modules",
+          type: "tableau_de_fiches",
+          ficheKey: "module",
+          required: true,
+        },
+      ],
+    },
+  ],
+  knowledge: [],
+});
 
 const AI_JSON = JSON.stringify({
   label: "Rénovation",
@@ -74,6 +113,29 @@ describe("génération IA de chatbot", () => {
       ...CHATBOT_AI_TOKEN_BUDGETS,
     ]);
     expect(complete.mock.calls.every(([input]) => input.structured === true)).toBe(true);
+  });
+
+  it("conserve une composition de formulaires proposée par l'IA", async () => {
+    const complete = vi
+      .fn<(input: AiCompletionInput) => Promise<string>>()
+      .mockResolvedValue(AI_FORMS_JSON);
+    const result = await generateChatbotAiDraft(
+      {
+        aiFactory: factory(complete),
+        documents: { extract: vi.fn() } as unknown as DocumentTextExtractor,
+        websites: { read: vi.fn() } as unknown as WebsiteContextReader,
+      },
+      ACTOR,
+      { description: "Créer une inscription à des modules.", files: [] },
+    );
+    expect(result.draft.rootFormKey).toBe("inscription");
+    expect(result.draft.forms).toHaveLength(2);
+    expect(result.draft.fields.some((field) => field.type === "tableau_de_fiches")).toBe(true);
+    expect(result.draft.forms?.find((form) => form.key === "module")?.fields).toHaveLength(2);
+    const config = chatbotConfigDraftFromAi(result.draft);
+    expect(config.fiches).toHaveLength(1);
+    expect(config.fiches[0]?.subFiches).toHaveLength(1);
+    expect(config.fiches[0]?.subFiches?.[0]?.fields).toHaveLength(2);
   });
 
   it("propage le cluster partagé au client IA", async () => {

@@ -6,6 +6,7 @@
 
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import { renderTemplate } from "@/domain/render-template";
+import { sanitizeSystemPrompt } from "@/domain/template-settings";
 import { buildRenderVariables } from "@/domain/template-variables";
 
 export function buildSystemPromptFromTemplate(input: {
@@ -13,7 +14,7 @@ export function buildSystemPromptFromTemplate(input: {
   serverVars: Record<string, string>;
 }): string {
   return renderTemplate(
-    input.definition.systemPrompt,
+    sanitizeSystemPrompt(input.definition.systemPrompt),
     buildRenderVariables(input.definition, {}, input.serverVars),
   );
 }

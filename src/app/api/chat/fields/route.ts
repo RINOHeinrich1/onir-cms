@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { NotFoundError, ValidationError } from "@/application/errors";
 import { assertChatLinkAvailable } from "@/application/use-cases/chat/chat-link-quota";
+import { submitChatCollection } from "@/application/use-cases/chat/submit-chat-collection";
+import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
-import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
+import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { publishChatEvent } from "@/lib/chat-events";
 import { chatFallbackLimiter } from "@/lib/chat-limiters";
 import { errorResponse } from "../../_lib/errors";
 import { clientIp, readJsonObject, stringField } from "../../_lib/http";
@@ -55,35 +58,74 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (link === null || !link.actif) throw new NotFoundError("Chatbot introuvable");
     assertChatLinkAvailable(link);
 
-    const config = await pgChatbotConfigRepository(pool).currentForLink(
-      conversation.organizationId,
-      conversation.linkId,
-    );
-    const fiche = config?.fiches[0];
-    if (fiche === undefined) throw new NotFoundError("Fiche de collecte introuvable");
-
-    const allowed = new Set(
-      fiche.fields.filter((field) => field.type !== "file").map((field) => field.name),
-    );
-    const entries: { fieldName: string; value: unknown; source: "manual"; updatedBy: null }[] = [];
-    for (const [fieldName, rawValue] of Object.entries(rawValues)) {
-      if (!allowed.has(fieldName)) continue;
-      if (typeof rawValue !== "string") continue;
-      const value = rawValue.trim();
-      if (value === "") continue;
-      if (value.length > 4000) {
-        throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
-      }
-      entries.push({ fieldName, value, source: "manual", updatedBy: null });
+    const ficheInstanceIdRaw = body.ficheInstanceId;
+    if (
+      ficheInstanceIdRaw !== undefined &&
+      (typeof ficheInstanceIdRaw !== "string" || ficheInstanceIdRaw.trim() === "")
+    ) {
+      throw new ValidationError("Instance de fiche invalide");
     }
-    if (entries.length === 0) throw new ValidationError("Aucun champ valide à enregistrer");
+    const ficheKeyRaw = body.ficheKey;
+    if (
+      ficheKeyRaw !== undefined &&
+      (typeof ficheKeyRaw !== "string" || ficheKeyRaw.trim() === "")
+    ) {
+      throw new ValidationError("Fiche invalide");
+    }
+    const values: Record<string, unknown> = {};
+    for (const [fieldName, rawValue] of Object.entries(rawValues)) {
+      if (typeof rawValue === "string") {
+        const value = rawValue.trim();
+        if (value === "") continue;
+        if (value.length > 4000) {
+          throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
+        }
+        values[fieldName] = value;
+        continue;
+      }
+      if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+        values[fieldName] = rawValue;
+        continue;
+      }
+      if (rawValue !== null && typeof rawValue === "object") {
+        const serialized = JSON.stringify(rawValue);
+        if (serialized.length > 20000) {
+          throw new ValidationError(`Valeur trop longue pour ${fieldName}`);
+        }
+        values[fieldName] = rawValue;
+      }
+    }
+    if (Object.keys(values).length === 0) {
+      throw new ValidationError("Aucun champ valide à enregistrer");
+    }
 
-    await pgConversationFieldRepository(pool).upsertManual(
-      conversation.organizationId,
-      conversation.id,
-      entries,
+    const result = await submitChatCollection(
+      {
+        conversations,
+        links: pgChatLinkRepository(pool),
+        configs: pgChatbotConfigRepository(pool),
+        ficheInstances: pgConversationFicheInstanceRepository(pool),
+        attachments: pgAttachmentRepository(pool),
+      },
+      {
+        organizationId: conversation.organizationId,
+        conversationId: conversation.id,
+        ...(typeof ficheInstanceIdRaw === "string"
+          ? { ficheInstanceId: ficheInstanceIdRaw.trim() }
+          : {}),
+        ...(typeof ficheKeyRaw === "string" ? { ficheKey: ficheKeyRaw.trim() } : {}),
+        values,
+      },
     );
-    return NextResponse.json({ ok: true, saved: entries.map((entry) => entry.fieldName) });
+    publishChatEvent(conversation.id, { type: "state" });
+    return NextResponse.json({
+      ok: true,
+      ficheInstanceId: result.ficheInstanceId,
+      ficheKey: result.ficheKey,
+      status: result.status,
+      missingFields: result.missingFields,
+      saved: Object.keys(values),
+    });
   } catch (error) {
     return errorResponse(error);
   }

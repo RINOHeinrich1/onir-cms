@@ -89,7 +89,8 @@ export async function ensurePrimaryFicheActive(
   return repo.activate(organizationId, conversationId, existing.id);
 }
 
-function ficheGuide(fiche: FicheDefinition): string {
+function ficheGuide(fiche: FicheDefinition, depth = 0, seen = new Set<string>()): string {
+  const indent = "  ".repeat(depth);
   const fields = fiche.fields.filter((field) => field.type !== "file");
   const list = fields.map((field) => {
     const required = field.required ? "obligatoire" : "facultatif";
@@ -97,35 +98,67 @@ function ficheGuide(fiche: FicheDefinition): string {
       field.options !== undefined && field.options.length > 0
         ? ` — valeurs : ${field.options.join(", ")}`
         : "";
-    return `  - ${field.name} (${field.label}, ${required})${options}`;
+    const reference =
+      field.type === "fiche" || field.type === "tableau_de_fiches"
+        ? ` — modèle de fiche : ${field.ficheKey ?? "absent"} (${field.type})`
+        : "";
+    return `${indent}  - ${field.name} (${field.label}, ${required})${options}${reference}`;
   });
-  return [
-    `- ficheKey "${fiche.key}" : ${fiche.label}`,
-    fiche.description.trim() === "" ? "" : `  ${fiche.description.trim()}`,
-    fiche.intent.trim() === "" ? "" : `  Intention : ${fiche.intent.trim()}`,
+  const lines = [
+    `${indent}- ficheKey "${fiche.key}" : ${fiche.label}`,
+    fiche.description.trim() === "" ? "" : `${indent}  ${fiche.description.trim()}`,
+    fiche.intent.trim() === "" ? "" : `${indent}  Intention : ${fiche.intent.trim()}`,
     ...list,
-  ]
-    .filter((line) => line !== "")
-    .join("\n");
+  ].filter((line) => line !== "");
+  if (seen.has(fiche.key) || depth >= 3) return lines.join("\n");
+  const nextSeen = new Set(seen).add(fiche.key);
+  for (const field of fiche.fields) {
+    if (field.type !== "fiche" && field.type !== "tableau_de_fiches") continue;
+    const child = fiche.subFiches?.find((entry) => entry.key === field.ficheKey);
+    if (child !== undefined) lines.push(ficheGuide(child, depth + 1, nextSeen));
+  }
+  return lines.join("\n");
+}
+
+function currentStateGuide(instances: readonly ConversationFicheInstance[]): string {
+  if (instances.length === 0) return "État actuel : aucune fiche encore créée.";
+  return [
+    "État actuel de la conversation :",
+    ...instances.map(
+      (instance) =>
+        `- ficheKey "${instance.ficheKey}" (${instance.status}) : ${JSON.stringify(instance.data)}`,
+    ),
+  ].join("\n");
 }
 
 /** Consigne structurée de détection multi-fiches (une seule active). */
-export function buildFicheDetectionPrompt(config: ChatbotConfig): string {
+export function buildFicheDetectionPrompt(
+  config: ChatbotConfig,
+  currentInstances: readonly ConversationFicheInstance[] = [],
+): string {
   return [
     "Tu analyses une conversation pour déterminer quelles fiches de collecte sont concernées.",
-    "Fiches disponibles :",
-    ...config.fiches.map(ficheGuide),
+    "Fiches racines disponibles :",
+    ...config.fiches.map((fiche) => ficheGuide(fiche, 0)),
+    "",
+    currentStateGuide(currentInstances),
     "",
     "Réponds UNIQUEMENT avec un objet JSON strict, sans texte autour :",
     '{"instances":[{"ficheKey":"...","status":"detected|active|paused|complete|abandoned","data":{},"missingFields":[],"abandonReason":null}]}',
+    "Exemple de sortie correcte :",
+    '{"instances":[{"ficheKey":"fiche_racine","status":"active","data":{"champ_simple":"valeur","champ_fiche":{"champ_enfant":"valeur"},"champ_tableau":[{"champ_enfant_1":"a","champ_enfant_2":5},{"champ_enfant_1":"b","champ_enfant_2":2}]},"missingFields":[],"abandonReason":null}]}',
     "Règles :",
     "- Une seule fiche peut être au statut active.",
     "- complete si toutes les informations obligatoires de la fiche sont connues.",
     "- paused si la fiche a été commencée puis mise en attente au profit d'une autre.",
     "- abandoned uniquement si la conversation indique un abandon explicite.",
-    "- data : valeurs connues indexées par le nom technique des champs.",
+    "- data : valeurs connues indexées par le nom technique des champs ; les champs fiche et tableau_de_fiches sont imbriqués dans data.",
+    "- instances ne contient QUE les fiches racines ; une sous-fiche utilisée dans un champ fiche ou tableau_de_fiches reste dans data du parent.",
+    "- Ne crée jamais d'instance racine pour une sous-fiche.",
+    "- Pour un tableau_de_fiches, renvoie un tableau d'objets conformes au schéma de la sous-fiche.",
     "- missingFields : noms techniques des champs obligatoires encore inconnus.",
     "- N'invente aucune valeur ; n'ajoute aucune fiche inconnue.",
+    "- Si une ligne ou un champ est ambigu, demande une clarification au lieu d'inventer.",
   ].join("\n");
 }
 
@@ -170,10 +203,11 @@ export async function detectFicheInstances(input: {
   ai: AiClient;
   config: ChatbotConfig;
   messages: AiMessage[];
+  currentInstances?: readonly ConversationFicheInstance[];
 }): Promise<DetectedFicheInstance[] | null> {
   try {
     const raw = await input.ai.complete({
-      system: buildFicheDetectionPrompt(input.config),
+      system: buildFicheDetectionPrompt(input.config, input.currentInstances ?? []),
       messages: [
         ...input.messages,
         {
@@ -240,6 +274,46 @@ export async function applyFicheDetection(input: {
   if (candidate === undefined) return null;
   if (candidate.status === "complete" || candidate.status === "abandoned") return candidate;
   return input.repo.activate(input.organizationId, input.conversationId, candidate.id);
+}
+
+/**
+ * Analyse la conversation puis applique le résultat aux instances.
+ * Utilisé aussi bien en mono-fiche qu'en multi-fiches : dans les deux cas,
+ * les données de l'instance sont enrichies à chaque message.
+ */
+export async function syncFicheInstances(input: {
+  ai: AiClient;
+  config: ChatbotConfig;
+  messages: AiMessage[];
+  repo: ConversationFicheInstanceRepository;
+  conversationId: string;
+  organizationId: string;
+}): Promise<ConversationFicheInstance | null> {
+  const currentInstances = await input.repo.listByConversation(
+    input.organizationId,
+    input.conversationId,
+  );
+  const detected = await detectFicheInstances({
+    ai: input.ai,
+    config: input.config,
+    messages: input.messages,
+    currentInstances,
+  });
+  if (detected === null) {
+    return fallbackToPrimaryFiche({
+      repo: input.repo,
+      config: input.config,
+      conversationId: input.conversationId,
+      organizationId: input.organizationId,
+    });
+  }
+  return applyFicheDetection({
+    repo: input.repo,
+    config: input.config,
+    conversationId: input.conversationId,
+    organizationId: input.organizationId,
+    detected,
+  });
 }
 
 /**

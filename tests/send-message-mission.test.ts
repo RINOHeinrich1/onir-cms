@@ -33,6 +33,7 @@ function config(): ChatbotConfig {
     mission: "inform",
     informationSources: sources,
     behaviorMode: "guided",
+    collectionMode: "ai",
     systemPrompt: "",
     simple: SIMPLE,
     fiches: [],

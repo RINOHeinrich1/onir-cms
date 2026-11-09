@@ -12,6 +12,7 @@ import type { ProspectRepository } from "@/application/ports/prospect-repository
 import {
   applyFicheDetection,
   detectFicheInstances,
+  syncFicheInstances,
 } from "@/application/use-cases/chat/fiche-instances";
 import { finishConversation } from "@/application/use-cases/chat/finish-conversation";
 import type { ChatLink, Conversation } from "@/domain/entities/chat";
@@ -28,6 +29,7 @@ const CONFIG: ChatbotConfig = {
   chatLinkId: "link-1",
   version: 1,
   behaviorMode: "guided",
+  collectionMode: "ai",
   systemPrompt: "Tu collectes les demandes.",
   simple: {
     role: "assistant",
@@ -508,6 +510,37 @@ describe("finishConversation — mode configuration autonome", () => {
     const result = await finishConversation(base.deps, "conv-1");
     expect(result.fiches).toHaveLength(2);
     expect(base.getQuota()).toBe(2);
+  });
+});
+
+describe("remplissement progressif mono-fiche", () => {
+  it("enrichit l'instance active à chaque analyse, comme en multi-fiches", async () => {
+    const base = makeDeps({ config: CONFIG });
+    const ai: AiClient = {
+      complete: async () =>
+        JSON.stringify({
+          instances: [
+            {
+              ficheKey: "hotel",
+              status: "active",
+              data: { ville: "Antananarivo" },
+              missingFields: ["contact"],
+              abandonReason: null,
+            },
+          ],
+        }),
+    };
+    const active = await syncFicheInstances({
+      ai,
+      config: CONFIG,
+      messages: [{ role: "user", content: "Je cherche un hôtel à Antananarivo" }],
+      repo: base.instances.repo,
+      conversationId: "conv-1",
+      organizationId: "org-1",
+    });
+    expect(active?.ficheKey).toBe("hotel");
+    expect(active?.data.ville).toBe("Antananarivo");
+    expect(active?.missingFields).toEqual(["contact"]);
   });
 });
 

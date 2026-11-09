@@ -153,11 +153,11 @@ function BuilderGenerating({
             {themeState === "done" ? "✓" : themeState === "active" ? "●" : "○"}
           </span>
           <span>
-            <strong>Thème et couleurs</strong>
+            <strong>Personnalisation du template</strong>
             <small>
               {themeState === "skipped"
-                ? "Aucun paramètre couleur à générer."
-                : "L’IA applique les couleurs du template Starter."}
+                ? "Aucun paramètre à personnaliser."
+                : "L’IA prépare les textes, couleurs et variables du template."}
             </small>
           </span>
         </li>
@@ -393,7 +393,7 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
 
       let finalGeneration = result;
       const template = result.visualTemplate;
-      if (template !== null && template.colorParamKeys.length > 0) {
+      if (template !== null && template.fillableParamKeys.length > 0) {
         setThemeExpected(true);
         setGenerationStage("theme");
         try {
@@ -418,7 +418,6 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
                   content: message.content,
                 })),
                 palette: result.sitePalette,
-                types: ["color"],
               }),
               signal: controller.signal,
             }),
