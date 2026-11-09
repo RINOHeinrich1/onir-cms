@@ -692,6 +692,23 @@ export function TemplateHost({
           }
           setError(null);
           setFallbackMenu(null);
+          const refreshed = await fetch(
+            `${platform}/messages?conversationId=${encodeURIComponent(activeConversationId)}`,
+            { cache: "no-store" },
+          ).catch(() => null);
+          if (refreshed !== null && refreshed.ok) {
+            const jsonMessages = (await refreshed.json().catch(() => null)) as {
+              messages?: ApiChatMessage[];
+            } | null;
+            if (Array.isArray(jsonMessages?.messages)) {
+              const converted = jsonMessages.messages.map((message) =>
+                fromApiMessage(message, allowAttachments),
+              );
+              setMessages(converted);
+              const latest = converted[converted.length - 1];
+              if (latest !== undefined) lastAtRef.current = latest.at;
+            }
+          }
         } catch {
           setError("Erreur réseau, veuillez réessayer");
         }
