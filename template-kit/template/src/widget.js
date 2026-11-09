@@ -140,7 +140,7 @@ const STYLE = `
     font-weight: 800;
     letter-spacing: .02em;
   }
-  .brand-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .brand-avatar img { width: 100%; height: 100%; object-fit: contain; padding: 3px; display: block; }
   .head-copy { position: relative; z-index: 1; flex: 1; min-width: 0; }
   .head h2 {
     margin: 0;
@@ -961,12 +961,16 @@ class StarterWidget extends HTMLElement {
     this.#applyTheme();
 
     const brandName = ctx.brand?.name?.trim() || "Assistant";
-    const brandSignature = `${brandName}|${ctx.brand?.logoUrl ?? ""}`;
+    const assistantLogo = paramText(ctx, "assistant_logo", "");
+    const brandLogo =
+      typeof ctx.brand?.logoUrl === "string" ? ctx.brand.logoUrl.trim() : "";
+    const headerLogo = assistantLogo !== "" ? assistantLogo : brandLogo;
+    const brandSignature = `${brandName}|${headerLogo}`;
     if (this.#brandSignature !== brandSignature) {
       this.#brandSignature = brandSignature;
       this.#brandAvatar.replaceChildren(
-        ctx.brand?.logoUrl
-          ? el("img", { src: ctx.brand.logoUrl, alt: "" })
+        headerLogo !== ""
+          ? el("img", { src: headerLogo, alt: "" })
           : el("span", { text: brandName.slice(0, 1).toUpperCase() }),
       );
     }

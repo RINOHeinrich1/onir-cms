@@ -7,6 +7,7 @@ export type DefaultStarterTemplate = {
   version: string;
   params: TemplateParamValues;
   colorParamKeys: string[];
+  fillableParamKeys: string[];
 };
 
 export type DefaultStarterTemplateResult = {
@@ -51,6 +52,9 @@ export async function resolveDefaultStarterTemplate(
       version: latest.version,
       params: resolveTemplateParams(schema, {}),
       colorParamKeys: schema.filter((param) => param.type === "color").map((param) => param.key),
+      fillableParamKeys: schema
+        .filter((param) => param.type !== "url" && param.type !== "image")
+        .map((param) => param.key),
     },
     warnings: [],
   };

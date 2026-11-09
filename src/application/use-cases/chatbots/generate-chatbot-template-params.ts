@@ -91,7 +91,10 @@ export async function generateChatbotTemplateParams(
   const schema: TemplateParamSchema[] = version.manifest.params;
   const allowedTypes = input.types === undefined ? null : new Set<TemplateParamType>(input.types);
   const fillable = schema.filter(
-    (param) => param.type !== "url" && (allowedTypes === null || allowedTypes.has(param.type)),
+    (param) =>
+      param.type !== "url" &&
+      param.type !== "image" &&
+      (allowedTypes === null || allowedTypes.has(param.type)),
   );
   if (fillable.length === 0) {
     return { params: resolveTemplateParams(schema, {}), warnings: [] };
@@ -157,6 +160,7 @@ export async function generateChatbotTemplateParams(
       return (
         param !== undefined &&
         param.type !== "url" &&
+        param.type !== "image" &&
         (allowedTypes === null || allowedTypes.has(param.type))
       );
     }),

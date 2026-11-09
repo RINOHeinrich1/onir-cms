@@ -346,7 +346,7 @@ class StarterTemplate extends HTMLElement {
           font-size: 16px;
           font-weight: 800;
         }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
         .head-copy { flex: 1; min-width: 0; }
         .head-copy h1 {
           margin: 0;
@@ -488,9 +488,13 @@ class StarterTemplate extends HTMLElement {
     });
 
     const title = paramText(ctx, "chat_title", ctx.brand.name || "Discussion");
+    const assistantLogo = paramText(ctx, "assistant_logo", "");
+    const brandLogo =
+      typeof ctx.brand.logoUrl === "string" ? ctx.brand.logoUrl.trim() : "";
+    const headerLogo = assistantLogo !== "" ? assistantLogo : brandLogo;
     const logo =
-      typeof ctx.brand.logoUrl === "string" && ctx.brand.logoUrl !== ""
-        ? el("img", { src: ctx.brand.logoUrl, alt: "" })
+      headerLogo !== ""
+        ? el("img", { src: headerLogo, alt: "" })
         : el("span", { text: (ctx.brand.name || "A").slice(0, 1).toUpperCase() });
     const finalised = ctx.state.status === "finalisee";
     const header = el("header", { class: "head" }, [

@@ -21,7 +21,7 @@ const MAX_KNOWLEDGE_CHARS = 2_000;
 
 function fillableParams(params: TemplateParamSchema[]): TemplateParamSchema[] {
   return params
-    .filter((param) => param.type !== "url")
+    .filter((param) => param.type !== "url" && param.type !== "image")
     .map((param) => ({
       key: param.key,
       label: param.label,
@@ -44,7 +44,9 @@ export function buildChatbotTemplateParamsPrompt(input: ChatbotTemplateParamsPro
     "Tu remplis les paramètres statiques d’un template visuel de widget ONIR CMS.",
     'Tu dois répondre uniquement avec un objet JSON de la forme {"params": { ... }}.',
     "Utilise strictement les clés fournies dans template_params.",
-    "Déduis les valeurs du libellé, du type et des options du paramètre.",
+    "Déduis les valeurs du libellé, du type, de la description et des options du paramètre.",
+    "Pour les titres et messages, appuie-toi sur la conversation et le brouillon généré.",
+    "Ne génère ni image ni URL.",
     "Respecte les types, les options, les bornes min/max et maxLength.",
     "Pour les couleurs, utilise la palette du site lorsqu’elle est fournie et fiable.",
     "Si aucune couleur fiable n’est disponible, déduis les couleurs de la conversation du builder.",

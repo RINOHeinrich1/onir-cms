@@ -107,6 +107,7 @@ describe("Starter par défaut", () => {
       version: "1.10.0",
       params: { primary_color: "#111111" },
       colorParamKeys: ["primary_color"],
+      fillableParamKeys: ["primary_color"],
     });
     expect(result.warnings).toEqual([]);
   });

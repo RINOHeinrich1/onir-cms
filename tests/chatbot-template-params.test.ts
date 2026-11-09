@@ -80,6 +80,13 @@ function templateRepository(): VisualTemplateRepository {
             type: "url",
             default: "https://example.com",
           },
+          {
+            key: "logo",
+            label: "Logo",
+            description: "",
+            type: "image",
+            default: "",
+          },
         ],
         dataContracts: [],
       },
@@ -112,6 +119,7 @@ describe("paramètres statiques du template", () => {
           primary_color: "#ffffff",
           style: "b",
           link: "https://evil.example",
+          logo: "https://evil.example/logo.png",
           unknown: "ignoré",
         },
       }),
@@ -140,6 +148,7 @@ describe("paramètres statiques du template", () => {
       primary_color: "#ffffff",
       style: "b",
       link: "https://example.com",
+      logo: "",
     });
     expect(complete.mock.calls[0]?.[0].structured).toBe(true);
   });
@@ -181,6 +190,7 @@ describe("paramètres statiques du template", () => {
       primary_color: "#123456",
       style: "a",
       link: "https://example.com",
+      logo: "",
     });
     const prompt = complete.mock.calls[0]?.[0];
     expect(prompt?.messages[0]?.content).toContain("thème vert profond");

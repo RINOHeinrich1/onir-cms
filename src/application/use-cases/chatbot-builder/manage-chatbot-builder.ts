@@ -52,6 +52,7 @@ export type ChatbotBuilderVisualTemplate = {
   version: string;
   params: TemplateParamValues;
   colorParamKeys: string[];
+  fillableParamKeys: string[];
   warnings: string[];
 };
 
@@ -347,6 +348,7 @@ export async function generateChatbotFromBuildSession(
           version: starter.template.version,
           params: starter.template.params,
           colorParamKeys: starter.template.colorParamKeys,
+          fillableParamKeys: starter.template.fillableParamKeys,
           warnings: starter.warnings,
         };
   generation.warnings.push(...starter.warnings);
