@@ -265,17 +265,18 @@ function normalizeForms(
   }
   if (forms.length === 0) return null;
 
-  const keys = new Set(forms.map((form) => form.key));
+  const normalizedFormKeys = new Set(forms.map((form) => toTemplateKey(form.key)));
   for (const form of forms) {
     form.fields = form.fields.map((field) => {
       if (field.type !== "fiche" && field.type !== "tableau_de_fiches") return field;
-      if (field.ficheKey === undefined || !keys.has(field.ficheKey)) {
+      const normalizedKey = toTemplateKey(field.ficheKey ?? "");
+      if (normalizedKey === "" || !normalizedFormKeys.has(normalizedKey)) {
         warnings.push(
           `Référence de sous-fiche invalide dans « ${form.label} » : ${field.ficheKey ?? "vide"} ; champ converti en texte.`,
         );
         return stripFicheReference(field);
       }
-      return field;
+      return { ...field, ficheKey: normalizedKey };
     });
   }
 
@@ -305,7 +306,7 @@ function normalizeForms(
     }
   }
 
-  const requestedRoot = text(rootValue);
+  const requestedRoot = toTemplateKey(text(rootValue));
   const rootKey = forms.find((form) => form.key === requestedRoot)?.key ?? forms[0]?.key ?? "";
   if (rootKey === "") return null;
   if (requestedRoot !== "" && forms.every((form) => form.key !== requestedRoot)) {
