@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.32.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.31.0...v0.32.0) (2026-11-09)
+
+
+### Features
+
+* **template:** image importable et logo assistant Starter ([#258](https://github.com/RINOHeinrich1/onir-cms/issues/258)) ([ddb2fa6](https://github.com/RINOHeinrich1/onir-cms/commit/ddb2fa6e6334e51f0a4994094ea213ddad063b09))
+
 ## [0.31.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.30.0...v0.31.0) (2026-11-09)
 
 
