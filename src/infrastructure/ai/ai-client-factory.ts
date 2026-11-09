@@ -20,6 +20,7 @@ import {
   chatCompletionForProvider,
   chatCompletionWithToolsForProvider,
 } from "@/infrastructure/ai/openai-client";
+import { runWithProviderRetry } from "@/infrastructure/ai/provider-retry";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgAiUsageRepository } from "@/infrastructure/db/ai-usage-repository";
@@ -194,15 +195,17 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
 
   const limitClient = (resolved: ResolvedAiTarget, client: AiClient): AiClient => {
     const limiter = deps.rateLimiter;
-    if (limiter === undefined || limiter === null) return client;
     const key = resolved.providerId ?? "legacy";
+    const run = <T>(task: () => Promise<T>): Promise<T> =>
+      limiter === undefined || limiter === null ? task() : limiter.run(key, task);
     const wrapped: AiClient = {
       ...(client.capabilities === undefined ? {} : { capabilities: client.capabilities }),
-      complete: (input) => limiter.run(key, () => client.complete(input)),
+      complete: (input) => runWithProviderRetry(() => run(() => client.complete(input))),
     };
     const withTools = client.completeWithTools;
     if (withTools !== undefined) {
-      wrapped.completeWithTools = (input) => limiter.run(key, () => withTools(input));
+      wrapped.completeWithTools = (input) =>
+        runWithProviderRetry(() => run(() => withTools(input)));
     }
     return wrapped;
   };

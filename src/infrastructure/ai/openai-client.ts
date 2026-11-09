@@ -16,6 +16,7 @@ import {
   type ReasoningMode,
 } from "@/domain/ai-capabilities";
 import type { AiDialect } from "@/domain/entities/ai-provider";
+import { ProviderHttpError, retryAfterFromHeaders } from "./provider-http-error";
 
 const DEFAULT_MAX_TOKENS = 700;
 
@@ -172,7 +173,7 @@ async function postWithRetry(
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error("Délai d'attente IA dépassé (120 s)");
     }
-    throw new Error("Service IA injoignable");
+    throw new ProviderHttpError(0, "Service IA injoignable");
   }
 
   // OpenAI récent peut refuser `max_tokens` : une seule reprise compatible.
@@ -189,13 +190,17 @@ async function postWithRetry(
         if (error instanceof Error && error.name === "AbortError") {
           throw new Error("Délai d'attente IA dépassé (120 s)");
         }
-        throw new Error("Service IA injoignable");
+        throw new ProviderHttpError(0, "Service IA injoignable");
       }
     }
   }
 
   if (!response.ok) {
-    throw new Error(statusMessage(response.status));
+    throw new ProviderHttpError(
+      response.status,
+      statusMessage(response.status),
+      retryAfterFromHeaders(response.headers),
+    );
   }
 
   const json = (await response.json()) as CompletionJson;
