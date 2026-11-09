@@ -1,6 +1,6 @@
 # 0076. Cache runtime local par nœud Next.js
 
-- **Statut** : Proposé
+- **Statut** : Accepté — v1 implémentée
 - **Date** : 2026-11-08
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0074, ADR-0075, ADR-0078, ADR-0079.
@@ -332,6 +332,54 @@ Cette tâche vient **après** le rate limiting IA (ADR-0079).
 7. Ajouter le fallback PostgreSQL.
 8. Tester deux nœuds et les pannes.
 9. Mesurer et déployer.
+
+## Mise en œuvre v1 — 2026-11-09
+
+La cible décrite ci-dessus reste la cible. La v1 réellement déployée est la
+suivante, avec des écarts assumés et à traiter dans une tâche ultérieure.
+
+### Ce qui est implémenté
+
+- L1 mémoire dans le processus Next.js ;
+- L2 Valkey local par nœud :
+  - `141` : conteneur `onir-cms-runtime-cache` ;
+  - `167` : Valkey local existant ;
+- cache des repositories runtime :
+  - config chatbot versionnée ;
+  - config courante de lien ;
+  - connaissances actives ;
+  - médias actifs ;
+- invalidation locale + publication sur le bus central ;
+- invalidation des caches locaux de l’autre nœud ;
+- fallback PostgreSQL si le L2 est indisponible ;
+- aucun cache des messages, conversations, quotas ou réponses IA ;
+- aucune migration de base.
+
+### TTL v1 effectifs
+
+| Donnée | TTL L2 | TTL L1 |
+|---|---:|---:|
+| Config chatbot | 1 h | 1 h lors d’un set direct, 60 s max après warm L2 |
+| Config de lien | 30 s | 30 s direct, 60 s max après warm L2 |
+| Connaissances | 60 s | 60 s |
+| Médias | 60 s | 60 s |
+
+### Écarts avec la cible
+
+- pas de clés de pointeur courtes ;
+- pas de révisions en base pour connaissances/médias ;
+- pas de cache séparé du prompt compilé ;
+- pas de cache organisation ;
+- pas de `maxmemory` explicite sur le Valkey local ;
+- pas de garantie read-your-writes ;
+- pas de protection explicite contre la course lecture/écriture ;
+- TTL L1 non paramétrés séparément par famille.
+
+### Conséquence
+
+La v1 est **eventually consistent**. PostgreSQL reste la source de vérité.
+Les écarts ci-dessus sont des améliorations de cohérence et de robustesse, pas
+des blocages de fonctionnement.
 
 ## Conséquences
 
