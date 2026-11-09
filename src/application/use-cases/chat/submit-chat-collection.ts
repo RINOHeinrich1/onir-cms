@@ -46,6 +46,56 @@ function missingFields(
     .map((field) => field.name);
 }
 
+function summaryValue(
+  fiche: FicheDefinition,
+  fieldName: string,
+  value: unknown,
+  depth = 0,
+): string {
+  const field = fiche.fields.find((entry) => entry.name === fieldName);
+  if (field === undefined) return String(value ?? "");
+  if (field.type === "file") return "";
+  if (field.type === "fiche" || field.type === "tableau_de_fiches") {
+    const child = fiche.subFiches?.find((entry) => entry.key === field.ficheKey);
+    if (child === undefined) return "";
+    const rows = Array.isArray(value)
+      ? value
+      : value === null || value === undefined
+        ? []
+        : [value];
+    return rows
+      .filter(
+        (row): row is Record<string, unknown> =>
+          row !== null && typeof row === "object" && !Array.isArray(row),
+      )
+      .map((row) =>
+        child.fields
+          .map((childField) => {
+            const childValue = row[childField.name];
+            if (childValue === null || childValue === undefined || childValue === "") return "";
+            return `  ${"  ".repeat(depth)}- ${childField.label} : ${String(childValue)}`;
+          })
+          .filter((line) => line !== "")
+          .join("\n"),
+      )
+      .filter((line) => line !== "")
+      .join("\n");
+  }
+  if (Array.isArray(value)) return value.map((entry) => String(entry)).join(", ");
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function buildFicheSummary(fiche: FicheDefinition, data: Record<string, unknown>): string {
+  const lines = fiche.fields
+    .map((field) => {
+      const value = summaryValue(fiche, field.name, data[field.name]);
+      if (value === "") return "";
+      return `- **${field.label}** :\n${value.startsWith("  ") ? value : `  ${value}`}`;
+    })
+    .filter((line) => line !== "");
+  return [`**Récapitulatif — ${fiche.label}**`, "", ...lines].join("\n");
+}
+
 /**
  * Soumission du formulaire de collecte : la source de vérité est l'instance
  * de fiche, pas la table legacy des champs de conversation (ADR-0082).
@@ -155,6 +205,17 @@ export async function submitChatCollection(
     missingFields: missing,
   });
   if (updated === null) throw new AppError("Impossible de mettre à jour la fiche", 500);
+  if (typeof deps.conversations.appendMessage === "function") {
+    await deps.conversations
+      .appendMessage(
+        conversation.organizationId,
+        conversation.id,
+        "assistant",
+        buildFicheSummary(fiche, validated.value),
+      )
+      .catch(() => undefined);
+  }
+
   return {
     ficheInstanceId: updated.id,
     ficheKey: updated.ficheKey,

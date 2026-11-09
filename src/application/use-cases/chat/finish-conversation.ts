@@ -497,6 +497,17 @@ async function finishConfigConversation(
 
   const targets = instances.filter((instance) => instance.status === "complete");
 
+  if (
+    targets.length === 0 &&
+    config.fiches.length > 0 &&
+    config.collectionMode === "semi_heuristic" &&
+    !abandonedAny
+  ) {
+    throw new UnprocessableError(
+      "Aucune fiche complète à générer. Remplissez au moins une fiche avant de terminer.",
+    );
+  }
+
   if (targets.length === 0) {
     const outcome: ConversationOutcome = abandonedAny ? "abandonnee" : "sans_fiche";
     if (options.finalize) {

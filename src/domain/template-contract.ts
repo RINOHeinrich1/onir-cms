@@ -67,6 +67,13 @@ export type TemplateCollectionForm = {
   fields: TemplateFormField[];
 };
 
+export type TemplateGeneratedFiche = {
+  ficheKey: string;
+  label: string;
+  markdown: string;
+  pdfBase64: string;
+};
+
 export type TemplateCollectionFormState = {
   available: boolean;
   forms: TemplateCollectionForm[];
@@ -162,6 +169,8 @@ export type TemplateContextPayload = {
     fallback?: TemplateFallbackState;
     /** Formulaire permanent du mode semi-heuristique (ADR-0082). */
     collectionForm?: TemplateCollectionFormState;
+    /** Fiches générées après « Terminer » (0..N). */
+    generatedFiches?: TemplateGeneratedFiche[];
   };
   resources: {
     media: { photos: TemplateMediaItem[]; liens: TemplateMediaItem[] };

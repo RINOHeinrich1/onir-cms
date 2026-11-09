@@ -305,6 +305,13 @@ export type TemplateFormField = {
 };
 
 /** État de la discussion. */
+export type TemplateGeneratedFiche = {
+  ficheKey: string;
+  label: string;
+  markdown: string;
+  pdfBase64: string;
+};
+
 export type TemplateState = {
   phase: "identity" | "chat";
   status: "en_cours" | "finalisee";
@@ -314,6 +321,8 @@ export type TemplateState = {
   pendingAttachments?: TemplateAttachment[];
   /** Menu de secours actif (capacité `fallback`, ADR-0059). */
   fallback?: TemplateFallbackState;
+  /** Fiches téléchargeables après « Terminer ». */
+  generatedFiches?: TemplateGeneratedFiche[];
 };
 
 /** Identité soumise par le visiteur. */

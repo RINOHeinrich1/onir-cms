@@ -9,6 +9,7 @@ import {
   type TemplateAction,
   type TemplateAttachment,
   type TemplateContextPayload,
+  type TemplateGeneratedFiche,
   type TemplateMessage,
   type TemplateSpec,
 } from "@/domain/template-contract";
@@ -175,6 +176,7 @@ export function TemplateHost({
   useToastOnMessage(error);
   const [height, setHeight] = useState(640);
   const [pendingAttachments, setPendingAttachments] = useState<TemplateAttachment[]>([]);
+  const [generatedFiches, setGeneratedFiches] = useState<TemplateGeneratedFiche[]>([]);
   const [collectionActiveFicheKey, setCollectionActiveFicheKey] = useState<string | null>(
     baseContext.state.collectionForm?.activeFicheKey ?? null,
   );
@@ -717,12 +719,28 @@ export function TemplateHost({
             });
             const json = (await response.json().catch(() => null)) as {
               error?: string;
+              fiches?: Array<{
+                fiche?: {
+                  ficheKey?: string | null;
+                  definition?: { label?: string } | null;
+                };
+                markdown?: string;
+                pdfBase64?: string;
+              }>;
             } | null;
-            return { response, error: json?.error };
+            return { response, error: json?.error, json };
           };
           try {
             const first = await submitFinish(false);
             if (first.response.ok) {
+              setGeneratedFiches(
+                (first.json?.fiches ?? []).map((entry) => ({
+                  ficheKey: entry.fiche?.ficheKey ?? "fiche",
+                  label: entry.fiche?.definition?.label ?? "Fiche",
+                  markdown: entry.markdown ?? "",
+                  pdfBase64: entry.pdfBase64 ?? "",
+                })),
+              );
               setStatus("finalisee");
               return;
             }
@@ -734,6 +752,14 @@ export function TemplateHost({
               if (confirmed) {
                 const second = await submitFinish(true);
                 if (second.response.ok) {
+                  setGeneratedFiches(
+                    (second.json?.fiches ?? []).map((entry) => ({
+                      ficheKey: entry.fiche?.ficheKey ?? "fiche",
+                      label: entry.fiche?.definition?.label ?? "Fiche",
+                      markdown: entry.markdown ?? "",
+                      pdfBase64: entry.pdfBase64 ?? "",
+                    })),
+                  );
                   setStatus("finalisee");
                   return;
                 }
@@ -867,6 +893,7 @@ export function TemplateHost({
         ...(template.capabilities.includes("fallback") && fallbackMenu !== null
           ? { fallback: fallbackMenu }
           : {}),
+        ...(generatedFiches.length === 0 ? {} : { generatedFiches }),
         ...(baseContext.state.collectionForm === undefined
           ? {}
           : {
@@ -896,6 +923,7 @@ export function TemplateHost({
       fallbackMenu,
       pendingAttachments,
       collectionActiveFicheKey,
+      generatedFiches,
       actions,
       loadData,
       template.capabilities,

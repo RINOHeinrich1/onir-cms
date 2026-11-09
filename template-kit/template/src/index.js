@@ -257,6 +257,24 @@ function renderMarkdown(target, content) {
   target.appendChild(root);
 }
 
+function generatedDownloads(ctx) {
+  const fiches = Array.isArray(ctx.state.generatedFiches) ? ctx.state.generatedFiches : [];
+  if (fiches.length === 0) return null;
+  return el("div", { class: "downloads" }, [
+    el("span", { class: "downloads-title", text: "Vos fiches :" }),
+    ...fiches.map((fiche) => {
+      const bytes = Uint8Array.from(atob(fiche.pdfBase64 ?? ""), (char) => char.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      return el("a", {
+        class: "download-link",
+        href: url,
+        download: `${fiche.ficheKey || "fiche"}.pdf`,
+        text: `Télécharger ${fiche.label || "la fiche"} (PDF)`,
+      });
+    }),
+  ]);
+}
+
 class StarterTemplate extends HTMLElement {
   #root;
   #ctx;
@@ -454,6 +472,9 @@ class StarterTemplate extends HTMLElement {
         .fallback-option:hover, .fallback-form:hover { border-color: var(--page-primary); }
         .fallback-form { text-align: center; }
         .collection-open { margin-top: 10px; }
+        .downloads { display: grid; gap: 6px; margin-top: 10px; }
+        .downloads-title { font-weight: 700; }
+        .download-link { color: #023777; text-decoration: underline; }
         .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
         .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
         .composer { padding: 12px 14px 14px; border-top: 1px solid var(--page-border); background: var(--page-surface); }
@@ -771,7 +792,7 @@ class StarterTemplate extends HTMLElement {
     ]);
 
     const finish =
-      hasCollection && !fallbackActive && !collectionOpen && !collectionPicker && !finalised && ctx.state.messages.length > 0
+      hasCollection && !fallbackActive && !collectionOpen && !collectionPicker && !finalised
         ? el("button", {
             type: "button",
             class: "finish",
@@ -800,7 +821,10 @@ class StarterTemplate extends HTMLElement {
     const body = el("div", { class: "body" }, [
       log,
       finalised
-        ? el("p", { class: "done", text: "Votre demande a bien été enregistrée." })
+        ? el("div", { class: "done" }, [
+            el("p", { text: "Votre demande a bien été enregistrée." }),
+            generatedDownloads(ctx),
+          ])
         : collectionButton,
       !finalised && !fallbackActive && !collectionOpen && !collectionPicker ? composer : null,
     ]);

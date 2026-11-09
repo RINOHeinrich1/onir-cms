@@ -350,6 +350,9 @@ const STYLE = `
   .fallback-option:hover, .fallback-form:hover { border-color: var(--onir-primary); background: var(--onir-bg); }
   .fallback-form { margin-top: 8px; text-align: center; }
   .collection-open { margin: 10px 11px 0; width: calc(100% - 22px); }
+  .downloads { display: grid; gap: 6px; margin-top: 8px; }
+  .downloads-title { font-size: 11px; font-weight: 700; }
+  .download-link { display: block; padding: 7px 9px; border: 1px solid #dbe3ee; border-radius: 8px; color: #023777; font-size: 12px; text-decoration: none; }
   .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
   .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
   .collection-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 11px 8px; padding: 12px; border: 1px solid var(--onir-border); border-radius: 14px; background: var(--onir-surface); }
@@ -653,6 +656,24 @@ function renderMarkdown(target, content) {
 function messageSignature(message) {
   const media = (message.medias ?? []).map((entry) => `${entry.type}:${entry.url}`).join("|");
   return `${message.id}|${message.role}|${message.authorName ?? ""}|${message.content}|${media}|${message.at}`;
+}
+
+function generatedDownloads(ctx) {
+  const fiches = Array.isArray(ctx.state.generatedFiches) ? ctx.state.generatedFiches : [];
+  if (fiches.length === 0) return null;
+  return el("div", { class: "downloads" }, [
+    el("span", { class: "downloads-title", text: "Vos fiches :" }),
+    ...fiches.map((fiche) => {
+      const bytes = Uint8Array.from(atob(fiche.pdfBase64 ?? ""), (char) => char.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      return el("a", {
+        class: "download-link",
+        href: url,
+        download: `${fiche.ficheKey || "fiche"}.pdf`,
+        text: `Télécharger ${fiche.label || "la fiche"} (PDF)`,
+      });
+    }),
+  ]);
 }
 
 class StarterWidget extends HTMLElement {
@@ -1035,13 +1056,17 @@ class StarterWidget extends HTMLElement {
     const fallbackActive = fallback !== undefined && !collectionOpen && !finalised;
     const semiAvailable = collection?.available === true && collectionForms.length > 0;
     this.#empty.hidden = ctx.state.messages.length > 0 || ctx.state.typing;
-    this.#finishButton.hidden = finalised || fallbackActive || !hasCollection || ctx.state.messages.length === 0;
+    this.#finishButton.hidden = finalised || fallbackActive || !hasCollection;
     this.#finishButton.disabled = this.#finishing || ctx.state.typing;
     this.#finishButton.textContent = this.#finishing ? "…" : "Terminer";
     if (this.#collectionButton !== null) {
       this.#collectionButton.hidden = !semiAvailable || finalised || fallbackActive || collectionOpen || this.#collectionPicker;
     }
     this.#done.hidden = !finalised;
+    const downloads = generatedDownloads(ctx);
+    const existingDownloads = this.#done.querySelector(".downloads");
+    if (existingDownloads !== null) existingDownloads.remove();
+    if (downloads !== null) this.#done.appendChild(downloads);
     this.#composer.hidden = finalised || fallbackActive || collectionOpen || this.#collectionPicker;
     this.#input.disabled = finalised || fallbackActive || collectionOpen || this.#collectionPicker;
     if (this.#fallback !== null) {
@@ -1362,7 +1387,7 @@ class StarterWidget extends HTMLElement {
   #requestFinish() {
     const ctx = this.#ctx;
     if (ctx === undefined || this.#finishing || ctx.state.typing || ctx.state.status === "finalisee") return;
-    if (ctx.state.messages.length === 0) return;
+
     this.#finishing = true;
     this.#updatePanel();
     ctx.actions.finish();
