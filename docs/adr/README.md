@@ -82,3 +82,4 @@ ADR qui remplace la précédente.
 | [0080](./0080-type-image-parametres-template.md) | Type image générique pour les paramètres de template | Proposé |
 | [0081](./0081-personnalisation-generique-parametres-template.md) | Personnalisation générique des paramètres de template par l’IA | Proposé |
 | [0082](./0082-collecte-semi-heuristique-formulaire-multifiche.md) | Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche | Proposé |
+| [0083](./0083-modele-lignes-commande-tableau-objets.md) | Modèle de lignes de commande — fiche unique avec tableau d’objets | Proposé |
