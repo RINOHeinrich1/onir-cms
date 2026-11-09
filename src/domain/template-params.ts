@@ -14,6 +14,7 @@ export const TEMPLATE_PARAM_TYPES = [
   "boolean",
   "color",
   "url",
+  "image",
   "select",
 ] as const;
 
@@ -254,6 +255,17 @@ export function validateTemplateParamSchema(
         param.default = value;
         break;
       }
+      case "image": {
+        if (typeof value !== "string" || (value !== "" && !isHttpUrl(value))) {
+          errors.push({
+            field: `${base}.default`,
+            message: "défaut attendu : vide ou URL http(s)",
+          });
+          break;
+        }
+        param.default = value;
+        break;
+      }
       case "select": {
         if (!Array.isArray(src.options) || src.options.length === 0) {
           errors.push({
@@ -357,6 +369,8 @@ export function isValidParamValue(
       return typeof value === "string" && COLOR.test(value);
     case "url":
       return typeof value === "string" && isHttpUrl(value);
+    case "image":
+      return typeof value === "string" && (value === "" || isHttpUrl(value));
     case "select":
       return (
         typeof value === "string" && (param.options ?? []).some((option) => option.value === value)

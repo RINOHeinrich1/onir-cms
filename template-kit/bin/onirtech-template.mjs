@@ -28,7 +28,7 @@ const loadWidgetEntry = async (manifest) =>
     ? null
     : readFile(join(dir, manifest.ui.widget.entry.replace(/^\.\//, "")));
 
-const PARAM_TYPES = ["string", "text", "number", "boolean", "color", "url", "select"];
+const PARAM_TYPES = ["string", "text", "number", "boolean", "color", "url", "image", "select"];
 const PARAM_KEY = /^[a-z][a-z0-9_]{1,40}$/;
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 const MAX_PARAMS = 40;
@@ -117,6 +117,11 @@ function checkParams(params) {
       case "url":
         if (typeof value !== "string" || !isHttpUrl(value)) {
           errors.push(`${at}.default : URL http(s) attendue`);
+        }
+        break;
+      case "image":
+        if (typeof value !== "string" || (value !== "" && !isHttpUrl(value))) {
+          errors.push(`${at}.default : vide ou URL http(s) attendue`);
         }
         break;
       case "select": {

@@ -72,6 +72,29 @@ describe("validateTemplateParamSchema", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("valide le type image avec une valeur vide ou une URL", () => {
+    expect(
+      validateTemplateParamSchema([
+        { key: "assistant_logo", label: "Logo", type: "image", default: "" },
+      ]).ok,
+    ).toBe(true);
+    expect(
+      validateTemplateParamSchema([
+        {
+          key: "assistant_logo",
+          label: "Logo",
+          type: "image",
+          default: "https://exemple.test/logo.png",
+        },
+      ]).ok,
+    ).toBe(true);
+    expect(
+      validateTemplateParamSchema([
+        { key: "assistant_logo", label: "Logo", type: "image", default: "pas une url" },
+      ]).ok,
+    ).toBe(false);
+  });
+
   it("valide color et url", () => {
     expect(
       validateTemplateParamSchema([
