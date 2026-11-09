@@ -453,6 +453,24 @@ async function finishConfigConversation(
       instances = instance === null ? instances : [instance];
     }
   } else {
+    const closable =
+      config.collectionMode === "semi_heuristic"
+        ? instances.filter(
+            (instance) =>
+              instance.status !== "complete" &&
+              instance.status !== "abandoned" &&
+              instance.missingFields.length === 0,
+          )
+        : [];
+    if (closable.length > 0 && instancesRepo !== undefined) {
+      for (const instance of closable) {
+        await instancesRepo.update(organizationId, instance.id, {
+          status: "complete",
+          completed: true,
+        });
+      }
+      instances = await instancesRepo.listByConversation(organizationId, conversation.id);
+    }
     const pending = instances.filter((instance) => isPendingFicheStatus(instance.status));
     if (pending.length > 0) {
       if (!options.abandonPending) {
