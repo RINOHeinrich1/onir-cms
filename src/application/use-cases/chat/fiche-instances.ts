@@ -145,6 +145,8 @@ export function buildFicheDetectionPrompt(
     "",
     "Réponds UNIQUEMENT avec un objet JSON strict, sans texte autour :",
     '{"instances":[{"ficheKey":"...","status":"detected|active|paused|complete|abandoned","data":{},"missingFields":[],"abandonReason":null}]}',
+    "Exemple de sortie correcte :",
+    '{"instances":[{"ficheKey":"fiche_racine","status":"active","data":{"champ_simple":"valeur","champ_fiche":{"champ_enfant":"valeur"},"champ_tableau":[{"champ_enfant_1":"a","champ_enfant_2":5},{"champ_enfant_1":"b","champ_enfant_2":2}]},"missingFields":[],"abandonReason":null}]}',
     "Règles :",
     "- Une seule fiche peut être au statut active.",
     "- complete si toutes les informations obligatoires de la fiche sont connues.",
