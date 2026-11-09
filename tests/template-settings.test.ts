@@ -33,6 +33,8 @@ describe("template-settings (mode Simple)", () => {
     const text = languageInstruction({ mode: "auto" });
     expect(text).toContain("langue du visiteur");
     expect(text).not.toContain("français");
+    expect(text).not.toContain("conserve les clés techniques");
+    expect(text).toContain("Ne mentionne jamais les noms techniques");
   });
 
   it("rappelle la langue après les enrichissements runtime", () => {

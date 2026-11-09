@@ -68,6 +68,14 @@ export function normalizeTemplateSimpleSettings(value: unknown): TemplateSimpleS
   };
 }
 
+/** Nettoie une instruction historique qui demandait de conserver les clés techniques. */
+export function sanitizeSystemPrompt(prompt: string): string {
+  return prompt.replace(
+    "Traduis les libellés des informations à collecter dans la langue du visiteur dans tes questions, mais conserve les clés techniques pour la fiche interne.",
+    "Traduis les libellés des informations à collecter dans la langue du visiteur dans tes questions. Ne mentionne jamais les noms techniques des champs.",
+  );
+}
+
 /** Consigne de langue intégrée au prompt du modèle. */
 export function languageInstruction(policy: TemplateLanguagePolicy): string {
   if (policy.mode === "auto") {
@@ -75,7 +83,7 @@ export function languageInstruction(policy: TemplateLanguagePolicy): string {
       "Tu réponds dans la langue du visiteur.",
       "Si le visiteur change de langue, tu changes aussi.",
       "La langue de ces instructions n'impose pas la langue de réponse.",
-      "Traduis les libellés des informations à collecter dans la langue du visiteur dans tes questions, mais conserve les clés techniques pour la fiche interne.",
+      "Traduis les libellés des informations à collecter dans la langue du visiteur dans tes questions. Ne mentionne jamais les noms techniques des champs.",
     ].join(" ");
   }
   return `Tu réponds en ${policy.value}.`;
