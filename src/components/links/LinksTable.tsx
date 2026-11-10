@@ -65,6 +65,15 @@ function LienUrl({ url }: { url: string }) {
   );
 }
 
+/** Lien vers la liste filtrée sur le libellé du chatbot, sans vue groupée. */
+function chatbotContentHref(path: "/conversations" | "/leads", label: string): string {
+  const params = new URLSearchParams();
+  if (path === "/leads") params.set("onglet", "fiches");
+  params.set("lien", label);
+  params.set("grouper", "0");
+  return `${path}?${params.toString()}`;
+}
+
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
 export function LinksTable({
   initialLinks,
@@ -718,6 +727,18 @@ export function LinksTable({
                         {loadingWidgetId === link.id ? "Chargement…" : "Code widget"}
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={() => router.push(chatbotContentHref("/conversations", link.label))}
+                    >
+                      Voir les conversations
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push(chatbotContentHref("/leads", link.label))}
+                    >
+                      Voir les fiches associées
+                    </button>
                     <button type="button" onClick={() => router.push(`/liens/${link.id}/modifier`)}>
                       Modifier
                     </button>

@@ -14,7 +14,10 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform var(--dur-base) var(--ease-out-expo);
+  transition:
+    transform var(--dur-base) var(--ease-out-expo),
+    left var(--dur-base) var(--ease-out-expo),
+    top var(--dur-base) var(--ease-out-expo);
 }
 
 .assistant-launcher:hover {
