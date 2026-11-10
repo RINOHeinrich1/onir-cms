@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.35.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.34.0...v0.35.0) (2026-11-10)
+
+
+### Features
+
+* **liens:** aperçus de templates et analyse des chatbots ([#272](https://github.com/RINOHeinrich1/onir-cms/issues/272)) ([69e2733](https://github.com/RINOHeinrich1/onir-cms/commit/69e2733536b06cf6754064a50c81a9280d37f332))
+* **prospects:** groupement par chatbot et ajout manuel ([#270](https://github.com/RINOHeinrich1/onir-cms/issues/270)) ([b4a5bed](https://github.com/RINOHeinrich1/onir-cms/commit/b4a5bed7f0b288758b31df4f9a30ae5e22cee6b9))
+
 ## [0.34.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.33.2...v0.34.0) (2026-11-10)
 
 
