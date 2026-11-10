@@ -7,6 +7,7 @@ import {
   renderFallbackText,
   resolveBlock,
 } from "./blocks.js";
+import { enhanceRichContent } from "./rich-content.js";
 
 const ELEMENT = "onirtech-template-starter";
 
@@ -161,6 +162,7 @@ function renderMarkdown(target, content) {
   let list = null;
   let listTag = null;
   let code = null;
+  let codeLang = "";
 
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
@@ -188,17 +190,26 @@ function renderMarkdown(target, content) {
     const line = source.replace(/\s+$/, "");
     if (code !== null) {
       if (/^```/.test(line)) {
-        root.appendChild(el("pre", {}, [el("code", { text: code.join("\n") })]));
+        if (codeLang === "mermaid") {
+          root.appendChild(
+            el("pre", { class: "mermaid-block" }, [el("code", { text: code.join("\n") })]),
+          );
+        } else {
+          root.appendChild(el("pre", {}, [el("code", { text: code.join("\n") })]));
+        }
         code = null;
+        codeLang = "";
       } else {
         code.push(source);
       }
       continue;
     }
-    if (/^```/.test(line)) {
+    const fence = /^```(.*)$/.exec(line);
+    if (fence !== null) {
       flushParagraph();
       flushList();
       code = [];
+      codeLang = (fence[1] ?? "").trim().toLowerCase();
       continue;
     }
     if (line.trim() === "") {
@@ -255,6 +266,7 @@ function renderMarkdown(target, content) {
   flushParagraph();
   flushList();
   target.appendChild(root);
+  void enhanceRichContent(root);
 }
 
 function generatedDownloads(ctx) {
@@ -475,6 +487,10 @@ class StarterTemplate extends HTMLElement {
         .downloads { display: grid; gap: 6px; margin-top: 10px; }
         .downloads-title { font-weight: 700; }
         .download-link { color: #023777; text-decoration: underline; }
+        .mermaid-block { overflow-x: auto; white-space: pre-wrap; }
+        .mermaid-block.mermaid-rendered { padding: 0; background: transparent; white-space: normal; }
+        .mermaid-block svg { max-width: 100%; height: auto; }
+        .mermaid-block.mermaid-error { color: #b42318; }
         .collection-subform { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin: 8px 0; }
         .collection-row { border-top: 1px solid #eef0f3; padding-top: 8px; margin-top: 8px; }
         .composer { padding: 12px 14px 14px; border-top: 1px solid var(--page-border); background: var(--page-surface); }
