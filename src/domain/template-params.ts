@@ -344,6 +344,50 @@ export function normalizeTemplateParamValues(input: unknown): TemplateParamValue
   return out;
 }
 
+export type TemplateParamMergeResult = {
+  values: TemplateParamValues;
+  preserved: string[];
+  reset: string[];
+  added: string[];
+  removed: string[];
+};
+
+/**
+ * Fusionne des valeurs de template lors d'un changement de schéma/version.
+ * Une valeur n'est conservée que si la clé existe encore avec le même type
+ * et reste valide dans le nouveau schéma.
+ */
+export function mergeTemplateParams(
+  oldSchema: TemplateParamSchema[],
+  newSchema: TemplateParamSchema[],
+  oldValues: TemplateParamValues,
+): TemplateParamMergeResult {
+  const oldByKey = new Map(oldSchema.map((param) => [param.key, param]));
+  const newKeys = new Set(newSchema.map((param) => param.key));
+  const values: TemplateParamValues = {};
+  const preserved: string[] = [];
+  const reset: string[] = [];
+  const added: string[] = [];
+  for (const param of newSchema) {
+    const old = oldByKey.get(param.key);
+    if (old === undefined) {
+      values[param.key] = param.default;
+      added.push(param.key);
+      continue;
+    }
+    const oldValue = oldValues[param.key];
+    if (old.type === param.type && oldValue !== undefined && isValidParamValue(param, oldValue)) {
+      values[param.key] = oldValue;
+      preserved.push(param.key);
+    } else {
+      values[param.key] = param.default;
+      reset.push(param.key);
+    }
+  }
+  const removed = oldSchema.map((param) => param.key).filter((key) => !newKeys.has(key));
+  return { values, preserved, reset, added, removed };
+}
+
 /** Un défaut de schéma est toujours une valeur valide (garanti à l'import). */
 export function isValidParamValue(
   param: TemplateParamSchema,
