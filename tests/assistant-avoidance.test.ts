@@ -27,7 +27,7 @@ describe("évitement de la fée assistante", () => {
     const candidates = buildAssistantCandidates(current, viewport, size);
 
     expect(candidates[0]).toEqual(current);
-    expect(candidates).toContainEqual({ x: 1_084, y: 554 });
+    expect(candidates).toContainEqual({ x: 1_084, y: 542 });
     expect(new Set(candidates.map((candidate) => `${candidate.x}:${candidate.y}`)).size).toBe(
       candidates.length,
     );

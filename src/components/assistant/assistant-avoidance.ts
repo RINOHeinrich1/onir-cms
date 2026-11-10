@@ -11,7 +11,7 @@ export type AssistantRect = {
 export const ASSISTANT_WIDGET_WIDTH = 98;
 export const ASSISTANT_WIDGET_HEIGHT = 108;
 export const ASSISTANT_WIDGET_MARGIN = 18;
-export const ASSISTANT_AVOID_GAP = 12;
+export const ASSISTANT_AVOID_GAP = 24;
 
 const DEFAULT_SIZE: AssistantSize = {
   width: ASSISTANT_WIDGET_WIDTH,
