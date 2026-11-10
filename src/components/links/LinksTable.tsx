@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
@@ -21,49 +22,12 @@ import { RoundCheckbox } from "@/components/ui/RoundCheckbox";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
-import { channelsForLink, chatLinkBlockReason, chatLinkQuota } from "@/domain/entities/chat";
+import { channelsForLink } from "@/domain/entities/chat";
+import { ChatbotAnalysisModal } from "./ChatbotAnalysisModal";
 import { CHATBOT_STEPS } from "./chatbot-steps";
 import { NewChatbotChoiceModal } from "./NewChatbotChoiceModal";
 import type { AiProviderOption, ChatbotDraftRow, ChatLinkRow } from "./types";
 import { WidgetCodeModal } from "./WidgetCodeModal";
-
-/** Icône de copie (presse-papiers). */
-function CopyIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="9" y="9" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M5 15V5a2 2 0 0 1 2-2h10"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/**
- * URL affichée avec troncature médiane responsive : le début s'ellipse
- * (CSS) pendant que la fin reste visible, `title` garde l'URL complète.
- */
-function LienUrl({ url }: { url: string }) {
-  const tailLength = 12;
-  const head = url.length > 40 ? url.slice(0, -tailLength) : url;
-  const tail = url.length > 40 ? url.slice(-tailLength) : "";
-  return (
-    <span className="lien-url" title={url}>
-      <span className="lien-head">{head}</span>
-      {tail === "" ? null : (
-        <>
-          <span className="lien-ellipsis" aria-hidden="true">
-            …
-          </span>
-          <span className="lien-tail">{tail}</span>
-        </>
-      )}
-    </span>
-  );
-}
 
 /** Lien vers la liste filtrée sur le libellé du chatbot, sans vue groupée. */
 function chatbotContentHref(path: "/conversations" | "/leads", label: string): string {
@@ -72,6 +36,41 @@ function chatbotContentHref(path: "/conversations" | "/leads", label: string): s
   params.set("lien", label);
   params.set("grouper", "0");
   return `${path}?${params.toString()}`;
+}
+
+function previewHrefFor(link: ChatLinkRow): string {
+  const channels = channelsForLink(link);
+  const previewSurface = channels.page.enabled ? "page" : "widget";
+  return previewSurface === "widget" && link.url !== null
+    ? `${link.url.replace("/l/", "/embed/")}/preview`
+    : `/liens/${link.id}/apercu?surface=${previewSurface}`;
+}
+
+const DEFAULT_CHATBOT_PREVIEW = "/chatbot-default.webp";
+
+function templatePreviewUrl(link: ChatLinkRow): string {
+  if (link.visualTemplateId === null || link.visualTemplateVersion === null) {
+    return DEFAULT_CHATBOT_PREVIEW;
+  }
+  return `/api/template-assets/${encodeURIComponent(link.visualTemplateId)}/${encodeURIComponent(link.visualTemplateVersion)}/preview.png`;
+}
+
+/** Petit aperçu du template visuel associé au chatbot. */
+function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="chatbot-card-preview">
+      <Image
+        src={url}
+        alt={`Aperçu du template ${name}`}
+        fill
+        unoptimized
+        sizes="(max-width: 56rem) 100vw, 360px"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
 }
 
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
@@ -137,7 +136,7 @@ export function LinksTable({
     embedUrl: string;
   } | null>(null);
   const [loadingWidgetId, setLoadingWidgetId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [detailsLinkId, setDetailsLinkId] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -350,10 +349,7 @@ export function LinksTable({
     setError(null);
     try {
       await navigator.clipboard.writeText(link.url);
-      setCopiedId(link.id);
-      window.setTimeout(() => {
-        setCopiedId((current) => (current === link.id ? null : current));
-      }, 2500);
+      toast.success("Lien copié.");
     } catch {
       setError("Copie impossible, sélectionnez l'URL manuellement");
     }
@@ -540,39 +536,20 @@ export function LinksTable({
         </section>
       ) : null}
 
-      <div className="chatbot-grid">
+      <div className="chatbot-grid chatbot-grid--links">
         {pagination.pageItems.map((link) => {
-          const expired =
-            link.expiresAt !== null &&
-            new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime();
-          const blockReason = chatLinkBlockReason(link);
-          const quota = chatLinkQuota(link);
-          const channels = channelsForLink(link);
-          const pageEnabled = channels.page.enabled;
-          const widgetEnabled = channels.widget.enabled;
-          const previewSurface = pageEnabled ? "page" : "widget";
-          const previewHref =
-            previewSurface === "widget" && link.url !== null
-              ? `${link.url.replace("/l/", "/embed/")}/preview`
-              : `/liens/${link.id}/apercu?surface=${previewSurface}`;
-          const fichePercent =
-            quota.maxFiches === null
-              ? 0
-              : quota.maxFiches === 0
-                ? 100
-                : Math.min(100, (quota.fichesGenerated / quota.maxFiches) * 100);
-          const tokenPercent =
-            quota.maxTokens === null
-              ? 0
-              : quota.maxTokens === 0
-                ? 100
-                : Math.min(100, (quota.tokensUsed / quota.maxTokens) * 100);
-
+          const previewHref = previewHrefFor(link);
+          const previewUrl = templatePreviewUrl(link);
+          const widgetEnabled = channelsForLink(link).widget.enabled;
           return (
             <article
-              className={`chatbot-card${selectedIds.includes(link.id) ? " is-selected" : ""}`}
+              className={`chatbot-card chatbot-card--links${" chatbot-card--with-preview"}${selectedIds.includes(link.id) ? " is-selected" : ""}`}
               key={link.id}
             >
+              <ChatbotTemplatePreview
+                url={previewUrl}
+                name={link.label === "" ? "Chatbot sans nom" : link.label}
+              />
               <header className="chatbot-card-head">
                 <RoundCheckbox
                   className="chatbot-card-select"
@@ -586,138 +563,56 @@ export function LinksTable({
                   }
                   ariaLabel={`Sélectionner « ${link.label === "" ? "Chatbot sans nom" : link.label} »`}
                 />
-                <div>
-                  <h2>{link.label === "" ? "Chatbot sans nom" : link.label}</h2>
-                  <p>
-                    {link.type === "standard" ? "Standard" : "Spécifique"} ·{" "}
-                    {link.createdByLabel ?? "Créateur non renseigné"}
-                  </p>
-                </div>
-                <div className="chatbot-status">
-                  {expired ? (
-                    <span className="badge warn">expiré</span>
-                  ) : blockReason !== null ? (
-                    <span className="badge warn">bloqué</span>
-                  ) : (
-                    <span className={`badge ${link.actif ? "success" : "muted"}`}>
-                      {link.actif ? "actif" : "révoqué"}
-                    </span>
-                  )}
-                </div>
-              </header>
-
-              <div className="chatbot-channels">
-                {pageEnabled ? <span className="badge muted">page</span> : null}
-                {widgetEnabled ? <span className="badge orange">widget</span> : null}
-                {pageEnabled && channels.page.identificationMode === "anonymous" ? (
-                  <span className="badge muted">anonyme</span>
-                ) : null}
-                {!pageEnabled ? <span className="badge muted">page désactivée</span> : null}
-              </div>
-
-              <dl className="chatbot-facts">
-                <div>
-                  <dt>Configuration</dt>
-                  <dd>
-                    {link.currentConfigId !== null && link.currentConfigId !== undefined
-                      ? "Chatbot autonome"
-                      : "Non configuré"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Moteur IA</dt>
-                  <dd>
-                    {link.aiProviderId === null
-                      ? "Défaut organisation"
-                      : (aiProviders.find((provider) => provider.id === link.aiProviderId)?.label ??
-                        "Fournisseur indisponible")}
-                    {link.aiModel === null ? "" : ` · ${link.aiModel}`}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Expiration</dt>
-                  <dd>
-                    {link.expiresAt === null
-                      ? "Aucune"
-                      : new Date(link.expiresAt).toLocaleDateString("fr-FR")}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Visites</dt>
-                  <dd>
-                    {link.visitCount}
-                    {link.lastVisitAt === null
-                      ? ""
-                      : ` · ${new Date(link.lastVisitAt).toLocaleDateString("fr-FR")}`}
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="chatbot-quotas">
-                <div className="quota-line">
-                  <span>
-                    Fiches <strong>{quota.fichesGenerated}</strong>
-                    {quota.maxFiches === null ? " / ∞" : ` / ${quota.maxFiches}`}
+                <div className="chatbot-card-identity">
+                  <span className="chatbot-card-mark" aria-hidden="true">
+                    {(link.label.trim() || "?").slice(0, 1).toLocaleUpperCase("fr")}
                   </span>
-                  <span className="quota-bar" aria-hidden>
-                    <span style={{ width: `${fichePercent}%` }} />
-                  </span>
+                  <div className="chatbot-card-copy">
+                    <h2 title={link.label === "" ? "Chatbot sans nom" : link.label}>
+                      {link.label === "" ? "Chatbot sans nom" : link.label}
+                    </h2>
+                    <p className="chatbot-card-creator">
+                      <svg
+                        className="chatbot-card-creator-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="8" r="3.2" />
+                        <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
+                      </svg>
+                      <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
+                    </p>
+                  </div>
                 </div>
-                <div className="quota-line">
-                  <span>
-                    Tokens <strong>{quota.tokensUsed}</strong>
-                    {quota.maxTokens === null ? " / ∞" : ` / ${quota.maxTokens}`}
-                  </span>
-                  <span className="quota-bar" aria-hidden>
-                    <span style={{ width: `${tokenPercent}%` }} />
-                  </span>
-                </div>
-              </div>
-
-              <div className="chatbot-link-row">
-                {!pageEnabled ? (
-                  <span className="muted-text">
-                    Page désactivée{widgetEnabled ? " · widget disponible" : ""}
-                  </span>
-                ) : link.url === null ? (
-                  <button
-                    type="button"
-                    className="btn ghost small"
-                    disabled={generatingId === link.id}
-                    onClick={() => void doRegenerate(link)}
-                  >
-                    {generatingId === link.id ? "…" : "Régénérer le lien"}
-                  </button>
-                ) : (
-                  <span className="lien-cell">
-                    <LienUrl url={link.url} />
-                    <button
-                      type="button"
-                      className="copy-btn"
-                      aria-label={copiedId === link.id ? "Copié !" : "Copier le lien"}
-                      title={copiedId === link.id ? "Copié !" : "Copier le lien"}
-                      onClick={() => void doCopy(link)}
-                    >
-                      {copiedId === link.id ? "Copié !" : <CopyIcon />}
-                    </button>
-                  </span>
-                )}
-              </div>
-
-              <footer className="chatbot-card-actions">
-                <a
-                  className="btn ghost small"
-                  href={previewHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Aperçu
-                </a>
-                <details className="action-menu">
+                <details className="action-menu chatbot-card-menu">
                   <summary className="btn ghost small" aria-label="Autres actions">
                     ⋯
                   </summary>
                   <div className="action-menu-panel">
+                    <button type="button" onClick={() => setDetailsLinkId(link.id)}>
+                      Voir les détails
+                    </button>
+                    {link.url === null ? (
+                      <button
+                        type="button"
+                        disabled={generatingId === link.id}
+                        onClick={() => void doRegenerate(link)}
+                      >
+                        {generatingId === link.id ? "Génération…" : "Régénérer le lien"}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => void doCopy(link)}>
+                        Copier le lien
+                      </button>
+                    )}
+                    <a href={previewHref} target="_blank" rel="noopener noreferrer">
+                      Aperçu
+                    </a>
                     {widgetEnabled ? (
                       <button
                         type="button"
@@ -747,7 +642,7 @@ export function LinksTable({
                     </button>
                   </div>
                 </details>
-              </footer>
+              </header>
             </article>
           );
         })}
@@ -780,6 +675,29 @@ export function LinksTable({
           }}
         />
       ) : null}
+      {detailsLinkId !== null
+        ? (() => {
+            const detailsLink = links.find((link) => link.id === detailsLinkId);
+            return detailsLink === undefined ? null : (
+              <ChatbotAnalysisModal
+                link={detailsLink}
+                aiProviders={aiProviders}
+                nowIso={nowIso}
+                onClose={() => setDetailsLinkId(null)}
+                onCopy={() => void doCopy(detailsLink)}
+                onPreview={() =>
+                  window.open(previewHrefFor(detailsLink), "_blank", "noopener,noreferrer")
+                }
+                onRegenerate={() => void doRegenerate(detailsLink)}
+                onConversations={() =>
+                  router.push(chatbotContentHref("/conversations", detailsLink.label))
+                }
+                onLeads={() => router.push(chatbotContentHref("/leads", detailsLink.label))}
+                onEdit={() => router.push(`/liens/${detailsLink.id}/modifier`)}
+              />
+            );
+          })()
+        : null}
       {widgetCode !== null ? (
         <WidgetCodeModal
           snippet={widgetCode.snippet}
