@@ -512,7 +512,6 @@ export function LinksTable({
         {pagination.pageItems.map((link) => {
           const previewHref = previewHrefFor(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
-          const initial = (link.label.trim() || "?").slice(0, 1).toLocaleUpperCase("fr");
           return (
             <article
               className={`chatbot-card chatbot-card--links${selectedIds.includes(link.id) ? " is-selected" : ""}`}
@@ -533,7 +532,7 @@ export function LinksTable({
                 />
                 <div className="chatbot-card-identity">
                   <span className="chatbot-card-mark" aria-hidden="true">
-                    {initial}
+                    {(link.label.trim() || "?").slice(0, 1).toLocaleUpperCase("fr")}
                   </span>
                   <div className="chatbot-card-copy">
                     <h2 title={link.label === "" ? "Chatbot sans nom" : link.label}>
@@ -595,9 +594,6 @@ export function LinksTable({
                   </div>
                 </details>
               </header>
-              <span className="chatbot-card-initial" aria-hidden="true">
-                {initial}
-              </span>
             </article>
           );
         })}

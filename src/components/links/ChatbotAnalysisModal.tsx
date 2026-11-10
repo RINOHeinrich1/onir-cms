@@ -85,9 +85,7 @@ export function ChatbotAnalysisModal({
               <circle cx="12" cy="8" r="3.2" />
               <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
             </svg>
-            <span>
-              Créé par <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
-            </span>
+            <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
           </p>
           <div className="chatbot-analysis-badges">
             <span className={`badge ${status.className}`}>{status.label}</span>

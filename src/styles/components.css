@@ -9126,47 +9126,14 @@ a.subtab {
   padding: 1.35rem;
   border-radius: 1.1rem;
   border-color: color-mix(in srgb, var(--accent) 16%, var(--border));
-  background:
-    radial-gradient(
-      circle at 100% 0%,
-      color-mix(in srgb, var(--accent-soft) 75%, transparent),
-      transparent 55%
-    ),
-    linear-gradient(
-      145deg,
-      var(--surface-raised),
-      color-mix(in srgb, var(--surface) 35%, var(--surface-raised))
-    );
-  box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 55%, transparent) inset,
-    var(--sh-card);
+  background: var(--surface-raised);
+  box-shadow: var(--sh-card);
   overflow: visible;
-}
-
-.chatbot-card--links::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 38%),
-    radial-gradient(
-      circle at 12% 110%,
-      color-mix(in srgb, var(--orange) 10%, transparent),
-      transparent 42%
-    );
 }
 
 .chatbot-card--links.is-selected {
   border-color: var(--accent);
-  background:
-    radial-gradient(
-      circle at 100% 0%,
-      color-mix(in srgb, var(--accent-soft) 90%, transparent),
-      transparent 58%
-    ),
-    color-mix(in srgb, var(--accent-soft) 45%, var(--surface-raised));
+  background: var(--accent-soft);
 }
 
 .chatbot-card--links .chatbot-card-head {
@@ -9191,7 +9158,7 @@ a.subtab {
   width: 2.9rem;
   height: 2.9rem;
   border-radius: 0.85rem;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  background: var(--accent);
   color: #fff;
   font-size: 1rem;
   font-weight: 850;
@@ -9222,20 +9189,6 @@ a.subtab {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.chatbot-card-initial {
-  position: absolute;
-  right: 1rem;
-  bottom: -0.9rem;
-  z-index: 0;
-  color: color-mix(in srgb, var(--accent) 72%, transparent);
-  font-size: 5.6rem;
-  font-weight: 900;
-  line-height: 1;
-  opacity: 0.08;
-  pointer-events: none;
-  user-select: none;
 }
 
 .chatbot-card-menu {
@@ -9270,13 +9223,7 @@ a.subtab {
   padding: 1.15rem 1.25rem;
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
   border-radius: 1rem;
-  background:
-    radial-gradient(
-      circle at 100% 0%,
-      color-mix(in srgb, var(--accent-soft) 80%, transparent),
-      transparent 58%
-    ),
-    var(--surface);
+  background: var(--surface);
 }
 
 .chatbot-analysis-mark {
@@ -9286,7 +9233,7 @@ a.subtab {
   width: 3.7rem;
   height: 3.7rem;
   border-radius: 1rem;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  background: var(--accent);
   color: #fff;
   font-size: 1.3rem;
   font-weight: 850;
@@ -9317,12 +9264,6 @@ a.subtab {
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
-}
-
-.chatbot-analysis-creator span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .chatbot-analysis-creator strong {
