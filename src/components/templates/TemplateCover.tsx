@@ -9,6 +9,7 @@ const STATIC_COVERS: Record<string, string> = {
   starter: "/template-covers/starter.webp",
   immersive: "/template-covers/immersive.webp",
   mandampro: "/template-covers/mandampro.webp",
+  "parcours-immersif": "/template-covers/parcours-immersif.webp",
 };
 
 function initials(name: string): string {
