@@ -111,6 +111,7 @@ export function VisualTemplatesGrid({
               >
                 <TemplateCover
                   templateId={template.id}
+                  templateKey={template.key}
                   version={last?.version ?? null}
                   name={template.name}
                 />

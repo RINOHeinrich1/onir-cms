@@ -5,6 +5,12 @@ import { useState } from "react";
 
 const PREVIEW_PATHS = ["preview.png", "assets/preview.png"];
 
+const STATIC_COVERS: Record<string, string> = {
+  starter: "/template-covers/starter.webp",
+  immersive: "/template-covers/immersive.webp",
+  mandampro: "/template-covers/mandampro.webp",
+};
+
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "?";
@@ -16,31 +22,43 @@ function initials(name: string): string {
 
 export function TemplateCover({
   templateId,
+  templateKey,
   version,
   name,
 }: {
   templateId: string;
+  templateKey?: string;
   version: string | null;
   name: string;
 }) {
   const [sourceIndex, setSourceIndex] = useState(0);
   const [failed, setFailed] = useState(false);
-  const source = PREVIEW_PATHS[sourceIndex];
+  const sources = [
+    ...(version === null
+      ? []
+      : PREVIEW_PATHS.map(
+          (path) => `/api/template-assets/${templateId}/${encodeURIComponent(version)}/${path}`,
+        )),
+    ...(templateKey !== undefined && STATIC_COVERS[templateKey] !== undefined
+      ? [STATIC_COVERS[templateKey]]
+      : []),
+  ];
+  const source = sources[sourceIndex];
 
   return (
     <div className="template-cover">
       <div className="template-cover-fallback" aria-hidden="true">
         <span>{initials(name)}</span>
       </div>
-      {!failed && version !== null && source !== undefined ? (
+      {!failed && source !== undefined ? (
         <Image
-          src={`/api/template-assets/${templateId}/${encodeURIComponent(version)}/${source}`}
+          src={source}
           alt={`Aperçu de ${name}`}
           fill
           unoptimized
           sizes="(max-width: 56rem) 100vw, 360px"
           onError={() => {
-            if (sourceIndex < PREVIEW_PATHS.length - 1) {
+            if (sourceIndex < sources.length - 1) {
               setSourceIndex(sourceIndex + 1);
             } else {
               setFailed(true);
