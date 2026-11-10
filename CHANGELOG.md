@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.34.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.33.2...v0.34.0) (2026-11-10)
+
+
+### Features
+
+* **ui:** fée, groupement des leads et accès rapides chatbot ([#268](https://github.com/RINOHeinrich1/onir-cms/issues/268)) ([6f57ef4](https://github.com/RINOHeinrich1/onir-cms/commit/6f57ef4cf7ae73d5f0fa1f28318bf45606c8a6b5))
+
 ## [0.33.2](https://github.com/RINOHeinrich1/onir-cms/compare/v0.33.1...v0.33.2) (2026-11-10)
 
 
