@@ -9191,6 +9191,27 @@ a.subtab {
   white-space: nowrap;
 }
 
+.chatbot-card-creator {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.chatbot-card-creator strong {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-card-creator-icon {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
 .chatbot-card-menu {
   position: relative;
   z-index: 3;

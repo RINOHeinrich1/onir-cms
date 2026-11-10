@@ -538,6 +538,22 @@ export function LinksTable({
                     <h2 title={link.label === "" ? "Chatbot sans nom" : link.label}>
                       {link.label === "" ? "Chatbot sans nom" : link.label}
                     </h2>
+                    <p className="chatbot-card-creator">
+                      <svg
+                        className="chatbot-card-creator-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="8" r="3.2" />
+                        <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
+                      </svg>
+                      <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
+                    </p>
                   </div>
                 </div>
                 <details className="action-menu chatbot-card-menu">
