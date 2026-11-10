@@ -71,7 +71,24 @@ export function ChatbotAnalysisModal({
         </span>
         <div className="chatbot-analysis-identity">
           <h2>{link.label === "" ? "Chatbot sans nom" : link.label}</h2>
-          <p>Créé par {link.createdByLabel ?? "Créateur non renseigné"}</p>
+          <p className="chatbot-analysis-creator">
+            <svg
+              className="chatbot-analysis-creator-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="8" r="3.2" />
+              <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
+            </svg>
+            <span>
+              Créé par <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
+            </span>
+          </p>
           <div className="chatbot-analysis-badges">
             <span className={`badge ${status.className}`}>{status.label}</span>
             <span className="badge muted">

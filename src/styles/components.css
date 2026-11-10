@@ -9312,6 +9312,30 @@ a.subtab {
   font-size: 0.8rem;
 }
 
+.chatbot-analysis-creator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.chatbot-analysis-creator span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-analysis-creator strong {
+  color: var(--fg);
+  font-weight: 650;
+}
+
+.chatbot-analysis-creator-icon {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 .chatbot-analysis-badges {
   display: flex;
   flex-wrap: wrap;
