@@ -9111,3 +9111,349 @@ a.subtab {
 .prospects-chatbot-cards .inbox-chatbot-card-foot .hint {
   flex: 1 1 auto;
 }
+
+/* ---------- Cartes chatbots : version épurée / analyse en modale ---------- */
+.chatbot-grid--links {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1.25rem;
+}
+
+.chatbot-card--links {
+  position: relative;
+  min-height: 10.5rem;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 1.35rem;
+  border-radius: 1.1rem;
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--border));
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--accent-soft) 75%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      145deg,
+      var(--surface-raised),
+      color-mix(in srgb, var(--surface) 35%, var(--surface-raised))
+    );
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 55%, transparent) inset,
+    var(--sh-card);
+  overflow: visible;
+}
+
+.chatbot-card--links::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 38%),
+    radial-gradient(
+      circle at 12% 110%,
+      color-mix(in srgb, var(--orange) 10%, transparent),
+      transparent 42%
+    );
+}
+
+.chatbot-card--links.is-selected {
+  border-color: var(--accent);
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--accent-soft) 90%, transparent),
+      transparent 58%
+    ),
+    color-mix(in srgb, var(--accent-soft) 45%, var(--surface-raised));
+}
+
+.chatbot-card--links .chatbot-card-head {
+  position: relative;
+  z-index: 2;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.chatbot-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.chatbot-card-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.9rem;
+  height: 2.9rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.chatbot-card-copy {
+  min-width: 0;
+}
+
+.chatbot-card-copy h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.16rem;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-card-copy p {
+  margin: 0.25rem 0 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-card-initial {
+  position: absolute;
+  right: 1rem;
+  bottom: -0.9rem;
+  z-index: 0;
+  color: color-mix(in srgb, var(--accent) 72%, transparent);
+  font-size: 5.6rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.08;
+  pointer-events: none;
+  user-select: none;
+}
+
+.chatbot-card-menu {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  margin-left: auto;
+}
+
+.chatbot-card--links .action-menu-panel {
+  top: calc(100% + 0.4rem);
+  bottom: auto;
+  min-width: 14.5rem;
+}
+
+.chatbot-card--links:has(.action-menu[open]) {
+  z-index: 35;
+}
+
+.chatbot-analysis-modal {
+  max-width: min(56rem, calc(100vw - 2rem));
+}
+
+.chatbot-analysis-body {
+  gap: 1.2rem;
+}
+
+.chatbot-analysis-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: 1rem;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--accent-soft) 80%, transparent),
+      transparent 58%
+    ),
+    var(--surface);
+}
+
+.chatbot-analysis-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3.7rem;
+  height: 3.7rem;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 850;
+  box-shadow: 0 0.45rem 1.1rem color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.chatbot-analysis-identity {
+  min-width: 0;
+}
+
+.chatbot-analysis-identity h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.3rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-analysis-identity p {
+  margin: 0.25rem 0 0;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+
+.chatbot-analysis-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+}
+
+.chatbot-analysis-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.chatbot-analysis-kpis article {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+}
+
+.chatbot-analysis-kpis span {
+  color: var(--fg-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.chatbot-analysis-kpis strong {
+  color: var(--fg);
+  font-size: 1.45rem;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.chatbot-analysis-kpis .chatbot-analysis-date {
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.chatbot-analysis-kpis small {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-analysis-section h4 {
+  margin-bottom: 0.65rem;
+}
+
+.chatbot-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin: 0;
+}
+
+.chatbot-analysis-grid div {
+  min-width: 0;
+}
+
+.chatbot-analysis-grid dt {
+  color: var(--fg-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chatbot-analysis-grid dd {
+  margin: 0.18rem 0 0;
+  color: var(--fg);
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-analysis-quotas {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+}
+
+.chatbot-analysis-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.chatbot-analysis-url code {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatbot-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 46rem) {
+  .chatbot-analysis-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 34rem) {
+  .chatbot-analysis-hero {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .chatbot-analysis-mark {
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 0.85rem;
+  }
+
+  .chatbot-analysis-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chatbot-analysis-actions .btn {
+    flex: 1 1 auto;
+  }
+}
