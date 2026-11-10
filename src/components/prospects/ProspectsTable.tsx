@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { FilterMenu, type FilterMenuSection } from "@/components/ui/FilterMenu";
@@ -12,6 +12,7 @@ import { usePagination } from "@/components/ui/use-pagination";
 
 import { Prospect360Modal } from "./Prospect360Modal";
 import { ProspectForm } from "./ProspectForm";
+import { groupProspects } from "./prospect-grouping";
 import type { ProspectDto } from "./types";
 
 /** Table des prospects + opérations CRUD (US-PROSPECT-001, écriture admin/marketeur). */
@@ -29,11 +30,15 @@ export function ProspectsTable({
   canWrite: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [editing, setEditing] = useState<ProspectDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [fiche360Id, setFiche360Id] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
+  const grouped = searchParams.get("grouper") !== "0" && filterProspectId == null;
+  const groupQuery = groupSearch.trim().toLocaleLowerCase("fr");
   const query = search.trim().toLocaleLowerCase("fr");
   useToastOnMessage(error);
 
@@ -49,7 +54,12 @@ export function ProspectsTable({
       .toLocaleLowerCase("fr")
       .includes(query);
   });
-  const pagination = usePagination(visible, 9, `${search}|${origine.join(",")}`);
+  const groups = groupProspects(initialProspects);
+  const visibleGroups =
+    groupQuery === ""
+      ? groups
+      : groups.filter((group) => group.label.toLocaleLowerCase("fr").includes(groupQuery));
+  const pagination = usePagination(visible, 9, `${search}|${origine.join(",")}|${grouped}`);
 
   const refresh = (): void => {
     router.refresh();
@@ -98,10 +108,10 @@ export function ProspectsTable({
 
       <div className="list-filters">
         <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Rechercher un nom, un email…"
-          label="Rechercher un prospect"
+          value={grouped ? groupSearch : search}
+          onChange={grouped ? setGroupSearch : setSearch}
+          placeholder={grouped ? "Rechercher un chatbot…" : "Rechercher un nom, un email…"}
+          label={grouped ? "Rechercher un chatbot" : "Rechercher un prospect"}
         />
         <FilterMenu
           sections={
@@ -124,6 +134,7 @@ export function ProspectsTable({
           }
           onApply={(values) => {
             const params = new URLSearchParams();
+            if (!grouped) params.set("grouper", "0");
             for (const value of values.origine ?? []) params.append("origine", value);
             const query = params.toString();
             router.push(query === "" ? "/prospects" : `/prospects?${query}`);
@@ -139,95 +150,179 @@ export function ProspectsTable({
         </div>
       ) : null}
 
-      <div className="table-scroll">
-        <table className="table table-cards">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Nature</th>
-              <th>Origine</th>
-              <th>Email</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {pagination.pageItems.map((prospect) => (
-              <tr key={prospect.id}>
-                <td data-label="Nom">
-                  {prospect.nom} {prospect.prenom}
-                </td>
-                <td data-label="Nature">
-                  <span className="badge">{prospect.nature}</span>
-                </td>
-                <td data-label="Origine">
-                  {prospect.origine === "libre" ? (
-                    <>
-                      <span className="badge orange">Libre</span>
-                      <div className="muted-text">
-                        {prospect.lienLabel === null || prospect.lienLabel === ""
-                          ? "via un lien sans nom"
-                          : `via « ${prospect.lienLabel} »`}
+      {filterProspectId == null ? (
+        <label className="inbox-group-toggle prospects-group-toggle">
+          <input
+            type="checkbox"
+            checked={grouped}
+            onChange={(event) => {
+              const params = new URLSearchParams(searchParams.toString());
+              setGroupSearch("");
+              if (event.target.checked) params.delete("grouper");
+              else params.set("grouper", "0");
+              const suffix = params.toString();
+              router.replace(`/prospects${suffix === "" ? "" : `?${suffix}`}`, { scroll: false });
+            }}
+          />
+          <span className="inbox-group-toggle-track" aria-hidden="true" />
+          <span>Grouper par chatbot</span>
+        </label>
+      ) : null}
+
+      {grouped ? (
+        <div className="inbox-chatbot-cards conversations-overview-cards prospects-chatbot-cards">
+          {visibleGroups.length === 0 ? (
+            <div className="empty-state">
+              <strong>{groups.length === 0 ? "Aucun prospect." : "Aucun chatbot trouvé."}</strong>
+              <span>
+                {groups.length === 0
+                  ? "Les prospects issus d’un chatbot ou ajoutés manuellement apparaîtront ici."
+                  : "Modifiez votre recherche."}
+              </span>
+            </div>
+          ) : (
+            visibleGroups.map((group) => (
+              <article className="inbox-chatbot-card" key={group.id}>
+                <div className="inbox-chatbot-card-head">
+                  <strong title={group.label}>{group.label}</strong>
+                  <span className="badge">{group.total} prospect(s)</span>
+                </div>
+                <div className="inbox-chatbot-stats">
+                  <span>
+                    <b>{group.withEmail}</b>
+                    <small>avec email</small>
+                  </span>
+                  <span>
+                    <b>{group.withoutEmail}</b>
+                    <small>sans contact</small>
+                  </span>
+                  <span>
+                    <b>{group.total}</b>
+                    <small>total</small>
+                  </span>
+                </div>
+                <div className="inbox-chatbot-card-foot">
+                  <span className="hint">
+                    {group.lastCreatedAt === null
+                      ? "Aucun prospect"
+                      : `Dernier ajout le ${new Date(group.lastCreatedAt).toLocaleDateString("fr-FR")}`}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.delete("prospect");
+                      params.set("grouper", "0");
+                      params.set(
+                        "origine",
+                        group.manual
+                          ? "manuel"
+                          : `lien:${group.label === "Chatbot sans nom" ? "" : group.label}`,
+                      );
+                      router.push(`/prospects?${params.toString()}`, { scroll: false });
+                    }}
+                  >
+                    Ouvrir
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="table-scroll">
+            <table className="table table-cards">
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Nature</th>
+                  <th>Origine</th>
+                  <th>Email</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {pagination.pageItems.map((prospect) => (
+                  <tr key={prospect.id}>
+                    <td data-label="Nom">
+                      {prospect.nom} {prospect.prenom}
+                    </td>
+                    <td data-label="Nature">
+                      <span className="badge">{prospect.nature}</span>
+                    </td>
+                    <td data-label="Origine">
+                      {prospect.origine === "libre" ? (
+                        <>
+                          <span className="badge orange">Libre</span>
+                          <div className="muted-text">
+                            {prospect.lienLabel === null || prospect.lienLabel === ""
+                              ? "via un lien sans nom"
+                              : `via « ${prospect.lienLabel} »`}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="badge muted">Saisie</span>
+                      )}
+                    </td>
+                    <td data-label="Email">
+                      {prospect.email === "" ? (
+                        <span className="badge warn">Contact non fourni</span>
+                      ) : (
+                        prospect.email
+                      )}
+                    </td>
+                    <td data-label="Actions" className="cell-actions">
+                      <div className="tools">
+                        <button
+                          type="button"
+                          className="btn small"
+                          onClick={() => setFiche360Id(prospect.id)}
+                        >
+                          Fiche 360
+                        </button>
+                        {canWrite ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn ghost small"
+                              onClick={() => setEditing(prospect)}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              className="btn danger ghost small"
+                              onClick={() => void remove(prospect)}
+                            >
+                              Supprimer
+                            </button>
+                          </>
+                        ) : null}
                       </div>
-                    </>
-                  ) : (
-                    <span className="badge muted">Saisie</span>
-                  )}
-                </td>
-                <td data-label="Email">
-                  {prospect.email === "" ? (
-                    <span className="badge warn">Contact non fourni</span>
-                  ) : (
-                    prospect.email
-                  )}
-                </td>
-                <td data-label="Actions" className="cell-actions">
-                  <div className="tools">
-                    <button
-                      type="button"
-                      className="btn small"
-                      onClick={() => setFiche360Id(prospect.id)}
-                    >
-                      Fiche 360
-                    </button>
-                    {canWrite ? (
-                      <>
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => setEditing(prospect)}
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          className="btn danger ghost small"
-                          onClick={() => void remove(prospect)}
-                        >
-                          Supprimer
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {visible.length === 0 ? (
-              <tr>
-                <td colSpan={5}>
-                  {initialProspects.length === 0 ? "Aucun prospect." : "Aucun résultat."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-      <Pagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        total={pagination.total}
-        onPageChange={pagination.setPage}
-        label="Pagination des prospects"
-      />
+                    </td>
+                  </tr>
+                ))}
+                {visible.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      {initialProspects.length === 0 ? "Aucun prospect." : "Aucun résultat."}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            onPageChange={pagination.setPage}
+            label="Pagination des prospects"
+          />
+        </>
+      )}
 
       {creating || editing !== null ? (
         <Modal
