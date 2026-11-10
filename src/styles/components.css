@@ -9205,11 +9205,13 @@ a.subtab {
 
 .chatbot-card-copy h2 {
   margin: 0;
+  overflow: hidden;
   color: var(--fg);
   font-size: 1.16rem;
   line-height: 1.22;
   letter-spacing: -0.025em;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatbot-card-copy p {

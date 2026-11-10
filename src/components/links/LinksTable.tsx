@@ -536,8 +536,9 @@ export function LinksTable({
                     {initial}
                   </span>
                   <div className="chatbot-card-copy">
-                    <h2>{link.label === "" ? "Chatbot sans nom" : link.label}</h2>
-                    <p>Créé par {link.createdByLabel ?? "Créateur non renseigné"}</p>
+                    <h2 title={link.label === "" ? "Chatbot sans nom" : link.label}>
+                      {link.label === "" ? "Chatbot sans nom" : link.label}
+                    </h2>
                   </div>
                 </div>
                 <details className="action-menu chatbot-card-menu">
