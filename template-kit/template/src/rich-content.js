@@ -103,12 +103,12 @@ async function renderDiagrams(root) {
     try {
       diagramId += 1;
       const result = await window.mermaid.render(`onir-mermaid-${diagramId}`, source);
-      const parsed = new DOMParser().parseFromString(result.svg, "image/svg+xml");
-      const svg = parsed.documentElement;
-      if (svg instanceof SVGElement) {
-        block.replaceChildren(document.importNode(svg, true));
-        block.classList.add("mermaid-rendered");
-      }
+      const image = document.createElement("img");
+      image.alt = "Diagramme Mermaid";
+      const url = URL.createObjectURL(new Blob([result.svg], { type: "image/svg+xml" }));
+      image.src = url;
+      block.replaceChildren(image);
+      block.classList.add("mermaid-rendered");
     } catch {
       block.classList.add("mermaid-error");
     }
