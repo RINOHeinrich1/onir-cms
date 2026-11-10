@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
@@ -43,6 +44,29 @@ function previewHrefFor(link: ChatLinkRow): string {
   return previewSurface === "widget" && link.url !== null
     ? `${link.url.replace("/l/", "/embed/")}/preview`
     : `/liens/${link.id}/apercu?surface=${previewSurface}`;
+}
+
+function templatePreviewUrl(link: ChatLinkRow): string | null {
+  if (link.visualTemplateId === null || link.visualTemplateVersion === null) return null;
+  return `/api/template-assets/${encodeURIComponent(link.visualTemplateId)}/${encodeURIComponent(link.visualTemplateVersion)}/preview.png`;
+}
+
+/** Petit aperçu du template visuel associé au chatbot. */
+function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="chatbot-card-preview">
+      <Image
+        src={url}
+        alt={`Aperçu du template ${name}`}
+        fill
+        unoptimized
+        sizes="(max-width: 56rem) 100vw, 360px"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
 }
 
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
@@ -511,12 +535,19 @@ export function LinksTable({
       <div className="chatbot-grid chatbot-grid--links">
         {pagination.pageItems.map((link) => {
           const previewHref = previewHrefFor(link);
+          const previewUrl = templatePreviewUrl(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
           return (
             <article
-              className={`chatbot-card chatbot-card--links${selectedIds.includes(link.id) ? " is-selected" : ""}`}
+              className={`chatbot-card chatbot-card--links${previewUrl === null ? "" : " chatbot-card--with-preview"}${selectedIds.includes(link.id) ? " is-selected" : ""}`}
               key={link.id}
             >
+              {previewUrl === null ? null : (
+                <ChatbotTemplatePreview
+                  url={previewUrl}
+                  name={link.label === "" ? "Chatbot sans nom" : link.label}
+                />
+              )}
               <header className="chatbot-card-head">
                 <RoundCheckbox
                   className="chatbot-card-select"

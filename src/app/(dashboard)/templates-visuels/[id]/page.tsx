@@ -95,7 +95,6 @@ export default async function VisualTemplatePage({ params, searchParams }: PageP
       <section className="template-detail-hero card">
         <TemplateCover
           templateId={template.id}
-          templateKey={template.key}
           version={selected?.version ?? null}
           name={template.name}
         />

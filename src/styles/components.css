@@ -9445,3 +9445,26 @@ a.subtab {
     flex: 1 1 auto;
   }
 }
+
+/* Aperçu du template visuel sur les cartes de chatbots. */
+.chatbot-card-preview {
+  position: relative;
+  width: calc(100% + 2.7rem);
+  margin: -1.35rem -1.35rem 1rem;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 1.1rem 1.1rem 0 0;
+  background: var(--surface);
+}
+
+.chatbot-card-preview img {
+  object-fit: cover;
+}
+
+.chatbot-card--with-preview {
+  min-height: 0;
+}
+
+.chatbot-card--with-preview .chatbot-card-head {
+  padding-bottom: 0.2rem;
+}
