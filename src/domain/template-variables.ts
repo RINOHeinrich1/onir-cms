@@ -96,7 +96,7 @@ function renderChildTable(definition: TemplateDefinition | undefined, value: unk
           .map((field) => cellText(row[field.name]).replaceAll("|", "\\|"))
           .join(" | ")} |`,
     );
-  return [header, separator, ...rows].join("\n");
+  return ["", header, separator, ...rows, ""].join("\n");
 }
 
 export function buildRenderVariables(

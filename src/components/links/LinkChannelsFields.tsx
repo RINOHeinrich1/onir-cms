@@ -10,7 +10,7 @@ import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { ConfidentialiteOption, VisualTemplateOption } from "./types";
 import {
-  defaultsForSchema,
+  mergeParamsForSelection,
   paramsSchemaForSelection,
   parseVisualTemplateSelection,
   widgetDisplayForSelection,
@@ -82,8 +82,11 @@ export function LinkChannelsFields({
       const display = widgetDisplayForSelection(visualTemplates, value.page.visualTemplate);
       if (display !== null) {
         nextDraft.visualTemplate = value.page.visualTemplate;
-        nextDraft.params = defaultsForSchema(
-          paramsSchemaForSelection(visualTemplates, value.page.visualTemplate),
+        nextDraft.params = mergeParamsForSelection(
+          visualTemplates,
+          value.widget.visualTemplate,
+          value.page.visualTemplate,
+          value.widget.params,
         );
       }
     }
@@ -199,7 +202,12 @@ export function LinkChannelsFields({
                 const nextDraft: ChannelDraft = {
                   ...draft,
                   visualTemplate: next,
-                  params: defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)),
+                  params: mergeParamsForSelection(
+                    visualTemplates,
+                    draft.visualTemplate,
+                    next,
+                    draft.params,
+                  ),
                   ...(display === null ? {} : { widgetPosition: display.defaultPosition }),
                 };
                 const nextValue = { ...value, [active]: nextDraft };
@@ -212,7 +220,12 @@ export function LinkChannelsFields({
                   nextValue.widget = {
                     ...value.widget,
                     visualTemplate: next,
-                    params: defaultsForSchema(paramsSchemaForSelection(visualTemplates, next)),
+                    params: mergeParamsForSelection(
+                      visualTemplates,
+                      value.widget.visualTemplate,
+                      next,
+                      value.widget.params,
+                    ),
                     widgetPosition: display.defaultPosition,
                   };
                 }

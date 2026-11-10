@@ -1,6 +1,10 @@
 "use client";
 
-import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import {
+  mergeTemplateParams,
+  type TemplateParamSchema,
+  type TemplateParamValues,
+} from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
 import type { WidgetDisplay } from "@/domain/widget";
 import type { VisualTemplateOption } from "./types";
@@ -28,6 +32,19 @@ export function paramsSchemaForSelection(
 }
 
 /** Valeurs initiales : les défauts déclarés par le template. */
+export function mergeParamsForSelection(
+  templates: VisualTemplateOption[],
+  previousSelection: string,
+  nextSelection: string,
+  previousValues: TemplateParamValues,
+): TemplateParamValues {
+  return mergeTemplateParams(
+    paramsSchemaForSelection(templates, previousSelection),
+    paramsSchemaForSelection(templates, nextSelection),
+    previousValues,
+  ).values;
+}
+
 export function defaultsForSchema(schema: TemplateParamSchema[]): TemplateParamValues {
   const values: TemplateParamValues = {};
   for (const param of schema) values[param.key] = param.default;

@@ -56,6 +56,24 @@ function substitute(text: string, vars: Record<string, string>): string {
  * fournie par l'appelant), puis normalisation finale (trim + saut de ligne),
  * identique à l'historique.
  */
+function normalizeMarkdownTables(markdown: string): string {
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+  const output: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const isRow = line.trimStart().startsWith("|");
+    const previous = output[output.length - 1] ?? "";
+    const previousIsRow = previous.trimStart().startsWith("|");
+    if (isRow && !previousIsRow && previous.trim() !== "") output.push("");
+    output.push(line);
+    const next = lines[index + 1] ?? "";
+    if (isRow && !next.trimStart().startsWith("|") && next.trim() !== "") {
+      output.push("");
+    }
+  }
+  return output.join("\n");
+}
+
 export function renderTemplateMarkdown(input: {
   definition: TemplateDefinition;
   data: Record<string, unknown>;
@@ -71,5 +89,5 @@ export function renderTemplateMarkdown(input: {
     { date: input.date },
     input.fileValues,
   );
-  return `${renderTemplate(input.definition.renderTemplate, vars).trim()}\n`;
+  return `${normalizeMarkdownTables(renderTemplate(input.definition.renderTemplate, vars).trim())}\n`;
 }

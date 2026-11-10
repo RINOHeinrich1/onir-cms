@@ -86,6 +86,40 @@ describe("renderTemplate", () => {
     expect(vars.champs_guide).toContain("pièce jointe");
   });
 
+  it("sépare un tableau Markdown de son libellé", () => {
+    const child: TemplateDefinition = {
+      key: "item",
+      label: "Élément",
+      description: "",
+      systemPrompt: "",
+      fields: [{ name: "nom", label: "Nom", type: "text", required: true }],
+      renderTemplate: "# Élément",
+    };
+    const withTable: TemplateDefinition = {
+      ...DEFINITION,
+      fields: [
+        {
+          name: "items",
+          label: "Lignes",
+          type: "tableau_de_fiches",
+          required: true,
+          ficheKey: "item",
+        },
+      ],
+      subFiches: [child],
+      renderTemplate: "# Fiche\n\n- **Lignes** : {{items}}",
+    };
+    const out = renderTemplateMarkdown({
+      definition: withTable,
+      data: { items: [{ nom: "A" }, { nom: "B" }] },
+      serverVars: {},
+      date: "2026-01-01",
+    });
+    expect(out).toContain("- **Lignes** : \n\n| Nom |");
+    expect(out).toContain("| A |");
+    expect(out).toContain("| B |");
+  });
+
   it("rend un markdown déterministe (trim + saut final)", () => {
     const out = renderTemplateMarkdown({
       definition: DEFINITION,

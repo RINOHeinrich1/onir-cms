@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { validateTemplateManifest } from "@/domain/entities/visual-template";
 import { buildTemplateContext } from "@/domain/template-contract";
 import {
+  mergeTemplateParams,
   normalizeTemplateParamValues,
   orphanParamKeys,
   resolveTemplateParams,
@@ -20,6 +21,65 @@ const SCHEMA: TemplateParamSchema[] = [
     maxLength: 60,
   },
 ];
+
+describe("mergeTemplateParams", () => {
+  const oldSchema: TemplateParamSchema[] = [
+    { key: "chat_title", label: "Titre", description: "", type: "string", default: "ONIRTECH" },
+    { key: "primary_color", label: "Couleur", description: "", type: "color", default: "#023777" },
+    {
+      key: "ambiance",
+      label: "Ambiance",
+      description: "",
+      type: "select",
+      default: "jour",
+      options: [{ value: "jour", label: "Jour" }],
+    },
+    { key: "ancien_param", label: "Ancien", description: "", type: "string", default: "x" },
+  ];
+  const newSchema: TemplateParamSchema[] = [
+    { key: "chat_title", label: "Titre", description: "", type: "string", default: "ONIRTECH" },
+    { key: "primary_color", label: "Couleur", description: "", type: "color", default: "#023777" },
+    {
+      key: "ambiance",
+      label: "Ambiance",
+      description: "",
+      type: "select",
+      default: "jour",
+      options: [{ value: "nuit", label: "Nuit" }],
+    },
+    {
+      key: "finish_label",
+      label: "Terminer",
+      description: "",
+      type: "string",
+      default: "Terminer",
+    },
+  ];
+
+  it("conserve les clés/types compatibles et ajoute les nouveaux défauts", () => {
+    const result = mergeTemplateParams(oldSchema, newSchema, {
+      chat_title: "Vinia",
+      primary_color: "#123456",
+      ambiance: "jour",
+      ancien_param: "x",
+    });
+    expect(result.values.chat_title).toBe("Vinia");
+    expect(result.values.primary_color).toBe("#123456");
+    expect(result.values.finish_label).toBe("Terminer");
+    expect(result.values.ambiance).toBe("jour"); // option absente => défaut
+    expect(result.added).toEqual(["finish_label"]);
+    expect(result.removed).toContain("ancien_param");
+  });
+
+  it("réinitialise si le type change", () => {
+    const changed = newSchema.map((param) =>
+      param.key === "chat_title" ? { ...param, type: "number" as const, default: 0 } : param,
+    );
+    const result = mergeTemplateParams(oldSchema, changed, { chat_title: "Vinia" });
+    expect(result.values.chat_title).toBe(0);
+    expect(result.reset).toContain("chat_title");
+  });
+});
 
 describe("validateTemplateParamSchema", () => {
   it("accepte un bloc valide et projette les champs connus", () => {

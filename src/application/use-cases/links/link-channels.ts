@@ -9,7 +9,11 @@ import {
   parseVisualTemplateConfig,
   parseWidgetConfig,
 } from "@/domain/entities/chat";
-import type { TemplateParamValues } from "@/domain/template-params";
+import {
+  mergeTemplateParams,
+  type TemplateParamSchema,
+  type TemplateParamValues,
+} from "@/domain/template-params";
 import { parseIdentificationMode, parseSurface } from "./link-fields";
 import { prepareLinkParams } from "./link-params";
 import { validateWidgetLink } from "./widget-link";
@@ -60,6 +64,16 @@ function enabledFor(
   if (raw !== null && has(raw, "enabled")) return raw.enabled === true;
   if (existing !== undefined) return existing.enabled;
   return legacySurface === channel;
+}
+
+async function templateSchema(
+  visualTemplates: ResolveLinkChannelsInput["visualTemplates"],
+  id: string | null,
+  version: string | null,
+): Promise<TemplateParamSchema[]> {
+  if (id === null || version === null) return [];
+  const found = await visualTemplates.findVersion(id, version);
+  return found?.manifest.params ?? [];
 }
 
 async function resolveChannel(
@@ -121,19 +135,29 @@ async function resolveChannel(
       ? parseVisualTemplateConfig(raw.visualTemplateConfig)
       : (existing?.visualTemplateConfig ?? {});
 
-  const templateChanged =
-    visualTemplateId !== (existing?.visualTemplateId ?? null) ||
-    visualTemplateVersion !== (existing?.visualTemplateVersion ?? null);
-  let visualTemplateParams: TemplateParamValues = templateChanged
-    ? {}
-    : (existing?.visualTemplateParams ?? {});
+  const oldSchema = await templateSchema(
+    input.visualTemplates,
+    existing?.visualTemplateId ?? null,
+    existing?.visualTemplateVersion ?? null,
+  );
+  const newSchema = await templateSchema(
+    input.visualTemplates,
+    visualTemplateId,
+    visualTemplateVersion,
+  );
+  let visualTemplateParams: TemplateParamValues = mergeTemplateParams(
+    oldSchema,
+    newSchema,
+    existing?.visualTemplateParams ?? {},
+  ).values;
   if (raw !== null && has(raw, "visualTemplateParams")) {
-    visualTemplateParams = await prepareLinkParams(
+    const prepared = await prepareLinkParams(
       input.visualTemplates,
       visualTemplateId,
       visualTemplateVersion,
       raw.visualTemplateParams,
     );
+    visualTemplateParams = { ...visualTemplateParams, ...prepared };
   }
 
   let widgetConfig = parseWidgetConfig(
