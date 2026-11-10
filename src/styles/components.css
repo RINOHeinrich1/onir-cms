@@ -9088,3 +9088,22 @@ a.subtab {
   color: var(--danger);
   font-size: 0.75rem;
 }
+
+/* Cartes de leads groupées : le pied de carte reste dans la largeur de la carte. */
+.leads-chatbot-cards .inbox-chatbot-card {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.leads-chatbot-cards .inbox-chatbot-card > * {
+  min-width: 0;
+}
+
+.leads-chatbot-cards .inbox-chatbot-card-foot {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.leads-chatbot-cards .inbox-chatbot-card-foot .hint {
+  flex: 1 1 auto;
+}

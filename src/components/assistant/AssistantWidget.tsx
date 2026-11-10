@@ -11,10 +11,20 @@ import {
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { Modal } from "@/components/ui/Modal";
 import { AssistantFairy } from "./AssistantFairy";
+import {
+  ASSISTANT_WIDGET_HEIGHT,
+  ASSISTANT_WIDGET_MARGIN,
+  ASSISTANT_WIDGET_WIDTH,
+  type AssistantPosition,
+  assistantPositionRect,
+  assistantRectsOverlap,
+  buildAssistantCandidates,
+  chooseAssistantPosition,
+  clampAssistantPosition,
+} from "./assistant-avoidance";
 import { KnowledgeImportDialog } from "./KnowledgeImportDialog";
 
 type AssistantPanel = "home" | "create" | "knowledge";
-type AssistantPosition = { x: number; y: number };
 type DragState = {
   pointerId: number;
   startX: number;
@@ -32,10 +42,11 @@ const TIP_REPEAT_MS = 60_000;
 const TIP_VISIBLE_MS = 9_000;
 const MAX_TIPS = 2;
 const TIP_WIDTH = 238;
-const WIDGET_WIDTH = 98;
-const WIDGET_HEIGHT = 108;
-const WIDGET_MARGIN = 18;
+const WIDGET_WIDTH = ASSISTANT_WIDGET_WIDTH;
+const WIDGET_HEIGHT = ASSISTANT_WIDGET_HEIGHT;
+const WIDGET_MARGIN = ASSISTANT_WIDGET_MARGIN;
 const DRAG_THRESHOLD = 4;
+const AVOIDANCE_DELAY_MS = 100;
 const TIP_MESSAGES = [
   "Je suis là si besoin.",
   "Créons un chatbot rapidement ?",
@@ -43,13 +54,82 @@ const TIP_MESSAGES = [
   "Une question sur ONIR ? Je suis là.",
 ];
 
+const INTERACTIVE_SELECTOR = [
+  "a[href]",
+  "button",
+  "input:not([type='hidden'])",
+  "select",
+  "textarea",
+  "summary",
+  "label",
+  "audio[controls]",
+  "video[controls]",
+  "[role='button']",
+  "[role='link']",
+  "[role='tab']",
+  "[role='menuitem']",
+  "[role='switch']",
+  "[role='checkbox']",
+  "[role='radio']",
+  "[tabindex]:not([tabindex='-1'])",
+  "[data-fairy-avoid]",
+].join(",");
+
+function isOwnAssistantElement(element: Element | null): boolean {
+  return element !== null && element.closest(".assistant-launcher, .assistant-tip") !== null;
+}
+
+function isVisibleControl(control: Element): boolean {
+  if (!(control instanceof HTMLElement)) return false;
+  if (control.matches(":disabled")) return false;
+  if (control.closest("[inert], [aria-hidden='true']") !== null) return false;
+  const rect = control.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && getComputedStyle(control).visibility !== "hidden";
+}
+
+function isInteractiveAt(x: number, y: number): boolean {
+  for (const element of document.elementsFromPoint(x, y)) {
+    if (isOwnAssistantElement(element)) continue;
+    const control = element.closest(INTERACTIVE_SELECTOR);
+    if (control !== null && !isOwnAssistantElement(control) && isVisibleControl(control)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isPositionOverInteractive(
+  position: AssistantPosition,
+  size: { width: number; height: number },
+): boolean {
+  const rect = assistantPositionRect(position, size);
+  const xPoints = [rect.left + 4, (rect.left + rect.right) / 2, rect.right - 4];
+  const yPoints = [rect.top + 4, (rect.top + rect.bottom) / 2, rect.bottom - 4];
+  for (const y of yPoints) {
+    for (const x of xPoints) {
+      if (isInteractiveAt(x, y)) return true;
+    }
+  }
+
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && !isOwnAssistantElement(active)) {
+    const activeControl = active.closest(INTERACTIVE_SELECTOR);
+    if (
+      activeControl !== null &&
+      isVisibleControl(activeControl) &&
+      assistantRectsOverlap(rect, activeControl.getBoundingClientRect())
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function clampPosition(position: AssistantPosition): AssistantPosition {
-  const maxX = Math.max(WIDGET_MARGIN, window.innerWidth - WIDGET_WIDTH - WIDGET_MARGIN);
-  const maxY = Math.max(WIDGET_MARGIN, window.innerHeight - WIDGET_HEIGHT - WIDGET_MARGIN);
-  return {
-    x: Math.min(Math.max(WIDGET_MARGIN, position.x), maxX),
-    y: Math.min(Math.max(WIDGET_MARGIN, position.y), maxY),
-  };
+  return clampAssistantPosition(position, {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 }
 
 function defaultPosition(): AssistantPosition {
@@ -147,6 +227,7 @@ export function AssistantWidget() {
   const [tipCount, setTipCount] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
   const dragRef = useRef<DragState | null>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
   const blocked = open || knowledgeOpen || builderOpen || dragging;
 
   useEffect(() => {
@@ -160,6 +241,61 @@ export function AssistantWidget() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    if (position === null || blocked) return;
+
+    let frame = 0;
+    let timer = 0;
+    let stopped = false;
+
+    const resolve = () => {
+      frame = 0;
+      if (stopped) return;
+      const launcher = launcherRef.current;
+      const size = {
+        width: launcher?.offsetWidth || WIDGET_WIDTH,
+        height: launcher?.offsetHeight || WIDGET_HEIGHT,
+      };
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const current = clampAssistantPosition(position, viewport, size);
+      const candidates = buildAssistantCandidates(current, viewport, size);
+      const next = chooseAssistantPosition(
+        current,
+        candidates,
+        (candidate) => !isPositionOverInteractive(candidate, size),
+      );
+      if (next.x !== position.x || next.y !== position.y) {
+        setPosition(next);
+      }
+    };
+
+    const schedule = () => {
+      if (frame !== 0 || timer !== 0) return;
+      timer = window.setTimeout(() => {
+        timer = 0;
+        frame = window.requestAnimationFrame(resolve);
+      }, AVOIDANCE_DELAY_MS);
+    };
+
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("load", schedule);
+    document.addEventListener("focusin", schedule);
+    document.addEventListener("click", schedule, true);
+
+    return () => {
+      stopped = true;
+      if (timer !== 0) window.clearTimeout(timer);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("load", schedule);
+      document.removeEventListener("focusin", schedule);
+      document.removeEventListener("click", schedule, true);
+    };
+  }, [blocked, position]);
 
   useEffect(() => {
     if (blocked) setTipVisible(false);
@@ -296,6 +432,7 @@ export function AssistantWidget() {
       {builderOpen ? null : (
         <>
           <button
+            ref={launcherRef}
             type="button"
             className={`assistant-launcher${dragging ? " is-dragging" : ""}${
               open ? " is-dialog-open" : ""
