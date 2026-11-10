@@ -46,8 +46,12 @@ function previewHrefFor(link: ChatLinkRow): string {
     : `/liens/${link.id}/apercu?surface=${previewSurface}`;
 }
 
-function templatePreviewUrl(link: ChatLinkRow): string | null {
-  if (link.visualTemplateId === null || link.visualTemplateVersion === null) return null;
+const DEFAULT_CHATBOT_PREVIEW = "/chatbot-default.webp";
+
+function templatePreviewUrl(link: ChatLinkRow): string {
+  if (link.visualTemplateId === null || link.visualTemplateVersion === null) {
+    return DEFAULT_CHATBOT_PREVIEW;
+  }
   return `/api/template-assets/${encodeURIComponent(link.visualTemplateId)}/${encodeURIComponent(link.visualTemplateVersion)}/preview.png`;
 }
 
@@ -539,15 +543,13 @@ export function LinksTable({
           const widgetEnabled = channelsForLink(link).widget.enabled;
           return (
             <article
-              className={`chatbot-card chatbot-card--links${previewUrl === null ? "" : " chatbot-card--with-preview"}${selectedIds.includes(link.id) ? " is-selected" : ""}`}
+              className={`chatbot-card chatbot-card--links${" chatbot-card--with-preview"}${selectedIds.includes(link.id) ? " is-selected" : ""}`}
               key={link.id}
             >
-              {previewUrl === null ? null : (
-                <ChatbotTemplatePreview
-                  url={previewUrl}
-                  name={link.label === "" ? "Chatbot sans nom" : link.label}
-                />
-              )}
+              <ChatbotTemplatePreview
+                url={previewUrl}
+                name={link.label === "" ? "Chatbot sans nom" : link.label}
+              />
               <header className="chatbot-card-head">
                 <RoundCheckbox
                   className="chatbot-card-select"
