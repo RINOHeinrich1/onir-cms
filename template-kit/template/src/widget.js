@@ -879,7 +879,12 @@ class StarterWidget extends HTMLElement {
     const brandName = el("h2");
     const statusText = el("span", { text: "Assistant en ligne" });
     const statusDot = el("span", { class: "status-dot", "aria-hidden": "true" });
-    const finishButton = el("button", { class: "finish", type: "button", text: "Terminer", hidden: "true" });
+    const finishButton = el("button", {
+      class: "finish",
+      type: "button",
+      text: paramText(this.#ctx, "finish_label", "Terminer"),
+      hidden: "true",
+    });
     const closeButton = el("button", {
       class: "icon-btn",
       type: "button",
@@ -1058,7 +1063,9 @@ class StarterWidget extends HTMLElement {
     this.#empty.hidden = ctx.state.messages.length > 0 || ctx.state.typing;
     this.#finishButton.hidden = finalised || fallbackActive || !hasCollection;
     this.#finishButton.disabled = this.#finishing || ctx.state.typing;
-    this.#finishButton.textContent = this.#finishing ? "…" : "Terminer";
+    this.#finishButton.textContent = this.#finishing
+      ? "…"
+      : paramText(ctx, "finish_label", "Terminer");
     if (this.#collectionButton !== null) {
       this.#collectionButton.hidden = !semiAvailable || finalised || fallbackActive || collectionOpen || this.#collectionPicker;
     }

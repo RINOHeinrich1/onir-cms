@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.6.10",
+  "version": "1.6.11",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -17,12 +17,12 @@
     "mode": "web-component",
     "entry": "./src/index.js",
     "element": "onirtech-template-starter",
-    "integrity": "sha256-sFDMHHr3r9lKwFLhEBHc4w517KuwEFZpOiKbk/nChZg=",
+    "integrity": "sha256-ZnVfauhFbH55xpc3VYkjJdsoVi6ebHvbFVka2RTSmn0=",
     "shadowDom": "open",
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-XOOI9PzYnbUUEdogO7PhnhSqsoJ09TqHuABdsfa1GXI=",
+      "integrity": "sha256-9n7w6f9SQJIhTo6l9gCUgtmvlnHY6qyRJEr804Gf10g=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [
@@ -84,6 +84,14 @@
       "type": "text",
       "default": "Décrivez votre demande. Je vous réponds directement ici.",
       "maxLength": 300
+    },
+    {
+      "key": "finish_label",
+      "label": "Libellé du bouton Terminer",
+      "description": "Texte affiché sur le bouton de clôture de la conversation.",
+      "type": "string",
+      "default": "Terminer",
+      "maxLength": 40
     },
     {
       "key": "primary_color",

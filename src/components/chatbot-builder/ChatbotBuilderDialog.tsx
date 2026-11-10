@@ -60,6 +60,12 @@ function fileMetadata(files: File[]): Array<{ name: string; size: number }> {
   return files.map((file) => ({ name: file.name, size: file.size }));
 }
 
+function fileSizeLabel(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
 function BriefIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -766,6 +772,30 @@ export function ChatbotBuilderDialog({ open, onClose }: { open: boolean; onClose
                       </span>
                     ) : null}
                     <div>{message.content}</div>
+                  </div>
+                ))}
+                {documents.map((document) => (
+                  <div
+                    key={`document:${document.name}`}
+                    className="chatbot-builder-message user chatbot-builder-upload-message"
+                  >
+                    <div className="chatbot-builder-upload-card">
+                      <span className="chatbot-builder-upload-icon" aria-hidden="true">
+                        <PaperclipIcon />
+                      </span>
+                      <span className="chatbot-builder-upload-content">
+                        <strong>{document.name}</strong>
+                        <span>{fileSizeLabel(document.size)} · Document ajouté</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="chatbot-builder-upload-remove"
+                        aria-label={`Retirer ${document.name}`}
+                        onClick={() => removeDocument(document.name)}
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {pending ? (

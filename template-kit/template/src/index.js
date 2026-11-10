@@ -796,7 +796,7 @@ class StarterTemplate extends HTMLElement {
         ? el("button", {
             type: "button",
             class: "finish",
-            text: "Terminer",
+            text: paramText(ctx, "finish_label", "Terminer"),
             onclick: () => ctx.actions.finish(),
           })
         : null;
