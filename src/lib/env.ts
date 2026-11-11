@@ -133,6 +133,16 @@ export function assertDeploymentConfig(): void {
   }
 }
 
+/** Clé de service utilisée par les API plateforme (backoffice commercial). */
+export function platformApiKey(): string | undefined {
+  return env("PLATFORM_API_KEY");
+}
+
+/** Identité réelle du compte de service plateforme. */
+export function platformApiUserId(): string | undefined {
+  return env("PLATFORM_API_USER_ID");
+}
+
 /** URL de connexion PostgreSQL dédiée (RM-DATA-001). */
 export function databaseUrl(): string {
   return required("DATABASE_URL");

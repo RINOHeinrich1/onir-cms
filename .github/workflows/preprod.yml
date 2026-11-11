@@ -89,6 +89,18 @@ jobs:
       name: preprod
       url: https://preprod-cms.onirtech.com
     steps:
+      - name: Configure platform API credentials
+        env:
+          PLATFORM_API_KEY: ${{ secrets.PLATFORM_API_KEY }}
+          PLATFORM_API_USER_ID: ${{ secrets.PLATFORM_API_USER_ID }}
+        run: |
+          set -euo pipefail
+          [[ -n "${PLATFORM_API_KEY}" ]] || { echo "PLATFORM_API_KEY manquant"; exit 1; }
+          [[ -n "${PLATFORM_API_USER_ID}" ]] || { echo "PLATFORM_API_USER_ID manquant"; exit 1; }
+          ENV_FILE=/opt/onir-cms-preprod/.env.preprod
+          sed -i '/^PLATFORM_API_KEY=/d;/^PLATFORM_API_USER_ID=/d' "${ENV_FILE}"
+          printf 'PLATFORM_API_KEY=%s\nPLATFORM_API_USER_ID=%s\n' "${PLATFORM_API_KEY}" "${PLATFORM_API_USER_ID}" >> "${ENV_FILE}"
+
       - name: Deploy
         env:
           IMAGE_TAG: ${{ needs.build.outputs.tag }}

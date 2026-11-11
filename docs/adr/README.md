@@ -84,3 +84,4 @@ ADR qui remplace la précédente.
 | [0082](./0082-collecte-semi-heuristique-formulaire-multifiche.md) | Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche | Proposé |
 | [0083](./0083-composition-generique-fiches.md) | Composition générique de fiches — relations 1..1 et 1..n | Proposé |
 | [0085](./0085-evitement-fee-controles-interactifs.md) | Évitement automatique de la fée ONIR sur les contrôles interactifs | Proposé |
+| [0088](./0088-api-plateforme-service-a-service.md) | API plateforme — authentification service-à-service | Accepté |
