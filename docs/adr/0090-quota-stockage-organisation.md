@@ -3,7 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-11-11
 - **Décideurs** : équipe projet
-- **Référence** : ADR-0034, ADR-0088.
+- **Référence** : ADR-0034, ADR-0089.
 
 ## Contexte
 
