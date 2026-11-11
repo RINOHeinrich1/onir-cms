@@ -89,7 +89,14 @@ jobs:
       name: preprod
       url: https://preprod-cms.onirtech.com
     steps:
-      - name: Configure platform API credentials
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
+
+      - name: Apply platform API environment
         env:
           PLATFORM_API_KEY: ${{ secrets.PLATFORM_API_KEY }}
           PLATFORM_API_USER_ID: ${{ secrets.PLATFORM_API_USER_ID }}
@@ -97,16 +104,25 @@ jobs:
           set -euo pipefail
           [[ -n "${PLATFORM_API_KEY}" ]] || { echo "PLATFORM_API_KEY manquant"; exit 1; }
           [[ -n "${PLATFORM_API_USER_ID}" ]] || { echo "PLATFORM_API_USER_ID manquant"; exit 1; }
-          ENV_FILE=/opt/onir-cms-preprod/.env.preprod
-          sed -i '/^PLATFORM_API_KEY=/d;/^PLATFORM_API_USER_ID=/d' "${ENV_FILE}"
-          printf 'PLATFORM_API_KEY=%s\nPLATFORM_API_USER_ID=%s\n' "${PLATFORM_API_KEY}" "${PLATFORM_API_USER_ID}" >> "${ENV_FILE}"
-
-      - name: Deploy
-        env:
-          IMAGE_TAG: ${{ needs.build.outputs.tag }}
-        run: |
-          set -euo pipefail
-          /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
+          OVERRIDE=/opt/onir-cms-preprod/onir-platform-override.yml
+          cat > "${OVERRIDE}" <<EOF
+          services:
+            app:
+              environment:
+                PLATFORM_API_KEY: "${PLATFORM_API_KEY}"
+                PLATFORM_API_USER_ID: "${PLATFORM_API_USER_ID}"
+          EOF
+          chmod 600 "${OVERRIDE}"
+          docker compose --project-directory /opt/onir-cms-preprod \
+            --env-file /opt/onir-cms-preprod/.env.preprod \
+            -f /opt/onir-cms-preprod/docker-compose.preprod.yml \
+            -f "${OVERRIDE}" up -d app
+          for _ in $(seq 1 100); do
+            if curl -fsS --max-time 5 "http://127.0.0.1:3200/api/health" >/dev/null 2>&1; then exit 0; fi
+            sleep 3
+          done
+          echo "santé indisponible après application de l'environnement plateforme" >&2
+          exit 1
 
       - name: Smoke test
         env:
