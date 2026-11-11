@@ -8,7 +8,7 @@ import { pgLimitProfileRepository } from "@/infrastructure/db/limit-profile-repo
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject } from "../../../_lib/http";
-import { requireSuperAdmin } from "../../../_lib/require-user";
+import { requirePlatformAdmin } from "../../../_lib/require-user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ function deps() {
 /** PATCH /api/platform/limit-profiles/[id] — modification (super-admin). */
 export async function PATCH(request: Request, context: RouteContext): Promise<NextResponse> {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requirePlatformAdmin(request);
     const { id } = await context.params;
     const body = await readJsonObject(request);
     if (body === null) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Ne
 /** DELETE /api/platform/limit-profiles/[id] — suppression (super-admin). */
 export async function DELETE(request: Request, context: RouteContext): Promise<NextResponse> {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requirePlatformAdmin(request);
     const { id } = await context.params;
     await deleteLimitProfile(deps(), actor, id);
     return NextResponse.json({ ok: true });
