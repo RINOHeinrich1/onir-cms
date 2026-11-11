@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { type Actor, actorCan } from "@/application/actor";
 import {
@@ -98,9 +98,9 @@ export async function requireSuperAdmin(request: Request): Promise<Actor> {
 }
 
 function secureEqual(left: string, right: string): boolean {
-  const a = createHash("sha256").update(left).digest();
-  const b = createHash("sha256").update(right).digest();
-  return timingSafeEqual(a, b);
+  const a = Buffer.from(left, "utf8");
+  const b = Buffer.from(right, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**
