@@ -21,6 +21,8 @@ type BudgetRow = {
   organization_id: string;
   max_tokens: string | null;
   tokens_used: string;
+  max_messages: string | null;
+  messages_used: string;
   token_reset_mode: string;
   token_reset_days: number | null;
   token_period_started_at: Date;
@@ -69,6 +71,8 @@ function budgetFromRow(row: BudgetRow): OrganizationAiBudget {
     organizationId: row.organization_id,
     maxTokens: tokenNumber(row.max_tokens),
     tokensUsed: Number(row.tokens_used),
+    maxMessages: tokenNumber(row.max_messages),
+    messagesUsed: Number(row.messages_used),
     tokenResetMode: resetMode(row.token_reset_mode),
     tokenResetDays: row.token_reset_days,
     tokenPeriodStartedAt: row.token_period_started_at.toISOString(),
@@ -98,7 +102,7 @@ function periodExpired(budget: BudgetRow, now: Date): boolean {
 
 async function resetExpiredBudget(client: PoolClient, organizationId: string): Promise<void> {
   const { rows } = await client.query<BudgetRow>(
-    `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
+    `SELECT organization_id, max_tokens, tokens_used, max_messages, messages_used, token_reset_mode,
             token_reset_days, token_period_started_at
        FROM organization_ai_budgets
       WHERE organization_id = $1
@@ -110,7 +114,7 @@ async function resetExpiredBudget(client: PoolClient, organizationId: string): P
 
   await client.query(
     `UPDATE organization_ai_budgets
-        SET tokens_used = 0, token_period_started_at = now(), updated_at = now()
+        SET tokens_used = 0, messages_used = 0, token_period_started_at = now(), updated_at = now()
       WHERE organization_id = $1`,
     [organizationId],
   );
@@ -129,7 +133,7 @@ async function readStateWithClient(
   await resetExpiredBudget(client, organizationId);
   const [budgetRows, allocationRows] = await Promise.all([
     client.query<BudgetRow>(
-      `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
+      `SELECT organization_id, max_tokens, tokens_used, max_messages, messages_used, token_reset_mode,
               token_reset_days, token_period_started_at
          FROM organization_ai_budgets
         WHERE organization_id = $1`,
@@ -216,7 +220,7 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
       await client.query("BEGIN");
       await resetExpiredBudget(client, organizationId);
       const budgetRows = await client.query<BudgetRow>(
-        `SELECT organization_id, max_tokens, tokens_used, token_reset_mode,
+        `SELECT organization_id, max_tokens, tokens_used, max_messages, messages_used, token_reset_mode,
                 token_reset_days, token_period_started_at
            FROM organization_ai_budgets
           WHERE organization_id = $1`,
@@ -374,16 +378,18 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
 
         await client.query(
           `INSERT INTO organization_ai_budgets
-             (organization_id, max_tokens, token_reset_mode, token_reset_days)
-           VALUES ($1, $2, $3, $4)
+             (organization_id, max_tokens, max_messages, token_reset_mode, token_reset_days)
+           VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (organization_id) DO UPDATE
              SET max_tokens = EXCLUDED.max_tokens,
+                 max_messages = EXCLUDED.max_messages,
                  token_reset_mode = EXCLUDED.token_reset_mode,
                  token_reset_days = EXCLUDED.token_reset_days,
                  updated_at = now()`,
           [
             organizationId,
             input.maxTokens,
+            input.maxMessages ?? null,
             input.tokenResetMode,
             input.tokenResetMode === "duration" ? input.tokenResetDays : null,
           ],
@@ -454,13 +460,57 @@ export function pgOrganizationAiQuotaRepository(pool: Pool): OrganizationAiQuota
       }
     },
 
+    async consumeMessage(organizationId: string): Promise<{
+      allowed: boolean;
+      maxMessages: number | null;
+      messagesUsed: number;
+    }> {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await resetExpiredBudget(client, organizationId);
+        const { rows } = await client.query<BudgetRow>(
+          `SELECT organization_id, max_tokens, tokens_used, max_messages, messages_used,
+                  token_reset_mode, token_reset_days, token_period_started_at
+             FROM organization_ai_budgets
+            WHERE organization_id = $1
+            FOR UPDATE`,
+          [organizationId],
+        );
+        const budget = rows[0];
+        if (budget === undefined) {
+          await client.query("COMMIT");
+          return { allowed: true, maxMessages: null, messagesUsed: 0 };
+        }
+        const maxMessages = tokenNumber(budget.max_messages);
+        const messagesUsed = Number(budget.messages_used);
+        if (maxMessages !== null && messagesUsed >= maxMessages) {
+          await client.query("COMMIT");
+          return { allowed: false, maxMessages, messagesUsed };
+        }
+        await client.query(
+          `UPDATE organization_ai_budgets
+              SET messages_used = messages_used + 1, updated_at = now()
+            WHERE organization_id = $1`,
+          [organizationId],
+        );
+        await client.query("COMMIT");
+        return { allowed: true, maxMessages, messagesUsed: messagesUsed + 1 };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async resetBudget(organizationId: string): Promise<boolean> {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
         const budget = await client.query(
           `UPDATE organization_ai_budgets
-              SET tokens_used = 0, token_period_started_at = now(), updated_at = now()
+              SET tokens_used = 0, messages_used = 0, token_period_started_at = now(), updated_at = now()
             WHERE organization_id = $1
             RETURNING organization_id`,
           [organizationId],

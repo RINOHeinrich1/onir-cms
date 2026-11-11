@@ -24,6 +24,7 @@ export type OrganizationLimitAllocationInput = {
 export type SaveOrganizationLimitsInput = {
   maxChatbots: number | null;
   maxTokens: number | null;
+  maxMessages?: number | null;
   tokenResetMode: TokenResetMode;
   tokenResetDays: number | null;
   allocations: OrganizationLimitAllocationInput[];
@@ -44,4 +45,7 @@ export interface OrganizationAiQuotaRepository {
     input: SaveOrganizationLimitsInput,
   ): Promise<OrganizationLimits | null>;
   resetBudget(organizationId: string): Promise<boolean>;
+  consumeMessage(
+    organizationId: string,
+  ): Promise<{ allowed: boolean; maxMessages: number | null; messagesUsed: number }>;
 }

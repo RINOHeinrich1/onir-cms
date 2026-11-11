@@ -16,6 +16,8 @@ export type OrganizationAiBudget = {
   organizationId: string;
   maxTokens: number | null;
   tokensUsed: number;
+  maxMessages?: number | null;
+  messagesUsed?: number;
   tokenResetMode: TokenResetMode;
   tokenResetDays: number | null;
   tokenPeriodStartedAt: string;

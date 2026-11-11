@@ -1,4 +1,5 @@
 import {
+  AiQuotaExceededError,
   AppError,
   BadGatewayError,
   NotFoundError,
@@ -17,6 +18,7 @@ import type { ConversationRepository } from "@/application/ports/conversation-re
 import type { FicheCollecteRepository } from "@/application/ports/fiche-collecte-repository";
 import type { FicheToolRepository } from "@/application/ports/fiche-tool-repository";
 import type { MediaRepository } from "@/application/ports/media-repository";
+import type { OrganizationAiQuotaRepository } from "@/application/ports/organization-ai-quota-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
@@ -80,6 +82,7 @@ import { buildSystemPromptFromTemplate } from "@/infrastructure/ai/system-prompt
 
 export type SendMessageDependencies = {
   organizations: OrganizationRepository;
+  quotas?: Pick<OrganizationAiQuotaRepository, "consumeMessage">;
   links: ChatLinkRepository;
   conversations: ConversationRepository;
   prospects: ProspectRepository;
@@ -229,6 +232,15 @@ export async function sendMessage(
   const organization = await deps.organizations.findById(organizationId);
   if (organization === null || organization.suspendedAt !== null) {
     throw new NotFoundError("Conversation introuvable");
+  }
+
+  if (deps.quotas !== undefined) {
+    const messageQuota = await deps.quotas.consumeMessage(organizationId);
+    if (!messageQuota.allowed) {
+      throw new AiQuotaExceededError(
+        "Le quota de messages de cette organisation est épuisé. Contactez l'administrateur.",
+      );
+    }
   }
 
   const link = await deps.links.findById(organizationId, conversation.linkId);

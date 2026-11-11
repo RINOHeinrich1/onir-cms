@@ -83,16 +83,18 @@ export async function applyLimitProfileWithClient(
   );
   await client.query(
     `INSERT INTO organization_ai_budgets
-       (organization_id, max_tokens, token_reset_mode, token_reset_days)
-     VALUES ($1, $2, $3, $4)
+       (organization_id, max_tokens, max_messages, token_reset_mode, token_reset_days)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (organization_id) DO UPDATE
        SET max_tokens = EXCLUDED.max_tokens,
+           max_messages = EXCLUDED.max_messages,
            token_reset_mode = EXCLUDED.token_reset_mode,
            token_reset_days = EXCLUDED.token_reset_days,
            updated_at = now()`,
     [
       organizationId,
       provisioning.maxTokens,
+      provisioning.maxMessages ?? null,
       provisioning.tokenResetMode,
       provisioning.tokenResetMode === "duration" ? provisioning.tokenResetDays : null,
     ],

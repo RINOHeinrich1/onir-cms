@@ -277,3 +277,42 @@ describe("quotas organisation — persistance et absence de reset", () => {
     expect(state.allocations[0]?.tokensUsed).toBe(0);
   });
 });
+
+describe("quotas organisation — messages", () => {
+  it("consomme un message, refuse au-delà du plafond et remet à zéro à la période", async () => {
+    const quotas = pgOrganizationAiQuotaRepository(pool);
+    await quotas.saveLimits(orgId, {
+      maxChatbots: null,
+      maxTokens: null,
+      maxMessages: 2,
+      tokenResetMode: "manual",
+      tokenResetDays: null,
+      allocations: [],
+    });
+
+    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+    const refused = await quotas.consumeMessage(orgId);
+    expect(refused.allowed).toBe(false);
+    expect(refused.messagesUsed).toBe(2);
+    expect((await quotas.getLimits(orgId))?.budget?.messagesUsed).toBe(2);
+
+    await quotas.resetBudget(orgId);
+    expect((await quotas.getLimits(orgId))?.budget?.messagesUsed).toBe(0);
+    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+  });
+
+  it("ne limite pas quand maxMessages est vide", async () => {
+    const quotas = pgOrganizationAiQuotaRepository(pool);
+    await quotas.saveLimits(orgId, {
+      maxChatbots: null,
+      maxTokens: null,
+      maxMessages: null,
+      tokenResetMode: "manual",
+      tokenResetDays: null,
+      allocations: [],
+    });
+    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+  });
+});
