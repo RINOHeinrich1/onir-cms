@@ -8,7 +8,7 @@ import { pgLimitProfileRepository } from "@/infrastructure/db/limit-profile-repo
 import { getPool } from "@/infrastructure/db/pool";
 import { errorResponse } from "../../_lib/errors";
 import { readJsonObject } from "../../_lib/http";
-import { requireSuperAdmin } from "../../_lib/require-user";
+import { requirePlatformAdmin } from "../../_lib/require-user";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ function deps() {
 /** GET /api/platform/limit-profiles — profils de limites (super-admin). */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requirePlatformAdmin(request);
     const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "1";
     const profiles = await listLimitProfiles(deps(), actor, includeInactive);
     return NextResponse.json({ profiles });
@@ -35,7 +35,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 /** POST /api/platform/limit-profiles — création (super-admin). */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requirePlatformAdmin(request);
     const body = await readJsonObject(request);
     if (body === null) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     const profile = await createLimitProfile(deps(), actor, body);

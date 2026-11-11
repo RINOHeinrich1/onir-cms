@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { type Actor, actorCan } from "@/application/actor";
 import {
@@ -12,6 +13,8 @@ import { SESSION_COOKIE } from "@/domain/session";
 import { pgMembershipRepository } from "@/infrastructure/db/membership-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgSessionRepository, type Session } from "@/infrastructure/db/session-repository";
+import { pgUserRepository } from "@/infrastructure/db/user-repository";
+import { platformApiKey, platformApiUserId } from "@/lib/env";
 import { hashSessionToken } from "@/lib/session-token";
 
 /** Contexte d'une requête HTTP authentifiée (session + organisation active). */
@@ -92,4 +95,40 @@ export async function requireSuperAdmin(request: Request): Promise<Actor> {
     throw new ForbiddenError("Action réservée au super-administrateur");
   }
   return actor;
+}
+
+function secureEqual(left: string, right: string): boolean {
+  const a = createHash("sha256").update(left).digest();
+  const b = createHash("sha256").update(right).digest();
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Auth plateforme : clé Bearer pour les appels serveur-à-serveur, avec repli
+ * sur la session super-admin pour les écrans historiques du backoffice.
+ */
+export async function requirePlatformAdmin(request: Request): Promise<Actor> {
+  const expected = platformApiKey();
+  const userId = platformApiUserId();
+  const authorization = request.headers.get("authorization") ?? "";
+  if (authorization.startsWith("Bearer ")) {
+    if (expected === undefined || userId === undefined) {
+      throw new UnauthorizedError("API plateforme non configurée");
+    }
+    if (!secureEqual(authorization.slice("Bearer ".length), expected)) {
+      throw new UnauthorizedError("Clé API plateforme invalide");
+    }
+    const user = await pgUserRepository(getPool()).findById(userId);
+    if (user === null || !user.actif || !user.isSuperAdmin) {
+      throw new UnauthorizedError("Compte de service plateforme invalide");
+    }
+    return {
+      id: user.id,
+      role: "admin",
+      organizationId: null,
+      isSuperAdmin: true,
+      organizationSuspended: false,
+    };
+  }
+  return requireSuperAdmin(request);
 }
