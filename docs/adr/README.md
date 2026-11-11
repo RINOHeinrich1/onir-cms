@@ -85,3 +85,4 @@ ADR qui remplace la précédente.
 | [0083](./0083-composition-generique-fiches.md) | Composition générique de fiches — relations 1..1 et 1..n | Proposé |
 | [0085](./0085-evitement-fee-controles-interactifs.md) | Évitement automatique de la fée ONIR sur les contrôles interactifs | Proposé |
 | [0088](./0088-limite-messages-organisation.md) | Limite de messages par organisation | Accepté |
+| [0089](./0089-quota-stockage-organisation.md) | Quota global de stockage par organisation | Accepté |

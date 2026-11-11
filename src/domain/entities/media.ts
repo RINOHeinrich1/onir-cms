@@ -47,6 +47,8 @@ export type Media = {
   actif: boolean;
   /** Photo : clé de stockage du fichier (hors base) ; lien : null. */
   fichier: string | null;
+  /** Taille du fichier en octets ; null pour les anciens médias. */
+  sizeBytes?: number | null;
   /** Photo : type MIME du fichier ; lien : null. */
   mime: string | null;
   /** Lien : URL externe ; photo : null. */

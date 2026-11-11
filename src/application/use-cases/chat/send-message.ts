@@ -235,7 +235,7 @@ export async function sendMessage(
   }
 
   if (deps.quotas !== undefined) {
-    const messageQuota = await deps.quotas.consumeMessage(organizationId);
+    const messageQuota = await deps.quotas.consumeMessage(organizationId, conversation.id);
     if (!messageQuota.allowed) {
       throw new AiQuotaExceededError(
         "Le quota de messages de cette organisation est épuisé. Contactez l'administrateur.",

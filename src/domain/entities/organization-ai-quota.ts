@@ -18,6 +18,7 @@ export type OrganizationAiBudget = {
   tokensUsed: number;
   maxMessages?: number | null;
   messagesUsed?: number;
+  messageLimitPolicy?: "block" | "recycle";
   tokenResetMode: TokenResetMode;
   tokenResetDays: number | null;
   tokenPeriodStartedAt: string;

@@ -8,6 +8,8 @@ export type CreateMediaInput = {
   actif: boolean;
   /** Photo : clé de stockage ; lien : null. */
   fichier: string | null;
+  /** Taille du fichier en octets ; null pour un lien. */
+  sizeBytes?: number | null;
   /** Photo : type MIME ; lien : null. */
   mime: string | null;
   /** Lien : URL externe ; photo : null. */

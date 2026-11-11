@@ -12,6 +12,7 @@ import type {
 const MAX_TOKENS = 1_000_000_000_000;
 const MAX_CHATBOTS = 1_000_000;
 const MAX_MESSAGES = 1_000_000_000;
+const MAX_STORAGE_MB = 1_000_000;
 const MAX_ALLOCATIONS = 100;
 const MAX_DEFAULTS = AI_USAGES.length;
 
@@ -178,6 +179,10 @@ export function parseInvitationProvisioning(
       : null,
     maxMessages: has(source, "maxMessages")
       ? integerOrNull(source.maxMessages, "Nombre maximal de messages", MAX_MESSAGES)
+      : null,
+    messageLimitPolicy: source.messageLimitPolicy === "recycle" ? "recycle" : "block",
+    maxStorageMb: has(source, "maxStorageMb")
+      ? integerOrNull(source.maxStorageMb, "Quota de stockage", MAX_STORAGE_MB)
       : null,
     tokenResetMode: reset.mode,
     tokenResetDays: reset.days,

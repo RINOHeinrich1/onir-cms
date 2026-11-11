@@ -290,16 +290,22 @@ describe("quotas organisation — messages", () => {
       allocations: [],
     });
 
-    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
-    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
-    const refused = await quotas.consumeMessage(orgId);
+    expect(
+      (await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000")).allowed,
+    ).toBe(true);
+    expect(
+      (await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000")).allowed,
+    ).toBe(true);
+    const refused = await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000");
     expect(refused.allowed).toBe(false);
     expect(refused.messagesUsed).toBe(2);
     expect((await quotas.getLimits(orgId))?.budget?.messagesUsed).toBe(2);
 
     await quotas.resetBudget(orgId);
     expect((await quotas.getLimits(orgId))?.budget?.messagesUsed).toBe(0);
-    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+    expect(
+      (await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000")).allowed,
+    ).toBe(true);
   });
 
   it("ne limite pas quand maxMessages est vide", async () => {
@@ -312,7 +318,53 @@ describe("quotas organisation — messages", () => {
       tokenResetDays: null,
       allocations: [],
     });
-    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
-    expect((await quotas.consumeMessage(orgId)).allowed).toBe(true);
+    expect(
+      (await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000")).allowed,
+    ).toBe(true);
+    expect(
+      (await quotas.consumeMessage(orgId, "00000000-0000-0000-0000-000000000000")).allowed,
+    ).toBe(true);
   });
+});
+
+it("recycle les plus anciens messages quand la politique est recycle", async () => {
+  const quotas = pgOrganizationAiQuotaRepository(pool);
+  const link = await pool.query<{ id: string }>(
+    `INSERT INTO chat_links (organization_id, token_hash, type, actif)
+       VALUES ($1, $2, 'standard', true) RETURNING id`,
+    [orgId, `recycle-${Math.random().toString(16).slice(2)}`],
+  );
+  const linkId = link.rows[0]?.id;
+  if (linkId === undefined) throw new Error("link");
+  const conversation = await pool.query<{ id: string }>(
+    `INSERT INTO conversations (organization_id, link_id) VALUES ($1, $2) RETURNING id`,
+    [orgId, linkId],
+  );
+  const conversationId = conversation.rows[0]?.id;
+  if (conversationId === undefined) throw new Error("conversation");
+  await pool.query(
+    `INSERT INTO chat_messages (conversation_id, role, content)
+       VALUES ($1, 'user', 'ancien 1'), ($1, 'user', 'ancien 2')`,
+    [conversationId],
+  );
+  await quotas.saveLimits(orgId, {
+    maxChatbots: null,
+    maxTokens: null,
+    maxMessages: 1,
+    messageLimitPolicy: "recycle",
+    tokenResetMode: "manual",
+    tokenResetDays: null,
+    allocations: [],
+  });
+  await pool.query(
+    "UPDATE organization_ai_budgets SET messages_used = 1 WHERE organization_id = $1",
+    [orgId],
+  );
+  const result = await quotas.consumeMessage(orgId, conversationId);
+  expect(result.allowed).toBe(true);
+  const remaining = await pool.query<{ count: string }>(
+    "SELECT count(*)::text AS count FROM chat_messages WHERE conversation_id = $1",
+    [conversationId],
+  );
+  expect(Number(remaining.rows[0]?.count)).toBe(0);
 });

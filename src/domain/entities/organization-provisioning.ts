@@ -22,6 +22,8 @@ export type OrganizationProvisioning = {
   maxChatbots: number | null;
   maxTokens: number | null;
   maxMessages?: number | null;
+  messageLimitPolicy?: "block" | "recycle";
+  maxStorageMb?: number | null;
   tokenResetMode: TokenResetMode;
   tokenResetDays: number | null;
   allocations: OrganizationProvisioningAllocation[];

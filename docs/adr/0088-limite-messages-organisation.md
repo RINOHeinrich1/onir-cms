@@ -28,7 +28,17 @@ maxMessages: number | null
 
 - `null` ou champ vide : aucune limite ;
 - `0` : aucun message autorisé ;
-- valeur positive : nombre maximal de messages utilisateur par période.
+- valeur positive : nombre maximal de messages utilisateur par période ;
+- `messageLimitPolicy` : `block` ou `recycle`.
+
+Lorsque le plafond est atteint :
+
+- `block` : le nouveau message est refusé ;
+- `recycle` : les plus anciens messages de la conversation courante sont
+  supprimés pour libérer de la place, puis le nouveau message est accepté.
+
+Le recyclage est limité à la conversation courante et ne supprime jamais les
+messages d'autres conversations.
 
 Le champ est exposé dans la gestion des profils de limites de l'application.
 
