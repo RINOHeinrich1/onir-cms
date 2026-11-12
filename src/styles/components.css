@@ -8487,6 +8487,70 @@ a.subtab {
   }
 }
 
+.account-tabs,
+.account-subtabs {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .account-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    margin: 0.75rem 0 1rem;
+    padding-bottom: 0.15rem;
+    overflow-x: auto;
+    border-bottom: 0;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .account-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .account-tabs .channel-tab {
+    flex: 0 0 auto;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+
+  .account-tabs .channel-tab[aria-selected="true"] {
+    border-color: var(--orange);
+    background: color-mix(in srgb, var(--orange) 9%, var(--surface));
+    color: var(--fg);
+  }
+
+  .account-subtabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.2rem;
+    margin: 0.75rem 0 1rem;
+    padding: 0.2rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+
+  .account-subtabs .channel-tab {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    text-align: center;
+    background: transparent;
+  }
+
+  .account-subtabs .channel-tab[aria-selected="true"] {
+    border-color: var(--border);
+    background: var(--surface-raised);
+    color: var(--fg);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+}
+
 .link-button {
   border: 0;
   background: transparent;

@@ -90,7 +90,7 @@ export function AccountSettings({
         </div>
       </div>
 
-      <div className="org-tabs channel-tabs" role="tablist" aria-label="Paramètres du compte">
+      <div className="account-tabs channel-tabs" role="tablist" aria-label="Paramètres du compte">
         {tabs.map((entry) => (
           <button
             key={entry.id}
@@ -181,7 +181,7 @@ export function AccountSettings({
             <p className="hint">Aucune organisation accessible.</p>
           )}
 
-          <div className="org-tabs channel-tabs" role="tablist" aria-label="Utilisateurs">
+          <div className="account-subtabs channel-tabs" role="tablist" aria-label="Utilisateurs">
             <button
               type="button"
               role="tab"
