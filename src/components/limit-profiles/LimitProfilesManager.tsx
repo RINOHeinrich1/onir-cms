@@ -63,6 +63,9 @@ export function LimitProfilesManager() {
   const [active, setActive] = useState(true);
   const [maxChatbots, setMaxChatbots] = useState("");
   const [maxTokens, setMaxTokens] = useState("");
+  const [maxMessages, setMaxMessages] = useState("");
+  const [messageLimitPolicy, setMessageLimitPolicy] = useState<"block" | "recycle">("block");
+  const [maxStorageMb, setMaxStorageMb] = useState("");
   const [resetMode, setResetMode] = useState<"manual" | "duration">("manual");
   const [resetDays, setResetDays] = useState("");
   const [allocations, setAllocations] = useState<AllocationDraft[]>([]);
@@ -108,6 +111,9 @@ export function LimitProfilesManager() {
     setActive(true);
     setMaxChatbots("");
     setMaxTokens("");
+    setMaxMessages("");
+    setMessageLimitPolicy("block");
+    setMaxStorageMb("");
     setResetMode("manual");
     setResetDays("");
     setAllocations([]);
@@ -130,6 +136,19 @@ export function LimitProfilesManager() {
       offer.provisioning.maxChatbots === null ? "" : String(offer.provisioning.maxChatbots),
     );
     setMaxTokens(offer.provisioning.maxTokens === null ? "" : String(offer.provisioning.maxTokens));
+    setMaxMessages(
+      offer.provisioning.maxMessages === null || offer.provisioning.maxMessages === undefined
+        ? ""
+        : String(offer.provisioning.maxMessages),
+    );
+    setMessageLimitPolicy(
+      offer.provisioning.messageLimitPolicy === "recycle" ? "recycle" : "block",
+    );
+    setMaxStorageMb(
+      offer.provisioning.maxStorageMb === null || offer.provisioning.maxStorageMb === undefined
+        ? ""
+        : String(offer.provisioning.maxStorageMb),
+    );
     setResetMode(offer.provisioning.tokenResetMode);
     setResetDays(
       offer.provisioning.tokenResetDays === null ? "" : String(offer.provisioning.tokenResetDays),
@@ -188,6 +207,9 @@ export function LimitProfilesManager() {
       const provisioning: OrganizationProvisioning = {
         maxChatbots: numberOrNull(maxChatbots),
         maxTokens: numberOrNull(maxTokens),
+        maxMessages: numberOrNull(maxMessages),
+        messageLimitPolicy,
+        maxStorageMb: numberOrNull(maxStorageMb),
         tokenResetMode: resetMode,
         tokenResetDays: resetMode === "duration" ? numberOrNull(resetDays) : null,
         allocations: allocations.map((entry) => ({
@@ -297,6 +319,38 @@ export function LimitProfilesManager() {
                   placeholder="Illimité"
                   value={maxTokens}
                   onChange={(event) => setMaxTokens(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Nombre maximal de messages (optionnel)
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Illimité"
+                  value={maxMessages}
+                  onChange={(event) => setMaxMessages(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Politique quand les messages sont épuisés
+                <select
+                  value={messageLimitPolicy}
+                  onChange={(event) =>
+                    setMessageLimitPolicy(event.target.value === "recycle" ? "recycle" : "block")
+                  }
+                >
+                  <option value="block">Bloquer les nouveaux messages</option>
+                  <option value="recycle">Recycler les plus anciens messages</option>
+                </select>
+              </label>
+              <label className="field">
+                Stockage inclus (Mo, optionnel)
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Illimité"
+                  value={maxStorageMb}
+                  onChange={(event) => setMaxStorageMb(event.target.value)}
                 />
               </label>
               <label className="field">
@@ -424,6 +478,7 @@ export function LimitProfilesManager() {
               <th>Profil de limites</th>
               <th>Chatbots</th>
               <th>Budget global</th>
+              <th>Messages</th>
               <th>Ressources</th>
               <th>Statut</th>
               <th />
@@ -454,6 +509,18 @@ export function LimitProfilesManager() {
                     {offer.provisioning.maxTokens === null
                       ? "Illimité"
                       : offer.provisioning.maxTokens}
+                  </td>
+                  <td data-label="Messages">
+                    {offer.provisioning.maxMessages === null ||
+                    offer.provisioning.maxMessages === undefined
+                      ? "Illimité"
+                      : `${offer.provisioning.maxMessages} (${offer.provisioning.messageLimitPolicy === "recycle" ? "recyclage" : "blocage"})`}
+                  </td>
+                  <td data-label="Stockage">
+                    {offer.provisioning.maxStorageMb === null ||
+                    offer.provisioning.maxStorageMb === undefined
+                      ? "Illimité"
+                      : `${offer.provisioning.maxStorageMb} Mo`}
                   </td>
                   <td data-label="Ressources">{offer.provisioning.allocations.length}</td>
                   <td data-label="Statut">

@@ -19,6 +19,7 @@ import { pgConversationRepository } from "@/infrastructure/db/conversation-repos
 import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
+import { pgOrganizationAiQuotaRepository } from "@/infrastructure/db/organization-ai-quota-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -62,6 +63,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const result = await sendMessage(
       {
         organizations: pgOrganizationRepository(pool),
+        quotas: pgOrganizationAiQuotaRepository(pool),
         links: pgChatLinkRepository(pool),
         conversations: pgConversationRepository(pool),
         prospects: pgProspectRepository(pool),

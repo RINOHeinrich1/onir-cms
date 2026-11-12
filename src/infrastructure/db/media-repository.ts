@@ -18,6 +18,7 @@ type MediaRow = {
   actif: boolean;
   fichier: string | null;
   mime: string | null;
+  size_bytes: string | null;
   url: string | null;
   created_by: string | null;
   created_at: Date;
@@ -25,7 +26,7 @@ type MediaRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, url, created_by, created_at, updated_at";
+  "id, organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, size_bytes, url, created_by, created_at, updated_at";
 
 function toEntity(row: MediaRow): Media {
   if (!isTypeMedia(row.type)) {
@@ -41,6 +42,7 @@ function toEntity(row: MediaRow): Media {
     actif: row.actif,
     fichier: row.fichier,
     mime: row.mime,
+    sizeBytes: row.size_bytes === null ? null : Number(row.size_bytes),
     url: row.url,
     createdBy: row.created_by,
     createdAt: row.created_at.toISOString(),
@@ -120,8 +122,8 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
 
     async create(organizationId, input: CreateMediaInput): Promise<Media> {
       const { rows } = await pool.query<MediaRow>(
-        `INSERT INTO medias (organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, url, created_by)
-         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10)
+        `INSERT INTO medias (organization_id, type, libelle, description, chat_link_ids, actif, fichier, mime, size_bytes, url, created_by)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10, $11)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -132,6 +134,7 @@ export function pgMediaRepository(pool: Pool): MediaRepository {
           input.actif,
           input.fichier,
           input.mime,
+          input.sizeBytes,
           input.url,
           input.createdBy,
         ],

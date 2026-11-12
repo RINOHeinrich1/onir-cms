@@ -4,6 +4,7 @@ import {
   TEMPLATE_PARAM_IMAGE_MAX_BYTES,
 } from "@/application/use-cases/template-params/manage-template-param-assets";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgStorageQuotaRepository } from "@/infrastructure/db/storage-quota-repository";
 import { pgTemplateParamAssetRepository } from "@/infrastructure/db/template-param-asset-repository";
 import { mediaStorage } from "@/infrastructure/storage";
 import { publicLinkBaseUrl } from "@/lib/env";
@@ -32,6 +33,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         assets: pgTemplateParamAssetRepository(getPool()),
         storage: mediaStorage(actor.organizationId ?? undefined),
+        storageQuota: pgStorageQuotaRepository(getPool()),
       },
       actor,
       { data: Buffer.from(await file.arrayBuffer()), contentType: file.type },

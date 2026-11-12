@@ -1,6 +1,7 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
 import type { MediaStorage } from "@/application/ports/media-storage";
+import type { StorageQuotaRepository } from "@/application/ports/storage-quota-repository";
 import type {
   TemplateParamAsset,
   TemplateParamAssetRepository,
@@ -18,6 +19,7 @@ export const TEMPLATE_PARAM_IMAGE_MIME_TYPES: readonly AttachmentMime[] = [
 export type TemplateParamAssetDependencies = {
   assets: TemplateParamAssetRepository;
   storage: MediaStorage;
+  storageQuota?: StorageQuotaRepository;
 };
 
 export async function createTemplateParamAsset(
@@ -37,6 +39,7 @@ export async function createTemplateParamAsset(
   if (detected === null || !TEMPLATE_PARAM_IMAGE_MIME_TYPES.includes(detected)) {
     throw new ValidationError("Format d'image non pris en charge (PNG, JPEG, WebP)");
   }
+  await deps.storageQuota?.assertCanStore(organizationId, input.data.byteLength);
   const storageKey = await deps.storage.save({
     data: input.data,
     contentType: detected,
