@@ -169,6 +169,7 @@
   display: grid;
   gap: 0.85rem;
   min-width: 0;
+  padding-bottom: 4rem;
 }
 
 .display-settings-form > fieldset {
@@ -234,7 +235,9 @@
   bottom: 0;
   z-index: 1;
   padding-top: 0.4rem;
+  padding-bottom: 0.35rem;
   background: var(--surface);
+  box-shadow: 0 -0.45rem 0.9rem var(--surface);
 }
 
 .display-settings-actions .btn {
