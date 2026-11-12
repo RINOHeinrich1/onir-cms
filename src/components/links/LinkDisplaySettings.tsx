@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatLinkWithUrl } from "@/application/use-cases/links/link-urls";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import type { ChatLink, ChatLinkSurface } from "@/domain/entities/chat";
+import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
@@ -33,12 +34,18 @@ function channelDraft(channel: ReturnType<typeof channelsForLink>[ChatLinkSurfac
   };
 }
 
-function initialDrafts(link: ChatLink): ChannelDrafts {
+function initialDrafts(link: ChatLinkWithUrl): ChannelDrafts {
   const channels = channelsForLink(link);
   return {
     page: channelDraft(channels.page),
     widget: channelDraft(channels.widget),
   };
+}
+
+function widgetToken(url: string | null): string | null {
+  if (url === null) return null;
+  const match = /\/l\/([^/?#]+)/.exec(url);
+  return match?.[1] ?? null;
 }
 
 export function LinkDisplaySettings({
@@ -47,7 +54,7 @@ export function LinkDisplaySettings({
   canEdit,
   initialSurface,
 }: {
-  link: ChatLink;
+  link: ChatLinkWithUrl;
   visualTemplates: VisualTemplateOption[];
   canEdit: boolean;
   initialSurface: ChatLinkSurface;
@@ -59,7 +66,21 @@ export function LinkDisplaySettings({
   const [device, setDevice] = useState<DisplayDevice>("desktop");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewHeight, setPreviewHeight] = useState<number | null>(null);
+  const previewRef = useRef<HTMLElement>(null);
   useToastOnMessage(error);
+
+  useEffect(() => {
+    const node = previewRef.current;
+    if (node === null) return;
+    const update = (): void => setPreviewHeight(node.getBoundingClientRect().height);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const draft = drafts[surface];
   const paramsSchema = paramsSchemaForSelection(visualTemplates, draft.visualTemplate);
@@ -72,8 +93,19 @@ export function LinkDisplaySettings({
   const previewSrc = useMemo(() => {
     const params = encodeParamsOverride(draft.params);
     const template = draft.visualTemplate === "" ? "" : draft.visualTemplate;
+    if (surface === "widget") {
+      const token = widgetToken(link.url);
+      if (token !== null) {
+        const query = new URLSearchParams();
+        if (template !== "") query.set("template", template);
+        if (params !== "") query.set("params", params);
+        query.set("position", draft.widgetPosition);
+        const suffix = query.toString();
+        return `/embed/${encodeURIComponent(token)}/preview${suffix === "" ? "" : `?${suffix}`}`;
+      }
+    }
     return `/liens/${link.id}/apercu?embed=1&surface=${surface}&template=${encodeURIComponent(template)}&params=${params}`;
-  }, [draft.params, draft.visualTemplate, link.id, surface]);
+  }, [draft.params, draft.visualTemplate, draft.widgetPosition, link.id, link.url, surface]);
   const [debouncedPreviewSrc, setDebouncedPreviewSrc] = useState(previewSrc);
 
   useEffect(() => {
@@ -152,7 +184,7 @@ export function LinkDisplaySettings({
       </div>
 
       <div className="display-settings-grid">
-        <section className="display-settings-preview">
+        <section className="display-settings-preview" ref={previewRef}>
           <div className="display-settings-toolbar">
             <div className="display-mode-switch" role="tablist" aria-label="Mode d’affichage">
               {(["page", "widget"] as const).map((entry) => (
@@ -186,6 +218,14 @@ export function LinkDisplaySettings({
                 ))}
               </div>
             ) : null}
+            <button
+              type="button"
+              className="btn ghost small display-settings-toggle"
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen((open) => !open)}
+            >
+              {settingsOpen ? "Masquer les réglages" : "Afficher les réglages"}
+            </button>
           </div>
 
           <div
@@ -205,7 +245,14 @@ export function LinkDisplaySettings({
           </p>
         </section>
 
-        <aside className="display-settings-controls">
+        <aside
+          className={`display-settings-controls${settingsOpen ? " is-open" : ""}`}
+          style={
+            previewHeight === null
+              ? undefined
+              : ({ "--display-panel-height": `${Math.round(previewHeight)}px` } as CSSProperties)
+          }
+        >
           <form
             className="display-settings-form"
             onSubmit={(event) => {
@@ -216,26 +263,17 @@ export function LinkDisplaySettings({
             <fieldset disabled={!canEdit}>
               <section className="card display-settings-card">
                 <h2 className="text-title">Canaux de diffusion</h2>
-                <p className="hint">
-                  Activez ou désactivez les surfaces. Chaque canal garde son propre template.
-                </p>
-                <div className="channel-toggles">
+                <div className="display-channel-switches">
                   {(["page", "widget"] as const).map((channel) => (
-                    <label key={channel} className="check channel-toggle">
+                    <label key={channel} className="display-channel-toggle">
                       <input
                         type="checkbox"
                         checked={drafts[channel].enabled}
                         onChange={(event) => toggleChannel(channel, event.target.checked)}
                       />
-                      <span>
-                        <strong>
-                          {channel === "page" ? "Page publique" : "Widget intégrable"}
-                        </strong>
-                        <small>
-                          {channel === "page"
-                            ? "URL publique /l/<jeton>"
-                            : "Snippet à intégrer sur un site tiers"}
-                        </small>
+                      <span>{channel === "page" ? "Page" : "Widget"}</span>
+                      <span className={`badge ${drafts[channel].enabled ? "" : "muted"}`}>
+                        {drafts[channel].enabled ? "actif" : "inactif"}
                       </span>
                     </label>
                   ))}

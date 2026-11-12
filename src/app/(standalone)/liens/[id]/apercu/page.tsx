@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { actorCan } from "@/application/actor";
+import { linkListItems } from "@/application/use-cases/links/link-urls";
 import {
   buildLinkContext,
   type LinkTemplateDependencies,
@@ -89,8 +90,11 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
   const organizationId = sessionContext.actor.organizationId;
   if (organizationId === null) notFound();
 
-  const link = await pgChatLinkRepository(pool).findById(organizationId, id);
-  if (link === null) notFound();
+  const repository = pgChatLinkRepository(pool);
+  const rawLink = await repository.findById(organizationId, id);
+  if (rawLink === null) notFound();
+  const [link] = await linkListItems(repository, [rawLink]);
+  if (link === undefined) notFound();
 
   const channels = channelsForLink(link);
   const visualTemplates = await loadVisualTemplateOptions(sessionContext.actor, pool);
@@ -173,7 +177,14 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
         });
 
   return (
-    <main className={`display-preview-bare display-preview-bare--${surface}`}>
+    <main
+      className={
+        surface === "widget"
+          ? "display-preview-bare display-preview-bare--widget widget-page template-page"
+          : "display-preview-bare display-preview-bare--page"
+      }
+    >
+      {" "}
       {spec === null || context === null ? (
         <section className="card" style={{ maxWidth: "34rem", margin: "1.5rem auto" }}>
           <h2>Aucun template visuel rattaché</h2>

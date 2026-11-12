@@ -155,6 +155,14 @@
   position: sticky;
   top: 1rem;
   min-width: 0;
+  max-height: var(--display-panel-height, calc(100dvh - 10rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+}
+
+.display-settings-toggle {
+  display: none;
 }
 
 .display-settings-form {
@@ -182,6 +190,49 @@
 .display-settings-card h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.display-channel-switches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.display-channel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.display-channel-toggle:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface));
+}
+
+.display-channel-toggle input {
+  flex: none;
+  margin: 0;
+}
+
+.display-channel-toggle > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.display-channel-toggle .badge {
+  flex: none;
+  margin-left: auto;
+  font-size: 0.58rem;
 }
 
 .display-settings-actions {
@@ -220,8 +271,20 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .display-settings-toggle {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+  }
+
   .display-settings-controls {
+    display: none;
     position: static;
+    max-height: min(78dvh, 42rem);
+  }
+
+  .display-settings-controls.is-open {
+    display: block;
   }
 }
 
@@ -250,6 +313,6 @@
   }
 
   .display-settings-actions {
-    position: static;
+    position: sticky;
   }
 }

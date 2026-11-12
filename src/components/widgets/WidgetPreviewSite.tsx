@@ -6,9 +6,13 @@ import { useEffect } from "react";
 export function WidgetPreviewSite({
   token,
   position,
+  template,
+  params,
 }: {
   token: string;
   position: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  template?: string | undefined;
+  params?: string | undefined;
 }) {
   useEffect(() => {
     const script = document.createElement("script");
@@ -17,6 +21,12 @@ export function WidgetPreviewSite({
     script.dataset.onirToken = token;
     script.dataset.onirPosition = position;
     script.dataset.onirTitle = "Assistant";
+    if (template !== undefined && template !== "") {
+      script.dataset.onirPreviewTemplate = template;
+    }
+    if (params !== undefined && params !== "") {
+      script.dataset.onirPreviewParams = params;
+    }
     document.body.appendChild(script);
     return () => {
       script.remove();
@@ -26,7 +36,7 @@ export function WidgetPreviewSite({
         iframe.remove();
       }
     };
-  }, [position, token]);
+  }, [params, position, template, token]);
 
   return (
     <main className="widget-preview-site">
