@@ -2558,6 +2558,21 @@ a.subtab {
   text-decoration: none;
 }
 
+.medias-admin .table-cards td {
+  overflow-wrap: anywhere;
+}
+
+.medias-admin .table-cards td > .key-chips {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.medias-admin .table-cards td .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Ligne de fiche archivée (léger atténuement). */
 .row-archivee {
   opacity: 0.7;
