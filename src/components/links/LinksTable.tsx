@@ -41,10 +41,16 @@ function chatbotContentHref(path: "/conversations" | "/leads", label: string): s
 
 function previewHrefFor(link: ChatLinkRow): string {
   const channels = channelsForLink(link);
-  const previewSurface = channels.page.enabled ? "page" : "widget";
+  const previewSurface = channels.page.enabled || !channels.widget.enabled ? "page" : "widget";
   return previewSurface === "widget" && link.url !== null
     ? `${link.url.replace("/l/", "/embed/")}/preview`
-    : `/liens/${link.id}/apercu?surface=${previewSurface}`;
+    : `/liens/${link.id}/apercu?embed=1&surface=${previewSurface}`;
+}
+
+function displaySettingsHrefFor(link: ChatLinkRow): string {
+  const channels = channelsForLink(link);
+  const previewSurface = channels.page.enabled || !channels.widget.enabled ? "page" : "widget";
+  return `/liens/${link.id}/apercu?surface=${previewSurface}`;
 }
 
 const DEFAULT_CHATBOT_PREVIEW = "/chatbot-default.webp";
@@ -573,7 +579,7 @@ export function LinksTable({
 
       <div className="chatbot-grid chatbot-grid--links">
         {pagination.pageItems.map((link) => {
-          const previewHref = previewHrefFor(link);
+          const displaySettingsHref = displaySettingsHrefFor(link);
           const previewUrl = templatePreviewUrl(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
           return (
@@ -588,13 +594,21 @@ export function LinksTable({
                 <div className="chatbot-card-quick-actions">
                   <a
                     className="chatbot-quick-action"
-                    href={previewHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Ouvrir l’aperçu"
-                    title="Ouvrir l’aperçu"
+                    href={link.url ?? "#"}
+                    target={link.url === null ? undefined : "_blank"}
+                    rel={link.url === null ? undefined : "noopener noreferrer"}
+                    aria-label="Ouvrir le chatbot dans un nouvel onglet"
+                    title={
+                      link.url === null
+                        ? "Lien indisponible"
+                        : "Ouvrir le chatbot dans un nouvel onglet"
+                    }
+                    aria-disabled={link.url === null}
+                    onClick={(event) => {
+                      if (link.url === null) event.preventDefault();
+                    }}
                   >
-                    <span className="sr-only">Ouvrir l’aperçu</span>
+                    <span className="sr-only">Ouvrir le chatbot dans un nouvel onglet</span>
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -725,8 +739,8 @@ export function LinksTable({
                         Copier le lien
                       </button>
                     )}
-                    <a href={previewHref} target="_blank" rel="noopener noreferrer">
-                      Aperçu
+                    <a href={displaySettingsHref} target="_blank" rel="noopener noreferrer">
+                      Paramètres d&apos;affichage
                     </a>
                     {widgetEnabled ? (
                       <button

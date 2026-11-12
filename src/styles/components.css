@@ -9871,6 +9871,11 @@ a.subtab {
   cursor: not-allowed;
 }
 
+.chatbot-quick-action[aria-disabled="true"] {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
 .chatbot-card--with-preview {
   min-height: 0;
 }
