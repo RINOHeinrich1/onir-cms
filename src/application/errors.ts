@@ -116,3 +116,10 @@ export class OrganizationSuspendedError extends AppError {
     super(message, 403);
   }
 }
+
+export class StorageQuotaExceededError extends AppError {
+  constructor(message: string) {
+    super(message, 413);
+    this.name = "StorageQuotaExceededError";
+  }
+}

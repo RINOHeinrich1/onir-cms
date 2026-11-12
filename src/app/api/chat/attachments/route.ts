@@ -9,6 +9,7 @@ import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-re
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgStorageQuotaRepository } from "@/infrastructure/db/storage-quota-repository";
 import { attachmentStorage } from "@/infrastructure/storage/attachments";
 import { chatAttachmentLimiter } from "@/lib/chat-limiters";
 import { errorResponse } from "../../_lib/errors";
@@ -59,6 +60,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         configs: pgChatbotConfigRepository(pool),
         attachments: pgAttachmentRepository(pool),
         storage: attachmentStorage(),
+        storageQuota: pgStorageQuotaRepository(pool),
       },
       {
         conversationId: conversationId.trim(),

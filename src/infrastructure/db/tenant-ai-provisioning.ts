@@ -16,21 +16,33 @@ export async function provisionInvitationAiWithClient(
   if (provisioning === null) return;
 
   await client.query(
-    "UPDATE organizations SET max_chatbots = $2, updated_at = now() WHERE id = $1",
-    [organizationId, provisioning.maxChatbots],
+    `UPDATE organizations
+        SET max_chatbots = $2, max_storage_bytes = $3, updated_at = now()
+      WHERE id = $1`,
+    [
+      organizationId,
+      provisioning.maxChatbots,
+      provisioning.maxStorageMb === null || provisioning.maxStorageMb === undefined
+        ? null
+        : provisioning.maxStorageMb * 1024 * 1024,
+    ],
   );
   await client.query(
     `INSERT INTO organization_ai_budgets
-       (organization_id, max_tokens, token_reset_mode, token_reset_days)
-     VALUES ($1, $2, $3, $4)
+       (organization_id, max_tokens, max_messages, message_limit_policy, token_reset_mode, token_reset_days)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (organization_id) DO UPDATE
        SET max_tokens = EXCLUDED.max_tokens,
+           max_messages = EXCLUDED.max_messages,
+           message_limit_policy = EXCLUDED.message_limit_policy,
            token_reset_mode = EXCLUDED.token_reset_mode,
            token_reset_days = EXCLUDED.token_reset_days,
            updated_at = now()`,
     [
       organizationId,
       provisioning.maxTokens,
+      provisioning.maxMessages ?? null,
+      provisioning.messageLimitPolicy ?? "block",
       provisioning.tokenResetMode,
       provisioning.tokenResetMode === "duration" ? provisioning.tokenResetDays : null,
     ],

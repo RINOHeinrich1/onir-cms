@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createMediaPhoto } from "@/application/use-cases/medias/manage-medias";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgStorageQuotaRepository } from "@/infrastructure/db/storage-quota-repository";
 import { mediaStorage } from "@/infrastructure/storage";
 import { errorResponse } from "../../_lib/errors";
 import { requireRole } from "../../_lib/require-user";
@@ -32,6 +33,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         medias: pgMediaRepository(getPool()),
         storage: mediaStorage(actor.organizationId ?? undefined),
+        storageQuota: pgStorageQuotaRepository(getPool()),
       },
       actor,
       {

@@ -2,6 +2,7 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { ConflictError, NotFoundError, ValidationError } from "@/application/errors";
 import type { MediaRepository } from "@/application/ports/media-repository";
 import type { MediaStorage } from "@/application/ports/media-storage";
+import type { StorageQuotaRepository } from "@/application/ports/storage-quota-repository";
 import { hasChatLinkIds, normalizeChatLinkIds } from "@/domain/entities/chat-link-scope";
 import {
   DESCRIPTION_MAX,
@@ -20,6 +21,7 @@ export type ManageMediasDependencies = {
 export type MediaStorageDependencies = {
   medias: MediaRepository;
   storage: MediaStorage;
+  storageQuota?: StorageQuotaRepository;
 };
 
 function joinErrors(errors: { message: string }[]): string {
@@ -58,6 +60,7 @@ export async function createMediaLien(
     actif: validated.value.actif,
     fichier: null,
     mime: null,
+    sizeBytes: null,
     url: validated.value.url,
     createdBy: actor.id,
   });
@@ -107,6 +110,7 @@ export async function createMediaPhoto(
     throw new ConflictError(`Libellé déjà utilisé : ${validated.value.libelle}`);
   }
 
+  await deps.storageQuota?.assertCanStore(organizationId, input.data.byteLength);
   const fichier = await deps.storage.save({
     data: input.data,
     contentType: input.contentType,
@@ -121,6 +125,7 @@ export async function createMediaPhoto(
       actif: validated.value.actif,
       fichier,
       mime: input.contentType,
+      sizeBytes: input.data.byteLength,
       url: null,
       createdBy: actor.id,
     });

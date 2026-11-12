@@ -11,6 +11,7 @@ import type { ChatLinkRepository } from "@/application/ports/chat-link-repositor
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
+import type { StorageQuotaRepository } from "@/application/ports/storage-quota-repository";
 import { resolveCurrentConfig } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { detectAttachmentMime } from "@/domain/attachment-inspection";
 import {
@@ -32,6 +33,7 @@ export type AttachmentDependencies = {
   configs: ChatbotConfigRepository;
   attachments: AttachmentRepository;
   storage: AttachmentStorage;
+  storageQuota?: StorageQuotaRepository;
 };
 
 export type AttachmentDto = AttachmentView & { url: string };
@@ -135,6 +137,7 @@ export async function storeConversationAttachment(
     throw new ValidationError("Fichier trop volumineux");
   }
 
+  await deps.storageQuota?.assertCanStore(conversation.organizationId, input.data.byteLength);
   const originalName = sanitizeOriginalName(input.fileName);
   const sha256 = createHash("sha256").update(input.data).digest("hex");
   const storageKey = await deps.storage.save({
