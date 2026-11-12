@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import {
   pruneSelection,
@@ -57,11 +57,20 @@ function templatePreviewUrl(link: ChatLinkRow): string {
 }
 
 /** Petit aperçu du template visuel associé au chatbot. */
-function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
+function ChatbotTemplatePreview({
+  url,
+  name,
+  children,
+}: {
+  url: string;
+  name: string;
+  children?: ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
     <div className="chatbot-card-preview">
+      {children}
       <Image
         src={url}
         alt={`Aperçu du template ${name}`}
@@ -575,7 +584,74 @@ export function LinksTable({
               <ChatbotTemplatePreview
                 url={previewUrl}
                 name={link.label === "" ? "Chatbot sans nom" : link.label}
-              />
+              >
+                <div className="chatbot-card-quick-actions">
+                  <a
+                    className="chatbot-quick-action"
+                    href={previewHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Ouvrir l’aperçu"
+                    title="Ouvrir l’aperçu"
+                  >
+                    <span className="sr-only">Ouvrir l’aperçu</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 4h6v6" />
+                      <path d="M20 4 10 14" />
+                      <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5" />
+                    </svg>
+                  </a>
+                  <button
+                    type="button"
+                    className="chatbot-quick-action"
+                    onClick={() => void doCopy(link)}
+                    disabled={link.url === null}
+                    aria-label="Copier le lien"
+                    title={link.url === null ? "Lien indisponible" : "Copier le lien"}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="11" height="11" rx="2" />
+                      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="chatbot-quick-action"
+                    onClick={() => router.push(`/liens/${link.id}/modifier`)}
+                    aria-label="Modifier"
+                    title="Modifier"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m4 20 4.2-1 10.8-10.8a2.1 2.1 0 0 0-3-3L5.2 16Z" />
+                      <path d="m13.5 6.5 3 3" />
+                    </svg>
+                  </button>
+                </div>
+              </ChatbotTemplatePreview>
               <header className="chatbot-card-head">
                 <RoundCheckbox
                   className="chatbot-card-select"

@@ -9815,6 +9815,62 @@ a.subtab {
   object-fit: cover;
 }
 
+.chatbot-card-quick-actions {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.18rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.34);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+}
+
+.chatbot-quick-action {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  opacity: 0.78;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out-expo),
+    opacity var(--dur-fast) var(--ease-out-expo);
+}
+
+.chatbot-quick-action svg {
+  width: 0.92rem;
+  height: 0.92rem;
+}
+
+.chatbot-quick-action:hover,
+.chatbot-quick-action:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 1;
+}
+
+.chatbot-quick-action:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.chatbot-quick-action:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
 .chatbot-card--with-preview {
   min-height: 0;
 }
