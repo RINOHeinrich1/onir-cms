@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.36.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.35.0...v0.36.0) (2026-11-12)
+
+
+### Features
+
+* API plateforme et quotas messages/stockage ([c04faa9](https://github.com/RINOHeinrich1/onir-cms/commit/c04faa9f73086f7867e3d85adad9ef9eddc2bdb3))
+* **platform:** authentification service-à-service et provisioning ([#274](https://github.com/RINOHeinrich1/onir-cms/issues/274)) ([a6a5b6f](https://github.com/RINOHeinrich1/onir-cms/commit/a6a5b6ff7f214f3d25f8ad6f2d881c4203740ef2))
+
 ## [0.35.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.34.0...v0.35.0) (2026-11-10)
 
 
