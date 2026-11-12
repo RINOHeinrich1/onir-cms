@@ -245,6 +245,15 @@ export function LinkDisplaySettings({
           </p>
         </section>
 
+        {settingsOpen ? (
+          <button
+            type="button"
+            className="display-settings-backdrop"
+            aria-label="Fermer les réglages"
+            onClick={() => setSettingsOpen(false)}
+          />
+        ) : null}
+
         <aside
           className={`display-settings-controls${settingsOpen ? " is-open" : ""}`}
           style={
@@ -260,6 +269,16 @@ export function LinkDisplaySettings({
               void save();
             }}
           >
+            <div className="display-settings-panel-head">
+              <strong>Réglages</strong>
+              <button
+                type="button"
+                className="btn ghost small"
+                onClick={() => setSettingsOpen(false)}
+              >
+                Fermer
+              </button>
+            </div>
             <fieldset disabled={!canEdit}>
               <section className="card display-settings-card">
                 <h2 className="text-title">Canaux de diffusion</h2>
@@ -272,9 +291,6 @@ export function LinkDisplaySettings({
                         onChange={(event) => toggleChannel(channel, event.target.checked)}
                       />
                       <span>{channel === "page" ? "Page" : "Widget"}</span>
-                      <span className={`badge ${drafts[channel].enabled ? "" : "muted"}`}>
-                        {drafts[channel].enabled ? "actif" : "inactif"}
-                      </span>
                     </label>
                   ))}
                 </div>

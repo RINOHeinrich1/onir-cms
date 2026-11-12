@@ -165,6 +165,11 @@
   display: none;
 }
 
+.display-settings-backdrop,
+.display-settings-panel-head {
+  display: none;
+}
+
 .display-settings-form {
   display: grid;
   gap: 0.85rem;
@@ -229,12 +234,6 @@
   white-space: nowrap;
 }
 
-.display-channel-toggle .badge {
-  flex: none;
-  margin-left: auto;
-  font-size: 0.58rem;
-}
-
 .display-settings-actions {
   position: sticky;
   bottom: 0;
@@ -277,6 +276,17 @@
     justify-content: center;
   }
 
+  .display-settings-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    border: 0;
+    background: color-mix(in srgb, var(--navy) 30%, transparent);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
   .display-settings-controls {
     display: none;
     position: static;
@@ -285,6 +295,34 @@
 
   .display-settings-controls.is-open {
     display: block;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    max-height: 88dvh;
+    padding: 0;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    border-radius: 1.2rem 1.2rem 0 0;
+    background: var(--surface);
+    box-shadow: 0 -1rem 2rem color-mix(in srgb, var(--navy) 22%, transparent);
+  }
+
+  .display-settings-controls.is-open .display-settings-form {
+    padding: 0 1rem 1rem;
+  }
+
+  .display-settings-panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 0.15rem;
+    background: var(--surface);
   }
 }
 
