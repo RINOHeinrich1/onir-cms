@@ -8651,13 +8651,13 @@ a.subtab {
   }
 }
 
-.account-tabs,
+.page-tabs,
 .account-subtabs {
   flex-wrap: wrap;
 }
 
 @media (max-width: 640px) {
-  .account-tabs {
+  .page-tabs {
     display: flex;
     flex-wrap: nowrap;
     gap: 0.35rem;
@@ -8669,11 +8669,11 @@ a.subtab {
     scrollbar-width: none;
   }
 
-  .account-tabs::-webkit-scrollbar {
+  .page-tabs::-webkit-scrollbar {
     display: none;
   }
 
-  .account-tabs .channel-tab {
+  .page-tabs .channel-tab {
     flex: 0 0 auto;
     padding: 0.5rem 0.8rem;
     border: 1px solid var(--border);
@@ -8682,7 +8682,7 @@ a.subtab {
     white-space: nowrap;
   }
 
-  .account-tabs .channel-tab[aria-selected="true"] {
+  .page-tabs .channel-tab[aria-selected="true"] {
     border-color: var(--orange);
     background: color-mix(in srgb, var(--orange) 9%, var(--surface));
     color: var(--fg);

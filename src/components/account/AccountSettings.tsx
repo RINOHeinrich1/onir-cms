@@ -90,7 +90,7 @@ export function AccountSettings({
         </div>
       </div>
 
-      <div className="account-tabs channel-tabs" role="tablist" aria-label="Paramètres du compte">
+      <div className="page-tabs channel-tabs" role="tablist" aria-label="Paramètres du compte">
         {tabs.map((entry) => (
           <button
             key={entry.id}

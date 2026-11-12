@@ -80,7 +80,7 @@ export default async function ConfigurationPage({
         </div>
       </div>
 
-      <div className="org-tabs channel-tabs" role="tablist" aria-label="Sections de configuration">
+      <div className="page-tabs channel-tabs" role="tablist" aria-label="Sections de configuration">
         {canManageAi ? (
           <a
             className="channel-tab"
