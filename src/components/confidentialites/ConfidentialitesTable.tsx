@@ -11,12 +11,14 @@ import {
 } from "@/components/ui/creator-options";
 import { Modal } from "@/components/ui/Modal";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
+import { ConfidentialiteCard } from "./ConfidentialiteCard";
+import { ConfidentialiteDetailModal } from "./ConfidentialiteDetailModal";
 import { ConfidentialiteForm } from "./ConfidentialiteForm";
 import type { ConfidentialiteDto } from "./types";
 
 /**
- * Table des politiques de confidentialité : création, édition, suppression
- * et état (US-CONFID-001).
+ * Cartes des politiques de confidentialité : création, détail, édition,
+ * suppression et état (US-CONFID-001).
  */
 export function ConfidentialitesTable({
   initialConfidentialites,
@@ -28,6 +30,7 @@ export function ConfidentialitesTable({
   const router = useRouter();
   const [items, setItems] = useState<ConfidentialiteDto[]>(initialConfidentialites);
   const [editing, setEditing] = useState<ConfidentialiteDto | null>(null);
+  const [detail, setDetail] = useState<ConfidentialiteDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -92,78 +95,38 @@ export function ConfidentialitesTable({
         ) : null}
       </div>
 
-      <div className="table-scroll">
-        <table className="table table-cards">
-          <thead>
-            <tr>
-              <th>Titre</th>
-              <th>Consentement</th>
-              <th>Lien</th>
-              <th>Statut</th>
-              <th>Créé par</th>
-              {canWrite ? <th aria-label="Actions" /> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleItems.map((item) => (
-              <tr key={item.id}>
-                <td data-label="Titre">
-                  <strong>{item.titre}</strong>
-                </td>
-                <td data-label="Consentement" className="cell-contacts">
-                  {item.texte}
-                </td>
-                <td data-label="Lien">
-                  {item.lien === "" ? (
-                    <span className="muted-text">—</span>
-                  ) : (
-                    <span className="badge muted" title={item.lien}>
-                      {item.lien}
-                    </span>
-                  )}
-                </td>
-                <td data-label="Statut">
-                  <span className={`badge ${item.actif ? "" : "muted"}`}>
-                    {item.actif ? "active" : "inactive"}
-                  </span>
-                </td>
-                <td data-label="Créé par">
-                  {item.createdByLabel ?? <span className="muted-text">—</span>}
-                </td>
-                {canWrite ? (
-                  <td data-label="Actions" className="cell-actions">
-                    <div className="tools">
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        onClick={() => setEditing(item)}
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger ghost small"
-                        onClick={() => void remove(item)}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-            {visibleItems.length === 0 ? (
-              <tr>
-                <td colSpan={canWrite ? 6 : 5}>
-                  {items.length === 0
-                    ? "Aucune politique de confidentialité."
-                    : "Aucune politique pour ce créateur."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <ul className="confidentialites-list">
+        {visibleItems.map((item) => (
+          <ConfidentialiteCard
+            key={item.id}
+            confidentialite={item}
+            canWrite={canWrite}
+            onDetail={() => setDetail(item)}
+            onEdit={() => setEditing(item)}
+            onDelete={() => void remove(item)}
+          />
+        ))}
+      </ul>
+
+      {visibleItems.length === 0 ? (
+        <p className="confidentialites-empty">
+          {items.length === 0
+            ? "Aucune politique de confidentialité."
+            : "Aucune politique pour ce créateur."}
+        </p>
+      ) : null}
+
+      {detail !== null ? (
+        <ConfidentialiteDetailModal
+          confidentialite={detail}
+          canWrite={canWrite}
+          onClose={() => setDetail(null)}
+          onEdit={() => {
+            setDetail(null);
+            setEditing(detail);
+          }}
+        />
+      ) : null}
 
       {creating ? (
         <Modal title="Nouvelle politique" onClose={() => setCreating(false)}>
