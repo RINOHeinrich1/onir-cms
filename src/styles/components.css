@@ -1998,6 +1998,17 @@
   overflow-wrap: anywhere;
 }
 
+@media (max-width: 40rem) {
+  .kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+
+  .kv dt:not(:first-child) {
+    margin-top: 0.55rem;
+  }
+}
+
 .contact-list {
   list-style: none;
   display: grid;

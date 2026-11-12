@@ -1,17 +1,23 @@
 .knowledge-import-modal {
-  max-width: 46rem;
+  max-width: min(46rem, calc(100vw - 2rem));
   max-height: min(90dvh, 52rem);
 }
 
 .knowledge-import-body {
+  display: flex;
+  flex-direction: column;
   gap: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .knowledge-import-form,
 .knowledge-import-done {
   display: grid;
+  flex: 1;
   gap: 0.85rem;
+  min-width: 0;
+  min-height: 0;
   padding: 1rem 1.1rem 1.1rem;
   overflow-y: auto;
 }
@@ -204,4 +210,19 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: 0.86rem;
+}
+
+@media (max-width: 40rem) {
+  .knowledge-import-inline {
+    flex-wrap: wrap;
+  }
+
+  .knowledge-import-preview-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .knowledge-import-actions .btn {
+    flex: 1 1 auto;
+  }
 }
