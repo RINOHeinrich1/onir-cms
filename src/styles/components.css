@@ -8469,7 +8469,10 @@ a.subtab {
 .inbox-chatbot-card {
   display: grid;
   gap: 0.65rem;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.75rem;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 0.7rem;
   background: var(--surface-raised);
@@ -8482,9 +8485,14 @@ a.subtab {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .inbox-chatbot-card-head strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: var(--fg);
   font-size: 0.82rem;
@@ -8501,6 +8509,8 @@ a.subtab {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .inbox-chatbot-stats span {
@@ -8528,9 +8538,11 @@ a.subtab {
 
 .inbox-chatbot-card-foot {
   align-items: center;
+  overflow: hidden;
 }
 
 .inbox-chatbot-card-foot .hint {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   font-size: 0.62rem;

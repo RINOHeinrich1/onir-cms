@@ -414,7 +414,7 @@ export function ConversationsWorkspace({
             {visibleChatbotGroups.map((group) => (
               <article className="inbox-chatbot-card" key={group.id}>
                 <div className="inbox-chatbot-card-head">
-                  <strong>{group.label}</strong>
+                  <strong title={group.label}>{group.label}</strong>
                   <span className="badge">{group.total} conv.</span>
                 </div>
                 <div className="inbox-chatbot-stats">
