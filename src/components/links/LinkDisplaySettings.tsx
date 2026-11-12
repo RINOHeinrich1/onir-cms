@@ -19,6 +19,7 @@ import {
 } from "./visual-template-selection";
 
 type DisplayDevice = "desktop" | "mobile";
+type MobileTab = "preview" | "settings";
 
 function channelDraft(channel: ReturnType<typeof channelsForLink>[ChatLinkSurface]): ChannelDraft {
   return {
@@ -66,7 +67,7 @@ export function LinkDisplaySettings({
   const [device, setDevice] = useState<DisplayDevice>("desktop");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("preview");
   const [previewHeight, setPreviewHeight] = useState<number | null>(null);
   const previewRef = useRef<HTMLElement>(null);
   useToastOnMessage(error);
@@ -183,7 +184,22 @@ export function LinkDisplaySettings({
         </div>
       </div>
 
-      <div className="display-settings-grid">
+      <div className="display-settings-mobile-tabs" role="tablist" aria-label="Affichage">
+        {(["preview", "settings"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={mobileTab === tab}
+            className={`display-settings-mobile-tab${mobileTab === tab ? " is-active" : ""}`}
+            onClick={() => setMobileTab(tab)}
+          >
+            {tab === "preview" ? "Aperçu" : "Paramétrages"}
+          </button>
+        ))}
+      </div>
+
+      <div className={`display-settings-grid display-settings-grid--${mobileTab}`}>
         <section className="display-settings-preview" ref={previewRef}>
           <div className="display-settings-toolbar">
             <div className="display-mode-switch" role="tablist" aria-label="Mode d’affichage">
@@ -218,14 +234,6 @@ export function LinkDisplaySettings({
                 ))}
               </div>
             ) : null}
-            <button
-              type="button"
-              className="btn ghost small display-settings-toggle"
-              aria-expanded={settingsOpen}
-              onClick={() => setSettingsOpen((open) => !open)}
-            >
-              {settingsOpen ? "Masquer les réglages" : "Afficher les réglages"}
-            </button>
           </div>
 
           <div
@@ -245,17 +253,8 @@ export function LinkDisplaySettings({
           </p>
         </section>
 
-        {settingsOpen ? (
-          <button
-            type="button"
-            className="display-settings-backdrop"
-            aria-label="Fermer les réglages"
-            onClick={() => setSettingsOpen(false)}
-          />
-        ) : null}
-
         <aside
-          className={`display-settings-controls${settingsOpen ? " is-open" : ""}`}
+          className="display-settings-controls"
           style={
             previewHeight === null
               ? undefined
@@ -269,16 +268,6 @@ export function LinkDisplaySettings({
               void save();
             }}
           >
-            <div className="display-settings-panel-head">
-              <strong>Réglages</strong>
-              <button
-                type="button"
-                className="btn ghost small"
-                onClick={() => setSettingsOpen(false)}
-              >
-                Fermer
-              </button>
-            </div>
             <fieldset disabled={!canEdit}>
               <section className="card display-settings-card">
                 <h2 className="text-title">Canaux de diffusion</h2>
