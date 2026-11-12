@@ -168,20 +168,10 @@ export function LinkDisplaySettings({
 
   return (
     <section className="display-settings-page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Chatbot</span>
-          <h1 className="text-title">Paramètres d’affichage</h1>
-          <p className="muted-text">
-            {link.label === "" ? "Chatbot sans nom" : link.label} · configurez les canaux, le
-            template et son rendu.
-          </p>
-        </div>
-        <div className="tools">
-          <a className="btn ghost small" href="/liens">
-            ← Chatbots
-          </a>
-        </div>
+      <div className="display-settings-back-row">
+        <a className="btn ghost small" href="/liens">
+          ← Chatbots
+        </a>
       </div>
 
       <div className="display-settings-mobile-tabs" role="tablist" aria-label="Affichage">
@@ -246,11 +236,6 @@ export function LinkDisplaySettings({
               src={debouncedPreviewSrc}
             />
           </div>
-          <p className="hint">
-            {surface === "page"
-              ? "Aperçu de la page publique du chatbot. Le rendu Desktop et Mobile partage le même template."
-              : "Aperçu du chat dans sa surface widget. La position et le template sont ceux du canal widget."}
-          </p>
         </section>
 
         <aside

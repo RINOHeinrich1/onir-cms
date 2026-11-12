@@ -2,6 +2,12 @@
   max-width: 92rem;
 }
 
+.display-settings-back-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.85rem;
+}
+
 .display-settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
