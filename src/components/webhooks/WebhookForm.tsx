@@ -180,8 +180,8 @@ function KeyValueEditor({
       <legend>{title}</legend>
       {entries.length === 0 ? <p className="hint">Aucune entrée.</p> : null}
       {entries.map((entry, index) => (
-        <div className="tools" key={entry.uid} style={{ alignItems: "end" }}>
-          <label className="field" style={{ minWidth: "10rem" }}>
+        <div className="tools webhook-kv-row" key={entry.uid}>
+          <label className="field webhook-kv-name">
             Nom
             <input
               value={entry.name}
@@ -189,7 +189,7 @@ function KeyValueEditor({
               placeholder="X-Header"
             />
           </label>
-          <label className="field" style={{ minWidth: "14rem" }}>
+          <label className="field webhook-kv-value">
             Valeur
             <input
               value={entry.value}
@@ -526,7 +526,7 @@ export function WebhookForm({
       <div style={{ marginBottom: "1rem" }}>
         <h4>{title}</h4>
         <div className="table-scroll">
-          <table className="table">
+          <table className="table table-cards">
             <thead>
               <tr>
                 <th>Champ</th>
@@ -541,22 +541,22 @@ export function WebhookForm({
                 const mapping = mappingFor(option);
                 return (
                   <tr key={option.key}>
-                    <td>{option.label}</td>
-                    <td>
+                    <td data-label="Champ">{option.label}</td>
+                    <td data-label="Inclure">
                       <input
                         type="checkbox"
                         checked={mapping !== undefined}
                         onChange={(event) => toggleMapping(option, event.target.checked)}
                       />
                     </td>
-                    <td>
+                    <td data-label="Clé cible">
                       <input
                         value={mapping?.target ?? ""}
                         disabled={mapping === undefined}
                         onChange={(event) => updateMapping(option, { target: event.target.value })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Obligatoire">
                       <input
                         type="checkbox"
                         checked={mapping?.required ?? false}
@@ -567,7 +567,7 @@ export function WebhookForm({
                       />
                     </td>
                     {kind === "model" ? (
-                      <td>
+                      <td data-label="Fichier">
                         {option.file && mapping !== undefined ? (
                           <select
                             value={mapping.fileMode}

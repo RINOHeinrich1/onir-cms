@@ -35,7 +35,7 @@ export function PhotosPanel({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Aperçu</th>
@@ -49,7 +49,7 @@ export function PhotosPanel({
           <tbody>
             {photos.map((photo) => (
               <tr key={photo.id}>
-                <td>
+                <td data-label="Aperçu">
                   <button
                     type="button"
                     className="media-zoom"
@@ -70,20 +70,22 @@ export function PhotosPanel({
                     />
                   </button>
                 </td>
-                <td>
+                <td data-label="Libellé">
                   <strong>{photo.libelle}</strong>
                 </td>
-                <td>
+                <td data-label="Portée">
                   <ChatLinkBadges ids={photo.chatLinkIds} />
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${photo.actif ? "" : "muted"}`}>
                     {photo.actif ? "active" : "inactive"}
                   </span>
                 </td>
-                <td>{photo.createdByLabel ?? <span className="muted-text">—</span>}</td>
+                <td data-label="Créé par">
+                  {photo.createdByLabel ?? <span className="muted-text">—</span>}
+                </td>
                 {canWrite ? (
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     <div className="tools">
                       <button
                         type="button"

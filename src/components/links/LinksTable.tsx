@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useChatbotBuilder } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import {
   pruneSelection,
@@ -23,6 +23,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink } from "@/domain/entities/chat";
+import { resolveActionMenuPlacement } from "./action-menu-placement";
 import { ChatbotAnalysisModal } from "./ChatbotAnalysisModal";
 import { CHATBOT_STEPS } from "./chatbot-steps";
 import { NewChatbotChoiceModal } from "./NewChatbotChoiceModal";
@@ -40,10 +41,16 @@ function chatbotContentHref(path: "/conversations" | "/leads", label: string): s
 
 function previewHrefFor(link: ChatLinkRow): string {
   const channels = channelsForLink(link);
-  const previewSurface = channels.page.enabled ? "page" : "widget";
+  const previewSurface = channels.page.enabled || !channels.widget.enabled ? "page" : "widget";
   return previewSurface === "widget" && link.url !== null
     ? `${link.url.replace("/l/", "/embed/")}/preview`
-    : `/liens/${link.id}/apercu?surface=${previewSurface}`;
+    : `/liens/${link.id}/apercu?embed=1&surface=${previewSurface}`;
+}
+
+function displaySettingsHrefFor(link: ChatLinkRow): string {
+  const channels = channelsForLink(link);
+  const previewSurface = channels.page.enabled || !channels.widget.enabled ? "page" : "widget";
+  return `/liens/${link.id}/apercu?surface=${previewSurface}`;
 }
 
 const DEFAULT_CHATBOT_PREVIEW = "/chatbot-default.webp";
@@ -56,11 +63,20 @@ function templatePreviewUrl(link: ChatLinkRow): string {
 }
 
 /** Petit aperçu du template visuel associé au chatbot. */
-function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
+function ChatbotTemplatePreview({
+  url,
+  name,
+  children,
+}: {
+  url: string;
+  name: string;
+  children?: ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
     <div className="chatbot-card-preview">
+      {children}
       <Image
         src={url}
         alt={`Aperçu du template ${name}`}
@@ -71,6 +87,24 @@ function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
       />
     </div>
   );
+}
+
+function placeActionMenu(details: HTMLDetailsElement): void {
+  const summary = details.querySelector<HTMLElement>(":scope > summary");
+  const panel = details.querySelector<HTMLElement>(".action-menu-panel");
+  if (summary === null || panel === null) return;
+
+  panel.style.removeProperty("--action-menu-max-height");
+  const rect = summary.getBoundingClientRect();
+  const { placement, maxHeight } = resolveActionMenuPlacement({
+    top: rect.top,
+    bottom: rect.bottom,
+    panelHeight: panel.scrollHeight,
+    viewportHeight: window.innerHeight,
+  });
+
+  details.dataset.placement = placement;
+  panel.style.setProperty("--action-menu-max-height", `${maxHeight}px`);
 }
 
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
@@ -122,13 +156,20 @@ export function LinksTable({
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") closeMenus();
     };
+    const repositionOpenMenus = (): void => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach(placeActionMenu);
+    };
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", repositionOpenMenus);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", repositionOpenMenus);
     };
   }, []);
   const [widgetCode, setWidgetCode] = useState<{
@@ -538,7 +579,7 @@ export function LinksTable({
 
       <div className="chatbot-grid chatbot-grid--links">
         {pagination.pageItems.map((link) => {
-          const previewHref = previewHrefFor(link);
+          const displaySettingsHref = displaySettingsHrefFor(link);
           const previewUrl = templatePreviewUrl(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
           return (
@@ -549,7 +590,82 @@ export function LinksTable({
               <ChatbotTemplatePreview
                 url={previewUrl}
                 name={link.label === "" ? "Chatbot sans nom" : link.label}
-              />
+              >
+                <div className="chatbot-card-quick-actions">
+                  <a
+                    className="chatbot-quick-action"
+                    href={link.url ?? "#"}
+                    target={link.url === null ? undefined : "_blank"}
+                    rel={link.url === null ? undefined : "noopener noreferrer"}
+                    aria-label="Ouvrir le chatbot dans un nouvel onglet"
+                    title={
+                      link.url === null
+                        ? "Lien indisponible"
+                        : "Ouvrir le chatbot dans un nouvel onglet"
+                    }
+                    aria-disabled={link.url === null}
+                    onClick={(event) => {
+                      if (link.url === null) event.preventDefault();
+                    }}
+                  >
+                    <span className="sr-only">Ouvrir le chatbot dans un nouvel onglet</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 4h6v6" />
+                      <path d="M20 4 10 14" />
+                      <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5" />
+                    </svg>
+                  </a>
+                  <button
+                    type="button"
+                    className="chatbot-quick-action"
+                    onClick={() => void doCopy(link)}
+                    disabled={link.url === null}
+                    aria-label="Copier le lien"
+                    title={link.url === null ? "Lien indisponible" : "Copier le lien"}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="11" height="11" rx="2" />
+                      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="chatbot-quick-action"
+                    onClick={() => router.push(`/liens/${link.id}/modifier`)}
+                    aria-label="Modifier"
+                    title="Modifier"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m4 20 4.2-1 10.8-10.8a2.1 2.1 0 0 0-3-3L5.2 16Z" />
+                      <path d="m13.5 6.5 3 3" />
+                    </svg>
+                  </button>
+                </div>
+              </ChatbotTemplatePreview>
               <header className="chatbot-card-head">
                 <RoundCheckbox
                   className="chatbot-card-select"
@@ -589,7 +705,20 @@ export function LinksTable({
                     </p>
                   </div>
                 </div>
-                <details className="action-menu chatbot-card-menu">
+                <details
+                  className="action-menu chatbot-card-menu"
+                  onToggle={(event) => {
+                    const details = event.currentTarget;
+                    if (details.open) {
+                      placeActionMenu(details);
+                      return;
+                    }
+                    delete details.dataset.placement;
+                    details
+                      .querySelector<HTMLElement>(".action-menu-panel")
+                      ?.style.removeProperty("--action-menu-max-height");
+                  }}
+                >
                   <summary className="btn ghost small" aria-label="Autres actions">
                     ⋯
                   </summary>
@@ -610,8 +739,8 @@ export function LinksTable({
                         Copier le lien
                       </button>
                     )}
-                    <a href={previewHref} target="_blank" rel="noopener noreferrer">
-                      Aperçu
+                    <a href={displaySettingsHref} target="_blank" rel="noopener noreferrer">
+                      Paramètres d&apos;affichage
                     </a>
                     {widgetEnabled ? (
                       <button
