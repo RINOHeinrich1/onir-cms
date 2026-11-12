@@ -5843,6 +5843,29 @@ a.subtab {
   min-width: 0;
 }
 
+.confidentialites-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.confidentialites-toolbar-actions {
+  margin-left: auto;
+}
+
+@media (max-width: 700px) {
+  .confidentialites-toolbar-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .confidentialites-toolbar-actions .btn {
+    width: 100%;
+  }
+}
+
 .filter-trigger-row {
   display: flex;
   flex-wrap: wrap;

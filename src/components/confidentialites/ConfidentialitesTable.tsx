@@ -75,20 +75,22 @@ export function ConfidentialitesTable({
     <div className="confidentialites-admin">
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <CreatorFilterMenu
-        options={creators}
-        showUnassigned={showUnassigned}
-        value={creatorFilter}
-        onChange={setCreatorFilter}
-      />
+      <div className="confidentialites-toolbar">
+        <CreatorFilterMenu
+          options={creators}
+          showUnassigned={showUnassigned}
+          value={creatorFilter}
+          onChange={setCreatorFilter}
+        />
 
-      {canWrite ? (
-        <div className="tools" style={{ marginBottom: "1.5rem" }}>
-          <button type="button" className="btn small" onClick={() => setCreating(true)}>
-            Nouvelle politique
-          </button>
-        </div>
-      ) : null}
+        {canWrite ? (
+          <div className="tools confidentialites-toolbar-actions">
+            <button type="button" className="btn small" onClick={() => setCreating(true)}>
+              Nouvelle politique
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       <div className="table-scroll">
         <table className="table table-cards">
