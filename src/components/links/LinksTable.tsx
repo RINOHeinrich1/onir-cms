@@ -23,6 +23,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
 import { channelsForLink } from "@/domain/entities/chat";
+import { resolveActionMenuPlacement } from "./action-menu-placement";
 import { ChatbotAnalysisModal } from "./ChatbotAnalysisModal";
 import { CHATBOT_STEPS } from "./chatbot-steps";
 import { NewChatbotChoiceModal } from "./NewChatbotChoiceModal";
@@ -71,6 +72,24 @@ function ChatbotTemplatePreview({ url, name }: { url: string; name: string }) {
       />
     </div>
   );
+}
+
+function placeActionMenu(details: HTMLDetailsElement): void {
+  const summary = details.querySelector<HTMLElement>(":scope > summary");
+  const panel = details.querySelector<HTMLElement>(".action-menu-panel");
+  if (summary === null || panel === null) return;
+
+  panel.style.removeProperty("--action-menu-max-height");
+  const rect = summary.getBoundingClientRect();
+  const { placement, maxHeight } = resolveActionMenuPlacement({
+    top: rect.top,
+    bottom: rect.bottom,
+    panelHeight: panel.scrollHeight,
+    viewportHeight: window.innerHeight,
+  });
+
+  details.dataset.placement = placement;
+  panel.style.setProperty("--action-menu-max-height", `${maxHeight}px`);
 }
 
 /** Table des liens de chat : création, URL copiable, édition, suppression (US-LIENS-001). */
@@ -122,13 +141,20 @@ export function LinksTable({
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") closeMenus();
     };
+    const repositionOpenMenus = (): void => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")
+        .forEach(placeActionMenu);
+    };
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", repositionOpenMenus);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", repositionOpenMenus);
     };
   }, []);
   const [widgetCode, setWidgetCode] = useState<{
@@ -589,7 +615,20 @@ export function LinksTable({
                     </p>
                   </div>
                 </div>
-                <details className="action-menu chatbot-card-menu">
+                <details
+                  className="action-menu chatbot-card-menu"
+                  onToggle={(event) => {
+                    const details = event.currentTarget;
+                    if (details.open) {
+                      placeActionMenu(details);
+                      return;
+                    }
+                    delete details.dataset.placement;
+                    details
+                      .querySelector<HTMLElement>(".action-menu-panel")
+                      ?.style.removeProperty("--action-menu-max-height");
+                  }}
+                >
                   <summary className="btn ghost small" aria-label="Autres actions">
                     ⋯
                   </summary>

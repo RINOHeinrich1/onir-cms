@@ -9223,6 +9223,15 @@ a.subtab {
   top: calc(100% + 0.4rem);
   bottom: auto;
   min-width: 14.5rem;
+  max-height: var(--action-menu-max-height, min(70dvh, 24rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chatbot-card--links .action-menu[data-placement="top"] .action-menu-panel {
+  top: auto;
+  bottom: calc(100% + 0.4rem);
 }
 
 .chatbot-card--links:has(.action-menu[open]) {
