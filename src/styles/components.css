@@ -152,6 +152,28 @@
   gap: 0.6rem;
 }
 
+.tools.webhook-kv-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 2fr) auto auto;
+  align-items: end;
+}
+
+.tools.webhook-kv-row .field {
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  .tools.webhook-kv-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .tools.webhook-kv-row .check,
+  .tools.webhook-kv-row > .btn {
+    justify-self: start;
+  }
+}
+
 /* Boîte à outils responsive (remplace l'ancien menu déroulant textuel). */
 .dash-toolbox {
   position: relative;
@@ -834,6 +856,7 @@
 .form {
   display: grid;
   gap: 1rem;
+  min-width: 0;
   max-width: 30rem;
 }
 
@@ -1402,6 +1425,8 @@
 
 /* ---------- Tableau ---------- */
 .table-scroll {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -1854,8 +1879,9 @@
 .modal {
   position: relative;
   width: 100%;
-  max-width: 46rem;
+  max-width: min(46rem, calc(100vw - 2rem));
   max-height: min(88dvh, 46rem);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface-raised);
@@ -1873,6 +1899,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border);
   border-top: 6px solid var(--orange);
@@ -1880,7 +1907,9 @@
 }
 
 .modal-head h3 {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--fs-h4);
 }
 
@@ -1908,11 +1937,38 @@
 
 .modal-body {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  max-width: 100%;
   padding: 1.25rem;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   gap: 1.25rem;
+}
+
+.modal-body > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 40rem) {
+  .modal-overlay {
+    padding: 0.6rem;
+  }
+
+  .modal-head {
+    padding: 0.8rem 0.9rem;
+  }
+
+  .modal-body {
+    padding: 0.9rem;
+  }
+
+  .modal .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .modal-body h4 {
@@ -4160,7 +4216,7 @@ a.subtab {
 
 /* ---------- Modèles de raisonnement : édition simple/expert ---------- */
 .modal.wide {
-  max-width: 64rem;
+  max-width: min(64rem, calc(100vw - 2rem));
   max-height: min(92dvh, 56rem);
 }
 
