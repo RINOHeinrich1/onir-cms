@@ -293,6 +293,8 @@ class StarterTemplate extends HTMLElement {
   #collectionOpen = false;
   #collectionPicker = false;
   #collectionFicheKey = null;
+  #finishing = false;
+  #finishTimer = null;
 
   constructor() {
     super();
@@ -310,6 +312,24 @@ class StarterTemplate extends HTMLElement {
 
   connectedCallback() {
     this.#render();
+  }
+
+  disconnectedCallback() {
+    window.clearTimeout(this.#finishTimer);
+  }
+
+  #requestFinish(ctx) {
+    if (this.#finishing || ctx.state.status === "finalisee" || ctx.state.typing) return;
+    this.#finishing = true;
+    this.#render();
+    ctx.actions.finish();
+    window.clearTimeout(this.#finishTimer);
+    this.#finishTimer = window.setTimeout(() => {
+      if (this.#ctx?.state.status !== "finalisee") {
+        this.#finishing = false;
+        this.#render();
+      }
+    }, 15000);
   }
 
   #render() {
@@ -541,6 +561,10 @@ class StarterTemplate extends HTMLElement {
       `,
     });
 
+    if (ctx.state.status === "finalisee" && this.#finishing) {
+      this.#finishing = false;
+      window.clearTimeout(this.#finishTimer);
+    }
     const title = paramText(ctx, "chat_title", ctx.brand.name || "Discussion");
     const assistantLogo = paramText(ctx, "assistant_logo", "");
     const brandLogo =
@@ -812,8 +836,9 @@ class StarterTemplate extends HTMLElement {
         ? el("button", {
             type: "button",
             class: "finish",
-            text: paramText(ctx, "finish_label", "Terminer"),
-            onclick: () => ctx.actions.finish(),
+            text: this.#finishing ? "…" : paramText(ctx, "finish_label", "Terminer"),
+            disabled: this.#finishing ? "true" : null,
+            onclick: () => this.#requestFinish(ctx),
           })
         : null;
     headerAction(header, finish);
