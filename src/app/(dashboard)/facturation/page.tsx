@@ -68,7 +68,7 @@ export default async function FacturationPage() {
   const body = (await response.json().catch(() => null)) as { code?: unknown } | null;
   if (typeof body?.code !== "string" || body.code === "") return <BillingUnavailable />;
 
-  const portal = new URL(BILLING_PORTAL_URL);
-  portal.searchParams.set("code", body.code);
-  redirect(portal.toString());
+  const handoff = new URL(`${BILLING_API_URL.replace(/\/+$/, "")}/api/espace-client/handoff`);
+  handoff.searchParams.set("code", body.code);
+  redirect(handoff.toString());
 }
