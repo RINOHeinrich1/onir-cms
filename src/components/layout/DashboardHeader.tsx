@@ -229,6 +229,7 @@ export function DashboardHeader({
   activeOrganizationId,
   organizationName,
   isSuperAdmin,
+  billingEnabled,
 }: {
   role: Role;
   email: string;
@@ -236,6 +237,7 @@ export function DashboardHeader({
   activeOrganizationId: string | null;
   organizationName: string | null;
   isSuperAdmin: boolean;
+  billingEnabled: boolean;
 }) {
   // Le super-admin voit tout (son rôle effectif peut être `admin` sans ces actions).
   const pathname = usePathname();
@@ -360,6 +362,7 @@ export function DashboardHeader({
             organizationName={organizationName}
             role={role}
             isSuperAdmin={isSuperAdmin}
+            billingEnabled={billingEnabled}
           />
         </div>
       </div>

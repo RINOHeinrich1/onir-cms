@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
+const billingEnabled = process.env.BILLING_ENABLED === "true";
+const billingPortalUrl = process.env.BILLING_PORTAL_URL?.trim() ?? "";
+const billingApiUrl = process.env.BILLING_API_URL?.trim() ?? "";
+
+if (billingEnabled && (billingPortalUrl === "" || billingApiUrl === "")) {
+  throw new Error("BILLING_PORTAL_URL et BILLING_API_URL sont requis quand BILLING_ENABLED=true");
+}
+
 const nextConfig: NextConfig = {
+  env: {
+    BILLING_ENABLED: billingEnabled ? "true" : "false",
+    BILLING_PORTAL_URL: billingPortalUrl,
+    BILLING_API_URL: billingApiUrl,
+  },
   reactStrictMode: true,
   // pdfkit charge ses polices standard via `fs` : ne pas l'embarquer dans le bundle.
   serverExternalPackages: ["pdfkit", "officeparser"],

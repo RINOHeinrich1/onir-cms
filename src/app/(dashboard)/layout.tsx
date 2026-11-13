@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { BILLING_ENABLED } from "@/config/billing";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -51,6 +52,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           activeOrganizationId={context.actor.organizationId}
           organizationName={context.organization?.name ?? null}
           isSuperAdmin={context.actor.isSuperAdmin}
+          billingEnabled={BILLING_ENABLED}
         />
         <main className="wrap dashboard-main">{children}</main>
         <AssistantWidget />
