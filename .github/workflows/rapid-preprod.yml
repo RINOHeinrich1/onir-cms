@@ -110,6 +110,9 @@ jobs:
           build-args: |
             VERSION=0.0.0-preprod
             REVISION=${{ steps.meta.outputs.sha }}
+            BILLING_ENABLED=true
+            BILLING_PORTAL_URL=https://preprod-backoffice.onir-cms.tech/espace-client
+            BILLING_API_URL=https://preprod-backoffice.onir-cms.tech
           cache-from: type=gha,scope=preprod-runner
           cache-to: type=gha,mode=max,scope=preprod-runner
       - name: Build and push migrations
