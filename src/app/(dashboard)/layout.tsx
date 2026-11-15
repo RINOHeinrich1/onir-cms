@@ -5,6 +5,7 @@ import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { BILLING_ENABLED } from "@/config/billing";
+import { DebugBanner } from "@/components/layout/DebugBanner";
 import { LegalFooter } from "@/components/legal/LegalFooter";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -55,6 +56,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           isSuperAdmin={context.actor.isSuperAdmin}
           billingEnabled={BILLING_ENABLED}
         />
+        <DebugBanner />
         <main className="wrap dashboard-main">{children}</main>
         <LegalFooter className="dashboard-legal" />
         <AssistantWidget />
