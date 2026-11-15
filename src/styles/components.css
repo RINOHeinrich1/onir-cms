@@ -9931,10 +9931,13 @@ a.subtab {
 }
 
 /* Bandeau d'intervention — affiché sous le header en mode commercial. */
-.debug-banner {
+.runtime-banners {
   position: sticky;
   top: 4.25rem;
   z-index: 39;
+}
+
+.debug-banner {
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
@@ -9978,6 +9981,84 @@ a.subtab {
   white-space: pre-wrap;
   color: var(--fg-muted);
   line-height: 1.6;
+}
+
+.maintenance-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.72rem clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid rgb(255 255 255 / 0.2);
+  color: #fff;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.maintenance-banner--scheduled {
+  background: #1d4ed8;
+}
+
+.maintenance-banner--progress {
+  background: #c2410c;
+}
+
+.maintenance-banner-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.32rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgb(255 255 255 / 0.18);
+}
+
+.maintenance-banner-copy {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.maintenance-banner-copy p {
+  flex: 1;
+  margin: 0;
+}
+
+.maintenance-banner-link {
+  flex: 0 0 auto;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.maintenance-detail-card {
+  border-left: 4px solid #1d4ed8;
+}
+
+.maintenance-detail-card--progress {
+  border-left-color: #c2410c;
+}
+
+.maintenance-detail-date {
+  margin-top: 0.75rem;
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+
+.maintenance-detail-text {
+  margin-top: 0.75rem;
+  white-space: pre-wrap;
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .maintenance-banner {
+    padding-inline: 0.85rem;
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 640px) {
