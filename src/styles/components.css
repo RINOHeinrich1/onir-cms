@@ -9960,6 +9960,12 @@ a.subtab {
   margin: 0;
 }
 
+.debug-banner-detail {
+  margin-top: 0.22rem !important;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 640px) {
   .debug-banner {
     padding-inline: 0.85rem;

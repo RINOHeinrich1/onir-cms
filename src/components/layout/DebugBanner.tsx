@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 type RuntimeBanner = {
   enabled?: boolean;
   message?: string;
+  detail?: string;
 };
 
 /**
@@ -29,7 +30,10 @@ export async function DebugBanner() {
   return (
     <div className="debug-banner" role="status">
       <span className="debug-banner-dot" aria-hidden="true" />
-      <p>{banner.message}</p>
+      <div>
+        <p>{banner.message}</p>
+        {banner.detail ? <p className="debug-banner-detail">{banner.detail}</p> : null}
+      </div>
     </div>
   );
 }
