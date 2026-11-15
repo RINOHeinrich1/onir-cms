@@ -9929,3 +9929,37 @@ a.subtab {
     padding-bottom: 4.5rem;
   }
 }
+
+/* Bandeau d'intervention — affiché sous le header en mode commercial. */
+.debug-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.72rem clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid color-mix(in srgb, #d69b42 35%, var(--border));
+  background: color-mix(in srgb, #d69b42 14%, var(--surface));
+  color: var(--fg);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.debug-banner-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.32rem;
+  border-radius: 999px;
+  background: #c07a1e;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #d69b42 18%, transparent);
+}
+
+.debug-banner p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .debug-banner {
+    padding-inline: 0.85rem;
+    font-size: 0.8rem;
+  }
+}
