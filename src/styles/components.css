@@ -9957,13 +9957,27 @@ a.subtab {
 }
 
 .debug-banner p {
+  flex: 1;
   margin: 0;
 }
 
-.debug-banner-detail {
-  margin-top: 0.22rem !important;
+.debug-banner-detail-link {
+  flex: 0 0 auto;
+  color: var(--fg);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.debug-banner-detail-link:hover {
+  color: var(--accent, #b36b1b);
+}
+
+.debug-detail-text {
+  margin-top: 0.75rem;
+  white-space: pre-wrap;
   color: var(--fg-muted);
-  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
 @media (max-width: 640px) {
