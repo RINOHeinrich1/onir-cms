@@ -9883,3 +9883,49 @@ a.subtab {
 .chatbot-card--with-preview .chatbot-card-head {
   padding-bottom: 0.2rem;
 }
+
+/* Footer légal — actif uniquement avec BILLING_ENABLED et une CGU publiée. */
+.legal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.legal-footer a {
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--fg) 35%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.legal-footer a:hover {
+  text-decoration-color: currentColor;
+}
+
+.auth-legal {
+  width: min(100%, 26rem);
+  margin: 0.35rem auto 0;
+}
+
+.dashboard-legal {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .legal-footer {
+    padding-inline: 0.75rem;
+  }
+
+  .dashboard-legal {
+    padding-bottom: 4.5rem;
+  }
+}
