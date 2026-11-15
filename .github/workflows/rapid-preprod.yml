@@ -142,7 +142,7 @@ jobs:
           IMAGE_TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
-          /opt/onir-cms-preprod/deploy.sh "${IMAGE_TAG}"
+          bash scripts/bluegreen-preprod.sh "${IMAGE_TAG}"
       - name: Smoke test
         env:
           PREPROD_BASIC_USER: ${{ secrets.PREPROD_BASIC_USER }}
