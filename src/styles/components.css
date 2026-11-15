@@ -9932,6 +9932,9 @@ a.subtab {
 
 /* Bandeau d'intervention — affiché sous le header en mode commercial. */
 .debug-banner {
+  position: sticky;
+  top: 4.25rem;
+  z-index: 39;
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
