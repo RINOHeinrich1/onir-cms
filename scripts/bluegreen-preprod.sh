@@ -21,7 +21,7 @@ nginx_fs() {
 }
 
 nginx_host() {
-  docker run --rm --privileged -v /:/host alpine:3.20 chroot /host /usr/sbin/nginx "$@"
+  docker run --rm --privileged --pid=host -v /:/host alpine:3.20 chroot /host /usr/sbin/nginx "$@"
 }
 
 write_upstream() {
