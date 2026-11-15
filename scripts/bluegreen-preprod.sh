@@ -11,12 +11,27 @@ VHOST="/etc/nginx/sites-enabled/preprod-cms.onirtech.com.conf"
 PROJECT="onir-cms-preprod"
 
 compose() {
-  sudo docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE" "$@"
+  docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE" "$@"
 }
 
-# Le service vert réutilise exactement la définition du service bleu.
+# Les fichiers nginx appartiennent à root : on les manipule via un conteneur
+# root monté sur /etc/nginx, sans dépendre de sudo sur le runner.
+nginx_fs() {
+  docker run --rm -v /etc/nginx:/etc/nginx alpine:3.20 "$@"
+}
+
+nginx_host() {
+  docker run --rm --privileged -v /:/host alpine:3.20 chroot /host /usr/sbin/nginx "$@"
+}
+
+write_upstream() {
+  local active="$1" target="$2"
+  printf 'upstream onir_preprod_app {\n    server 127.0.0.1:%s max_fails=2 fail_timeout=10s;\n    server 127.0.0.1:%s backup;\n    keepalive 16;\n}\n' "$target" "$active" \
+    | docker run --rm -i -v /etc/nginx:/etc/nginx alpine:3.20 sh -c 'cat > /etc/nginx/conf.d/onir-preprod-upstream.conf'
+}
+
 if [ ! -f "$OVERRIDE" ]; then
-  sudo tee "$OVERRIDE" >/dev/null <<YAML
+  cat > "$OVERRIDE" <<YAML
 services:
   app-green:
     extends:
@@ -27,32 +42,26 @@ services:
 YAML
 fi
 
-# Première installation : nginx passe par un upstream nommé, avec le bleu actif.
-if [ ! -f "$UPSTREAM" ]; then
-  sudo tee "$UPSTREAM" >/dev/null <<'NGINX'
-upstream onir_preprod_app {
-    server 127.0.0.1:3200 max_fails=2 fail_timeout=10s;
-    server 127.0.0.1:3201 backup;
-    keepalive 16;
-}
-NGINX
-fi
-if grep -q "127.0.0.1:320[01]" "$VHOST"; then
-  sudo cp "$VHOST" "${VHOST}.bak-bluegreen-$(date -u +%Y%m%dT%H%M%SZ)"
-  sudo sed -i -E 's#http://127\.0\.0\.1:320[01]#http://onir_preprod_app#g' "$VHOST"
-  sudo nginx -t
-  sudo systemctl reload nginx
+if ! nginx_fs test -f "$UPSTREAM"; then
+  write_upstream 3200 3201
 fi
 
-if grep -q 'server 127.0.0.1:3200;' "$UPSTREAM"; then
+if nginx_fs grep -q "127.0.0.1:320[01]" "$VHOST"; then
+  nginx_fs cp "$VHOST" "${VHOST}.bak-bluegreen-$(date -u +%Y%m%dT%H%M%SZ)"
+  nginx_fs sed -i -E 's#http://127\.0\.0\.1:320[01]#http://onir_preprod_app#g' "$VHOST"
+  nginx_host -t
+  nginx_host -s reload
+fi
+
+if nginx_fs grep -q 'server 127.0.0.1:3200;' "$UPSTREAM"; then
   ACTIVE=3200; TARGET=3201; SERVICE=app-green
 else
   ACTIVE=3201; TARGET=3200; SERVICE=app
 fi
 
-echo "[bluegreen] ${ACTIVE} → ${TARGET} (${TAG})"
+echo "[bluegreen] ${ACTIVE} -> ${TARGET} (${TAG})"
 
-sudo sed -i "s/^PREPROD_IMAGE_TAG=.*/PREPROD_IMAGE_TAG=${TAG}/" "$ENV_FILE"
+sed -i "s/^PREPROD_IMAGE_TAG=.*/PREPROD_IMAGE_TAG=${TAG}/" "$ENV_FILE"
 
 compose pull "$SERVICE"
 compose run --rm migrate
@@ -63,21 +72,15 @@ for attempt in $(seq 1 60); do
     break
   fi
   if [ "$attempt" -eq 60 ]; then
-    echo "[bluegreen] santé KO sur ${TARGET}, bascule annulée" >&2
+    echo "[bluegreen] sante KO sur ${TARGET}, bascule annulee" >&2
     exit 1
   fi
   sleep 2
 done
 
-sudo tee "$UPSTREAM" >/dev/null <<NGINX
-upstream onir_preprod_app {
-    server 127.0.0.1:${TARGET} max_fails=2 fail_timeout=10s;
-    server 127.0.0.1:${ACTIVE} backup;
-    keepalive 16;
-}
-NGINX
-sudo nginx -t
-sudo systemctl reload nginx
+write_upstream "$ACTIVE" "$TARGET"
+nginx_host -t
+nginx_host -s reload
 
 curl -fsS "https://preprod-cms.onirtech.com/api/health" >/dev/null
-echo "[bluegreen] actif sur ${TARGET}, ${ACTIVE} conservé en secours"
+echo "[bluegreen] actif sur ${TARGET}, ${ACTIVE} conserve en secours"
