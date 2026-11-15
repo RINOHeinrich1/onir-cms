@@ -137,6 +137,7 @@ jobs:
       name: preprod
       url: https://preprod-cms.onirtech.com
     steps:
+      - uses: actions/checkout@v4
       - name: Deploy
         env:
           IMAGE_TAG: ${{ needs.verify.outputs.tag }}
