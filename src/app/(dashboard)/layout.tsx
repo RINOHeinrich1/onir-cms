@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { DebugBanner } from "@/components/layout/DebugBanner";
+import { RuntimeBanners } from "@/components/layout/RuntimeBanners";
 import { LegalFooter } from "@/components/legal/LegalFooter";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
@@ -54,7 +54,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           organizationName={context.organization?.name ?? null}
           isSuperAdmin={context.actor.isSuperAdmin}
         />
-        <DebugBanner />
+        <RuntimeBanners />
         <main className="wrap dashboard-main">{children}</main>
         <LegalFooter className="dashboard-legal" />
         <AssistantWidget />
