@@ -30,14 +30,14 @@ write_upstream() {
     | docker run --rm -i -v /etc/nginx:/etc/nginx alpine:3.20 sh -c 'cat > /etc/nginx/conf.d/onir-preprod-upstream.conf'
 }
 
-if [ ! -f "$OVERRIDE" ]; then
+if ! grep -q '!override' "$OVERRIDE" 2>/dev/null; then
   cat > "$OVERRIDE" <<YAML
 services:
   app-green:
     extends:
       file: $COMPOSE
       service: app
-    ports:
+    ports: !override
       - "127.0.0.1:3201:3000"
 YAML
 fi
