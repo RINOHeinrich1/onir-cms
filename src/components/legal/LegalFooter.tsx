@@ -27,11 +27,14 @@ export async function LegalFooter({ className = "" }: { className?: string }) {
 
   if (legal?.fileUrl === undefined) return null;
 
+  const publicBase = baseUrl.replace(/\/$/, "");
+  const href = `${publicBase}/api/public/legal/terms/file?locale=fr`;
+
   return (
     <footer className={`legal-footer ${className}`.trim()}>
       <span>© {new Date().getFullYear()} ONIRTECH</span>
       <span aria-hidden="true">·</span>
-      <a href={legal.fileUrl} target="_blank" rel="noopener noreferrer">
+      <a href={href} target="_blank" rel="noopener noreferrer">
         {legal.title ?? "Conditions Générales"}
       </a>
     </footer>
