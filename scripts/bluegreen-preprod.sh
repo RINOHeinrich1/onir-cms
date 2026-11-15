@@ -53,7 +53,7 @@ if nginx_fs grep -q "127.0.0.1:320[01]" "$VHOST"; then
   nginx_host -s reload
 fi
 
-if nginx_fs grep -q 'server 127.0.0.1:3200;' "$UPSTREAM"; then
+if nginx_fs grep -q 'server 127.0.0.1:3200' "$UPSTREAM"; then
   ACTIVE=3200; TARGET=3201; SERVICE=app-green
 else
   ACTIVE=3201; TARGET=3200; SERVICE=app
