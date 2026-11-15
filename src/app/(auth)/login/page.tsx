@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { LegalFooter } from "@/components/legal/LegalFooter";
 import { getCurrentUser } from "@/infrastructure/session/current-user";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export default async function LoginPage() {
         </p>
         <LoginForm />
       </section>
+      <LegalFooter className="auth-legal" />
     </main>
   );
 }
