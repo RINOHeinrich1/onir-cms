@@ -14,8 +14,10 @@ type LoginResponse = {
   error?: string;
 };
 
+const CLOUD_OFFERS_URL = "https://onir-cms.tech/tarifs/#offres-cloud";
+
 /** Formulaire de connexion (US-AUTH-001) — honeypot + redirection rotation. */
-export function LoginForm() {
+export function LoginForm({ commercial = false }: { commercial?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -90,6 +92,12 @@ export function LoginForm() {
       <button type="submit" className="btn" disabled={pending || !ready}>
         {pending ? "Connexion…" : "Se connecter"}
       </button>
+
+      {commercial ? (
+        <p className="auth-switch">
+          <a href={CLOUD_OFFERS_URL}>Pas de compte ? Créer ici</a>
+        </p>
+      ) : null}
     </form>
   );
 }
