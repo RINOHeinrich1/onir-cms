@@ -317,31 +317,6 @@ export function FicheCollecteForm({
 
       <div className="chatbot-fields-head">
         <strong>Champs ({draft.fields.length})</strong>
-        <button
-          type="button"
-          className="btn ghost small"
-          onClick={() =>
-            setDraft({
-              ...draft,
-              fields: [
-                ...draft.fields,
-                {
-                  id: newId(),
-                  name: "",
-                  label: "",
-                  type: "text",
-                  required: false,
-                  options: "",
-                  example: "",
-                  unit: "",
-                  ficheKey: "",
-                },
-              ],
-            })
-          }
-        >
-          Ajouter un champ
-        </button>
       </div>
 
       {draft.fields.map((field, index) => (
@@ -435,6 +410,34 @@ export function FicheCollecteForm({
           </button>
         </div>
       ))}
+
+      <div className="tools" style={{ marginTop: "0.75rem" }}>
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={() =>
+            setDraft({
+              ...draft,
+              fields: [
+                ...draft.fields,
+                {
+                  id: newId(),
+                  name: "",
+                  label: "",
+                  type: "text",
+                  required: false,
+                  options: "",
+                  example: "",
+                  unit: "",
+                  ficheKey: "",
+                },
+              ],
+            })
+          }
+        >
+          Ajouter un champ
+        </button>
+      </div>
 
       <div className="chatbot-fields-head" style={{ marginTop: "1.5rem" }}>
         <strong>Statuts de qualification ({draft.statuses.length})</strong>
