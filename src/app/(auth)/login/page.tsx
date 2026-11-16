@@ -4,6 +4,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LegalFooter } from "@/components/legal/LegalFooter";
 import { getCurrentUser } from "@/infrastructure/session/current-user";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default async function LoginPage() {
     redirect(user.mustChangePassword ? "/change-password" : "/dashboard");
   }
 
+  const commercial = env("BILLING_ENABLED") === "true";
+
   return (
     <main className="auth-shell">
       <div className="auth-top">
@@ -28,7 +31,7 @@ export default async function LoginPage() {
         <p className="hint" style={{ marginBottom: "1.5rem" }}>
           Accédez à votre espace de prospection.
         </p>
-        <LoginForm />
+        <LoginForm commercial={commercial} />
       </section>
       <LegalFooter className="auth-legal" />
     </main>

@@ -2331,6 +2331,18 @@
   margin-bottom: 0.35rem;
 }
 
+.auth-switch {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+.auth-switch a {
+  color: var(--orange);
+  font-weight: 600;
+}
+
 .auth-top {
   position: absolute;
   top: 1.25rem;
