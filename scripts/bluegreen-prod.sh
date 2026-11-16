@@ -49,14 +49,17 @@ fi
 echo "[prod-bluegreen] node1 ${active_node1} -> ${target_node1}; node2 ${active_node2} -> ${target_node2}"
 
 # Node 1 : récupérer l'environnement de l'instance active et démarrer le slot inactif.
-ssh1 "sudo docker inspect ${source_container} --format '{{range .Config.Env}}{{println .}}{{end}}'" > /tmp/onir-prod-node1.env
-sed -i "s/^ONIR_CMS_VERSION=.*/ONIR_CMS_VERSION=${TAG}/" /tmp/onir-prod-node1.env
-chmod 600 /tmp/onir-prod-node1.env
-ssh1 "sudo tee /tmp/onir-prod-node1.env >/dev/null" < /tmp/onir-prod-node1.env
+local_env="$(mktemp)"
+ssh1 "sudo docker inspect ${source_container} --format '{{range .Config.Env}}{{println .}}{{end}}'" > "$local_env"
+sed -i "s/^ONIR_CMS_VERSION=.*/ONIR_CMS_VERSION=${TAG}/" "$local_env"
+chmod 600 "$local_env"
+remote_env="/tmp/onir-prod-node1-${TAG}.env"
+ssh1 "sudo tee ${remote_env} >/dev/null" < "$local_env"
 ssh1 "sudo docker pull '${IMAGE}' >/dev/null"
 ssh1 "sudo docker rm -f onir-cms-app-node1-${target_node1} >/dev/null 2>&1 || true"
-ssh1 "sudo docker run -d --name onir-cms-app-node1-${target_node1} --restart unless-stopped --network onir-cms-node1_default -p 0.0.0.0:${port_node1}:3000 --env-file /tmp/onir-prod-node1.env '${IMAGE}' >/dev/null"
-rm -f /tmp/onir-prod-node1.env
+ssh1 "sudo docker run -d --name onir-cms-app-node1-${target_node1} --restart unless-stopped --network onir-cms-node1_default -p 0.0.0.0:${port_node1}:3000 --env-file ${remote_env} '${IMAGE}' >/dev/null"
+ssh1 "sudo rm -f ${remote_env}"
+rm -f "$local_env"
 wait_health node1 "$port_node1" "node1-${target_node1}"
 
 # Node 2 : mise à jour de l'environnement et du slot inactif.
