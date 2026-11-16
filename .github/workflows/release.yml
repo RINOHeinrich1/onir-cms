@@ -35,6 +35,8 @@ jobs:
   publish:
     name: Build and publish release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,3 +134,27 @@ jobs:
           else
             gh release create "${TAG}" --verify-tag --generate-notes
           fi
+
+  deploy-production:
+    name: Deploy production blue-green
+    needs: publish
+    if: vars.PRODUCTION_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://magic-panel.onir-cms.tech
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SSH keys
+        env:
+          PROD_NODE1_SSH_KEY: ${{ secrets.PROD_NODE1_SSH_KEY }}
+          PROD_NODE2_SSH_KEY: ${{ secrets.PROD_NODE2_SSH_KEY }}
+          PROD_HAPROXY_SSH_KEY: ${{ secrets.PROD_HAPROXY_SSH_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$PROD_NODE1_SSH_KEY" > "$HOME/.ssh/prod_node1"
+          printf '%s\n' "$PROD_NODE2_SSH_KEY" > "$HOME/.ssh/prod_node2"
+          printf '%s\n' "$PROD_HAPROXY_SSH_KEY" > "$HOME/.ssh/prod_haproxy"
+          chmod 600 "$HOME/.ssh/prod_node1" "$HOME/.ssh/prod_node2" "$HOME/.ssh/prod_haproxy"
+      - name: Deploy
+        run: bash scripts/bluegreen-prod.sh "${{ needs.publish.outputs.version }}"
