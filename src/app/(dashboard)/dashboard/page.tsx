@@ -162,7 +162,7 @@ export default async function DashboardHomePage() {
   return (
     <section>
       <span className="eyebrow">Vue globale</span>
-      <h1 className="text-title">Votre cockpit de prospection</h1>
+      <h1 className="text-title">Observabilité générale</h1>
       <p className="hint" style={{ fontSize: "1.05rem", marginTop: "1rem" }}>
         Connecté en tant que <strong>{context.user.email}</strong> — organisation{" "}
         <span className="badge">{context.organization?.name ?? "—"}</span> · rôle{" "}
