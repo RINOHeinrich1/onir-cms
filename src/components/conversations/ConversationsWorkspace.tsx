@@ -157,7 +157,7 @@ export function ConversationsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
-  const grouped = searchParams.get("grouper") !== "0";
+  const grouped = searchParams.get("grouper") === "1";
   const overviewMode = grouped && selectedId === null;
   useToastOnMessage(error);
 
@@ -259,7 +259,7 @@ export function ConversationsWorkspace({
     prise_en_main: readonly string[];
   }): URLSearchParams => {
     const params = new URLSearchParams();
-    if (!grouped) params.set("grouper", "0");
+    if (grouped) params.set("grouper", "1");
     if (values.statut.length === 0) params.append("statut", "");
     for (const value of values.statut) params.append("statut", value);
     if (values.archive.length === 0) params.append("archive", "");
@@ -276,8 +276,8 @@ export function ConversationsWorkspace({
   const setGrouped = (next: boolean): void => {
     setGroupSearch("");
     const params = new URLSearchParams(searchParams.toString());
-    if (next) params.delete("grouper");
-    else params.set("grouper", "0");
+    if (next) params.set("grouper", "1");
+    else params.delete("grouper");
     const suffix = params.toString();
     router.replace(`${currentPath()}${suffix === "" ? "" : `?${suffix}`}`, { scroll: false });
   };

@@ -199,7 +199,7 @@ export default async function DashboardHomePage() {
                 <strong>{conversations.enCours}</strong>
                 <span>En cours</span>
               </Link>
-              <Link href="/conversations?filtre=finalisees" className="dash-pair-item">
+              <Link href="/conversations?filtre=finalisees&grouper=0" className="dash-pair-item">
                 <strong>{conversations.finalisees}</strong>
                 <span>Finalisées</span>
               </Link>
