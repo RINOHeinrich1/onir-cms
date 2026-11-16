@@ -139,7 +139,7 @@ jobs:
     name: Deploy production blue-green
     needs: publish
     if: vars.PRODUCTION_DEPLOY == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, onir-cms-preprod]
     environment:
       name: production
       url: https://magic-panel.onir-cms.tech
