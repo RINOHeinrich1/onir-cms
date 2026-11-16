@@ -21,6 +21,12 @@
   border-bottom: 1px solid var(--border);
 }
 
+:root[data-theme="dark"] .bar {
+  background: rgb(17 19 21 / 0.9);
+  border-bottom-color: rgb(242 241 237 / 0.08);
+  backdrop-filter: blur(12px);
+}
+
 .bar-inner {
   display: flex;
   justify-content: space-between;
@@ -780,6 +786,17 @@
 .btn.danger.ghost:hover {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+:root[data-theme="dark"] .btn:not(.ghost):not(.danger):not(.light):not(:disabled) {
+  background: #246d58;
+  color: #f8fbf8;
+  border-color: rgb(255 255 255 / 0.05);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+
+:root[data-theme="dark"] .btn:not(.ghost):not(.danger):not(.light):not(:disabled):hover {
+  background: #2d7e66;
 }
 
 /* ---------- Cartes / panneaux ---------- */
