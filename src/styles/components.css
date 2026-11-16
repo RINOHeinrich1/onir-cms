@@ -6594,6 +6594,10 @@ a.subtab {
   overflow: hidden;
 }
 
+.dash:has(.conversations-workspace) > .dashboard-legal {
+  display: none;
+}
+
 .dashboard-main:has(.conversations-workspace) {
   flex: 1 1 auto;
   width: 100%;
