@@ -29,7 +29,7 @@ export default async function LoginPage() {
         <span className="eyebrow">ONIR CMS</span>
         <h1>Connexion</h1>
         <p className="hint" style={{ marginBottom: "1.5rem" }}>
-          Accédez à votre espace de prospection.
+          Espace ONIR-CMS
         </p>
         <LoginForm commercial={commercial} />
       </section>
