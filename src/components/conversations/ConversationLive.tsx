@@ -270,7 +270,6 @@ export function ConversationLive({
       receiveMessages([json.message]);
       applyConversation(json.conversation);
       setDraft("");
-      toast.success("Message envoyé au visiteur.");
       draftRef.current?.focus();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -294,7 +293,6 @@ export function ConversationLive({
         return;
       }
       setDraft(json.suggestion);
-      toast.success("Suggestion ajoutée au message.");
       draftRef.current?.focus();
     } catch {
       setError("Erreur réseau, veuillez réessayer");

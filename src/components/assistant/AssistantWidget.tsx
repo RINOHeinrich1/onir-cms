@@ -491,7 +491,7 @@ export function AssistantWidget() {
           {panel === "home" ? (
             <div className="assistant-home">
               <p className="assistant-intro">
-                Bonjour, je suis la fée ONIR. Que souhaitez-vous faire ?
+                Bonjour, je suis la fée ONIRIA. Que souhaitez-vous faire ?
               </p>
               <div className="assistant-options">
                 <button
