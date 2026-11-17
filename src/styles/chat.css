@@ -749,8 +749,79 @@ body:has(.chat-page) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+
+.conversation-status-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.conversation-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.conversation-ai-toggle-label {
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.conversation-switch {
+  position: relative;
+  width: 2.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast, 150ms) ease,
+    border-color var(--dur-fast, 150ms) ease;
+}
+
+.conversation-switch.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.conversation-switch:focus-visible {
+  outline: 2px solid var(--focus, var(--navy));
+  outline-offset: 2px;
+}
+
+.conversation-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.conversation-switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 22%);
+  transform: translateY(-50%);
+  transition: left var(--dur-fast, 150ms) ease;
+}
+
+.conversation-switch.is-on .conversation-switch-thumb {
+  left: calc(100% - 1.05rem - 2px);
+  background: #fff;
 }
 
 .conversation-composer {
@@ -786,19 +857,39 @@ body:has(.chat-page) {
   gap: 0.5rem;
 }
 
+.conversation-composer-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .conversation-composer-suggest {
   white-space: nowrap;
 }
 
+.conversation-composer-send {
+  margin-left: auto;
+}
+
+.conversation-btn-icon {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 @media (max-width: 520px) {
   .conversation-composer-actions {
-    display: grid;
-    grid-template-columns: 1fr;
+    flex-wrap: nowrap;
   }
 
   .conversation-composer-actions .btn {
-    width: 100%;
     justify-content: center;
+    min-width: 2.6rem;
+    padding-inline: 0.7rem;
+  }
+
+  .conversation-btn-label {
+    display: none;
   }
 }
 
