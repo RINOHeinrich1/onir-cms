@@ -778,7 +778,7 @@ export function LinksTable({
         {visibleLinks.length === 0 ? (
           <div className="empty-state">
             <strong>Aucun chatbot.</strong>
-            <span>Créez un lien pour commencer à recevoir des conversations.</span>
+            <span>Créer un assistant IA partageable</span>
             {links.length > 0 ? <span>Aucun résultat pour ces filtres.</span> : null}
           </div>
         ) : null}
