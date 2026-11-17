@@ -1,4 +1,4 @@
--- 0088_visual_template_ownership.sql — templates plateforme vs organisation (ADR-0090)
+-- 0091_visual_template_ownership.sql — templates plateforme vs organisation (ADR-0091)
 -- Migration additive : les templates existants restent des templates plateforme.
 
 ALTER TABLE visual_templates
@@ -26,9 +26,9 @@ CREATE INDEX IF NOT EXISTS visual_templates_owner_org_idx
   WHERE owner_organization_id IS NOT NULL;
 
 COMMENT ON COLUMN visual_templates.owner_organization_id IS
-  'NULL = template plateforme ; sinon template privé de cette organisation (ADR-0090).';
+  'NULL = template plateforme ; sinon template privé de cette organisation (ADR-0091).';
 COMMENT ON COLUMN visual_templates.disabled_at IS
-  'Désactivation d''urgence plateforme : le template n''est plus listé ni rendu (ADR-0090).';
+  'Désactivation d''urgence plateforme : le template n''est plus listé ni rendu (ADR-0091).';
 
 CREATE OR REPLACE FUNCTION visual_templates_owner_limit_guard() RETURNS trigger
 LANGUAGE plpgsql AS $$

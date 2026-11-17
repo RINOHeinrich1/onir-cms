@@ -87,5 +87,5 @@ ADR qui remplace la précédente.
 | [0088](./0088-api-plateforme-service-a-service.md) | API plateforme — authentification service-à-service | Accepté |
 | [0089](./0089-limite-messages-organisation.md) | Limite de messages par organisation | Accepté |
 | [0090](./0090-quota-stockage-organisation.md) | Quota global de stockage par organisation | Accepté |
-| [0090](./0090-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
-| [0091](./0091-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
+| [0091](./0091-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
+| [0092](./0092-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |

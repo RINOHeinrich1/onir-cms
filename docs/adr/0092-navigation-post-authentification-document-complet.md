@@ -1,4 +1,4 @@
-# 0091. Navigation post-authentification — rechargement document complet
+# 0092. Navigation post-authentification — rechargement document complet
 
 - **Statut** : Accepté
 - **Date** : 2026-11-17

@@ -92,7 +92,7 @@ export type CreateVisualTemplateAssetInput = {
 export interface VisualTemplateRepository {
   /** Catalogue global (super-admin). */
   list(): Promise<VisualTemplate[]>;
-  /** Templates installés dans une organisation (ADR-0025 §6 / ADR-0090). */
+  /** Templates installés dans une organisation (ADR-0025 §6 / ADR-0091). */
   listForOrganization(organizationId: string): Promise<VisualTemplate[]>;
   /** Catalogue plateforme non installé, visible par toutes les organisations. */
   listAvailableForOrganization(organizationId: string): Promise<VisualTemplate[]>;

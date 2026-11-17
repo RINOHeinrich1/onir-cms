@@ -1,4 +1,4 @@
-# 0090. Templates visuels gérés par organisation — upload, installation et désinstallation
+# 0091. Templates visuels gérés par organisation — upload, installation et désinstallation
 
 - **Statut** : Accepté
 - **Date** : 2026-11-17

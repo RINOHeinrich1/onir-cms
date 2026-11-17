@@ -37,7 +37,7 @@ export function ChangePasswordForm() {
         setError(json.error ?? "Changement impossible");
         return;
       }
-      // Navigation document complète après rotation du mot de passe (ADR-0091).
+      // Navigation document complète après rotation du mot de passe (ADR-0092).
       window.location.replace("/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");

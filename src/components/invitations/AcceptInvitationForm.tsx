@@ -48,7 +48,7 @@ export function AcceptInvitationForm({ token }: { token: string }) {
       }
       toast.success("Invitation acceptée.");
       // Navigation document complète : le cookie de session doit être présent
-      // au premier rendu du dashboard (ADR-0091).
+      // au premier rendu du dashboard (ADR-0092).
       window.location.replace(json.mustChangePassword === true ? "/change-password" : "/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");

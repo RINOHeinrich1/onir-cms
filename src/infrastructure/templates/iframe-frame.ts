@@ -21,7 +21,7 @@ export type IframeFrameInput = {
 };
 
 /**
- * Document hôte d'une iframe template (ADR-0090).
+ * Document hôte d'une iframe template (ADR-0091).
  * Le code du template reste dans l'iframe sandboxée ; ce document est contrôlé
  * par la plateforme et sert uniquement de pont contexte/actions/data.
  */

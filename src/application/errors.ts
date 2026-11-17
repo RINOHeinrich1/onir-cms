@@ -126,7 +126,7 @@ export class StorageQuotaExceededError extends AppError {
   }
 }
 
-/** Le template est encore utilisé par au moins un chatbot (ADR-0090 §6). */
+/** Le template est encore utilisé par au moins un chatbot (ADR-0091 §6). */
 export class TemplateInUseError extends AppError {
   readonly usages: number;
   readonly templateName: string;
@@ -142,7 +142,7 @@ export class TemplateInUseError extends AppError {
   }
 }
 
-/** L'organisation a atteint la limite de templates propriétaires (ADR-0090 §3). */
+/** L'organisation a atteint la limite de templates propriétaires (ADR-0091 §3). */
 export class TemplateLimitReachedError extends AppError {
   readonly limit: number;
 
@@ -152,7 +152,7 @@ export class TemplateLimitReachedError extends AppError {
   }
 }
 
-/** Une clé réservée au catalogue plateforme a été utilisée (ADR-0090 §8). */
+/** Une clé réservée au catalogue plateforme a été utilisée (ADR-0091 §8). */
 export class TemplateKeyReservedError extends AppError {
   constructor(key: string) {
     super(`La clé « ${key} » est réservée aux templates plateforme`, 400, "TEMPLATE_KEY_RESERVED");

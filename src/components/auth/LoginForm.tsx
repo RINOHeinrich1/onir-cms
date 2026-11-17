@@ -56,7 +56,7 @@ export function LoginForm({ commercial = false }: { commercial?: boolean }) {
             ? NO_ORGANIZATION_PATH
             : "/dashboard";
       // Navigation document complète : évite la course replace/refresh et garantit
-      // que le cookie de session est présent au premier rendu serveur (ADR-0091).
+      // que le cookie de session est présent au premier rendu serveur (ADR-0092).
       window.location.replace(target);
     } catch {
       setError("Erreur réseau, veuillez réessayer");

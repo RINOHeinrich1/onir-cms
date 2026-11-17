@@ -128,7 +128,7 @@ export async function importVisualTemplate(
     });
   }
 
-  // ADR-0090 §5 : seul un NOUVEAU template plateforme est préinstallé.
+  // ADR-0091 §5 : seul un NOUVEAU template plateforme est préinstallé.
   // Une nouvelle version ne doit jamais réinstaller un template désinstallé.
   if (existing === null) {
     await deps.templates.assignToAllOrganizations(template.id, "platform_default");

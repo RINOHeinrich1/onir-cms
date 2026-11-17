@@ -1,4 +1,4 @@
--- 0089_organization_visual_template_installation.sql — installations et audit (ADR-0090)
+-- 0092_organization_visual_template_installation.sql — installations et audit (ADR-0091)
 -- Migration additive : aucune installation existante n'est supprimée.
 
 ALTER TABLE organization_visual_templates
@@ -52,4 +52,4 @@ CREATE INDEX IF NOT EXISTS visual_template_audit_template_created_idx
   ON visual_template_audit (template_id, created_at DESC);
 
 COMMENT ON TABLE visual_template_audit IS
-  'Journal append-only des uploads, installations et désactivations de templates (ADR-0090).';
+  'Journal append-only des uploads, installations et désactivations de templates (ADR-0091).';

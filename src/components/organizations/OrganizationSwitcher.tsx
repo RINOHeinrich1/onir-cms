@@ -34,7 +34,7 @@ export function OrganizationSwitcher({
         setError(json.error ?? "Bascule impossible");
         return;
       }
-      // Rechargement complet après bascule d'organisation (ADR-0091).
+      // Rechargement complet après bascule d'organisation (ADR-0092).
       window.location.replace("/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");

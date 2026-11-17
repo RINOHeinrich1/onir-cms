@@ -4,7 +4,7 @@ import type {
   VisualTemplateAuditRepository,
 } from "@/application/ports/visual-template-audit-repository";
 
-/** Journal append-only des actions templates (ADR-0090). */
+/** Journal append-only des actions templates (ADR-0091). */
 export function pgVisualTemplateAuditRepository(pool: Pool): VisualTemplateAuditRepository {
   return {
     async record(input: VisualTemplateAuditInput): Promise<void> {

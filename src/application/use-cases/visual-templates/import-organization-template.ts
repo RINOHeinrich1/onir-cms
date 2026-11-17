@@ -31,7 +31,7 @@ export type ImportedOrganizationVisualTemplate = {
 };
 
 /**
- * ADR-0090 §3 — import d'un template privé par l'admin d'organisation.
+ * ADR-0091 §3 — import d'un template privé par l'admin d'organisation.
  * Le transport est forcé en iframe community ; le template est auto-installé
  * dans l'organisation propriétaire, jamais dans les autres.
  */
