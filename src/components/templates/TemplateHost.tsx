@@ -1052,6 +1052,7 @@ export function TemplateHost({
       // Connecter l'élément AVANT d'injecter le contexte (le template se construit
       // dans connectedCallback ; injecter avant casse les templates à refs).
       mountRef.current?.replaceChildren(el);
+      mountRef.current?.setAttribute("data-onirtech-ready", "1");
       (el as HTMLElement & { onirtechContext?: LiveContext }).onirtechContext =
         liveContextRef.current;
     };

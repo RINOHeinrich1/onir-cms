@@ -50,6 +50,7 @@ export async function GET(
           : templateVersion.manifest.ui.element,
       versionRoot,
     });
+    const network = templateVersion.manifest.network.join(" ");
     const connectSources =
       templateVersion.manifest.network.length > 0
         ? templateVersion.manifest.network.join(" ")
@@ -60,10 +61,10 @@ export async function GET(
         "Cache-Control": "no-store",
         "Content-Security-Policy": [
           "default-src 'none'",
-          "script-src 'self' 'unsafe-inline'",
-          "style-src 'self' 'unsafe-inline'",
+          `script-src 'self' 'unsafe-inline'${network === "" ? "" : ` ${network}`}`,
+          `style-src 'self' 'unsafe-inline'${network === "" ? "" : ` ${network}`}`,
           "img-src 'self' data: blob: https:",
-          "font-src 'self' data: https:",
+          `font-src 'self' data: https:${network === "" ? "" : ` ${network}`}`,
           `connect-src ${connectSources}`,
           "base-uri 'self'",
           "form-action 'none'",
