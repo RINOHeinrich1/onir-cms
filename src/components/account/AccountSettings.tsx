@@ -84,9 +84,6 @@ export function AccountSettings({
         <div>
           <span className="eyebrow">Compte</span>
           <h1 className="text-title">Paramètres du compte</h1>
-          <p className="muted-text">
-            Compte, organisation, utilisateurs et accès API réunis dans un seul espace.
-          </p>
         </div>
       </div>
 

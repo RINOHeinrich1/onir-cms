@@ -74,9 +74,6 @@ export default async function ConfigurationPage({
         <div>
           <span className="eyebrow">Administration</span>
           <h1 className="text-title">Configuration</h1>
-          <p className="muted-text">
-            Intelligence artificielle, base de données et secrets applicatifs réunis ici.
-          </p>
         </div>
       </div>
 

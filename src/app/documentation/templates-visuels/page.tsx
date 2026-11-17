@@ -277,10 +277,6 @@ export default function TemplateDocsPage() {
         <div>
           <span className="eyebrow">Documentation</span>
           <h1 className="text-title">Créer un template visuel</h1>
-          <p className="hint">
-            Interface publique du chat et du formulaire de prospection — contrat{" "}
-            <code>onirtech.template-host.v1</code>.
-          </p>
         </div>
       </div>
 

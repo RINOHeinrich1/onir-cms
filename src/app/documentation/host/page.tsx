@@ -48,10 +48,6 @@ export default function HostDocsPage() {
         <div>
           <span className="eyebrow">Documentation</span>
           <h1 className="text-title">Template ↔ hôte : données, actions et mode mock</h1>
-          <p className="hint">
-            Qui fournit la photothèque, les liens, les connaissances et le traitement des messages —
-            et ce que votre template doit (ou ne doit pas) faire.
-          </p>
         </div>
       </div>
 

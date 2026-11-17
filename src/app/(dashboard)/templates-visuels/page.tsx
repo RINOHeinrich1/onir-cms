@@ -77,10 +77,6 @@ export default async function VisualTemplatesPage() {
             </a>
           </div>
         </div>
-        <p className="hint" style={{ marginBottom: "1.5rem" }}>
-          Installez les templates de la plateforme ou importez votre propre archive. Les templates
-          importés sont privés à votre organisation.
-        </p>
         <OrganizationTemplatesGrid
           installed={installed}
           available={available}
