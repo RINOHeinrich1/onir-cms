@@ -87,3 +87,4 @@ ADR qui remplace la précédente.
 | [0089](./0089-facturation-portail-externe-profil-zero.md) | Facturation externalisée — portail client commercial et profil de limites zéro | Accepté |
 | [0090](./0090-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
 | [0091](./0091-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
+| [0092](./0092-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |

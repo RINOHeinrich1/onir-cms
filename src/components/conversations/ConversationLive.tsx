@@ -67,6 +67,7 @@ export function ConversationLive({
   const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [actionPending, setActionPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -278,6 +279,30 @@ export function ConversationLive({
     }
   };
 
+  const suggest = async (): Promise<void> => {
+    if (pending || suggesting || actionPending || conversation.statut === "finalisee") return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversation.id)}/suggest-reply`,
+        { method: "POST" },
+      );
+      const json = (await response.json()) as { suggestion?: string; error?: string };
+      if (!response.ok || typeof json.suggestion !== "string") {
+        setError(json.error ?? "Suggestion impossible");
+        return;
+      }
+      setDraft(json.suggestion);
+      toast.success("Suggestion ajoutée au message.");
+      draftRef.current?.focus();
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   const changeMode = async (action: "takeover" | "release"): Promise<void> => {
     if (actionPending) return;
     setActionPending(true);
@@ -373,10 +398,26 @@ export function ConversationLive({
             }
             rows={3}
             maxLength={4000}
-            disabled={pending}
+            disabled={pending || suggesting}
           />
           <div className="conversation-composer-actions">
-            <button type="submit" className="btn small" disabled={pending || draft.trim() === ""}>
+            {conversation.interventionMode === "human" ? (
+              <button
+                type="button"
+                className="btn ghost small conversation-composer-suggest"
+                disabled={pending || suggesting || actionPending}
+                onClick={() => void suggest()}
+                aria-label="Générer une suggestion de réponse avec l'IA"
+                title="Générer une suggestion et remplacer le message"
+              >
+                {suggesting ? "Suggestion…" : "Suggestion IA"}
+              </button>
+            ) : null}
+            <button
+              type="submit"
+              className="btn small"
+              disabled={pending || suggesting || draft.trim() === ""}
+            >
               {pending ? "Envoi…" : "Envoyer"}
             </button>
             {conversation.interventionMode === "human" ? (

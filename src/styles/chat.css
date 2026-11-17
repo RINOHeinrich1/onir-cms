@@ -786,6 +786,22 @@ body:has(.chat-page) {
   gap: 0.5rem;
 }
 
+.conversation-composer-suggest {
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .conversation-composer-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-composer-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ---------- Shell hôte de template visuel (ADR-0019) ---------- */
 .template-host {
   width: 100%;
