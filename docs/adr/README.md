@@ -86,3 +86,4 @@ ADR qui remplace la précédente.
 | [0085](./0085-evitement-fee-controles-interactifs.md) | Évitement automatique de la fée ONIR sur les contrôles interactifs | Proposé |
 | [0089](./0089-facturation-portail-externe-profil-zero.md) | Facturation externalisée — portail client commercial et profil de limites zéro | Accepté |
 | [0090](./0090-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
+| [0091](./0091-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
