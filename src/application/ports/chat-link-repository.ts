@@ -47,6 +47,12 @@ export type CreateChatLinkInput = {
   tokenResetDays?: number | null;
 };
 
+export type RecentChatLink = {
+  organizationId: string;
+  id: string;
+  currentConfigId: string | null;
+};
+
 export type AiTokenUsageInput = {
   conversationId: string | null;
   operation: string;
@@ -60,6 +66,8 @@ export interface ChatLinkRepository {
   /** Résolution publique : le token porte l'organisation (jamais le client). */
   findByTokenHash(tokenHash: string): Promise<ChatLink | null>;
   list(organizationId: string): Promise<ChatLink[]>;
+  /** Liens actifs les plus récemment utilisés, pour le warm-up du cache (ADR-0094). */
+  listRecentlyActive?(limit: number): Promise<RecentChatLink[]>;
   /** Incrémente le compteur d'ouvertures publiques du lien. */
   recordVisit(organizationId: string, id: string): Promise<void>;
   create(organizationId: string, input: CreateChatLinkInput): Promise<ChatLink>;

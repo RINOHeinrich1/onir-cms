@@ -3,6 +3,7 @@ import type {
   AiTokenUsageInput,
   ChatLinkRepository,
   CreateChatLinkInput,
+  RecentChatLink,
 } from "@/application/ports/chat-link-repository";
 import {
   type ActiveLinkIdentificationMode,
@@ -354,6 +355,38 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
       );
       const channels = await loadChannels(pool, rows);
       return rows.map((row) => toEntity(row, channels.get(row.id) ?? fallbackChannels(row)));
+    },
+
+    async listRecentlyActive(limit): Promise<RecentChatLink[]> {
+      const safeLimit = Math.max(0, Math.min(500, Math.trunc(limit)));
+      if (safeLimit === 0) return [];
+      const { rows } = await pool.query<{
+        organization_id: string;
+        id: string;
+        current_config_id: string | null;
+      }>(
+        `SELECT l.organization_id, l.id, l.current_config_id
+           FROM chat_links l
+           LEFT JOIN LATERAL (
+             SELECT max(c.last_message_at) AS last_activity
+               FROM conversations c
+              WHERE c.link_id = l.id
+                AND c.organization_id = l.organization_id
+           ) activity ON true
+          WHERE l.actif = true
+            AND l.current_config_id IS NOT NULL
+            AND (l.expires_at IS NULL OR l.expires_at > now())
+          ORDER BY activity.last_activity DESC NULLS LAST,
+                   l.last_visit_at DESC NULLS LAST,
+                   l.created_at DESC
+          LIMIT $1`,
+        [safeLimit],
+      );
+      return rows.map((row) => ({
+        organizationId: row.organization_id,
+        id: row.id,
+        currentConfigId: row.current_config_id,
+      }));
     },
 
     async recordVisit(organizationId, id): Promise<void> {

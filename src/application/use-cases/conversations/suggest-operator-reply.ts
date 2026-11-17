@@ -5,6 +5,7 @@ import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatOperatorScopeRepository } from "@/application/ports/chat-operator-scope-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { ChatbotHotSet } from "@/application/ports/chatbot-hot-set";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
@@ -41,6 +42,7 @@ export type SuggestOperatorReplyDependencies = {
   links: ChatLinkRepository;
   ai: AiClientFactory;
   configs?: ChatbotConfigRepository;
+  hotSet?: ChatbotHotSet | undefined;
   prospects?: ProspectRepository;
   ficheInstances?: ConversationFicheInstanceRepository;
 };
@@ -191,6 +193,7 @@ export async function suggestOperatorReply(
   }
 
   const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  if (config !== null) await deps.hotSet?.touch(organizationId, link.id, config.id);
   const prospect = await resolveProspect(deps, organizationId, link);
   const prompt = await buildSuggestionPrompt({
     config,

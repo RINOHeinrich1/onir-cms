@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { suggestOperatorReply } from "@/application/use-cases/conversations/suggest-operator-reply";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
+import { getChatbotHotSet } from "@/infrastructure/cache/chatbot-hot-set";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator-scope-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
@@ -22,6 +23,7 @@ const deps = () => {
     operatorScopes: pgChatOperatorScopeRepository(pool),
     links: pgChatLinkRepository(pool),
     configs: pgChatbotConfigRepository(pool),
+    hotSet: getChatbotHotSet() ?? undefined,
     prospects: pgProspectRepository(pool),
     ficheInstances: pgConversationFicheInstanceRepository(pool),
     ai: pgAiClientFactory(pool),

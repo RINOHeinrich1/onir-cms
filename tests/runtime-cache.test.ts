@@ -17,6 +17,8 @@ const CACHE_CONFIG: RuntimeCacheConfig = {
   linkConfigTtlMs: 30_000,
   knowledgeTtlMs: 30_000,
   mediaTtlMs: 30_000,
+  hotLinks: 0,
+  warmIntervalMs: 300_000,
 };
 
 const CONFIG = {
