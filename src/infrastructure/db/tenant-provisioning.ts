@@ -49,8 +49,12 @@ export async function provisionOrganizationDefaultsWithClient(
   );
 
   await client.query(
-    `INSERT INTO organization_visual_templates (organization_id, template_id)
-     SELECT $1, id FROM visual_templates
+    `INSERT INTO organization_visual_templates
+       (organization_id, template_id, installed_by, installed_at, source)
+     SELECT $1, id, NULL, now(), 'platform_default'
+       FROM visual_templates
+      WHERE owner_organization_id IS NULL
+        AND disabled_at IS NULL
      ON CONFLICT DO NOTHING`,
     [organizationId],
   );

@@ -5,7 +5,12 @@ import { AiRateLimitError, AppError } from "@/application/errors";
 export function errorResponse(error: unknown): NextResponse {
   if (error instanceof AppError) {
     return NextResponse.json(
-      { error: error.message },
+      {
+        error: error.message,
+        ...(error.code === undefined ? {} : { code: error.code }),
+        ...("usages" in error && typeof error.usages === "number" ? { usages: error.usages } : {}),
+        ...("limit" in error && typeof error.limit === "number" ? { limit: error.limit } : {}),
+      },
       {
         status: error.status,
         ...(error instanceof AiRateLimitError

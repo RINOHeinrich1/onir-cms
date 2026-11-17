@@ -200,6 +200,7 @@ function parseWidgetDisplay(
 /** Valide un manifeste de template visuel (norme v1). */
 export function validateTemplateManifest(
   input: unknown,
+  options?: { organizationTemplate?: boolean },
 ): { ok: true; value: TemplateManifest } | { ok: false; errors: ManifestValidationError[] } {
   const src =
     input !== null && typeof input === "object" && !Array.isArray(input)
@@ -230,8 +231,9 @@ export function validateTemplateManifest(
     src.publisher !== null && typeof src.publisher === "object" && !Array.isArray(src.publisher)
       ? (src.publisher as Record<string, unknown>)
       : {};
-  const trustLevel = text(publisher.trustLevel);
-  if (!(TEMPLATE_TRUST_LEVELS as readonly string[]).includes(trustLevel)) {
+  const organizationTemplate = options?.organizationTemplate === true;
+  const trustLevel = organizationTemplate ? "community" : text(publisher.trustLevel);
+  if (!organizationTemplate && !(TEMPLATE_TRUST_LEVELS as readonly string[]).includes(trustLevel)) {
     add("publisher.trustLevel", `trustLevel ∈ ${TEMPLATE_TRUST_LEVELS.join(", ")}`);
   }
 
@@ -249,8 +251,8 @@ export function validateTemplateManifest(
     src.ui !== null && typeof src.ui === "object" && !Array.isArray(src.ui)
       ? (src.ui as Record<string, unknown>)
       : {};
-  const mode = text(ui.mode);
-  if (!(TEMPLATE_MODES as readonly string[]).includes(mode)) {
+  const mode = organizationTemplate ? "iframe" : text(ui.mode);
+  if (!organizationTemplate && !(TEMPLATE_MODES as readonly string[]).includes(mode)) {
     add("ui.mode", `mode ∈ ${TEMPLATE_MODES.join(", ")}`);
   }
   // Trust gating : un template `community` NE PEUT PAS monter un Web Component
@@ -281,7 +283,7 @@ export function validateTemplateManifest(
     if (!(TEMPLATE_CAPABILITIES as readonly string[]).includes(capability)) {
       add("capabilities", `capacité inconnue : ${capability}`);
     }
-    if (capability === "data" && mode !== "web-component") {
+    if (capability === "data" && mode !== "web-component" && !organizationTemplate) {
       add("capabilities", "la capacité data exige le mode web-component");
     }
   }

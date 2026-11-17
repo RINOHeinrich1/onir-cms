@@ -2,6 +2,7 @@ import { type Actor, assertSuperAdmin } from "@/application/actor";
 import { ConflictError, ValidationError } from "@/application/errors";
 import type { MediaStorage } from "@/application/ports/media-storage";
 import type { TemplateArchiveReader, TemplateHasher } from "@/application/ports/template-archive";
+import type { VisualTemplateAuditRepository } from "@/application/ports/visual-template-audit-repository";
 import type {
   VisualTemplate,
   VisualTemplateRepository,
@@ -16,6 +17,7 @@ export type ImportVisualTemplateDependencies = {
   storage: MediaStorage;
   archive: TemplateArchiveReader;
   hasher: TemplateHasher;
+  audit?: VisualTemplateAuditRepository;
 };
 
 export type ImportedVisualTemplate = {
@@ -83,7 +85,7 @@ export async function importVisualTemplate(
     }
   }
 
-  const existing = await deps.templates.findByKey(manifest.id);
+  const existing = await deps.templates.findPlatformByKey(manifest.id);
   const template =
     existing ??
     (await deps.templates.createTemplate({
@@ -91,6 +93,8 @@ export async function importVisualTemplate(
       name: manifest.name,
       description: manifest.description,
       author: manifest.publisher.id,
+      ownerOrganizationId: null,
+      uploadedBy: null,
       createdBy: actor.id,
     }));
 
@@ -124,8 +128,23 @@ export async function importVisualTemplate(
     });
   }
 
-  // ADR-0025 §6/H3 : tout nouveau template est assigné à toutes les organisations.
-  await deps.templates.assignToAllOrganizations(template.id);
+  // ADR-0090 §5 : seul un NOUVEAU template plateforme est préinstallé.
+  // Une nouvelle version ne doit jamais réinstaller un template désinstallé.
+  if (existing === null) {
+    await deps.templates.assignToAllOrganizations(template.id, "platform_default");
+  }
+
+  await deps.audit?.record({
+    organizationId: null,
+    templateId: template.id,
+    actorId: actor.id,
+    event: "upload",
+    metadata: {
+      version: version.version,
+      ownerOrganizationId: null,
+      isNewTemplate: existing === null,
+    },
+  });
 
   return { template, version };
 }

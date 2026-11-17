@@ -27,14 +27,30 @@ const visualTemplates: VisualTemplateRepository = {
   list: async () => [],
   listForOrganization: async () => [],
   findAssignedById: async () => null,
-  listAllIds: async () => [],
+  listAvailableForOrganization: async () => [],
+  listOwnedByOrganization: async () => [],
+  findByIdForOrganization: async () => null,
+  findPlatformByKey: async () => null,
+  findByKeyForOrganization: async () => null,
+  findInstallation: async () => null,
+  countOwnedByOrganization: async () => 0,
+  countLinkUsages: async () => 0,
+  listAllPlatformIds: async () => [],
   assignAllToOrganization: async () => undefined,
   assignToAllOrganizations: async () => undefined,
-  unassign: async () => undefined,
+  install: async (organizationId, templateId) => ({
+    organizationId,
+    templateId,
+    installedBy: null,
+    installedAt: new Date(0).toISOString(),
+    source: "organization_admin" as const,
+  }),
+  uninstall: async () => false,
   findById: async () => null,
   findByKey: async () => null,
   listVersions: async () => [],
   findVersion: async () => null,
+  findVersionForOrganization: async () => null,
   findAsset: async () => null,
   createTemplate: async () => {
     throw new Error("non utilisé");
@@ -45,6 +61,7 @@ const visualTemplates: VisualTemplateRepository = {
   addAsset: async () => {
     throw new Error("non utilisé");
   },
+  setDisabled: async () => null,
   deleteTemplate: async () => false,
 };
 

@@ -37,7 +37,10 @@ export async function loadTemplateSpec(
   channel: ChatLinkChannel = channelsForLink(link)[surface],
 ): Promise<TemplateSpec | null> {
   if (channel.visualTemplateId === null || channel.visualTemplateVersion === null) return null;
-  const template = await deps.visualTemplates.findById(channel.visualTemplateId);
+  const template = await deps.visualTemplates.findByIdForOrganization(
+    link.organizationId,
+    channel.visualTemplateId,
+  );
   if (template === null) return null;
   const version = await deps.visualTemplates.findVersion(
     template.id,

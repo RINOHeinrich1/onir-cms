@@ -205,6 +205,14 @@ export type TemplateAction =
       payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, unknown> };
     }
   | { action: "request"; payload: { capability: TemplateCapability } }
+  | {
+      action: "loadData";
+      payload: {
+        requestId: string;
+        contract: string;
+        inputs?: Record<string, string | number | boolean>;
+      };
+    }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
   | { action: "openWidget"; payload: { width?: number; height?: number } }
@@ -346,6 +354,42 @@ export function parseTemplateAction(
       return {
         ok: true,
         value: { action, payload: { capability: capability as TemplateCapability } },
+      };
+    }
+    case "loadData": {
+      const requestId = typeof payload.requestId === "string" ? payload.requestId.trim() : "";
+      const contract = typeof payload.contract === "string" ? payload.contract.trim() : "";
+      if (requestId === "" || requestId.length > 120) {
+        return { ok: false, error: "requestId invalide" };
+      }
+      if (!/^[a-z][a-z0-9_]{1,40}$/.test(contract)) {
+        return { ok: false, error: "contract invalide" };
+      }
+      const rawInputs = payload.inputs;
+      let inputs: Record<string, string | number | boolean> | undefined;
+      if (rawInputs !== undefined) {
+        if (rawInputs === null || typeof rawInputs !== "object" || Array.isArray(rawInputs)) {
+          return { ok: false, error: "inputs invalides" };
+        }
+        inputs = {};
+        for (const [key, value] of Object.entries(rawInputs as Record<string, unknown>)) {
+          if (typeof key !== "string" || key === "" || key.length > 64) continue;
+          if (
+            typeof value !== "string" &&
+            typeof value !== "number" &&
+            typeof value !== "boolean"
+          ) {
+            continue;
+          }
+          inputs[key] = value;
+        }
+      }
+      return {
+        ok: true,
+        value: {
+          action,
+          payload: { requestId, contract, ...(inputs === undefined ? {} : { inputs }) },
+        },
       };
     }
     case "openMedia": {

@@ -5,11 +5,13 @@
 
 export class AppError extends Error {
   readonly status: number;
+  readonly code: string | undefined;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = new.target.name;
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -121,5 +123,38 @@ export class StorageQuotaExceededError extends AppError {
   constructor(message: string) {
     super(message, 413);
     this.name = "StorageQuotaExceededError";
+  }
+}
+
+/** Le template est encore utilisé par au moins un chatbot (ADR-0090 §6). */
+export class TemplateInUseError extends AppError {
+  readonly usages: number;
+  readonly templateName: string;
+
+  constructor(templateName: string, usages: number) {
+    super(
+      `Impossible de désinstaller « ${templateName} » : ${usages} chatbot(s) l’utilisent encore. Modifiez leur template avant de réessayer.`,
+      409,
+      "TEMPLATE_IN_USE",
+    );
+    this.templateName = templateName;
+    this.usages = usages;
+  }
+}
+
+/** L'organisation a atteint la limite de templates propriétaires (ADR-0090 §3). */
+export class TemplateLimitReachedError extends AppError {
+  readonly limit: number;
+
+  constructor(limit: number) {
+    super(`Limite de ${limit} templates propriétaires atteinte`, 409, "TEMPLATE_LIMIT_REACHED");
+    this.limit = limit;
+  }
+}
+
+/** Une clé réservée au catalogue plateforme a été utilisée (ADR-0090 §8). */
+export class TemplateKeyReservedError extends AppError {
+  constructor(key: string) {
+    super(`La clé « ${key} » est réservée aux templates plateforme`, 400, "TEMPLATE_KEY_RESERVED");
   }
 }
