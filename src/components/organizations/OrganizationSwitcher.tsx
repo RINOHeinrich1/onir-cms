@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
@@ -14,7 +13,6 @@ export function OrganizationSwitcher({
   organizations: OrganizationOption[];
   activeOrganizationId: string | null;
 }) {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -36,8 +34,8 @@ export function OrganizationSwitcher({
         setError(json.error ?? "Bascule impossible");
         return;
       }
-      router.replace("/dashboard");
-      router.refresh();
+      // Rechargement complet après bascule d'organisation (ADR-0091).
+      window.location.replace("/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {

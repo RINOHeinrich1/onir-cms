@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -13,7 +12,6 @@ type AcceptResponse = {
 
 /** Formulaire public d'acceptation d'une invitation par lien. */
 export function AcceptInvitationForm({ token }: { token: string }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   useToastOnMessage(error);
@@ -48,9 +46,10 @@ export function AcceptInvitationForm({ token }: { token: string }) {
         setError(json.error ?? "Acceptation impossible");
         return;
       }
-      router.replace(json.mustChangePassword === true ? "/change-password" : "/dashboard");
       toast.success("Invitation acceptée.");
-      router.refresh();
+      // Navigation document complète : le cookie de session doit être présent
+      // au premier rendu du dashboard (ADR-0091).
+      window.location.replace(json.mustChangePassword === true ? "/change-password" : "/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
