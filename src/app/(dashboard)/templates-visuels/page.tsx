@@ -112,11 +112,6 @@ export default async function VisualTemplatesPage() {
           </a>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Packages UI-only (norme <code>onirtech.template-host.v1</code>) qui personnalisent le chat
-        et le formulaire. Un fichier <code>preview.png</code> (16:9) dans le bundle fournit
-        l&apos;aperçu de la carte.
-      </p>
       <VisualTemplatesGrid initialTemplates={cards} canWrite={context.actor.isSuperAdmin} />
     </section>
   );
