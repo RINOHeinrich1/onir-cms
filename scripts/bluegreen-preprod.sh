@@ -11,7 +11,11 @@ VHOST="/etc/nginx/sites-enabled/preprod-cms.onirtech.com.conf"
 PROJECT="onir-cms-preprod"
 
 compose() {
-  docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE" "$@"
+  local -a args=(-p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE")
+  if [ -f "$BASE/onir-platform-override.yml" ]; then
+    args+=(-f "$BASE/onir-platform-override.yml")
+  fi
+  docker compose "${args[@]}" "$@"
 }
 
 # Les fichiers nginx appartiennent à root : on les manipule via un conteneur
@@ -53,10 +57,14 @@ if nginx_fs grep -q "127.0.0.1:320[01]" "$VHOST"; then
   nginx_host -s reload
 fi
 
-if nginx_fs grep -q 'server 127.0.0.1:3200' "$UPSTREAM"; then
-  ACTIVE=3200; TARGET=3201; SERVICE=app-green
-else
+# Le premier serveur de l'upstream est l'actif, le second porte `backup`.
+# L'ancienne détection testait la simple présence de 3200 : comme les deux
+# serveurs sont toujours déclarés, elle considérait 3200 comme actif en
+# permanence et ne mettait jamais à jour ce slot.
+if nginx_fs grep -q '127.0.0.1:3200.*backup' "$UPSTREAM"; then
   ACTIVE=3201; TARGET=3200; SERVICE=app
+else
+  ACTIVE=3200; TARGET=3201; SERVICE=app-green
 fi
 
 echo "[bluegreen] ${ACTIVE} -> ${TARGET} (${TAG})"
