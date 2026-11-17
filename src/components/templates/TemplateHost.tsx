@@ -1110,7 +1110,7 @@ export function TemplateHost({
           onLoad={() => iframeRef.current?.setAttribute("data-onirtech-ready", "1")}
           style={{
             width: "100%",
-            height: surface === "page" && !preview ? "100dvh" : `${height}px`,
+            height: surface === "page" ? "100dvh" : `${height}px`,
             border: 0,
           }}
         />
