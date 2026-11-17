@@ -89,3 +89,4 @@ ADR qui remplace la précédente.
 | [0090](./0090-quota-stockage-organisation.md) | Quota global de stockage par organisation | Accepté |
 | [0091](./0091-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
 | [0092](./0092-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
+| [0093](./0093-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |
