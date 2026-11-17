@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
+import type { MediaRepository } from "@/application/ports/media-repository";
 import { RuntimeCache } from "@/infrastructure/cache/runtime-cache";
 import {
   cachedChatbotConfigRepository,
   cachedConnaissanceRepository,
+  cachedMediaRepository,
 } from "@/infrastructure/db/runtime-cache-repositories";
 import type { RuntimeCacheConfig } from "@/lib/env";
 
@@ -67,6 +69,24 @@ describe("cache runtime", () => {
     await repo.findById("org-1", "cfg-1");
     await repo.findById("org-1", "cfg-1");
     expect(calls).toBe(1);
+  });
+
+  it("range la clé média avec le lien avant le type pour la purge locale", async () => {
+    const keys: string[] = [];
+    const cache = {
+      key: (...parts: string[]) => parts.join(":"),
+      prefixFor: (...parts: string[]) => parts.join(":"),
+      getJson: async () => null,
+      setJson: async (key: string) => {
+        keys.push(key);
+      },
+    } as unknown as RuntimeCache;
+    const base = {
+      listActivesByTypeForChatLink: async () => [],
+    } as unknown as MediaRepository;
+    const repo = cachedMediaRepository(base, cache);
+    await repo.listActivesByTypeForChatLink?.("org-1", "photo", "link-1");
+    expect(keys).toEqual(["media:org-1:link-1:photo:all"]);
   });
 
   it("invalide la liste de connaissances après une écriture", async () => {
