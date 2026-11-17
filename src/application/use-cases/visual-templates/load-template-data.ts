@@ -21,7 +21,7 @@ import type {
   TemplateDataErrorCode,
   TemplateDataResult,
 } from "@/domain/template-data";
-import { resolveTemplateParams } from "@/domain/template-params";
+import { resolveTemplateParams, type TemplateParamValues } from "@/domain/template-params";
 import {
   readTemplateDataCache,
   templateDataCacheKey,
@@ -46,7 +46,7 @@ export type LoadTemplateDataInput = {
   /** Aperçu : binding précis (variante) au lieu du binding effectif du lien. */
   binding?: TemplateDataBinding;
   /** Variables du canal courant (sinon repli sur les champs legacy du lien). */
-  params?: Record<string, string | number | boolean>;
+  params?: TemplateParamValues;
 };
 
 type InputValues = Record<string, string | number | boolean>;

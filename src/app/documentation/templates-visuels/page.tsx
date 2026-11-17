@@ -46,6 +46,8 @@ const PARAM_TYPE_DESCRIPTIONS: Record<TemplateParamType, string> = {
   url: "URL http(s).",
   image: "Image importée (PNG, JPEG, WebP).",
   select: "Choix parmi les options déclarées.",
+  object: "Objet structuré.",
+  array: "Tableau d'éléments.",
 };
 
 const MANIFEST_EXAMPLE = `{
@@ -91,7 +93,7 @@ const CONTEXT_EXAMPLE = `type ContexteTemplate = {
   locale: string;
   brand: { name: string; logoUrl: string | null };
   theme: Readonly<Record<string, string>>;
-  params: Readonly<Record<string, string | number | boolean>>;
+  params: Readonly<Record<string, unknown>>;
   capabilities: readonly string[];
   consent: { texte: string; lien: string } | null;
   state: {

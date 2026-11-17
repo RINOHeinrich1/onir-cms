@@ -88,4 +88,5 @@ ADR qui remplace la précédente.
 | [0090](./0090-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
 | [0091](./0091-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
 | [0092](./0092-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |
-| [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Proposé |
+| [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Accepté |
+| [0095](./0095-parametres-statiques-structures.md) | Paramètres statiques structurés des templates — objets et tableaux | Accepté |

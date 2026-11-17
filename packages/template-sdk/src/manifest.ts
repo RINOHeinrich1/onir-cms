@@ -11,8 +11,10 @@ import type {
   ShadowDomMode,
   TemplateCapability,
   TemplateDataContract,
+  TemplateParamNode,
   TemplateParamOption,
   TemplateParamSchema,
+  TemplateParamValue,
   TemplateTrustLevel,
   TemplateWidgetSurface,
   WidgetDisplay,
@@ -32,7 +34,19 @@ export type TemplateManifestParamInput =
   | (ParamBase & { type: "color"; default: string })
   | (ParamBase & { type: "url"; default: string })
   | (ParamBase & { type: "image"; default: string })
-  | (ParamBase & { type: "select"; default: string; options: readonly TemplateParamOption[] });
+  | (ParamBase & { type: "select"; default: string; options: readonly TemplateParamOption[] })
+  | (ParamBase & {
+      type: "object";
+      default: TemplateParamValue;
+      properties: readonly TemplateManifestParamInput[];
+    })
+  | (ParamBase & {
+      type: "array";
+      default: TemplateParamValue;
+      items: TemplateManifestParamInput;
+      minItems?: number;
+      maxItems?: number;
+    });
 
 /** Entrée de `defineManifest` (valeurs fixes non incluses). */
 export type TemplateManifestInput = {
@@ -83,6 +97,12 @@ export type TemplateManifestOutput = {
   data?: { contracts: TemplateDataContract[] };
 };
 
+function toParamNode(param: TemplateManifestParamInput): TemplateParamNode {
+  const schema = toParamSchema(param);
+  const { key: _key, label: _label, description: _description, ...node } = schema;
+  return node;
+}
+
 function toParamSchema(param: TemplateManifestParamInput): TemplateParamSchema {
   const base = {
     key: param.key,
@@ -112,6 +132,22 @@ function toParamSchema(param: TemplateManifestParamInput): TemplateParamSchema {
       return { ...base, type: param.type };
     case "select":
       return { ...base, type: param.type, options: [...param.options] };
+    case "object":
+      return {
+        ...base,
+        type: param.type,
+        default: param.default,
+        properties: param.properties.map(toParamSchema),
+      };
+    case "array":
+      return {
+        ...base,
+        type: param.type,
+        default: param.default,
+        items: toParamNode(param.items),
+        ...(param.minItems === undefined ? {} : { minItems: param.minItems }),
+        ...(param.maxItems === undefined ? {} : { maxItems: param.maxItems }),
+      };
   }
 }
 

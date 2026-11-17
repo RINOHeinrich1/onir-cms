@@ -51,6 +51,16 @@ describe("buildTemplateContext — filtrage par capacités", () => {
     expect(ctx.state.messages).toHaveLength(0);
   });
 
+  it("gèle profondément les paramètres structurés", () => {
+    const params = { cards: [{ title: "Accueil" }] };
+    const ctx = buildTemplateContext(input({ params }));
+    expect(Object.isFrozen(ctx.params)).toBe(true);
+    expect(Object.isFrozen(ctx.params.cards)).toBe(true);
+    expect(Object.isFrozen((ctx.params.cards as { title: string }[])[0])).toBe(true);
+    params.cards[0] = { title: "Modifié" };
+    expect((ctx.params.cards as { title: string }[])[0]?.title).toBe("Accueil");
+  });
+
   it("expose le flag userState du lien (false par défaut)", () => {
     expect(buildTemplateContext(input()).link.userStateEnabled).toBe(false);
     expect(buildTemplateContext(input({ userStateEnabled: true })).link.userStateEnabled).toBe(

@@ -47,7 +47,9 @@ export function mergeParamsForSelection(
 
 export function defaultsForSchema(schema: TemplateParamSchema[]): TemplateParamValues {
   const values: TemplateParamValues = {};
-  for (const param of schema) values[param.key] = param.default;
+  for (const param of schema) {
+    values[param.key] = JSON.parse(JSON.stringify(param.default)) as TemplateParamValues[string];
+  }
   return values;
 }
 

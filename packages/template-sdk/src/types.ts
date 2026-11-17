@@ -60,10 +60,17 @@ export type TemplateParamType =
   | "color"
   | "url"
   | "image"
-  | "select";
+  | "select"
+  | "object"
+  | "array";
 
-/** Valeur scalaire d'un paramètre. */
-export type TemplateParamValue = string | number | boolean;
+/** Valeur d'un paramètre : scalaire, objet ou tableau récursif (ADR-0095). */
+export type TemplateParamValue =
+  | string
+  | number
+  | boolean
+  | TemplateParamValue[]
+  | { [key: string]: TemplateParamValue };
 
 /** Sac de valeurs résolues (défauts ⊕ lien). */
 export type TemplateParamValues = Record<string, TemplateParamValue>;
@@ -71,11 +78,8 @@ export type TemplateParamValues = Record<string, TemplateParamValue>;
 /** Option d'un paramètre `select`. */
 export type TemplateParamOption = { value: string; label: string };
 
-/** Schéma d'un paramètre déclaré par un manifeste (ADR-0023). */
-export type TemplateParamSchema = {
-  key: string;
-  label: string;
-  description: string;
+/** Nœud d'un paramètre structuré (objet ou élément de tableau). */
+export type TemplateParamNode = {
   type: TemplateParamType;
   /** Toujours présent : aucun paramètre sans défaut. */
   default: TemplateParamValue;
@@ -86,6 +90,19 @@ export type TemplateParamSchema = {
   max?: number;
   /** `select` uniquement. */
   options?: TemplateParamOption[];
+  /** `object` uniquement. */
+  properties?: TemplateParamSchema[];
+  /** `array` uniquement. */
+  items?: TemplateParamNode;
+  minItems?: number;
+  maxItems?: number;
+};
+
+/** Schéma d'un paramètre déclaré par un manifeste (ADR-0023 / ADR-0095). */
+export type TemplateParamSchema = TemplateParamNode & {
+  key: string;
+  label: string;
+  description: string;
 };
 
 /** Types du sous-ensemble JSON Schema accepté par les contrats (ADR-0026). */

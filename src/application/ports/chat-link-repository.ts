@@ -8,6 +8,7 @@ import type {
   ChatLinkType,
   TokenResetMode,
 } from "@/domain/entities/chat";
+import type { TemplateParamValues } from "@/domain/template-params";
 
 export type CreateChatLinkInput = {
   /** Empreinte SHA-256 du jeton (clé de recherche, le clair n'est jamais persisté tel quel). */
@@ -33,7 +34,7 @@ export type CreateChatLinkInput = {
   visualTemplateVersion: string | null;
   visualTemplateConfig: Record<string, string>;
   /** Variables du template visuel valorisées par lien (ADR-0023). */
-  visualTemplateParams: Record<string, string | number | boolean>;
+  visualTemplateParams: TemplateParamValues;
   widgetConfig: Record<string, unknown>;
   /** Canaux page/widget (ADR-0041) ; absent = dérivé des champs legacy. */
   channels?: ChatLinkChannels;
@@ -88,7 +89,7 @@ export interface ChatLinkRepository {
       visualTemplateId?: string | null;
       visualTemplateVersion?: string | null;
       visualTemplateConfig?: Record<string, string>;
-      visualTemplateParams?: Record<string, string | number | boolean>;
+      visualTemplateParams?: TemplateParamValues;
       widgetConfig?: Record<string, unknown>;
       channels?: ChatLinkChannels;
       aiProviderId?: string | null;

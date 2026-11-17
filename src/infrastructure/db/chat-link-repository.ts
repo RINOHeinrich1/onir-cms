@@ -24,6 +24,7 @@ import {
   parseWidgetConfig,
   type TokenResetMode,
 } from "@/domain/entities/chat";
+import type { TemplateParamValues } from "@/domain/template-params";
 import { rethrowOrganizationChatbotLimit } from "./chatbot-limit";
 
 type ChatLinkRow = {
@@ -200,7 +201,7 @@ function channelsFromInput(input: {
   visualTemplateId: string | null;
   visualTemplateVersion: string | null;
   visualTemplateConfig: Record<string, string>;
-  visualTemplateParams: Record<string, string | number | boolean>;
+  visualTemplateParams: TemplateParamValues;
   widgetConfig: Record<string, unknown>;
 }): ChatLinkChannels {
   const base = {
@@ -488,7 +489,7 @@ export function pgChatLinkRepository(pool: Pool): ChatLinkRepository {
         visualTemplateId?: string | null;
         visualTemplateVersion?: string | null;
         visualTemplateConfig?: Record<string, string>;
-        visualTemplateParams?: Record<string, string | number | boolean>;
+        visualTemplateParams?: TemplateParamValues;
         widgetConfig?: Record<string, unknown>;
         channels?: ChatLinkChannels;
         aiProviderId?: string | null;
