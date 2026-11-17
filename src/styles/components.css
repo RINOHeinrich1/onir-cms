@@ -9494,8 +9494,11 @@ a.subtab {
 }
 
 /* ---------- Cartes chatbots : version épurée / analyse en modale ---------- */
-.chatbot-grid > .empty-state {
+/* Un état vide dans une grille de cartes doit occuper toute la largeur,
+   sinon il reste dans une seule colonne et paraît décalé sur desktop. */
+:is(.chatbot-grid, .lead-grid, .inbox-chatbot-cards, .cards-grid) > .empty-state {
   grid-column: 1 / -1;
+  width: 100%;
 }
 
 .chatbot-grid--links {
