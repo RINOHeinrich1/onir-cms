@@ -111,7 +111,7 @@ export function ConversationTranscript({
               </span>
               <div className="msg-body">
                 <span className="msg-role">{authorLabel(message, assistantLabel)}</span>
-                {message.role === "assistant" ? (
+                {message.role === "assistant" || message.role === "operator" ? (
                   <div className="bubble">
                     <div className="md">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
