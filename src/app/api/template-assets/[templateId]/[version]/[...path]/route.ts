@@ -34,6 +34,8 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
         "Content-Type": asset.contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
+        "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin",
         "Content-Security-Policy": [
           "sandbox allow-scripts allow-forms",
           "default-src 'none'",

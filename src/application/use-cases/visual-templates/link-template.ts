@@ -57,6 +57,7 @@ export async function loadTemplateSpec(
     entryUrl: `/api/template-assets/${template.id}/${version.version}/${
       surface === "widget" && widget !== undefined ? widget.entry : version.entry
     }`,
+    frameUrl: `/api/template-frame/${template.id}/${version.version}?surface=${surface}`,
     element:
       surface === "widget" && widget !== undefined ? widget.element : version.manifest.ui.element,
     capabilities: version.manifest.capabilities,

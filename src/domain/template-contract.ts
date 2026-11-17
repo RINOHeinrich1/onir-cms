@@ -21,6 +21,8 @@ export type TemplateSpec = {
   version: string;
   mode: "web-component" | "iframe";
   entryUrl: string;
+  /** URL du document iframe contrôlé par l'hôte (mode iframe). */
+  frameUrl?: string;
   element: string | null;
   capabilities: TemplateCapability[];
   /** Schéma des variables déclarées par la version (ADR-0023). */

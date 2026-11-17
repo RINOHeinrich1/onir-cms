@@ -953,6 +953,18 @@ export function TemplateHost({
     (action: TemplateAction): void => {
       switch (action.action) {
         case "ready":
+          if (template.mode === "iframe") {
+            const context = {
+              ...liveContextRef.current,
+              actions: undefined,
+              on: undefined,
+              data: undefined,
+            };
+            iframeRef.current?.contentWindow?.postMessage(
+              { __onirtech: 1, type: "init", context },
+              "*",
+            );
+          }
           break;
         case "submitIdentity":
           actions.submitIdentity(action.payload);
@@ -1015,7 +1027,7 @@ export function TemplateHost({
           break;
       }
     },
-    [actions, emit, loadData],
+    [actions, emit, loadData, template.mode],
   );
 
   // Notifie les abonnés + met à jour l'élément à chaque changement de contexte.
@@ -1093,7 +1105,7 @@ export function TemplateHost({
           className="template-frame"
           title="Template de discussion"
           sandbox="allow-scripts allow-forms"
-          src={template.entryUrl}
+          src={template.frameUrl ?? template.entryUrl}
           style={{ width: "100%", height: `${height}px`, border: 0 }}
         />
       </div>
