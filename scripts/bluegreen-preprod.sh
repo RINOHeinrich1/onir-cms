@@ -5,6 +5,7 @@ TAG="${1:?Usage: bluegreen-preprod.sh <image-tag>}"
 BASE="/opt/onir-cms-preprod"
 COMPOSE="$BASE/docker-compose.preprod.yml"
 OVERRIDE="$BASE/docker-compose.bluegreen.yml"
+CACHE_OVERRIDE="$BASE/onir-runtime-cache-override.yml"
 ENV_FILE="$BASE/.env.preprod"
 UPSTREAM="/etc/nginx/conf.d/onir-preprod-upstream.conf"
 VHOST="/etc/nginx/sites-enabled/preprod-cms.onirtech.com.conf"
@@ -14,6 +15,9 @@ compose() {
   local -a args=(-p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE")
   if [ -f "$BASE/onir-platform-override.yml" ]; then
     args+=(-f "$BASE/onir-platform-override.yml")
+  fi
+  if [ -f "$CACHE_OVERRIDE" ]; then
+    args+=(-f "$CACHE_OVERRIDE")
   fi
   docker compose "${args[@]}" "$@"
 }
@@ -33,6 +37,24 @@ write_upstream() {
   printf 'upstream onir_preprod_app {\n    server 127.0.0.1:%s max_fails=2 fail_timeout=10s;\n    server 127.0.0.1:%s backup;\n    keepalive 16;\n}\n' "$target" "$active" \
     | docker run --rm -i -v /etc/nginx:/etc/nginx alpine:3.20 sh -c 'cat > /etc/nginx/conf.d/onir-preprod-upstream.conf'
 }
+
+# ADR-0094 : active le cache runtime et le hot set LRU en préprod.
+# Le Valkey local de préprod est le service onir-valkey-test de l'hôte.
+cat > "$CACHE_OVERRIDE" <<YAML
+services:
+  app:
+    environment:
+      RUNTIME_CACHE_ENABLED: "true"
+      RUNTIME_CACHE_URL: "redis://onir-valkey-test:6379"
+      RUNTIME_CACHE_HOT_LINKS: "30"
+      RUNTIME_CACHE_WARM_INTERVAL_MS: "300000"
+  app-green:
+    environment:
+      RUNTIME_CACHE_ENABLED: "true"
+      RUNTIME_CACHE_URL: "redis://onir-valkey-test:6379"
+      RUNTIME_CACHE_HOT_LINKS: "30"
+      RUNTIME_CACHE_WARM_INTERVAL_MS: "300000"
+YAML
 
 if ! grep -q '!override' "$OVERRIDE" 2>/dev/null; then
   cat > "$OVERRIDE" <<YAML

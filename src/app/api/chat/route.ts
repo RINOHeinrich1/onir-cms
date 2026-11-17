@@ -8,6 +8,7 @@ import { toPublicChatMessage } from "@/application/use-cases/attachments/attachm
 import { sendMessage } from "@/application/use-cases/chat/send-message";
 import { recordConversationIncident } from "@/application/use-cases/conversations/conversation-incidents";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
+import { getChatbotHotSet } from "@/infrastructure/cache/chatbot-hot-set";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatSearchSessionRepository } from "@/infrastructure/db/chat-search-session-repository";
@@ -70,6 +71,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         attachments: pgAttachmentRepository(pool),
         ai: pgAiClientFactory(pool),
         configs: pgChatbotConfigRepository(pool),
+        hotSet: getChatbotHotSet() ?? undefined,
         ficheInstances: pgConversationFicheInstanceRepository(pool),
         ficheTools,
         ficheCollectes: pgFicheCollecteRepository(pool),

@@ -40,6 +40,13 @@ function positiveInt(name: string, fallback: number): number {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
+function nonNegativeInt(name: string, fallback: number): number {
+  const raw = env(name);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= 0 ? value : fallback;
+}
+
 function booleanEnv(name: string, fallback: boolean): boolean {
   const raw = env(name);
   if (raw === undefined) return fallback;
@@ -229,6 +236,8 @@ export type RuntimeCacheConfig = {
   linkConfigTtlMs: number;
   knowledgeTtlMs: number;
   mediaTtlMs: number;
+  hotLinks: number;
+  warmIntervalMs: number;
 };
 
 /** Cache runtime local (ADR-0076) : L1 mémoire + L2 Valkey local. */
@@ -242,6 +251,8 @@ export function runtimeCacheConfig(): RuntimeCacheConfig {
     linkConfigTtlMs: positiveInt("RUNTIME_CACHE_LINK_CONFIG_TTL_MS", 30_000),
     knowledgeTtlMs: positiveInt("RUNTIME_CACHE_KNOWLEDGE_TTL_MS", 60_000),
     mediaTtlMs: positiveInt("RUNTIME_CACHE_MEDIA_TTL_MS", 60_000),
+    hotLinks: nonNegativeInt("RUNTIME_CACHE_HOT_LINKS", 30),
+    warmIntervalMs: positiveInt("RUNTIME_CACHE_WARM_INTERVAL_MS", 5 * 60_000),
   };
 }
 
