@@ -2398,6 +2398,13 @@
 /* Téléphone : la barre passe sur DEUX lignes — logo, puis les outils (organisation,
    thème, compte, boîte à outils). La navigation primaire est déjà masquée à 64rem. */
 @media (max-width: 40rem) {
+  /* `backdrop-filter` crée un bloc conteneur pour les enfants `position: fixed`.
+     Sans cette neutralisation, le panneau du compte est ancré au header et une
+     partie du menu sort de l'écran. */
+  :root[data-theme="dark"] .bar {
+    backdrop-filter: none;
+  }
+
   .bar-inner {
     flex-wrap: wrap;
     height: auto;
