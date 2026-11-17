@@ -1107,6 +1107,7 @@ export function TemplateHost({
           title="Template de discussion"
           sandbox="allow-scripts allow-forms"
           src={template.frameUrl ?? template.entryUrl}
+          onLoad={() => iframeRef.current?.setAttribute("data-onirtech-ready", "1")}
           style={{ width: "100%", height: `${height}px`, border: 0 }}
         />
       </div>
