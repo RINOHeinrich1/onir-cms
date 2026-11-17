@@ -52,6 +52,7 @@ export function renderIframeFrame(input: IframeFrameInput): string {
     let element = null;
     let currentContext = null;
     let readyTimer = null;
+    let initReceived = false;
 
     function send(action, payload) {
       parent.postMessage({ __onirtech: 1, action, payload }, "*");
@@ -153,12 +154,17 @@ export function renderIframeFrame(input: IframeFrameInput): string {
       const message = event.data;
       if (message === null || typeof message !== "object" || message.__onirtech !== 1) return;
       if (message.type === "init") {
+        const firstInit = !initReceived;
+        initReceived = true;
         if (readyTimer !== null) {
           clearInterval(readyTimer);
           readyTimer = null;
         }
         currentContext = message.context;
         applyContext();
+        if (firstInit) {
+          parent.postMessage({ __onirtech: 1, action: "ready" }, "*");
+        }
         return;
       }
       if (message.type === "dataResult") {
