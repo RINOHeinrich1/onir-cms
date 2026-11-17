@@ -23,7 +23,7 @@ export async function resolveDefaultStarterTemplate(
   visualTemplates: VisualTemplateRepository,
   organizationId: string,
 ): Promise<DefaultStarterTemplateResult> {
-  const starter = await visualTemplates.findByKey("starter");
+  const starter = await visualTemplates.findPlatformByKey("starter");
   if (starter === null) {
     return {
       template: null,

@@ -998,9 +998,24 @@ export function TemplateHost({
         case "request":
           void actions.request(action.payload.capability).then((value) => emit("resources", value));
           break;
+        case "loadData":
+          void loadData(
+            action.payload.contract,
+            action.payload.inputs === undefined ? undefined : { inputs: action.payload.inputs },
+          ).then((result) => {
+            iframeRef.current?.contentWindow?.postMessage(
+              {
+                __onirtech: 1,
+                type: "dataResult",
+                payload: { requestId: action.payload.requestId, result },
+              },
+              "*",
+            );
+          });
+          break;
       }
     },
-    [actions, emit],
+    [actions, emit, loadData],
   );
 
   // Notifie les abonnés + met à jour l'élément à chaque changement de contexte.

@@ -56,15 +56,40 @@ function repo(): VisualTemplateRepository {
     listForOrganization: async () => templates,
     findAssignedById: async (_organizationId, id) =>
       templates.find((item) => item.id === id) ?? null,
-    listAllIds: async () => templates.map((item) => item.id),
+    listAvailableForOrganization: async () => templates,
+    listOwnedByOrganization: async () =>
+      templates.filter((item) => item.ownerOrganizationId !== null),
+    findByIdForOrganization: async (_organizationId, id) =>
+      templates.find((item) => item.id === id) ?? null,
+    findPlatformByKey: async (key) =>
+      templates.find(
+        (item) => item.ownerOrganizationId === null && item.key.toLowerCase() === key.toLowerCase(),
+      ) ?? null,
+    findByKeyForOrganization: async (_organizationId, key) =>
+      templates.find((item) => item.key.toLowerCase() === key.toLowerCase()) ?? null,
+    findInstallation: async () => null,
+    countOwnedByOrganization: async (organizationId) =>
+      templates.filter((item) => item.ownerOrganizationId === organizationId).length,
+    countLinkUsages: async () => 0,
+    listAllPlatformIds: async () =>
+      templates.filter((item) => item.ownerOrganizationId === null).map((item) => item.id),
     assignAllToOrganization: async () => undefined,
     assignToAllOrganizations: async () => undefined,
-    unassign: async () => undefined,
+    install: async (organizationId, templateId) => ({
+      organizationId,
+      templateId,
+      installedBy: null,
+      installedAt: new Date(0).toISOString(),
+      source: "organization_upload" as const,
+    }),
+    uninstall: async () => false,
     findById: async (id) => templates.find((item) => item.id === id) ?? null,
     findByKey: async (key) =>
       templates.find((item) => item.key.toLowerCase() === key.toLowerCase()) ?? null,
     listVersions: async (templateId) => versions.filter((v) => v.templateId === templateId),
     findVersion: async (templateId, version) =>
+      versions.find((v) => v.templateId === templateId && v.version === version) ?? null,
+    findVersionForOrganization: async (_organizationId, templateId, version) =>
       versions.find((v) => v.templateId === templateId && v.version === version) ?? null,
     findAsset: async (versionId, path) =>
       assets.find((a) => a.versionId === versionId && a.path === path) ?? null,
@@ -76,6 +101,11 @@ function repo(): VisualTemplateRepository {
         name: input.name,
         description: input.description,
         author: input.author,
+        ownerOrganizationId: input.ownerOrganizationId ?? null,
+        uploadedBy: input.uploadedBy ?? null,
+        disabledAt: null,
+        disabledBy: null,
+        disabledReason: null,
         createdBy: input.createdBy,
         createdAt: now,
         updatedAt: now,
@@ -104,6 +134,7 @@ function repo(): VisualTemplateRepository {
       assets.push(asset);
       return asset;
     },
+    setDisabled: async () => null,
     deleteTemplate: async (id) => {
       const index = templates.findIndex((item) => item.id === id);
       if (index < 0) return false;

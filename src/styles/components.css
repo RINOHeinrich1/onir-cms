@@ -10709,3 +10709,48 @@ a.subtab {
     width: 7.5rem;
   }
 }
+
+/* ---------- Templates d'organisation (ADR-0090) ---------- */
+.template-card-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+
+.template-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.template-card-actions {
+  padding: 0 1.2rem 1.2rem;
+}
+
+.template-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.template-section {
+  margin-top: 2rem;
+}
+
+.template-section:first-of-type {
+  margin-top: 1.5rem;
+}
+
+.template-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.template-section-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}

@@ -351,6 +351,14 @@ export type TemplateAction =
       payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, unknown> };
     }
   | { action: "request"; payload: { capability: TemplateCapability } }
+  | {
+      action: "loadData";
+      payload: {
+        requestId: string;
+        contract: string;
+        inputs?: Record<string, string | number | boolean>;
+      };
+    }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
   | { action: "openWidget"; payload: { width?: number; height?: number } }
