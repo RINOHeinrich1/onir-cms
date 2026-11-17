@@ -25,7 +25,7 @@ ADR qui remplace la précédente.
 | [0021](0021-retex-template-immersif-3d.md) | RETEX template immersif — règles de développement d'un site 3D (performance, tactile, assets async) | Accepté |
 | [0022](./0022-contrat-asset-avatar-3d.md) | Contrat d'asset 3D (avatar) et validation automatique en CI | Accepté |
 | [0023](./0023-variables-parametrables-templates.md) | Variables paramétrables des templates visuels | Accepté |
-| [0024](./0024-sdk-javascript-templates.md) | SDK JavaScript des templates visuels (`@onirtech/template-sdk`) | Proposé |
+| [0024](./0024-sdk-javascript-templates.md) | SDK JavaScript des templates visuels (`@onirtech/template-sdk`) | Accepté |
 | [0025](./0025-multitenancy-organisations.md) | Multitenancy par organisation | Accepté |
 | [0026](./0026-ressources-de-donnees-templates.md) | Ressources de données des templates visuels — contrats déclarés et fournisseurs SQL | Accepté |
 | [0027](./0027-categories-et-cles-de-rattachement.md) | Catégories partagées et clés de rattachement scalaires | Accepté |
