@@ -223,6 +223,18 @@ export type TemplateAction =
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_CONTENT = 4000;
 
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
+}
+
+function cloneParams(params: TemplateParamValues): TemplateParamValues {
+  return JSON.parse(JSON.stringify(params)) as TemplateParamValues;
+}
+
 function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -512,7 +524,7 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
     locale: input.locale,
     brand: input.brand,
     theme: capabilities.has("theme") ? input.theme : {},
-    params: Object.freeze({ ...input.params }),
+    params: deepFreeze(cloneParams(input.params ?? {})),
     capabilities: input.capabilities,
     consent: input.consent,
     state: {

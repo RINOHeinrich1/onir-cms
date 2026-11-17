@@ -1085,6 +1085,27 @@
   font-weight: 600;
   font-size: 0.9rem;
 }
+.param-object,
+.param-array {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.param-array-item {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-raised);
+}
+
+.param-array-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
 
 .param-color {
   display: grid;

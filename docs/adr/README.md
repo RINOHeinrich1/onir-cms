@@ -91,3 +91,4 @@ ADR qui remplace la précédente.
 | [0092](./0092-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
 | [0093](./0093-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |
 | [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Proposé |
+| [0095](./0095-parametres-statiques-structures.md) | Paramètres statiques structurés des templates — objets et tableaux | Accepté |

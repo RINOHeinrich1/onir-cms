@@ -50,7 +50,15 @@ function buildParams(manifest, overrides = {}) {
         }
         break;
       default:
-        params[param.key] = raw;
+        if (param.type === "object" || param.type === "array") {
+          try {
+            params[param.key] = JSON.parse(raw);
+          } catch {
+            params[param.key] = raw;
+          }
+        } else {
+          params[param.key] = raw;
+        }
         break;
     }
   }
@@ -169,7 +177,14 @@ const server = createServer(async (req, res) => {
       const params = {};
       for (const param of Array.isArray(manifest.params) ? manifest.params : []) {
         const value = url.searchParams.get(param.key);
-        if (value !== null) params[param.key] = value;
+        if (value !== null) {
+          try {
+            params[param.key] =
+              param.type === "object" || param.type === "array" ? JSON.parse(value) : value;
+          } catch {
+            params[param.key] = value;
+          }
+        }
       }
       const opts = {
         phase: url.searchParams.get("phase") || "identity",
