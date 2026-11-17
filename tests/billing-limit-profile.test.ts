@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/application/actor";
-import type { LimitProfile, LimitProfileRepository } from "@/application/ports/limit-profile-repository";
+import type {
+  LimitProfile,
+  LimitProfileRepository,
+} from "@/application/ports/limit-profile-repository";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import { assignLimitProfile } from "@/application/use-cases/organizations/assign-limit-profile";
 import type { OrganizationProvisioning } from "@/domain/entities/organization-provisioning";
@@ -59,12 +62,9 @@ describe("assignation du profil de suspension", () => {
       organizations: {} as OrganizationRepository,
     };
     await expect(
-      assignLimitProfile(
-        deps,
-        { ...superAdmin, isSuperAdmin: false },
-        "org-id",
-        { profileId: "zero-profile" },
-      ),
+      assignLimitProfile(deps, { ...superAdmin, isSuperAdmin: false }, "org-id", {
+        profileId: "zero-profile",
+      }),
     ).rejects.toThrow();
   });
 });
