@@ -1,6 +1,6 @@
 # 0085. Évitement automatique de la fée ONIR sur les contrôles interactifs
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-10
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0037.

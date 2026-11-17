@@ -1,6 +1,6 @@
 # 0079. Rate limiting IA avec Bottleneck en mono et multi-instance
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-08
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0048, ADR-0065, ADR-0074, ADR-0076, ADR-0078.

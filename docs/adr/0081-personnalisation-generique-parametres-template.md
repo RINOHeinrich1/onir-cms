@@ -1,6 +1,6 @@
 # 0081. Personnalisation générique des paramètres de template par l’IA
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-09
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0019, ADR-0023, ADR-0077, ADR-0080.

@@ -1,6 +1,6 @@
 # 0077. Template Starter par défaut et génération IA des couleurs
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-08
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0019, ADR-0023, ADR-0025, ADR-0040, ADR-0049.

@@ -1,6 +1,6 @@
 # 0082. Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-09
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0019, ADR-0049, ADR-0059, ADR-0068.

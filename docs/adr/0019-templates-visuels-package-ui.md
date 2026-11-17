@@ -1,6 +1,6 @@
 # 0019. Templates visuels — packages UI-only (norme et contrat hôte v1)
 
-- **Statut** : Proposé (à valider en cadrage)
+- **Statut** : Accepté
 - **Date** : 2026-10-16
 - **Décideurs** : équipe projet
 - **Référence** : s'inspire de la norme **ONIRIA V3** (ADR-001 architecture extensible ;
