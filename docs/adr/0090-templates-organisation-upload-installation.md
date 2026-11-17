@@ -401,6 +401,11 @@ ADR-0026 :
 - exécution avec le périmètre de l'organisation du lien ;
 - aucun accès aux données d'une autre organisation.
 
+Le transport iframe doit exposer un pont `loadData` / `dataResult` pour les
+contrats de données. ADR-0026 est amendée en conséquence : la règle
+« `data` exige le mode `web-component` » ne s'applique pas aux templates
+d'organisation, qui restent exécutés en iframe sandboxée.
+
 Les assets d'un template d'organisation ne doivent pas être listables par une
 autre organisation. Le rendu public reste possible via l'identifiant opaque du
 template utilisé par un lien.
