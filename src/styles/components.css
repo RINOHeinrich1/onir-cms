@@ -9953,6 +9953,11 @@ a.subtab {
   border-top: 1px solid var(--line);
 }
 
+.dash:has(.conversations-workspace) > .dashboard-legal,
+.dash:has(.conversation-thread-content) > .dashboard-legal {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .legal-footer {
     padding-inline: 0.75rem;
