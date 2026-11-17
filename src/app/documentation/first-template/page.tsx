@@ -151,9 +151,6 @@ export default function FirstTemplatePage() {
           <h1 className="text-title">
             Your first package <span className="badge">vérifié avec le SDK 0.1.3</span>
           </h1>
-          <p className="hint">
-            De zéro à un template importable dans le panneau, en 12 étapes. Environ 15 minutes.
-          </p>
         </div>
       </div>
 

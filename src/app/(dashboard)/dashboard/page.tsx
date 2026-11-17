@@ -150,9 +150,6 @@ export default async function DashboardHomePage() {
         <div>
           <span className="eyebrow">Vue globale</span>
           <h1 className="text-title">Observabilité générale</h1>
-          <p className="dash-overview-subtitle">
-            L’activité de votre organisation, en un coup d’œil.
-          </p>
         </div>
         <span className="dash-active-pill">
           <i aria-hidden="true" />

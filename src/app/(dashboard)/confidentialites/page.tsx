@@ -46,11 +46,6 @@ export default async function ConfidentialitesPage() {
           <h1 className="text-title">Confidentialité</h1>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Politiques de confidentialité paramétrables (texte du consentement + lien). Chaque lien de
-        chat peut être rattaché à une politique ; le visiteur doit l&apos;accepter avant de
-        discuter.
-      </p>
       <ConfidentialitesTable
         initialConfidentialites={confidentialitesWithCreators}
         canWrite={actorCan(context.actor, "confidentialites:create")}

@@ -336,10 +336,6 @@ export default function SdkDocsPage() {
           <h1 className="text-title">
             Créer un template avec le SDK <span className="badge">v0.1.3</span>
           </h1>
-          <p className="hint">
-            Workflow du développeur — de l&apos;initialisation au bundle importable, avec React, Vue
-            ou HTML/CSS/JS. L&apos;API décrite est celle du SDK 0.1.0 livré.
-          </p>
         </div>
       </div>
 
