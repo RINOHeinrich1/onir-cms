@@ -28,6 +28,7 @@ export function WebhooksPanel({
 }) {
   const [endpoints, setEndpoints] = useState(initialEndpoints);
   const [deliveries, setDeliveries] = useState(initialDeliveries);
+  const [tab, setTab] = useState<"webhooks" | "journal">("webhooks");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<WebhookEndpointAdminDto | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -128,175 +129,205 @@ export function WebhooksPanel({
 
   return (
     <div className="webhooks-admin">
+      <div className="page-tabs channel-tabs" role="tablist" aria-label="Webhooks et journal">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "webhooks"}
+          className="channel-tab"
+          onClick={() => setTab("webhooks")}
+        >
+          Webhooks
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "journal"}
+          className="channel-tab"
+          onClick={() => setTab("journal")}
+        >
+          Journal
+        </button>
+      </div>
+
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <div className="tools" style={{ marginBottom: "1.25rem" }}>
-        <button type="button" className="btn" onClick={() => setCreating(true)}>
-          Créer un webhook
-        </button>
-        <button type="button" className="btn ghost" onClick={() => void refreshDeliveries()}>
-          Rafraîchir les livraisons
-        </button>
-        <span className="muted-text">
-          {endpoints.length} webhook{endpoints.length > 1 ? "s" : ""} · les secrets ne sont jamais
-          réaffichés
-        </span>
-      </div>
+      {tab === "webhooks" ? (
+        <>
+          <div className="tools" style={{ marginBottom: "1.25rem" }}>
+            <button type="button" className="btn" onClick={() => setCreating(true)}>
+              Créer un webhook
+            </button>
+            <span className="muted-text">
+              {endpoints.length} webhook{endpoints.length > 1 ? "s" : ""} · les secrets ne sont
+              jamais réaffichés
+            </span>
+          </div>
 
-      <div className="table-scroll">
-        <table className="table table-cards">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Périmètre</th>
-              <th>Requête</th>
-              <th>Auth</th>
-              <th>État</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {endpoints.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="muted-text">
-                  Aucun webhook. Créez-en un pour envoyer une fiche vers un service externe.
-                </td>
-              </tr>
-            ) : (
-              endpoints.map((endpoint) => (
-                <tr key={endpoint.id}>
-                  <td data-label="Nom">
-                    <strong>{endpoint.name}</strong>
-                    {endpoint.description !== "" ? (
-                      <div className="hint">{endpoint.description}</div>
-                    ) : null}
-                  </td>
-                  <td data-label="Périmètre">
-                    {endpoint.chatLinkId === null ? (
-                      <span className="muted-text">—</span>
-                    ) : (
-                      <span>
-                        {chatbots.find((bot) => bot.chatLinkId === endpoint.chatLinkId)?.label ??
-                          endpoint.chatLinkId}
-                        {endpoint.ficheKey !== null ? ` / ${endpoint.ficheKey}` : ""}
-                      </span>
-                    )}
-                  </td>
-                  <td data-label="Requête">
-                    <div>
-                      <span className="badge muted">{endpoint.httpMethod}</span>{" "}
-                      <span className="muted-text">{endpoint.url}</span>
-                    </div>
-                    <div className="hint">{endpoint.bodyMode}</div>
-                  </td>
-                  <td data-label="Auth">{endpoint.auth.type}</td>
-                  <td data-label="État">
-                    <span className={`badge ${endpoint.enabled ? "" : "muted"}`}>
-                      {endpoint.enabled ? "actif" : "désactivé"}
-                    </span>
-                  </td>
-                  <td data-label="Actions" className="cell-actions">
-                    <div className="tools">
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        onClick={() => setEditing(endpoint)}
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost small"
-                        disabled={testingId !== null}
-                        onClick={() => void testWebhook(endpoint)}
-                      >
-                        {testingId === endpoint.id ? "Test…" : "Tester"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger ghost small"
-                        onClick={() => void removeWebhook(endpoint)}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-scroll">
+            <table className="table table-cards">
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Périmètre</th>
+                  <th>Requête</th>
+                  <th>Auth</th>
+                  <th>État</th>
+                  <th aria-label="Actions" />
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <h2 className="text-title" style={{ fontSize: "1.1rem", marginTop: "2.5rem" }}>
-        Dernières livraisons
-      </h2>
-      <div className="table-scroll" style={{ marginTop: "1rem" }}>
-        <table className="table table-cards">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Webhook</th>
-              <th>Fiche</th>
-              <th>Statut</th>
-              <th>Tentatives</th>
-              <th>Réponse</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {deliveries.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="muted-text">
-                  Aucune livraison.
-                </td>
-              </tr>
-            ) : (
-              deliveries.map((delivery) => {
-                const endpoint = endpoints.find((item) => item.id === delivery.endpointId);
-                return (
-                  <tr key={delivery.id}>
-                    <td data-label="Date">{formatDate(delivery.createdAt)}</td>
-                    <td data-label="Webhook">{endpoint?.name ?? delivery.endpointId}</td>
-                    <td data-label="Fiche">
-                      {delivery.ficheId === null ? (
-                        <span className="muted-text">test / échantillon</span>
-                      ) : (
-                        delivery.ficheId
-                      )}
-                    </td>
-                    <td data-label="Statut">
-                      <span className={statusBadge(delivery.status)}>{delivery.status}</span>
-                    </td>
-                    <td data-label="Tentatives">{delivery.attempts}</td>
-                    <td data-label="Réponse">
-                      {delivery.responseStatus === null ? (
-                        <span className="muted-text">{delivery.errorMessage ?? "—"}</span>
-                      ) : (
-                        <span>
-                          HTTP {delivery.responseStatus}
-                          {delivery.errorMessage !== null ? ` · ${delivery.errorMessage}` : ""}
-                        </span>
-                      )}
-                    </td>
-                    <td data-label="Actions" className="cell-actions">
-                      {delivery.status === "failed" && !delivery.isTest ? (
-                        <button
-                          type="button"
-                          className="btn ghost small"
-                          onClick={() => void retryDelivery(delivery)}
-                        >
-                          Relancer
-                        </button>
-                      ) : null}
+              </thead>
+              <tbody>
+                {endpoints.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="muted-text">
+                      Aucun webhook. Créez-en un pour envoyer une fiche vers un service externe.
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  endpoints.map((endpoint) => (
+                    <tr key={endpoint.id}>
+                      <td data-label="Nom">
+                        <strong>{endpoint.name}</strong>
+                        {endpoint.description !== "" ? (
+                          <div className="hint">{endpoint.description}</div>
+                        ) : null}
+                      </td>
+                      <td data-label="Périmètre">
+                        {endpoint.chatLinkId === null ? (
+                          <span className="muted-text">—</span>
+                        ) : (
+                          <span>
+                            {chatbots.find((bot) => bot.chatLinkId === endpoint.chatLinkId)
+                              ?.label ?? endpoint.chatLinkId}
+                            {endpoint.ficheKey !== null ? ` / ${endpoint.ficheKey}` : ""}
+                          </span>
+                        )}
+                      </td>
+                      <td data-label="Requête">
+                        <div>
+                          <span className="badge muted">{endpoint.httpMethod}</span>{" "}
+                          <span className="muted-text">{endpoint.url}</span>
+                        </div>
+                        <div className="hint">{endpoint.bodyMode}</div>
+                      </td>
+                      <td data-label="Auth">{endpoint.auth.type}</td>
+                      <td data-label="État">
+                        <span className={`badge ${endpoint.enabled ? "" : "muted"}`}>
+                          {endpoint.enabled ? "actif" : "désactivé"}
+                        </span>
+                      </td>
+                      <td data-label="Actions" className="cell-actions">
+                        <div className="tools">
+                          <button
+                            type="button"
+                            className="btn ghost small"
+                            onClick={() => setEditing(endpoint)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost small"
+                            disabled={testingId !== null}
+                            onClick={() => void testWebhook(endpoint)}
+                          >
+                            {testingId === endpoint.id ? "Test…" : "Tester"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn danger ghost small"
+                            onClick={() => void removeWebhook(endpoint)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="tools" style={{ marginBottom: "1.25rem" }}>
+            <button type="button" className="btn ghost" onClick={() => void refreshDeliveries()}>
+              Rafraîchir le journal
+            </button>
+            <span className="muted-text">
+              {deliveries.length} livraison{deliveries.length > 1 ? "s" : ""} · 50 dernières
+            </span>
+          </div>
+
+          <div className="table-scroll">
+            <table className="table table-cards">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Webhook</th>
+                  <th>Fiche</th>
+                  <th>Statut</th>
+                  <th>Tentatives</th>
+                  <th>Réponse</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {deliveries.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="muted-text">
+                      Aucune livraison.
+                    </td>
+                  </tr>
+                ) : (
+                  deliveries.map((delivery) => {
+                    const endpoint = endpoints.find((item) => item.id === delivery.endpointId);
+                    return (
+                      <tr key={delivery.id}>
+                        <td data-label="Date">{formatDate(delivery.createdAt)}</td>
+                        <td data-label="Webhook">{endpoint?.name ?? delivery.endpointId}</td>
+                        <td data-label="Fiche">
+                          {delivery.ficheId === null ? (
+                            <span className="muted-text">test / échantillon</span>
+                          ) : (
+                            delivery.ficheId
+                          )}
+                        </td>
+                        <td data-label="Statut">
+                          <span className={statusBadge(delivery.status)}>{delivery.status}</span>
+                        </td>
+                        <td data-label="Tentatives">{delivery.attempts}</td>
+                        <td data-label="Réponse">
+                          {delivery.responseStatus === null ? (
+                            <span className="muted-text">{delivery.errorMessage ?? "—"}</span>
+                          ) : (
+                            <span>
+                              HTTP {delivery.responseStatus}
+                              {delivery.errorMessage !== null ? ` · ${delivery.errorMessage}` : ""}
+                            </span>
+                          )}
+                        </td>
+                        <td data-label="Actions" className="cell-actions">
+                          {delivery.status === "failed" && !delivery.isTest ? (
+                            <button
+                              type="button"
+                              className="btn ghost small"
+                              onClick={() => void retryDelivery(delivery)}
+                            >
+                              Relancer
+                            </button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {creating || editing !== null ? (
         <Modal
