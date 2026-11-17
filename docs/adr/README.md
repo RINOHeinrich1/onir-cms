@@ -20,7 +20,7 @@ ADR qui remplace la précédente.
 | [0016](0016-suivi-conversations.md) | Suivi des conversations (statut, reprise, fiche a posteriori) | Accepté |
 | [0017](0017-fiches-multiples-archivage-conversations.md) | Fiches multiples par conversation & archivage des conversations | Accepté |
 | [0018](0018-confidentialite-consentement.md) | Politiques de confidentialité & consentement du visiteur | Accepté |
-| [0019](0019-templates-visuels-package-ui.md) | Templates visuels — packages UI-only (norme et contrat hôte v1) | Proposé |
+| [0019](0019-templates-visuels-package-ui.md) | Templates visuels — packages UI-only (norme et contrat hôte v1) | Accepté |
 | [0020](0020-capacites-coeur-etat-visiteur-connaissances.md) | Capacités du cœur exposées aux templates — état du visiteur & connaissances | Accepté |
 | [0021](0021-retex-template-immersif-3d.md) | RETEX template immersif — règles de développement d'un site 3D (performance, tactile, assets async) | Accepté |
 | [0022](./0022-contrat-asset-avatar-3d.md) | Contrat d'asset 3D (avatar) et validation automatique en CI | Accepté |
@@ -63,7 +63,7 @@ ADR qui remplace la précédente.
 | [0060](./0060-creation-chatbot-assistee-ia.md) | Création de chatbot assistée par IA — préremplissage supervisé | Accepté |
 | [0062](./0062-suppression-legacy-modeles-raisonnement.md) | Suppression du stack legacy « modèles de raisonnement » | Accepté |
 | [0063](./0063-couleurs-site-vers-variables-template.md) | Extraction et mapping des couleurs du site vers les variables de template | Remplacé |
-| [0064](./0064-remplissage-ia-parametres-statiques.md) | Remplissage assisté des paramètres statiques de template | Proposé |
+| [0064](./0064-remplissage-ia-parametres-statiques.md) | Remplissage assisté des paramètres statiques de template | Accepté |
 | [0065](./0065-catalogue-ia-partage-quotas-organisation.md) | Catalogue IA partagé, quotas par organisation et provisioning des invitations | Accepté |
 | [0066](./0066-profils-de-limites-vivants.md) | Profils de limites vivants | Accepté |
 | [0067](./0067-outils-internes-fiches-statuts-qualification.md) | Outils internes sur les fiches et statuts de qualification | Accepté |
@@ -73,21 +73,21 @@ ADR qui remplace la précédente.
 | [0071](./0071-texte-fourni-source-connaissances-chatbot.md) | Texte fourni comme source de connaissances du chatbot | Accepté |
 | [0072](./0072-import-connaissances-ia.md) | Import de connaissances assisté par IA | Accepté |
 | [0073](./0073-selection-medias-independante.md) | Sélection média indépendante et portée explicite | Accepté |
-| [0074](./0074-temps-reel-multi-instance.md) | Temps réel multi-instance — bus local, Valkey et repli polling | Proposé |
-| [0075](./0075-modes-deploiement-mono-multi.md) | Modes de déploiement mono-instance et multi-instance | Proposé |
+| [0074](./0074-temps-reel-multi-instance.md) | Temps réel multi-instance — bus local, Valkey et repli polling | Accepté |
+| [0075](./0075-modes-deploiement-mono-multi.md) | Modes de déploiement mono-instance et multi-instance | Accepté |
 | [0076](./0076-strategie-cache-valkey.md) | Cache runtime local par nœud Next.js | Accepté — v1 |
-| [0077](./0077-template-starter-defaut-et-couleurs-ia.md) | Template Starter par défaut et génération IA des couleurs | Proposé |
-| [0078](./0078-acces-prive-wireguard-services-donnees.md) | Accès privés aux services de données via WireGuard | Proposé |
-| [0079](./0079-rate-limit-ia-bottleneck-multinode.md) | Rate limiting IA avec Bottleneck en mono et multi-instance | Proposé |
-| [0080](./0080-type-image-parametres-template.md) | Type image générique pour les paramètres de template | Proposé |
-| [0081](./0081-personnalisation-generique-parametres-template.md) | Personnalisation générique des paramètres de template par l’IA | Proposé |
-| [0082](./0082-collecte-semi-heuristique-formulaire-multifiche.md) | Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche | Proposé |
-| [0083](./0083-composition-generique-fiches.md) | Composition générique de fiches — relations 1..1 et 1..n | Proposé |
-| [0085](./0085-evitement-fee-controles-interactifs.md) | Évitement automatique de la fée ONIR sur les contrôles interactifs | Proposé |
+| [0077](./0077-template-starter-defaut-et-couleurs-ia.md) | Template Starter par défaut et génération IA des couleurs | Accepté |
+| [0078](./0078-acces-prive-wireguard-services-donnees.md) | Accès privés aux services de données via WireGuard | Accepté |
+| [0079](./0079-rate-limit-ia-bottleneck-multinode.md) | Rate limiting IA avec Bottleneck en mono et multi-instance | Accepté |
+| [0080](./0080-type-image-parametres-template.md) | Type image générique pour les paramètres de template | Accepté |
+| [0081](./0081-personnalisation-generique-parametres-template.md) | Personnalisation générique des paramètres de template par l’IA | Accepté |
+| [0082](./0082-collecte-semi-heuristique-formulaire-multifiche.md) | Collecte semi-heuristique — formulaire assisté et ciblage des instances de fiche | Accepté |
+| [0083](./0083-composition-generique-fiches.md) | Composition générique de fiches — relations 1..1 et 1..n | Accepté |
+| [0085](./0085-evitement-fee-controles-interactifs.md) | Évitement automatique de la fée ONIR sur les contrôles interactifs | Accepté |
 | [0088](./0088-api-plateforme-service-a-service.md) | API plateforme — authentification service-à-service | Accepté |
 | [0089](./0089-limite-messages-organisation.md) | Limite de messages par organisation | Accepté |
 | [0090](./0090-quota-stockage-organisation.md) | Quota global de stockage par organisation | Accepté |
 | [0091](./0091-templates-organisation-upload-installation.md) | Templates visuels gérés par organisation — upload, installation et désinstallation | Accepté |
 | [0092](./0092-navigation-post-authentification-document-complet.md) | Navigation post-authentification — rechargement document complet | Accepté |
 | [0093](./0093-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |
-| [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Proposé |
+| [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Accepté |

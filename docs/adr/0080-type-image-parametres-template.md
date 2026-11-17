@@ -1,6 +1,6 @@
 # 0080. Type image générique pour les paramètres de template
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-09
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0019, ADR-0023, ADR-0024.
