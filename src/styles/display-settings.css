@@ -131,30 +131,10 @@
 
 .display-preview-stage--widget iframe {
   position: absolute;
-  width: min(92%, 21rem);
-  height: min(86%, 34rem);
-  border-radius: 1rem;
-  box-shadow: 0 1rem 2rem color-mix(in srgb, var(--fg) 16%, transparent);
-}
-
-.display-preview-stage--widget[data-widget-position="top-left"] iframe {
-  top: 0.75rem;
-  left: 0.75rem;
-}
-
-.display-preview-stage--widget[data-widget-position="top-right"] iframe {
-  top: 0.75rem;
-  right: 0.75rem;
-}
-
-.display-preview-stage--widget[data-widget-position="bottom-left"] iframe {
-  bottom: 0.75rem;
-  left: 0.75rem;
-}
-
-.display-preview-stage--widget[data-widget-position="bottom-right"] iframe {
-  right: 0.75rem;
-  bottom: 0.75rem;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .display-settings-controls {
