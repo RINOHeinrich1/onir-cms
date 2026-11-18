@@ -22,7 +22,7 @@ légitime.
 
 Les autres bornes restent inchangées :
 
-- 16 Ko de schéma ;
+- 64 Ko de schéma ;
 - 64 Kio de valeurs ;
 - profondeur 8 ;
 - 300 nœuds ;
