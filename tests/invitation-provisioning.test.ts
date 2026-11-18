@@ -11,7 +11,6 @@ describe("snapshot de provisioning d'invitation", () => {
     expect(parsed?.defaults.every((entry) => entry.target.kind === "cluster")).toBe(true);
   });
 
-
   it("conserve les limites de messages et de stockage", () => {
     const parsed = parseInvitationProvisioning({
       maxChatbots: 1,

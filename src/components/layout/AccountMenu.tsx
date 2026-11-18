@@ -36,6 +36,16 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
       </>
     ),
   },
+  {
+    href: "/facturation",
+    label: "Facturation",
+    icon: (
+      <>
+        <rect x="2.5" y="5" width="19" height="14" rx="2" />
+        <path d="M2.5 9h19M6 14h4" />
+      </>
+    ),
+  },
 ];
 
 /**
@@ -47,18 +57,22 @@ export function AccountMenu({
   organizationName,
   role,
   isSuperAdmin,
+  billingEnabled,
 }: {
   email: string;
   organizationName: string | null;
   role: Role;
   isSuperAdmin: boolean;
+  billingEnabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const initials = email.trim().slice(0, 2).toUpperCase() || "?";
-  const settings = SETTINGS_ITEMS.filter(
-    (item) =>
-      item.action === undefined || isSuperAdmin || (role !== null && can(role, item.action)),
-  );
+  const settings = SETTINGS_ITEMS.filter((item) => {
+    if (item.href === "/facturation") {
+      return billingEnabled && !isSuperAdmin && role === "admin";
+    }
+    return item.action === undefined || isSuperAdmin || (role !== null && can(role, item.action));
+  });
 
   useEffect(() => {
     if (!open) return;

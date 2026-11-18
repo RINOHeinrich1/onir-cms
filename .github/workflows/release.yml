@@ -97,6 +97,9 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
             REVISION=${{ github.sha }}
+            BILLING_ENABLED=${{ vars.BILLING_ENABLED || 'false' }}
+            BILLING_PORTAL_URL=${{ vars.BILLING_PORTAL_URL }}
+            BILLING_API_URL=${{ vars.BILLING_API_URL }}
           cache-from: type=gha,scope=runner
           cache-to: type=gha,mode=max,scope=runner
           provenance: true

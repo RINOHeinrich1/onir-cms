@@ -6,6 +6,7 @@ import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuil
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { RuntimeBanners } from "@/components/layout/RuntimeBanners";
 import { LegalFooter } from "@/components/legal/LegalFooter";
+import { BILLING_ENABLED } from "@/config/billing";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -53,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           activeOrganizationId={context.actor.organizationId}
           organizationName={context.organization?.name ?? null}
           isSuperAdmin={context.actor.isSuperAdmin}
+          billingEnabled={BILLING_ENABLED}
         />
         <RuntimeBanners />
         <main className="wrap dashboard-main">{children}</main>

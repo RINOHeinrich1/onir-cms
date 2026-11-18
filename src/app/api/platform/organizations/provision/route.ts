@@ -32,7 +32,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (body === null) return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
 
     const organizationName = requiredString(body, "organizationName");
-    const ownerEmail = requiredString(body, "ownerEmail");
+    requiredString(body, "ownerEmail");
     const limitProfileId = requiredString(body, "limitProfileId");
     const externalRequestId = requiredString(body, "externalRequestId");
 
