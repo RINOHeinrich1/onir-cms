@@ -274,6 +274,8 @@ function configComparable(config: ChatbotConfigDraft): string {
     })),
     dataSelection: config.dataSelection,
     mediaSelection: config.mediaSelection,
+    mediaAccess: config.mediaAccess,
+    mediaMaxResults: config.mediaMaxResults,
     fallback: config.fallback,
     searchTool: config.searchTool,
   });

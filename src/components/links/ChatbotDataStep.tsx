@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
+import type { ChatbotMediaAccessMode } from "@/domain/entities/chatbot-information";
 import { ChatbotDataSelection } from "./ChatbotDataSelection";
 import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
 import type {
@@ -35,6 +36,10 @@ export function ChatbotDataStep({
   onSelectionChange,
   mediaSelection,
   onMediaSelectionChange,
+  mediaAccess,
+  onMediaAccessChange,
+  mediaMaxResults,
+  onMediaMaxResultsChange,
   onGlobalCountsChange,
   chatLinkId,
   onUploadPhoto,
@@ -54,6 +59,10 @@ export function ChatbotDataStep({
   onSelectionChange: (next: ChatbotDataSelectionValue) => void;
   mediaSelection: ChatbotDataSelectionValue;
   onMediaSelectionChange: (next: ChatbotDataSelectionValue) => void;
+  mediaAccess: ChatbotMediaAccessMode;
+  onMediaAccessChange: (next: ChatbotMediaAccessMode) => void;
+  mediaMaxResults: number;
+  onMediaMaxResultsChange: (next: number) => void;
   onGlobalCountsChange?: (counts: { connaissances: number; photos: number; liens: number }) => void;
   chatLinkId?: string | null;
   /**
@@ -220,6 +229,10 @@ export function ChatbotDataStep({
         onChange={onSelectionChange}
         mediaSelection={mediaSelection}
         onMediaSelectionChange={onMediaSelectionChange}
+        mediaAccess={mediaAccess}
+        onMediaAccessChange={onMediaAccessChange}
+        mediaMaxResults={mediaMaxResults}
+        onMediaMaxResultsChange={onMediaMaxResultsChange}
         chatLinkId={chatLinkId}
         onCountsChange={onGlobalCountsChange}
         searchTool={searchTool}

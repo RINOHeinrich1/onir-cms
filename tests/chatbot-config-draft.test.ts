@@ -53,6 +53,27 @@ describe("brouillon de configuration chatbot", () => {
     expect(String(payload.systemPrompt)).toContain("Tu es assistant test.");
   });
 
+  it("conserve le mode d'illustration des médias et sa limite", () => {
+    const draft = defaultChatbotConfigDraft();
+    expect(draft.mediaAccess).toBe("on_demand");
+    expect(draft.mediaMaxResults).toBe(3);
+
+    draft.mediaAccess = "illustration";
+    draft.mediaMaxResults = 5;
+    const payload = chatbotConfigPayload(draft);
+    const informationSources = payload.informationSources as {
+      medias: { access: string; maxResults: number };
+    };
+    expect(informationSources.medias).toMatchObject({
+      access: "illustration",
+      maxResults: 5,
+    });
+
+    const reloaded = draftFromConfig(payload);
+    expect(reloaded?.mediaAccess).toBe("illustration");
+    expect(reloaded?.mediaMaxResults).toBe(5);
+  });
+
   it("expose par défaut la sélection globale complète", () => {
     const draft = defaultChatbotConfigDraft();
     expect(draft.dataSelection).toEqual({ mode: "all", connaissanceIds: [], mediaIds: [] });

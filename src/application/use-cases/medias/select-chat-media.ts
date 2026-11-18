@@ -128,6 +128,10 @@ export async function selectChatMedia(
   const wantsPhotos = link.sources.phototheque;
   const wantsLiens = link.sources.lien;
   const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  const maxResults = Math.max(
+    1,
+    Math.min(MAX_MEDIA_RESULTS, config?.informationSources?.medias?.maxResults ?? 3),
+  );
   const load = (type: "photo" | "lien"): Promise<Media[]> =>
     listRuntimeMedias(deps, organizationId, link, type, config);
   const [photos, liens] = await Promise.all([
@@ -194,13 +198,13 @@ export async function selectChatMedia(
   );
   const wantsVisuals =
     /\b(photo|photos|image|images|visuel|visuels|catalogue|produit|produits)\b/i.test(question);
-  const fallbackPhotos = wantsVisuals ? photosCatalogue.slice(0, MAX_MEDIA_RESULTS) : [];
+  const fallbackPhotos = wantsVisuals ? photosCatalogue.slice(0, maxResults) : [];
   const resolved = (
     chosenPhotos.length === 0 && chosenLiens.length === 0 && fallbackPhotos.length > 0
       ? fallbackPhotos
       : [...chosenPhotos, ...chosenLiens]
   )
-    .slice(0, MAX_MEDIA_RESULTS)
+    .slice(0, maxResults)
     .map((media) => toMessageMedia(media, organizationId));
 
   await deps.conversations.setMessageMedias(organizationId, message.id, resolved);
