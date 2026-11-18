@@ -393,9 +393,10 @@ export default function HostDocsPage() {
         <li>
           <strong>Médias</strong> :{" "}
           <code>listActivesByTypeForChatLink(&quot;photo&quot;|&quot;lien&quot;, link.id)</code>.
-          Seuls les médias <strong>actifs</strong> rattachés au chatbot du lien sont exposés. Les
-          photos passent par <code>/api/medias/:id/file</code> (proxy autorisé), jamais par une URL
-          directe.
+          Seuls les médias <strong>actifs</strong> rattachés au chatbot du lien sont exposés (
+          <code>chat_link_ids</code> vide = média global, sinon le lien doit être dans la liste).
+          Les photos passent par <code>/api/medias/:id/file</code> (proxy autorisé), jamais par une
+          URL directe.
         </li>
         <li>
           <strong>Fiche modèle</strong> : champs de la version du modèle du template.
@@ -434,7 +435,10 @@ export default function HostDocsPage() {
         </li>
         <li>
           Si <code>mediaPending</code>, l&apos;hôte appelle <code>/api/chat/media</code> pour
-          attacher photos/liens à la réponse — sans retarder le texte.
+          attacher photos/liens à la réponse — sans retarder le texte. Ce drapeau dépend de la
+          source Médias : <code>illustration</code> permet l&apos;attachement automatique ;{" "}
+          <code>on_demand</code> laisse les photos disponibles dans <code>resources.media</code>{" "}
+          pour la galerie. Le runtime plafonne à 5 photos par réponse.
         </li>
         <li>
           L&apos;hôte met à jour <code>state.messages</code> et réassigne le contexte : votre
@@ -562,8 +566,10 @@ export default function HostDocsPage() {
           <code>resources.media</code> est vide.
         </dt>
         <dd>
-          La capacité <code>media</code> n&apos;est pas déclarée, ou aucun média actif ne cible le
-          chatbot du lien.
+          La capacité <code>media</code> n&apos;est pas déclarée, aucun média actif ne cible le
+          chatbot du lien, la source Médias est désactivée, ou le mode d&apos;accès ne déclenche pas
+          l&apos;attachement attendu (<code>illustration</code> pour les réponses,{" "}
+          <code>on_demand</code> pour la galerie).
         </dd>
         <dt>Les connaissances n&apos;apparaissent pas dans le contexte.</dt>
         <dd>
