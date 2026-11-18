@@ -5,7 +5,7 @@ import { getPool } from "@/infrastructure/db/pool";
 import { pgVisualTemplateAuditRepository } from "@/infrastructure/db/visual-template-audit-repository";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { errorResponse } from "../../../_lib/errors";
-import { requireSuperAdmin } from "../../../_lib/require-user";
+import { requirePlatformSuperAdmin } from "../../../_lib/require-user";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 /** PATCH /api/platform/visual-templates/[id] — kill switch. */
 export async function PATCH(request: Request, context: RouteContext): Promise<NextResponse> {
   try {
-    const actor = await requireSuperAdmin(request);
+    const actor = await requirePlatformSuperAdmin(request);
     const { id } = await context.params;
     const body = (await request.json().catch(() => null)) as {
       disabled?: unknown;

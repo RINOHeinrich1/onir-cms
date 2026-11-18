@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { type Actor, actorCan } from "@/application/actor";
 import {
@@ -12,6 +13,7 @@ import { SESSION_COOKIE } from "@/domain/session";
 import { pgMembershipRepository } from "@/infrastructure/db/membership-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgSessionRepository, type Session } from "@/infrastructure/db/session-repository";
+import { env } from "@/lib/env";
 import { hashSessionToken } from "@/lib/session-token";
 
 /** Contexte d'une requête HTTP authentifiée (session + organisation active). */
@@ -92,4 +94,39 @@ export async function requireSuperAdmin(request: Request): Promise<Actor> {
     throw new ForbiddenError("Action réservée au super-administrateur");
   }
   return actor;
+}
+
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get("authorization");
+  if (header === null) return null;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  return match?.[1]?.trim() ?? null;
+}
+
+function safeSecretEquals(received: string, expected: string): boolean {
+  const left = Buffer.from(received, "utf8");
+  const right = Buffer.from(expected, "utf8");
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+/**
+ * Garde des routes `/api/platform` : accepte soit une session super-admin,
+ * soit la clé serveur-à-serveur du backoffice commercial (ADR-0008).
+ */
+export async function requirePlatformSuperAdmin(request: Request): Promise<Actor> {
+  const expected = env("PLATFORM_API_KEY");
+  const token = bearerToken(request);
+  if (expected !== undefined && token !== null && safeSecretEquals(token, expected)) {
+    const userId = env("PLATFORM_API_USER_ID");
+    if (userId === undefined) {
+      throw new UnauthorizedError("Compte service plateforme non configuré");
+    }
+    return {
+      id: userId,
+      role: "admin",
+      organizationId: null,
+      isSuperAdmin: true,
+    };
+  }
+  return requireSuperAdmin(request);
 }
