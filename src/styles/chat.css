@@ -909,7 +909,8 @@ body:has(.chat-page) {
   padding: 0;
 }
 
-/* Voile de chargement de la page (avant que le template 3D ne soit prêt) */
+/* Voile de chargement de la page (avant que le template 3D ne soit prêt) :
+   logo ONIR qui respire, cercles orange/vert, fondu de sortie. */
 .template-loader {
   position: fixed;
   inset: 0;
@@ -917,35 +918,94 @@ body:has(.chat-page) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #17110a;
+  overflow: hidden;
+  background: #fff;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.8s;
 }
-.template-loader-page {
-  width: 10rem;
-  padding: 1.1rem 0.9rem;
-  border-radius: 0.5rem;
-  background: #fbf6ea;
-  border: 1px solid rgba(150, 120, 70, 0.4);
-  box-shadow: 0 20px 50px rgba(20, 12, 6, 0.55);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.7rem;
-  color: #5b4632;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.8rem;
-  letter-spacing: 0.03em;
+
+.template-loader.hide {
+  opacity: 0;
+  visibility: hidden;
 }
-.template-loader-spinner {
-  width: 1.5rem;
-  height: 1.5rem;
+
+.template-loader-logo {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: min(420px, 78vw);
+  opacity: 0;
+  animation:
+    template-loader-in 0.9s ease-out 0.1s forwards,
+    template-loader-breath 2.4s ease-in-out 1s infinite;
+}
+
+.template-loader-logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.template-loader-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 260px;
+  height: 260px;
+  margin: -130px 0 0 -130px;
   border-radius: 50%;
-  border: 2px solid rgba(150, 120, 70, 0.3);
-  border-top-color: #8a5a1f;
-  animation: template-spin 0.8s linear infinite;
+  border: 2px solid #ee7a2b;
+  opacity: 0;
+  animation: template-loader-pulse 2.4s ease-out 0.6s infinite;
 }
-@keyframes template-spin {
+
+.template-loader-ring.r2 {
+  border-color: #2e7d3a;
+  animation-delay: 1.8s;
+}
+
+@keyframes template-loader-in {
+  from {
+    transform: scale(0.94);
+  }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes template-loader-breath {
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes template-loader-pulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .template-loader-logo,
+  .template-loader-ring {
+    animation: none;
+  }
+
+  .template-loader-logo {
+    opacity: 1;
+  }
+
+  .template-loader-ring {
+    display: none;
   }
 }
 
