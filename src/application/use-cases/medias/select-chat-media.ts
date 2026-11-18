@@ -17,7 +17,7 @@ import { signedMediaUrl } from "@/lib/media-token";
 /** Plafond d'entrées envoyées à la sélection (borne le coût/latence). */
 export const MAX_MEDIA_CATALOGUE = 60;
 /** Nombre maximum de médias proposés dans une réponse. */
-export const MAX_MEDIA_RESULTS = 3;
+export const MAX_MEDIA_RESULTS = 5;
 
 export type SelectChatMediaDependencies = {
   organizations: OrganizationRepository;
@@ -192,7 +192,14 @@ export async function selectChatMedia(
   const chosenLiens = liensCatalogue.filter((lien) =>
     selection.liens.has(lien.libelle.trim().toLowerCase()),
   );
-  const resolved = [...chosenPhotos, ...chosenLiens]
+  const wantsVisuals =
+    /\b(photo|photos|image|images|visuel|visuels|catalogue|produit|produits)\b/i.test(question);
+  const fallbackPhotos = wantsVisuals ? photosCatalogue.slice(0, MAX_MEDIA_RESULTS) : [];
+  const resolved = (
+    chosenPhotos.length === 0 && chosenLiens.length === 0 && fallbackPhotos.length > 0
+      ? fallbackPhotos
+      : [...chosenPhotos, ...chosenLiens]
+  )
     .slice(0, MAX_MEDIA_RESULTS)
     .map((media) => toMessageMedia(media, organizationId));
 
