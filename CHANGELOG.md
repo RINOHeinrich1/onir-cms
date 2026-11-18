@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.16](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.15...v0.38.16) (2026-11-18)
+
+
+### Features
+
+* **loader:** logo ONIR respiration en remplacement du spinner
+
+
 ## [0.38.15](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.14...v0.38.15) (2026-11-18)
 
 
