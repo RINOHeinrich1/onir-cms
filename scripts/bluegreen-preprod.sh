@@ -53,12 +53,16 @@ services:
       RUNTIME_CACHE_URL: "redis://onir-valkey-test:6379"
       RUNTIME_CACHE_HOT_LINKS: "30"
       RUNTIME_CACHE_WARM_INTERVAL_MS: "300000"
+      BILLING_API_URL: "https://preprod-backoffice.onir-cms.tech"
+      BILLING_PORTAL_URL: "https://preprod-backoffice.onir-cms.tech/espace-client"
   app-green:
     environment:
       RUNTIME_CACHE_ENABLED: "true"
       RUNTIME_CACHE_URL: "redis://onir-valkey-test:6379"
       RUNTIME_CACHE_HOT_LINKS: "30"
       RUNTIME_CACHE_WARM_INTERVAL_MS: "300000"
+      BILLING_API_URL: "https://preprod-backoffice.onir-cms.tech"
+      BILLING_PORTAL_URL: "https://preprod-backoffice.onir-cms.tech/espace-client"
 YAML
 
 # Le fichier de secrets plateforme ne cible que le service `app` ; le slot
