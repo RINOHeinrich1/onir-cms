@@ -6,6 +6,8 @@ BASE="/opt/onir-cms-preprod"
 COMPOSE="$BASE/docker-compose.preprod.yml"
 OVERRIDE="$BASE/docker-compose.bluegreen.yml"
 CACHE_OVERRIDE="$BASE/onir-runtime-cache-override.yml"
+PLATFORM_OVERRIDE="$BASE/onir-platform-override.yml"
+GREEN_PLATFORM_OVERRIDE="$BASE/onir-platform-green-override.yml"
 ENV_FILE="$BASE/.env.preprod"
 UPSTREAM="/etc/nginx/conf.d/onir-preprod-upstream.conf"
 VHOST="/etc/nginx/sites-enabled/preprod-cms.onirtech.com.conf"
@@ -13,8 +15,11 @@ PROJECT="onir-cms-preprod"
 
 compose() {
   local -a args=(-p "$PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE" -f "$OVERRIDE")
-  if [ -f "$BASE/onir-platform-override.yml" ]; then
-    args+=(-f "$BASE/onir-platform-override.yml")
+  if [ -f "$PLATFORM_OVERRIDE" ]; then
+    args+=(-f "$PLATFORM_OVERRIDE")
+  fi
+  if [ -f "$GREEN_PLATFORM_OVERRIDE" ]; then
+    args+=(-f "$GREEN_PLATFORM_OVERRIDE")
   fi
   if [ -f "$CACHE_OVERRIDE" ]; then
     args+=(-f "$CACHE_OVERRIDE")
@@ -55,6 +60,26 @@ services:
       RUNTIME_CACHE_HOT_LINKS: "30"
       RUNTIME_CACHE_WARM_INTERVAL_MS: "300000"
 YAML
+
+# Le fichier de secrets plateforme ne cible que le service `app` ; le slot
+# blue-green `app-green` doit recevoir les mêmes variables pour l'API S2S.
+if [ -f "$PLATFORM_OVERRIDE" ]; then
+  python3 - "$PLATFORM_OVERRIDE" "$GREEN_PLATFORM_OVERRIDE" <<'PY'
+import re
+import sys
+
+source = open(sys.argv[1], encoding="utf-8").read()
+key = re.search(r'PLATFORM_API_KEY:\s*"([^"]+)"', source)
+user = re.search(r'PLATFORM_API_USER_ID:\s*"([^"]+)"', source)
+if key and user:
+    with open(sys.argv[2], "w", encoding="utf-8") as output:
+        output.write(
+            "services:\n  app-green:\n    environment:\n"
+            f'      PLATFORM_API_KEY: "{key.group(1)}"\n'
+            f'      PLATFORM_API_USER_ID: "{user.group(1)}"\n'
+        )
+PY
+fi
 
 if ! grep -q '!override' "$OVERRIDE" 2>/dev/null; then
   cat > "$OVERRIDE" <<YAML
