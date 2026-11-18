@@ -46,8 +46,8 @@ const PARAM_TYPE_DESCRIPTIONS: Record<TemplateParamType, string> = {
   url: "URL http(s).",
   image: "Image importée (PNG, JPEG, WebP).",
   select: "Choix parmi les options déclarées.",
-  object: "Objet structuré.",
-  array: "Tableau d'éléments.",
+  object: "Objet JSON structuré, à propriétés déclarées.",
+  array: "Tableau JSON typé (items obligatoire).",
 };
 
 const MANIFEST_EXAMPLE = `{
@@ -122,6 +122,46 @@ const PARAMS_EXAMPLE = `// Déclaration (manifeste)
 
 // Lecture (template) — le défaut du manifeste sert de repli
 const titre = ctx.params?.titre_de_livre ?? "album";`;
+
+const PARAMS_STRUCTURED_EXAMPLE = `// Objet : propriétés fermées, valeurs par défaut par champ
+{
+  "key": "apparence",
+  "label": "Apparence",
+  "description": "Couleurs et arrondis de l'interface",
+  "type": "object",
+  "default": { "accent": "#023777", "rayon": 12 },
+  "properties": [
+    { "key": "accent", "label": "Accent", "description": "Couleur principale",
+      "type": "color", "default": "#023777" },
+    { "key": "rayon", "label": "Rayon", "description": "Arrondi des cartes",
+      "type": "number", "default": 12, "min": 0, "max": 40 }
+  ]
+}
+
+// Tableau : items obligatoire (scalaire, objet ou tableau)
+{
+  "key": "etapes",
+  "label": "Étapes",
+  "description": "Étapes affichées dans le parcours",
+  "type": "array",
+  "default": [{ "titre": "Bienvenue", "visible": true }],
+  "minItems": 1,
+  "maxItems": 20,
+  "items": {
+    "type": "object",
+    "default": { "titre": "", "visible": true },
+    "properties": [
+      { "key": "titre", "label": "Titre", "description": "Libellé de l'étape",
+        "type": "string", "default": "", "maxLength": 80 },
+      { "key": "visible", "label": "Visible", "description": "Afficher l'étape",
+        "type": "boolean", "default": true }
+    ]
+  }
+}
+
+// Lecture : ce sont de vraies valeurs JSON, pas des chaînes à parser
+const accent = ctx.params?.apparence?.accent ?? "#023777";
+const premiereEtape = ctx.params?.etapes?.[0]?.titre ?? "";`;
 
 const EXAMPLE_MANIFEST = `{
   "schemaVersion": 1,
@@ -352,6 +392,13 @@ export default function TemplateDocsPage() {
               <td>
                 <code>ctx.resources.media</code> (capacité <code>media</code>), ouverture via{" "}
                 <code>ctx.actions.openMedia(url)</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Photos attachées à une réponse</td>
+              <td>
+                <code>message.medias</code>, alimenté par l&apos;hôte (recherche asynchrone ou
+                source Médias en mode <code>illustration</code>)
               </td>
             </tr>
             <tr>
@@ -593,6 +640,82 @@ export default function TemplateDocsPage() {
         correspondante sur le lien (état du visiteur activé / source connaissances cochée).
       </p>
 
+      <h3>Médias, photothèque et réponses illustrées</h3>
+      <p>
+        La capacité <code>media</code> ne branche pas la photothèque « en direct » : elle expose
+        seulement les photos et liens <strong>actifs rattachés au chatbot du lien</strong>. Un média
+        global (<code>chat_link_ids</code> vide) est visible par tous ; un média ciblé doit contenir
+        l&apos;identifiant du lien.
+      </p>
+      <div className="table-scroll">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Besoin</th>
+              <th>Source côté template</th>
+              <th>Quand l&apos;image apparaît</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Galerie / catalogue de photos du chatbot</td>
+              <td>
+                <code>ctx.resources.media.photos</code>
+              </td>
+              <td>
+                Dès l&apos;ouverture, si le template rend une galerie (aucune tuile n&apos;est créée
+                automatiquement).
+              </td>
+            </tr>
+            <tr>
+              <td>Photos jointes à un message</td>
+              <td>
+                <code>message.medias</code>
+              </td>
+              <td>Historique ou après récupération asynchrone par l&apos;hôte.</td>
+            </tr>
+            <tr>
+              <td>Illustration automatique des réponses</td>
+              <td>
+                <code>message.medias</code> + <code>mediaPending</code>
+              </td>
+              <td>
+                Source Médias active en mode <code>illustration</code> ; l&apos;hôte appelle{" "}
+                <code>/api/chat/media</code> et fusionne les photos.
+              </td>
+            </tr>
+            <tr>
+              <td>Médias à la demande</td>
+              <td>
+                <code>ctx.resources.media</code>
+              </td>
+              <td>
+                Mode <code>on_demand</code> : pas d&apos;attachement automatique ; le template
+                affiche la galerie ou appelle <code>actions.request(&quot;media&quot;)</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>
+          Les URL sont des URLs signées/proxy : ne jamais reconstruire ni mettre en cache un chemin
+          de fichier.
+        </li>
+        <li>
+          Le runtime plafonne les photos illustratives à <strong>5 par réponse</strong> et respecte{" "}
+          <code>maxResults</code> (1..5) et la sélection de la source.
+        </li>
+        <li>
+          <code>mediaPending</code> peut être faux alors que la photothèque est peuplée : il dépend
+          de la source Médias et de son mode d&apos;accès.
+        </li>
+        <li>
+          Une image « labellisée » dans la photothèque mais non rattachée au chatbot, ou une source
+          Médias désactivée, ne sera jamais exposée au template.
+        </li>
+      </ul>
+
       <h2>7. Actions</h2>
       <div className="table-scroll">
         <table className="table">
@@ -671,6 +794,12 @@ export default function TemplateDocsPage() {
         résolues dans <code>ctx.params</code> (objet gelé).
       </p>
       <Code>{PARAMS_EXAMPLE}</Code>
+      <p>
+        Les types <code>object</code> et <code>array</code> acceptent de vraies valeurs JSON
+        imbriquées. Ils sont validés récursivement et arrivent déjà normalisés dans{" "}
+        <code>ctx.params</code> — il ne faut pas faire <code>JSON.parse</code>.
+      </p>
+      <Code>{PARAMS_STRUCTURED_EXAMPLE}</Code>
       <p>Chaque paramètre déclare :</p>
       <div className="table-scroll">
         <table className="table">
@@ -715,6 +844,28 @@ export default function TemplateDocsPage() {
                 pour <code>select</code> : le défaut doit être l&apos;une des valeurs
               </td>
             </tr>
+            <tr>
+              <td>
+                <code>properties</code>
+              </td>
+              <td>
+                pour <code>object</code> : propriétés déclarées, aucune clé arbitraire
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>items</code>
+              </td>
+              <td>
+                pour <code>array</code> : type des éléments (obligatoire)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>minItems</code> / <code>maxItems</code>
+              </td>
+              <td>bornes d&apos;un tableau (0..100, défaut 100)</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -748,6 +899,18 @@ export default function TemplateDocsPage() {
         <li>
           Le bouton <strong>« Aperçu avec ces valeurs »</strong> teste une valeur sans
           l&apos;enregistrer.
+        </li>
+        <li>
+          Les objets refusent les clés non déclarées ; les tableaux exigent <code>items</code> et
+          respectent <code>minItems</code>/<code>maxItems</code>.
+        </li>
+        <li>
+          Limites structurelles : 40 paramètres, 64 Kio de valeurs, profondeur 8, 300 nœuds, 50
+          propriétés par objet, 100 éléments par tableau.
+        </li>
+        <li>
+          Un champ absent est complété par le <code>default</code> du nœud ; un objet ou tableau
+          invalide retombe sur le défaut complet du paramètre.
         </li>
       </ul>
 
@@ -875,6 +1038,14 @@ export default function TemplateDocsPage() {
         </dd>
         <dt>Le contexte est vide.</dt>
         <dd>La donnée n&apos;est fournie que si la capacité est déclarée dans le manifeste.</dd>
+        <dt>La photothèque contient des photos mais le template n&apos;affiche rien.</dt>
+        <dd>
+          Vérifier <code>capabilities: [&quot;media&quot;]</code>, le rattachement des médias au
+          chatbot (<code>chat_link_ids</code>), la source Médias et son mode (
+          <code>illustration</code> pour l&apos;attachement automatique, <code>on_demand</code> pour
+          la galerie), puis rendre explicitement <code>ctx.resources.media</code> ou{" "}
+          <code>message.medias</code>.
+        </dd>
         <dt>Mes modifications n&apos;apparaissent pas.</dt>
         <dd>
           Une version est immuable : incrémentez <code>version</code>, repackagez et importez.

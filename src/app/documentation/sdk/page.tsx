@@ -524,6 +524,11 @@ export default function SdkDocsPage() {
           <code>params[].default</code> est <strong>obligatoire</strong> : c&apos;est le repli quand
           l&apos;exploitant ne renseigne rien.
         </li>
+        <li>
+          Les types <code>object</code> et <code>array</code> reçoivent de vraies valeurs JSON
+          imbriquées dans <code>ctx.params</code> ; déclarez <code>properties</code> ou{" "}
+          <code>items</code>, pas une chaîne à parser.
+        </li>
         <li>Une capacité non déclarée ⇒ la donnée correspondante est absente/ vide.</li>
       </ul>
 
@@ -878,7 +883,7 @@ export default function SdkDocsPage() {
         <dd>
           Déclarez la capacité correspondante (<code>messages</code>, <code>media</code>,{" "}
           <code>modelForm</code>, <code>theme</code>, <code>userState</code>, <code>knowledge</code>
-          , <code>attachments</code>).
+          , <code>attachments</code>, <code>fallback</code>, <code>data</code>).
         </dd>
       </dl>
 
