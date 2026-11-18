@@ -11,6 +11,24 @@ describe("snapshot de provisioning d'invitation", () => {
     expect(parsed?.defaults.every((entry) => entry.target.kind === "cluster")).toBe(true);
   });
 
+
+  it("conserve les limites de messages et de stockage", () => {
+    const parsed = parseInvitationProvisioning({
+      maxChatbots: 1,
+      maxMessages: 100,
+      messageLimitPolicy: "recycle",
+      maxStorageMb: 50,
+    });
+    expect(parsed).toMatchObject({
+      maxMessages: 100,
+      messageLimitPolicy: "recycle",
+      maxStorageMb: 50,
+    });
+  });
+
+  it("refuse une limite de messages non entière", () => {
+    expect(() => parseInvitationProvisioning({ maxMessages: 1.5 })).toThrow();
+  });
   it("conserve des défauts explicites", () => {
     const parsed = parseInvitationProvisioning({
       allocations: [

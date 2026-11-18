@@ -90,3 +90,4 @@ ADR qui remplace la précédente.
 | [0092](./0092-suggestion-reponse-ia-prise-en-main-humaine.md) | Suggestion de réponse IA en prise en main humaine | Accepté |
 | [0094](./0094-cache-chaud-chatbots-hot-set-lru.md) | Cache chaud des chatbots — hot set LRU borné par nœud | Accepté |
 | [0095](./0095-parametres-statiques-structures.md) | Paramètres statiques structurés des templates — objets et tableaux | Accepté |
+| [0096](./0096-conservation-limites-messages-stockage.md) | Conservation des limites de messages et de stockage dans les profils | Accepté |

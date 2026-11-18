@@ -19,6 +19,7 @@ import { pgFicheSearchRepository } from "@/infrastructure/db/fiche-search-reposi
 import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgLinkDataBindingRepository } from "@/infrastructure/db/link-data-binding-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
+import { pgOrganizationAiQuotaRepository } from "@/infrastructure/db/organization-ai-quota-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -56,6 +57,7 @@ export function conversationChatDeps() {
   const ficheTools = pgFicheToolRepository(pool);
   return {
     organizations: pgOrganizationRepository(pool),
+    quotas: pgOrganizationAiQuotaRepository(pool),
     links: pgChatLinkRepository(pool),
     conversations: pgConversationRepository(pool),
     prospects: pgProspectRepository(pool),
