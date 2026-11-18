@@ -167,15 +167,15 @@ function parseMediasSource(input: unknown, errors: string[]): ChatbotMediasSourc
   if (types.length === 0) errors.push("Médias : au moins un type est requis");
   const maxResults =
     typeof raw.maxResults === "number" && Number.isInteger(raw.maxResults) ? raw.maxResults : 3;
-  if (maxResults < 1 || maxResults > 3) {
-    errors.push("Médias : maxResults doit être compris entre 1 et 3");
+  if (maxResults < 1 || maxResults > 5) {
+    errors.push("Médias : maxResults doit être compris entre 1 et 5");
   }
   return {
     enabled,
     types: [...new Set(types)],
     selection: parseSelection(raw.selection, errors, "Médias"),
     access: isChatbotMediaAccessMode(raw.access) ? raw.access : "on_demand",
-    maxResults: Math.max(1, Math.min(3, maxResults)),
+    maxResults: Math.max(1, Math.min(5, maxResults)),
   };
 }
 
