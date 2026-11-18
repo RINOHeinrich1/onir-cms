@@ -252,7 +252,7 @@ Vanilla : même contenu en JSON dans `onirtech.template.json`, avec
 `schemaVersion`, `kind`, `compatibility`, `network` explicites.
 
 Règles des paramètres : `default` **obligatoire**, types `string | text | number |
-boolean | color | url | select`, ≤ 64 paramètres, ≤ 16 Ko.
+boolean | color | url | select`, ≤ 64 paramètres, ≤ 64 Ko.
 
 ## Patterns par stack
 

@@ -315,7 +315,7 @@ export default function FirstTemplatePage() {
             Types disponibles : <code>string</code>, <code>text</code>, <code>number</code>,{" "}
             <code>boolean</code>, <code>color</code>, <code>url</code>, <code>select</code>.
           </li>
-          <li>Maximum 64 paramètres, 16 Ko de schéma.</li>
+          <li>Maximum 64 paramètres, 64 Ko de schéma.</li>
         </ul>
       </Step>
 
