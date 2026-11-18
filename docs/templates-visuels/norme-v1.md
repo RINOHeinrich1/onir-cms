@@ -454,7 +454,7 @@ const titre = ctx.params.titre_de_livre; // string | number | boolean (gelé)
 | `min` / `max` | `number` |
 | `options` | `select` : `{ value, label }[]`, `default` ∈ valeurs |
 
-Limites : **40 paramètres**, bloc ≤ **16 Ko**.
+Limites : **64 paramètres**, bloc ≤ **16 Ko**.
 
 ### Invariants
 - **Aucun secret** : les valeurs sont **publiques** (vues par le visiteur).

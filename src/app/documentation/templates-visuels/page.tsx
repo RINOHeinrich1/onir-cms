@@ -905,7 +905,7 @@ export default function TemplateDocsPage() {
           respectent <code>minItems</code>/<code>maxItems</code>.
         </li>
         <li>
-          Limites structurelles : 40 paramètres, 64 Kio de valeurs, profondeur 8, 300 nœuds, 50
+          Limites structurelles : 64 paramètres, 64 Kio de valeurs, profondeur 8, 300 nœuds, 50
           propriétés par objet, 100 éléments par tableau.
         </li>
         <li>

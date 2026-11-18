@@ -94,3 +94,4 @@ ADR qui remplace la précédente.
 | [0095](./0095-parametres-statiques-structures.md) | Paramètres statiques structurés des templates — objets et tableaux | Accepté |
 | [0096](./0096-conservation-limites-messages-stockage.md) | Conservation des limites de messages et de stockage dans les profils | Accepté |
 | [0097](./0097-medias-illustration-configurable-limite.md) | Illustration des réponses par la photothèque — réglage UI, conservation et limite non bloquante | Accepté |
+| [0098](./0098-limite-parametres-templates-64.md) | Limite des paramètres de template portée à 64 | Accepté |
