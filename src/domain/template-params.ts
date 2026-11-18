@@ -57,7 +57,7 @@ export type TemplateParamSchema = TemplateParamNode & {
 
 export type TemplateParamError = { field: string; message: string };
 
-export const MAX_TEMPLATE_PARAMS = 40;
+export const MAX_TEMPLATE_PARAMS = 64;
 export const MAX_TEMPLATE_PARAMS_JSON_BYTES = 64 * 1024;
 export const MAX_TEMPLATE_PARAM_STRING = 2000;
 export const DEFAULT_TEMPLATE_PARAM_MAX_LENGTH = 200;

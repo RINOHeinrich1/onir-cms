@@ -218,7 +218,7 @@ de vraies valeurs JSON imbriquées dans `ctx.params` : ne faites pas
 
 Règles : `default` obligatoire sur chaque nœud ; `properties` pour un objet
 (clés non déclarées refusées) ; `items` obligatoire pour un tableau ; bornes
-`minItems`/`maxItems` ; profondeur 8, 300 nœuds, 40 paramètres, 64 Kio au total.
+`minItems`/`maxItems` ; profondeur 8, 300 nœuds, 64 paramètres, 64 Kio au total.
 Un champ absent prend le `default` du nœud ; un objet/tableau invalide retombe
 sur le défaut complet.
 
@@ -252,7 +252,7 @@ Vanilla : même contenu en JSON dans `onirtech.template.json`, avec
 `schemaVersion`, `kind`, `compatibility`, `network` explicites.
 
 Règles des paramètres : `default` **obligatoire**, types `string | text | number |
-boolean | color | url | select`, ≤ 40 paramètres, ≤ 16 Ko.
+boolean | color | url | select`, ≤ 64 paramètres, ≤ 16 Ko.
 
 ## Patterns par stack
 
