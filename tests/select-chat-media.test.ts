@@ -103,8 +103,11 @@ function build(options: {
   aiThrows?: boolean;
   configOnly?: boolean;
   dataSelection?: { mode: "all" | "selected"; connaissanceIds: string[]; mediaIds: string[] };
+  mediaMaxResults?: number;
+  question?: string;
 }) {
   const message = options.message ?? assistant();
+  const user = options.question === undefined ? USER : { ...USER, content: options.question };
   const photos = options.photos ?? [media("p1", "photo", "Réalisation e-commerce")];
   const liens = options.liens ?? [media("d1", "lien", "Documentation technique")];
   const setMessageMedias = vi.fn(
@@ -140,6 +143,9 @@ function build(options: {
             connaissanceIds: [],
             mediaIds: [],
           },
+          informationSources: {
+            medias: { maxResults: options.mediaMaxResults ?? 3 },
+          },
         }),
       } as unknown as ChatbotConfigRepository)
     : undefined;
@@ -155,7 +161,7 @@ function build(options: {
     }),
     findMessage: async (_organizationId: string, id: string) =>
       id === message.id ? message : null,
-    listMessages: async () => [USER, message],
+    listMessages: async () => [user, message],
     setMessageMedias,
   } as unknown as ConversationRepository;
   const mediasRepo = {
@@ -221,6 +227,21 @@ describe("selectChatMedia — mini-RAG médias asynchrone", () => {
         mime: null,
       },
     ]);
+  });
+
+  it("limite à maxResults en gardant les premières photos, sans tout annuler", async () => {
+    const photos = Array.from({ length: 5 }, (_, index) =>
+      media(`p${index + 1}`, "photo", `Produit ${index + 1}`),
+    );
+    const { deps } = build({
+      photos,
+      liens: [],
+      question: "Montre-moi les photos des produits.",
+      aiAnswer: JSON.stringify({ photos: [], liens: [] }),
+      mediaMaxResults: 3,
+    });
+    const result = await selectChatMedia(deps, { conversationId: "c1", messageId: "m2" });
+    expect(result.medias.map((entry) => entry.id)).toEqual(["p1", "p2", "p3"]);
   });
 
   it("idempotent : renvoie le cache sans appel IA quand déjà calculé", async () => {
