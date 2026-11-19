@@ -108,7 +108,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
 
   if (query.embed !== "1") {
     return (
-      <main className="wrap dashboard-main">
+      <main className="display-studio-page">
         <LinkDisplaySettings
           link={link}
           visualTemplates={visualTemplates}
