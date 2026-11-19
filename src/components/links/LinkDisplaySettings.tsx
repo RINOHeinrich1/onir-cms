@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLinkWithUrl } from "@/application/use-cases/links/link-urls";
 import { TemplateCover } from "@/components/templates/TemplateCover";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -31,6 +31,65 @@ const PARAM_TABS: Array<{ id: ParamTab; label: string }> = [
   { id: "images", label: "Images" },
   { id: "advanced", label: "Avancé" },
 ];
+
+function StudioIcon({
+  name,
+  size = 16,
+}: {
+  name: "back" | "expand" | "external" | "monitor" | "tablet" | "smartphone";
+  size?: number;
+}) {
+  const paths = {
+    back: <path d="M19 12H5m6 6-6-6 6-6" />,
+    expand: <path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5" />,
+    external: (
+      <>
+        <path d="M14 3h7v7" />
+        <path d="M10 14 21 3" />
+        <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+      </>
+    ),
+    monitor: (
+      <>
+        <rect x="3" y="4" width="18" height="12" rx="2" />
+        <path d="M8 20h8m-4-4v4" />
+      </>
+    ),
+    tablet: (
+      <>
+        <rect x="5" y="3" width="14" height="18" rx="2" />
+        <path d="M11 18h2" />
+      </>
+    ),
+    smartphone: (
+      <>
+        <rect x="7" y="2" width="10" height="20" rx="2" />
+        <path d="M11 18h2" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
+
+function previewSize(device: DisplayDevice): { width: number; label: string } {
+  if (device === "tablet") return { width: 834, label: "834 × 1112" };
+  if (device === "mobile") return { width: 390, label: "390 × 844" };
+  return { width: 1280, label: "1280 × 800" };
+}
 
 function channelDraft(channel: ReturnType<typeof channelsForLink>[ChatLinkSurface]): ChannelDraft {
   return {
@@ -123,11 +182,28 @@ export function LinkDisplaySettings({
   const [gallerySearch, setGallerySearch] = useState("");
   const [paramTab, setParamTab] = useState<ParamTab>("all");
   const [paramSearch, setParamSearch] = useState("");
+  const [zoomMode, setZoomMode] = useState<"fit" | "custom">("fit");
+  const [customZoom, setCustomZoom] = useState(100);
+  const [fitZoom, setFitZoom] = useState(1);
+  const previewCanvasRef = useRef<HTMLDivElement>(null);
   useToastOnMessage(error);
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 720px)").matches) setDevice("mobile");
   }, []);
+
+  useEffect(() => {
+    const node = previewCanvasRef.current;
+    if (node === null) return;
+    const update = (): void => {
+      const available = Math.max(240, node.clientWidth - 96);
+      setFitZoom(Math.max(0.25, Math.min(1, available / previewSize(device).width)));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [device]);
 
   const draft = drafts[surface];
   const paramsSchema = paramsSchemaForSelection(visualTemplates, draft.visualTemplate);
@@ -146,6 +222,7 @@ export function LinkDisplaySettings({
   const selected = splitSelection(draft.visualTemplate);
   const selectedTemplate = visualTemplates.find((template) => template.id === selected.id) ?? null;
   const filteredParams = paramsForTab(paramsSchema, paramTab, paramSearch);
+  const zoom = zoomMode === "fit" ? fitZoom : customZoom / 100;
 
   const previewSrc = useMemo(() => {
     const params = encodeParamsOverride(draft.params);
@@ -232,8 +309,8 @@ export function LinkDisplaySettings({
     <section className="display-studio">
       <header className="display-studio-header">
         <div className="display-studio-heading">
-          <a className="btn ghost small" href="/liens">
-            ← Chatbots
+          <a className="display-studio-icon-button" href="/liens" aria-label="Retour aux chatbots">
+            <StudioIcon name="back" />
           </a>
         </div>
         <div className="display-studio-header-actions">
@@ -253,6 +330,53 @@ export function LinkDisplaySettings({
                 </span>
               </button>
             ))}
+          </div>
+          <div className="display-studio-toolgroup">
+            <label className="display-studio-zoom">
+              <span>Zoom</span>
+              <select
+                value={zoomMode === "fit" ? "fit" : String(customZoom)}
+                onChange={(event) => {
+                  if (event.target.value === "fit") {
+                    setZoomMode("fit");
+                    return;
+                  }
+                  setCustomZoom(Number(event.target.value));
+                  setZoomMode("custom");
+                }}
+              >
+                <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
+                {[50, 75, 100, 125, 150].map((value) => (
+                  <option key={value} value={value}>
+                    {value}%
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="display-studio-icon-button"
+              title="Plein écran"
+              aria-label="Plein écran"
+              onClick={() => {
+                const node = previewCanvasRef.current;
+                if (node === null) return;
+                if (document.fullscreenElement !== null) void document.exitFullscreen();
+                else void node.requestFullscreen?.();
+              }}
+            >
+              <StudioIcon name="expand" />
+            </button>
+            <a
+              className="display-studio-icon-button"
+              href={debouncedPreviewSrc}
+              target="_blank"
+              rel="noreferrer"
+              title="Ouvrir l’aperçu dans un nouvel onglet"
+              aria-label="Ouvrir l’aperçu dans un nouvel onglet"
+            >
+              <StudioIcon name="external" />
+            </a>
           </div>
           <button
             type="button"
@@ -398,6 +522,16 @@ export function LinkDisplaySettings({
                     className={`display-device-button${device === entry ? " is-active" : ""}`}
                     onClick={() => setDevice(entry)}
                   >
+                    <StudioIcon
+                      name={
+                        entry === "desktop"
+                          ? "monitor"
+                          : entry === "tablet"
+                            ? "tablet"
+                            : "smartphone"
+                      }
+                      size={13}
+                    />
                     {entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"}
                   </button>
                 ))}
@@ -405,33 +539,36 @@ export function LinkDisplaySettings({
             ) : null}
           </div>
           <div
+            ref={previewCanvasRef}
             className={`display-preview-canvas display-preview-canvas--${surface} display-preview-canvas--${device}`}
             data-widget-position={surface === "widget" ? draft.widgetPosition : undefined}
           >
-            <div className="display-preview-device">
-              <div className="display-preview-chrome" aria-hidden="true">
-                <span className="display-preview-dots">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <span className="display-preview-address">
-                  {surface === "page" ? "aperçu du template" : "site hôte · widget"}
-                </span>
-                <span className="display-preview-size">
-                  {device === "desktop"
-                    ? "1280 × 800"
-                    : device === "tablet"
-                      ? "834 × 1112"
-                      : "390 × 844"}
-                </span>
-              </div>
-              <div className="display-preview-viewport">
-                <iframe
-                  key={`${surface}-${device}`}
-                  title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
-                  src={debouncedPreviewSrc}
-                />
+            <div className="display-preview-zoom" style={{ transform: `scale(${zoom})` }}>
+              <div className="display-preview-device">
+                <div className="display-preview-chrome" aria-hidden="true">
+                  <span className="display-preview-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className="display-preview-address">
+                    {surface === "page" ? "aperçu du template" : "site hôte · widget"}
+                  </span>
+                  <span className="display-preview-size">
+                    {device === "desktop"
+                      ? "1280 × 800"
+                      : device === "tablet"
+                        ? "834 × 1112"
+                        : "390 × 844"}
+                  </span>
+                </div>
+                <div className="display-preview-viewport">
+                  <iframe
+                    key={`${surface}-${device}`}
+                    title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
+                    src={debouncedPreviewSrc}
+                  />
+                </div>
               </div>
             </div>
           </div>

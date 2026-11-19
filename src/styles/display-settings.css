@@ -1,7 +1,9 @@
 /* Paramètres d’affichage — UI/UX studio (galerie / aperçu / inspecteur). */
 .display-studio {
-  max-width: 96rem;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(1rem, 2vw, 2rem) 1.5rem;
 }
 
 .display-studio-header {
@@ -33,6 +35,55 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.55rem;
+}
+
+.display-studio-toolgroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.display-studio-icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.display-studio-icon-button:hover {
+  background: var(--surface-raised);
+  color: var(--fg);
+}
+
+.display-studio-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.35rem;
+  color: var(--fg-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.display-studio-zoom select {
+  max-width: 7.5rem;
+  height: 1.8rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.67rem;
 }
 
 .display-mode-switch,
@@ -360,10 +411,18 @@
   place-items: center;
   min-height: 32rem;
   padding: 1.4rem;
+  overflow: auto;
   background:
     radial-gradient(circle, color-mix(in srgb, var(--fg) 12%, transparent) 0.7px, transparent 0.8px)
     0 0 / 1.05rem 1.05rem,
     var(--surface);
+}
+
+.display-preview-zoom {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  transform-origin: top center;
 }
 
 .display-preview-device {
@@ -709,6 +768,19 @@
   color: var(--accent);
 }
 
+.display-preview-canvas:fullscreen {
+  min-height: 100dvh;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--fg) 12%, transparent) 0.7px, transparent 0.8px)
+    0 0 / 1.05rem 1.05rem,
+    var(--surface);
+}
+
+.display-preview-canvas:fullscreen .display-preview-zoom {
+  width: min(100%, 90rem);
+}
+
 .display-preview-bare {
   min-height: 100dvh;
   margin: 0;
@@ -739,6 +811,18 @@
   .display-studio-header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .display-studio-toolgroup {
+    order: 2;
+  }
+
+  .display-studio-zoom span {
+    display: none;
+  }
+
+  .display-studio-zoom select {
+    max-width: 6.5rem;
   }
 
   .display-studio-mobile-tabs {
