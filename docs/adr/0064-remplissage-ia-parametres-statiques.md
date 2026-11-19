@@ -1,6 +1,6 @@
 # 0064. Remplissage assisté des paramètres statiques de template
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-04
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0023, ADR-0060, ADR-0063 (remplacé).

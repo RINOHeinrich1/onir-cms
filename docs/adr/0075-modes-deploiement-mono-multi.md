@@ -1,6 +1,6 @@
 # 0075. Modes de déploiement mono-instance et multi-instance
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-07
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0013, ADR-0036, ADR-0043, ADR-0044, ADR-0074.

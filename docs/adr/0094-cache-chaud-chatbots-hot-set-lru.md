@@ -1,6 +1,6 @@
 # 0094. Cache chaud des chatbots — hot set LRU borné par nœud
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-17
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0074, ADR-0075, ADR-0076.

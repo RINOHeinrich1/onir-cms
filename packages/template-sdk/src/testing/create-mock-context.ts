@@ -135,6 +135,12 @@ function completeMessage(input: unknown, index: number): TemplateMessage {
 function defaultActions(): TemplateActions {
   return {
     submitIdentity: () => undefined,
+    requestOtp: async () => ({
+      challengeId: "mock-challenge",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+      transport: "platform",
+    }),
+    verifyOtp: async () => undefined,
     sendMessage: () => undefined,
     attachFile: () => Promise.resolve(),
     removeAttachment: () => Promise.resolve(),

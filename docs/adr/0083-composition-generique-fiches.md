@@ -1,6 +1,6 @@
 # 0083. Composition générique de fiches — relations 1..1 et 1..n
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-09
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0049, ADR-0059, ADR-0082.

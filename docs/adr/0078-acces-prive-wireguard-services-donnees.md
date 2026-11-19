@@ -1,6 +1,6 @@
 # 0078. Accès privés aux services de données via WireGuard
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-08
 - **Décideurs** : équipe projet
 - **Référence** : ADR-0074, ADR-0075.
