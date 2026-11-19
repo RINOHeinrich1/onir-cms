@@ -235,11 +235,6 @@ export function LinkDisplaySettings({
           <a className="btn ghost small" href="/liens">
             ← Chatbots
           </a>
-          <div>
-            <span className="eyebrow">Affichage</span>
-            <h1 className="text-title">Paramètres d’affichage</h1>
-            <p className="hint">{link.label}</p>
-          </div>
         </div>
         <div className="display-studio-header-actions">
           <div className="display-mode-switch" role="tablist" aria-label="Mode d’affichage">
