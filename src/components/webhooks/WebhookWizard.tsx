@@ -763,7 +763,9 @@ export function WebhookWizard({
               </div>
               <div className="wh-grid-2">
                 <label className="wh-field wh-span2">
-                  Nom du webhook <span className="wh-required">*</span>
+                  <span>
+                    Nom du webhook <span className="wh-required">*</span>
+                  </span>
                   <input
                     value={name}
                     onChange={(event) => setName(event.target.value)}
@@ -775,7 +777,9 @@ export function WebhookWizard({
                   </small>
                 </label>
                 <label className="wh-field wh-span2">
-                  Périmètre de déclenchement <span className="wh-required">*</span>
+                  <span>
+                    Périmètre de déclenchement <span className="wh-required">*</span>
+                  </span>
                   <select
                     value={scopeValue(scope)}
                     onChange={(event) => {
@@ -808,7 +812,9 @@ export function WebhookWizard({
                   </small>
                 </label>
                 <label className="wh-field wh-span2">
-                  Description <span className="wh-muted">(facultatif)</span>
+                  <span>
+                    Description <span className="wh-muted">(facultatif)</span>
+                  </span>
                   <input
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
@@ -850,7 +856,9 @@ export function WebhookWizard({
               </div>
               <div className="wh-grid-2">
                 <label className="wh-field wh-span2">
-                  URL de destination <span className="wh-required">*</span>
+                  <span>
+                    URL de destination <span className="wh-required">*</span>
+                  </span>
                   <input
                     type="url"
                     value={url}
