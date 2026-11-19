@@ -11,6 +11,7 @@ import { ensureAppSecretsLoaded, getAppSecret } from "@/infrastructure/config/ap
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -53,6 +54,7 @@ export default async function WebhooksPage() {
       {
         endpoints: management.endpoints,
         deliveries: pgWebhookDeliveryRepository(pool),
+        events: pgFicheEventRepository(pool),
         configs: management.configs,
         fiches: pgFicheRepository(pool),
         prospects: pgProspectRepository(pool),

@@ -56,6 +56,7 @@ import {
   executeFicheTool,
   type FicheToolContext,
 } from "@/application/use-cases/fiches/tool-search";
+import type { FicheEventRecorderDependencies } from "@/application/use-cases/webhooks/record-fiche-events";
 import {
   fieldLabelsFromFields,
   sanitizeAssistantBlocks,
@@ -96,6 +97,8 @@ export type SendMessageDependencies = {
   /** Hot set LRU des chatbots (ADR-0094). */
   hotSet?: ChatbotHotSet | undefined;
   ficheInstances?: ConversationFicheInstanceRepository;
+  /** Enregistrement des transitions webhook (ADR-0100). */
+  ficheEvents?: FicheEventRecorderDependencies;
   /** Outils internes de recherche (P3) — absents ⇒ chemin sans outil. */
   ficheTools?: FicheToolRepository;
   searchSessions?: ChatSearchSessionRepository;
@@ -351,6 +354,8 @@ export async function sendMessage(
         repo: instancesRepo,
         conversationId: conversation.id,
         organizationId,
+        events: deps.ficheEvents,
+        prospectId: conversation.prospectId,
       });
     }
     const activeFiche = activeInstance === null ? null : findFiche(config, activeInstance.ficheKey);

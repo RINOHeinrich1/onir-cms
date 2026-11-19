@@ -1265,3 +1265,29 @@
     transition: none !important;
   }
 }
+
+.wh-trigger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+}
+
+.wh-trigger-list .wh-toggle-line {
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wh-trigger-list .wh-toggle-line:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.wh-trigger-field {
+  max-width: 28rem;
+  margin-left: 0;
+}

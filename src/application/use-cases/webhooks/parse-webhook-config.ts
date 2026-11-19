@@ -23,6 +23,7 @@ import {
   type WebhookHeader,
   type WebhookHttpMethod,
   type WebhookQueryParam,
+  type WebhookTrigger,
 } from "@/domain/entities/webhook";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -279,6 +280,38 @@ export type ParsedWebhookConfig = Omit<WebhookEndpointWriteInput, "createdBy">;
  * Valide et normalise la configuration d'un endpoint.
  * `existing` permet de conserver les secrets non ressaisis lors d'une édition.
  */
+
+function parseTriggers(value: unknown, existing: readonly WebhookTrigger[]): WebhookTrigger[] {
+  if (value === undefined) return [...existing];
+  if (!Array.isArray(value)) throw new ValidationError("Déclencheurs invalides");
+  const allowed = new Set([
+    "fiche.draft.all_fields_filled",
+    "fiche.draft.field_filled",
+    "fiche.draft.required_fields_filled",
+    "fiche.validated",
+  ]);
+  const result: WebhookTrigger[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new ValidationError("Déclencheur invalide");
+    }
+    const raw = entry as Record<string, unknown>;
+    const eventType = typeof raw.eventType === "string" ? raw.eventType : "";
+    const fieldKey =
+      typeof raw.fieldKey === "string" && raw.fieldKey.trim() !== "" ? raw.fieldKey.trim() : null;
+    if (!allowed.has(eventType)) throw new ValidationError("Événement de webhook invalide");
+    if (eventType === "fiche.draft.field_filled" && fieldKey === null) {
+      throw new ValidationError("Un champ est requis pour le déclencheur field_filled");
+    }
+    const key = `${eventType}:${fieldKey ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({ eventType: eventType as WebhookTrigger["eventType"], fieldKey });
+  }
+  return result;
+}
+
 export function parseWebhookConfig(
   input: unknown,
   existing: WebhookEndpoint | null = null,
@@ -341,6 +374,7 @@ export function parseWebhookConfig(
     bodyMode: bodyModeRaw as WebhookBodyMode,
     bodyTemplate,
     fieldMappings: mappings,
+    triggers: parseTriggers(source.triggers, existing?.triggers ?? []),
     auth: parseAuth(source.auth, existing?.auth ?? null),
     timeoutMs: integer(
       source.timeoutMs,

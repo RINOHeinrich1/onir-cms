@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
-import type { WebhookAuth } from "@/domain/entities/webhook";
+import type { WebhookAuth, WebhookTrigger } from "@/domain/entities/webhook";
 import {
   WEBHOOK_AUTH_TYPES,
   WEBHOOK_BODY_MODES,
@@ -255,6 +255,7 @@ export function WebhookWizard({
   const [mappings, setMappings] = useState<MappingDraft[]>(
     endpoint?.fieldMappings.map((mapping) => ({ ...mapping, fileMode: mapping.fileMode })) ?? [],
   );
+  const [triggers, setTriggers] = useState<WebhookTrigger[]>(endpoint?.triggers ?? []);
   const [timeoutMs, setTimeoutMs] = useState(String(endpoint?.timeoutMs ?? 10000));
   const [maxAttempts, setMaxAttempts] = useState(String(endpoint?.maxAttempts ?? 3));
   const [retryBackoffMs, setRetryBackoffMs] = useState(String(endpoint?.retryBackoffMs ?? 30000));
@@ -418,6 +419,7 @@ export function WebhookWizard({
             queryParams,
             auth,
             fieldMappings: mappings,
+            triggers,
             timeoutMs: Number(timeoutMs),
             maxAttempts: Number(maxAttempts),
             retryBackoffMs: Number(retryBackoffMs),
@@ -647,6 +649,35 @@ export function WebhookWizard({
     return data;
   }
 
+  function triggerEnabled(eventType: WebhookTrigger["eventType"]): boolean {
+    return triggers.some((trigger) => trigger.eventType === eventType);
+  }
+
+  function setTriggerEnabled(eventType: WebhookTrigger["eventType"], enabled: boolean): void {
+    setTriggers((previous) => {
+      const without = previous.filter((trigger) => trigger.eventType !== eventType);
+      if (!enabled) return without;
+      if (eventType === "fiche.draft.field_filled") {
+        const fieldKey = options.find((option) => option.kind === "model")?.field ?? null;
+        return fieldKey === null ? without : [...without, { eventType, fieldKey }];
+      }
+      return [...without, { eventType, fieldKey: null }];
+    });
+  }
+
+  function partialFieldKey(): string {
+    return (
+      triggers.find((trigger) => trigger.eventType === "fiche.draft.field_filled")?.fieldKey ?? ""
+    );
+  }
+
+  function setPartialField(fieldKey: string): void {
+    setTriggers((previous) => [
+      ...previous.filter((trigger) => trigger.eventType !== "fiche.draft.field_filled"),
+      ...(fieldKey === "" ? [] : [{ eventType: "fiche.draft.field_filled" as const, fieldKey }]),
+    ]);
+  }
+
   const noBody = httpMethod === "GET" || httpMethod === "HEAD";
   const preview = noBody
     ? "(Méthode sans corps)"
@@ -800,6 +831,11 @@ export function WebhookWizard({
                       }
                       setScope(nextScope);
                       setMappings([]);
+                      setTriggers((previous) =>
+                        previous.filter(
+                          (trigger) => trigger.eventType !== "fiche.draft.field_filled",
+                        ),
+                      );
                       setActiveTab("model");
                       return true;
                     }}
@@ -818,6 +854,101 @@ export function WebhookWizard({
                     maxLength={500}
                   />
                 </label>
+              </div>
+              <div className="wh-divider" />
+              <div className="wh-field">
+                <span>Déclencheurs automatiques</span>
+                <small className="wh-hint">
+                  Aucun déclencheur sélectionné = webhook manuel uniquement.
+                </small>
+                <div className="wh-trigger-list">
+                  <label className="wh-toggle-line">
+                    <span className="wh-toggle-copy">
+                      <strong>Champs obligatoires remplis</strong>
+                      <small>Déclenche quand tous les champs requis sont renseignés.</small>
+                    </span>
+                    <span className="wh-switch">
+                      <input
+                        type="checkbox"
+                        checked={triggerEnabled("fiche.draft.required_fields_filled")}
+                        onChange={(event) =>
+                          setTriggerEnabled(
+                            "fiche.draft.required_fields_filled",
+                            event.target.checked,
+                          )
+                        }
+                      />
+                      <span className="wh-switch-track" />
+                    </span>
+                  </label>
+                  <label className="wh-toggle-line">
+                    <span className="wh-toggle-copy">
+                      <strong>Tous les champs remplis</strong>
+                      <small>
+                        Déclenche quand les champs facultatifs sont également renseignés.
+                      </small>
+                    </span>
+                    <span className="wh-switch">
+                      <input
+                        type="checkbox"
+                        checked={triggerEnabled("fiche.draft.all_fields_filled")}
+                        onChange={(event) =>
+                          setTriggerEnabled("fiche.draft.all_fields_filled", event.target.checked)
+                        }
+                      />
+                      <span className="wh-switch-track" />
+                    </span>
+                  </label>
+                  <label className="wh-toggle-line">
+                    <span className="wh-toggle-copy">
+                      <strong>Un champ précis est rempli</strong>
+                      <small>Choisissez le champ surveillé.</small>
+                    </span>
+                    <span className="wh-switch">
+                      <input
+                        type="checkbox"
+                        checked={triggerEnabled("fiche.draft.field_filled")}
+                        onChange={(event) =>
+                          setTriggerEnabled("fiche.draft.field_filled", event.target.checked)
+                        }
+                      />
+                      <span className="wh-switch-track" />
+                    </span>
+                  </label>
+                  {triggerEnabled("fiche.draft.field_filled") ? (
+                    <label className="wh-field wh-trigger-field">
+                      Champ surveillé
+                      <select
+                        value={partialFieldKey()}
+                        onChange={(event) => setPartialField(event.target.value)}
+                      >
+                        {options
+                          .filter((option) => option.kind === "model")
+                          .map((option) => (
+                            <option key={option.key} value={option.field}>
+                              {option.label}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  ) : null}
+                  <label className="wh-toggle-line">
+                    <span className="wh-toggle-copy">
+                      <strong>Fiche validée</strong>
+                      <small>Déclenche après la création de la fiche finale.</small>
+                    </span>
+                    <span className="wh-switch">
+                      <input
+                        type="checkbox"
+                        checked={triggerEnabled("fiche.validated")}
+                        onChange={(event) =>
+                          setTriggerEnabled("fiche.validated", event.target.checked)
+                        }
+                      />
+                      <span className="wh-switch-track" />
+                    </span>
+                  </label>
+                </div>
               </div>
               <div className="wh-divider" />
               <label className="wh-toggle-line">

@@ -7,7 +7,9 @@ import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { publishChatEvent } from "@/lib/chat-events";
 import { chatFallbackLimiter } from "@/lib/chat-limiters";
 import { errorResponse } from "../../_lib/errors";
@@ -106,6 +108,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         configs: pgChatbotConfigRepository(pool),
         ficheInstances: pgConversationFicheInstanceRepository(pool),
         attachments: pgAttachmentRepository(pool),
+        ficheEvents: {
+          endpoints: pgWebhookEndpointRepository(pool),
+          events: pgFicheEventRepository(pool),
+          attachments: pgAttachmentRepository(pool),
+        },
       },
       {
         organizationId: conversation.organizationId,

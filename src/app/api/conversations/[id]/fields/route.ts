@@ -12,7 +12,9 @@ import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-re
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject } from "../../../_lib/http";
 import { requireRole } from "../../../_lib/require-user";
@@ -32,6 +34,11 @@ function deps(): ConversationFieldsDependencies {
     attachments: pgAttachmentRepository(pool),
     fields: pgConversationFieldRepository(pool),
     ai: pgAiClientFactory(pool),
+    ficheEvents: {
+      endpoints: pgWebhookEndpointRepository(pool),
+      events: pgFicheEventRepository(pool),
+      attachments: pgAttachmentRepository(pool),
+    },
   };
 }
 

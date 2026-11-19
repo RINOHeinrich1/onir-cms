@@ -4,6 +4,11 @@ import type {
   UpsertFicheInstanceInput,
 } from "@/application/ports/conversation-fiche-instance-repository";
 import { parseExtractionJson } from "@/application/use-cases/fiche/draft-fiche";
+import {
+  attachmentCountsForConversation,
+  type FicheEventRecorderDependencies,
+  recordFicheTransition,
+} from "@/application/use-cases/webhooks/record-fiche-events";
 import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
 import {
   type ConversationFicheInstance,
@@ -236,6 +241,9 @@ export async function applyFicheDetection(input: {
   conversationId: string;
   organizationId: string;
   detected: readonly DetectedFicheInstance[];
+  events?: FicheEventRecorderDependencies | undefined;
+  prospectId?: string | null | undefined;
+  attachmentCounts?: Readonly<Record<string, number>>;
 }): Promise<ConversationFicheInstance | null> {
   const existing = await input.repo.listByConversation(input.organizationId, input.conversationId);
   const upserted: ConversationFicheInstance[] = [];
@@ -252,7 +260,27 @@ export async function applyFicheDetection(input: {
       missingFields: entry.missingFields,
       abandonReason: entry.abandonReason,
     };
-    upserted.push(await input.repo.upsert(writes));
+    const saved = await input.repo.upsert(writes);
+    upserted.push(saved);
+    if (input.events !== undefined) {
+      const before = existing.find(
+        (instance) =>
+          instance.ficheKey === saved.ficheKey && instance.instanceKey === saved.instanceKey,
+      );
+      await recordFicheTransition(input.events, {
+        organizationId: input.organizationId,
+        config: input.config,
+        conversationId: input.conversationId,
+        prospectId: input.prospectId ?? null,
+        instance: saved,
+        before: {
+          data: before?.data ?? {},
+          status: before?.status ?? "detected",
+          attachmentCounts: before === undefined ? {} : (input.attachmentCounts ?? {}),
+        },
+        afterAttachmentCounts: input.attachmentCounts ?? {},
+      });
+    }
   }
 
   const activeFromDetection = input.detected.find((entry) => entry.status === "active");
@@ -288,7 +316,14 @@ export async function syncFicheInstances(input: {
   repo: ConversationFicheInstanceRepository;
   conversationId: string;
   organizationId: string;
+  events?: FicheEventRecorderDependencies | undefined;
+  prospectId?: string | null | undefined;
 }): Promise<ConversationFicheInstance | null> {
+  const attachmentCounts = await attachmentCountsForConversation(
+    input.events?.attachments,
+    input.organizationId,
+    input.conversationId,
+  );
   const currentInstances = await input.repo.listByConversation(
     input.organizationId,
     input.conversationId,
@@ -313,6 +348,9 @@ export async function syncFicheInstances(input: {
     conversationId: input.conversationId,
     organizationId: input.organizationId,
     detected,
+    events: input.events,
+    prospectId: input.prospectId,
+    attachmentCounts,
   });
 }
 

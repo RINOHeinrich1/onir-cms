@@ -11,10 +11,12 @@ import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conve
 import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
 import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { errorResponse } from "../../../_lib/errors";
 import { requireRole } from "../../../_lib/require-user";
 
@@ -46,6 +48,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         conversationFields: pgConversationFieldRepository(pool),
         configs: pgChatbotConfigRepository(pool),
         ficheInstances: pgConversationFicheInstanceRepository(pool),
+        ficheEvents: {
+          endpoints: pgWebhookEndpointRepository(pool),
+          events: pgFicheEventRepository(pool),
+          attachments: pgAttachmentRepository(pool),
+        },
       },
       actor,
       id,

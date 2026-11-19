@@ -5,6 +5,8 @@
  * d'un endpoint sur une fiche.
  */
 
+import type { FicheWebhookEventType } from "@/domain/entities/webhook-event";
+
 export const WEBHOOK_HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 export type WebhookHttpMethod = (typeof WEBHOOK_HTTP_METHODS)[number];
@@ -85,6 +87,12 @@ export type WebhookFieldMapping = {
   fileMode: WebhookFileMode;
 };
 
+/** Abonnement automatique d'un endpoint à un événement de cycle de vie. */
+export type WebhookTrigger = {
+  eventType: FicheWebhookEventType;
+  fieldKey: string | null;
+};
+
 export type WebhookAuth =
   | { type: "none" }
   | { type: "bearer"; token: string }
@@ -117,6 +125,8 @@ export type WebhookEndpoint = {
   bodyMode: WebhookBodyMode;
   bodyTemplate: string;
   fieldMappings: WebhookFieldMapping[];
+  /** Un endpoint sans trigger reste manuel. */
+  triggers: WebhookTrigger[];
   auth: WebhookAuth;
   timeoutMs: number;
   maxAttempts: number;
@@ -148,6 +158,9 @@ export type WebhookDelivery = {
   /** Scope fiche de collecte utilisé pour la livraison. */
   chatLinkId: string | null;
   ficheKey: string | null;
+  ficheEventId: string | null;
+  eventType: string | null;
+  source: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDeliveryStatus;
