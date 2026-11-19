@@ -1,11 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
-import { Modal } from "@/components/ui/Modal";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { WebhookChatbotOption, WebhookDeliveryDto, WebhookEndpointAdminDto } from "./types";
-import { WebhookForm } from "./WebhookForm";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -29,8 +28,6 @@ export function WebhooksPanel({
   const [endpoints, setEndpoints] = useState(initialEndpoints);
   const [deliveries, setDeliveries] = useState(initialDeliveries);
   const [tab, setTab] = useState<"webhooks" | "journal">("webhooks");
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<WebhookEndpointAdminDto | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -155,9 +152,9 @@ export function WebhooksPanel({
       {tab === "webhooks" ? (
         <>
           <div className="tools" style={{ marginBottom: "1.25rem" }}>
-            <button type="button" className="btn" onClick={() => setCreating(true)}>
+            <Link className="btn" href="/parametres/webhooks/nouveau">
               Créer un webhook
-            </button>
+            </Link>
             <span className="muted-text">
               {endpoints.length} webhook{endpoints.length > 1 ? "s" : ""} · les secrets ne sont
               jamais réaffichés
@@ -218,13 +215,12 @@ export function WebhooksPanel({
                       </td>
                       <td data-label="Actions" className="cell-actions">
                         <div className="tools">
-                          <button
-                            type="button"
+                          <Link
                             className="btn ghost small"
-                            onClick={() => setEditing(endpoint)}
+                            href={`/parametres/webhooks/${endpoint.id}/modifier`}
                           >
                             Modifier
-                          </button>
+                          </Link>
                           <button
                             type="button"
                             className="btn ghost small"
@@ -328,38 +324,6 @@ export function WebhooksPanel({
           </div>
         </>
       )}
-
-      {creating || editing !== null ? (
-        <Modal
-          wide
-          title={editing === null ? "Créer un webhook" : "Modifier le webhook"}
-          onClose={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-        >
-          <WebhookForm
-            endpoint={editing}
-            chatbots={chatbots}
-            onSaved={(endpoint) => {
-              setEndpoints((previous) => {
-                const exists = previous.some((item) => item.id === endpoint.id);
-                return exists
-                  ? previous.map((item) => (item.id === endpoint.id ? endpoint : item))
-                  : [endpoint, ...previous];
-              });
-              setCreating(false);
-              setEditing(null);
-              toast.success(editing === null ? "Webhook créé." : "Webhook enregistré.");
-              void refreshDeliveries();
-            }}
-            onCancel={() => {
-              setCreating(false);
-              setEditing(null);
-            }}
-          />
-        </Modal>
-      ) : null}
     </div>
   );
 }
