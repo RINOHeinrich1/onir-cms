@@ -96,3 +96,6 @@ ADR qui remplace la précédente.
 | [0097](./0097-medias-illustration-configurable-limite.md) | Illustration des réponses par la photothèque — réglage UI, conservation et limite non bloquante | Accepté |
 | [0098](./0098-limite-parametres-templates-64.md) | Limite des paramètres de template portée à 64 | Accepté |
 | [0099](./0099-identification-email-otp-multitenant.md) | Identification visiteur par email OTP — transport multi-tenant et portail hôte | Accepté |
+| [0100](./0100-webhooks-evenementiels-cycle-vie-fiches.md) | Webhooks événementiels sur le cycle de vie des fiches — outbox et déclenchement par transition | Accepté |
+| [0101](./0101-contrat-payload-webhooks-automatiques.md) | Contrat de payload des webhooks automatiques — champs garantis et garde d'exécution | Accepté |
+| [0102](./0102-contexte-runtime-erreurs-fiche-webhooks-ia.md) | Contexte runtime des erreurs de fiche et webhooks pour les réponses IA | Accepté |
