@@ -5431,15 +5431,19 @@ a.subtab {
 }
 
 .table-cards td {
-  display: grid;
-  grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr);
-  gap: 0.55rem;
-  padding: 0.22rem 0;
+  position: relative;
+  display: block;
+  min-height: 1.55rem;
+  padding: 0.22rem 0 0.22rem 8rem;
   border: 0;
   font-size: 0.82rem;
 }
 
 .table-cards td::before {
+  position: absolute;
+  top: 0.32rem;
+  left: 0;
+  width: 7.35rem;
   overflow: hidden;
   color: var(--fg-muted);
   content: attr(data-label);
@@ -5452,13 +5456,17 @@ a.subtab {
   white-space: nowrap;
 }
 
+.table-cards td:not([data-label]) {
+  padding-left: 0;
+}
+
 .table-cards td:not([data-label])::before {
   content: "";
 }
 
 .table-cards td.cell-actions {
   display: block;
-  padding-top: 0.55rem;
+  padding: 0.55rem 0 0;
   border-top: 1px solid var(--border);
 }
 
