@@ -3,6 +3,7 @@ import type { WebhookExecutionDependencies } from "@/application/use-cases/webho
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -25,6 +26,7 @@ export function webhookExecutionDependencies(): WebhookExecutionDependencies {
   return {
     endpoints: pgWebhookEndpointRepository(pool),
     deliveries: pgWebhookDeliveryRepository(pool),
+    events: pgFicheEventRepository(pool),
     configs: pgChatbotConfigRepository(pool),
     fiches: pgFicheRepository(pool),
     prospects: pgProspectRepository(pool),

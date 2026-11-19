@@ -11,8 +11,11 @@ import { pgChatOperatorScopeRepository } from "@/infrastructure/db/chat-operator
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conversation-fiche-instance-repository";
 import { pgConversationFieldRepository } from "@/infrastructure/db/conversation-field-repository";
+import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject } from "../../../_lib/http";
 import { requireRole } from "../../../_lib/require-user";
@@ -31,7 +34,13 @@ function deps(): ConversationFieldsDependencies {
     ficheInstances: pgConversationFicheInstanceRepository(pool),
     attachments: pgAttachmentRepository(pool),
     fields: pgConversationFieldRepository(pool),
+    incidents: pgConversationIncidentRepository(pool),
     ai: pgAiClientFactory(pool),
+    ficheEvents: {
+      endpoints: pgWebhookEndpointRepository(pool),
+      events: pgFicheEventRepository(pool),
+      attachments: pgAttachmentRepository(pool),
+    },
   };
 }
 

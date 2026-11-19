@@ -20,6 +20,11 @@ type DeliveryRow = {
   fiche_id: string | null;
   chat_link_id: string | null;
   fiche_key: string | null;
+  fiche_event_id: string | null;
+  event_type: string | null;
+  source: string | null;
+  conversation_id: string | null;
+  fiche_instance_id: string | null;
   is_test: boolean;
   replay_of_id: string | null;
   status: string;
@@ -52,7 +57,7 @@ type AttemptRow = {
 };
 
 const COLUMNS =
-  "id, organization_id, endpoint_id, fiche_id, chat_link_id, fiche_key, is_test, replay_of_id, status, attempts, next_attempt_at, idempotency_key, request_snapshot, response_status, response_body, error_code, error_message, triggered_by, started_at, finished_at, created_at";
+  "id, organization_id, endpoint_id, fiche_id, chat_link_id, fiche_key, fiche_event_id, event_type, source, conversation_id, fiche_instance_id, is_test, replay_of_id, status, attempts, next_attempt_at, idempotency_key, request_snapshot, response_status, response_body, error_code, error_message, triggered_by, started_at, finished_at, created_at";
 
 function toDelivery(row: DeliveryRow): WebhookDelivery {
   if (!isWebhookDeliveryStatus(row.status)) {
@@ -71,6 +76,11 @@ function toDelivery(row: DeliveryRow): WebhookDelivery {
     ficheId: row.fiche_id,
     chatLinkId: row.chat_link_id,
     ficheKey: row.fiche_key,
+    ficheEventId: row.fiche_event_id,
+    eventType: row.event_type,
+    source: row.source,
+    conversationId: row.conversation_id,
+    ficheInstanceId: row.fiche_instance_id,
     isTest: row.is_test,
     replayOfId: row.replay_of_id,
     status: row.status as WebhookDeliveryStatus,
@@ -120,10 +130,10 @@ export function pgWebhookDeliveryRepository(pool: Pool): WebhookDeliveryReposito
     async create(organizationId, input: CreateWebhookDeliveryInput) {
       const { rows } = await pool.query<DeliveryRow>(
         `INSERT INTO webhook_deliveries
-           (organization_id, endpoint_id, fiche_id, chat_link_id, fiche_key, is_test,
-            replay_of_id, status, attempts, next_attempt_at, idempotency_key,
-            request_snapshot, triggered_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'queued', 0, now(), $8, $9, $10)
+           (organization_id, endpoint_id, fiche_id, chat_link_id, fiche_key,
+            fiche_event_id, event_type, source, conversation_id, fiche_instance_id, is_test, replay_of_id, status, attempts,
+            next_attempt_at, idempotency_key, request_snapshot, triggered_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'queued', 0, now(), $13, $14, $15)
          RETURNING ${COLUMNS}`,
         [
           organizationId,
@@ -131,6 +141,11 @@ export function pgWebhookDeliveryRepository(pool: Pool): WebhookDeliveryReposito
           input.ficheId,
           input.chatLinkId,
           input.ficheKey,
+          input.ficheEventId,
+          input.eventType,
+          input.source,
+          input.conversationId,
+          input.ficheInstanceId,
           input.isTest,
           input.replayOfId,
           input.idempotencyKey,

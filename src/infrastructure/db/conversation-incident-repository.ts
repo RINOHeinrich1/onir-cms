@@ -26,7 +26,9 @@ type IncidentRow = {
 };
 
 function toKind(value: string): ConversationIncidentKind {
-  return value === "fiche_generation_failed" || value === "field_extraction_failed"
+  return value === "fiche_generation_failed" ||
+    value === "field_extraction_failed" ||
+    value === "fiche_submission_failed"
     ? value
     : "ai_reply_failed";
 }

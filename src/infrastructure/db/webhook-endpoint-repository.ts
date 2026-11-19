@@ -18,6 +18,7 @@ import {
   type WebhookHeader,
   type WebhookHttpMethod,
   type WebhookQueryParam,
+  type WebhookTrigger,
 } from "@/domain/entities/webhook";
 import {
   openWebhookJson,
@@ -54,10 +55,14 @@ type EndpointRow = {
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+  triggers?: unknown;
 };
 
 const COLUMNS =
   "id, organization_id, chat_link_id, fiche_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
+
+const TRIGGER_COLUMNS =
+  "COALESCE((SELECT jsonb_agg(jsonb_build_object('eventType', t.event_type, 'fieldKey', t.field_key, 'fieldKeys', t.field_keys) ORDER BY t.event_type, t.field_key) FROM webhook_endpoint_triggers t WHERE t.endpoint_id = webhook_endpoints.id), '[]'::jsonb) AS triggers";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -132,6 +137,28 @@ function authEncrypted(auth: WebhookAuth): string | null {
   return auth.type === "none" ? null : sealWebhookJson(auth);
 }
 
+function parseTriggers(value: unknown): WebhookTrigger[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    const eventType = typeof entry.eventType === "string" ? entry.eventType : "";
+    const fieldKey = typeof entry.fieldKey === "string" ? entry.fieldKey : null;
+    const fieldKeys = Array.isArray(entry.fieldKeys)
+      ? entry.fieldKeys.filter((value): value is string => typeof value === "string")
+      : null;
+    if (
+      eventType !== "fiche.draft.all_fields_filled" &&
+      eventType !== "fiche.draft.field_filled" &&
+      eventType !== "fiche.draft.fields_filled" &&
+      eventType !== "fiche.draft.required_fields_filled" &&
+      eventType !== "fiche.validated"
+    ) {
+      return [];
+    }
+    return [{ eventType, fieldKey, fieldKeys }];
+  });
+}
+
 function toEntity(row: EndpointRow): WebhookEndpoint {
   if (!isWebhookHttpMethod(row.http_method) || !isWebhookBodyMode(row.body_mode)) {
     throw new Error("Configuration de webhook invalide");
@@ -151,6 +178,7 @@ function toEntity(row: EndpointRow): WebhookEndpoint {
     bodyMode: row.body_mode as WebhookBodyMode,
     bodyTemplate: row.body_template,
     fieldMappings: parseFieldMappings(row.field_mappings),
+    triggers: parseTriggers(row.triggers),
     auth: parseAuth(row.auth_type, row.auth_config_enc),
     timeoutMs: row.timeout_ms,
     maxAttempts: row.max_attempts,
@@ -192,6 +220,31 @@ function writeParams(input: WebhookEndpointWriteInput): unknown[] {
   ];
 }
 
+async function replaceTriggers(
+  client: import("pg").PoolClient,
+  endpointId: string,
+  triggers: readonly WebhookTrigger[],
+): Promise<void> {
+  await client.query("DELETE FROM webhook_endpoint_triggers WHERE endpoint_id = $1", [endpointId]);
+  for (const trigger of triggers) {
+    await client.query(
+      `INSERT INTO webhook_endpoint_triggers
+       (endpoint_id, event_type, field_key, field_keys, group_key)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT DO NOTHING`,
+      [
+        endpointId,
+        trigger.eventType,
+        trigger.fieldKey,
+        trigger.fieldKeys,
+        trigger.fieldKeys === undefined || trigger.fieldKeys === null
+          ? null
+          : [...trigger.fieldKeys].sort().join(","),
+      ],
+    );
+  }
+}
+
 /** Adapter PostgreSQL des endpoints de webhooks, scopé organisation. */
 export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointRepository {
   return {
@@ -203,7 +256,7 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
         clauses.push(`chat_link_id = $${params.length}`);
       }
       const { rows } = await pool.query<EndpointRow>(
-        `SELECT ${COLUMNS} FROM webhook_endpoints
+        `SELECT ${COLUMNS}, ${TRIGGER_COLUMNS} FROM webhook_endpoints
           WHERE ${clauses.join(" AND ")}
           ORDER BY created_at DESC`,
         params,
@@ -213,7 +266,7 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
 
     async findById(organizationId, id) {
       const { rows } = await pool.query<EndpointRow>(
-        `SELECT ${COLUMNS} FROM webhook_endpoints
+        `SELECT ${COLUMNS}, ${TRIGGER_COLUMNS} FROM webhook_endpoints
           WHERE organization_id = $1 AND id = $2`,
         [organizationId, id],
       );
@@ -222,39 +275,119 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
 
     async create(organizationId, input) {
       const values = writeParams(input);
-      const { rows } = await pool.query<EndpointRow>(
-        `INSERT INTO webhook_endpoints
-           (organization_id, chat_link_id, fiche_key, name, description,
-            enabled, http_method, url, query_params, headers, body_mode, body_template,
-            field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts,
-            retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http,
-            allow_private_network, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                 $17, $18, $19, $20, $21, $22, $23)
-         RETURNING ${COLUMNS}`,
-        [organizationId, ...values, input.createdBy],
-      );
-      const row = rows[0];
-      if (!row) throw new Error("Échec de création du webhook");
-      return toEntity(row);
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query<EndpointRow>(
+          `INSERT INTO webhook_endpoints
+             (organization_id, chat_link_id, fiche_key, name, description,
+              enabled, http_method, url, query_params, headers, body_mode, body_template,
+              field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts,
+              retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http,
+              allow_private_network, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                   $17, $18, $19, $20, $21, $22, $23)
+           RETURNING ${COLUMNS}`,
+          [organizationId, ...values, input.createdBy],
+        );
+        const row = rows[0];
+        if (!row) throw new Error("Échec de création du webhook");
+        await replaceTriggers(client, row.id, input.triggers);
+        await client.query("COMMIT");
+        return toEntity({ ...row, triggers: input.triggers });
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async update(organizationId, id, input) {
       const values = writeParams(input);
-      const { rows } = await pool.query<EndpointRow>(
-        `UPDATE webhook_endpoints
-            SET chat_link_id = $3, fiche_key = $4, name = $5,
-                description = $6, enabled = $7, http_method = $8, url = $9,
-                query_params = $10, headers = $11, body_mode = $12, body_template = $13,
-                field_mappings = $14, auth_type = $15, auth_config_enc = $16,
-                timeout_ms = $17, max_attempts = $18, retry_backoff_ms = $19,
-                follow_redirects = $20, tls_verify = $21, allow_insecure_http = $22,
-                allow_private_network = $23, updated_at = now()
-          WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL
-          RETURNING ${COLUMNS}`,
-        [organizationId, id, ...values],
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query<EndpointRow>(
+          `UPDATE webhook_endpoints
+              SET chat_link_id = $3, fiche_key = $4, name = $5,
+                  description = $6, enabled = $7, http_method = $8, url = $9,
+                  query_params = $10, headers = $11, body_mode = $12, body_template = $13,
+                  field_mappings = $14, auth_type = $15, auth_config_enc = $16,
+                  timeout_ms = $17, max_attempts = $18, retry_backoff_ms = $19,
+                  follow_redirects = $20, tls_verify = $21, allow_insecure_http = $22,
+                  allow_private_network = $23, updated_at = now()
+            WHERE organization_id = $1 AND id = $2 AND deleted_at IS NULL
+            RETURNING ${COLUMNS}`,
+          [organizationId, id, ...values],
+        );
+        const row = rows[0];
+        if (!row) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        await replaceTriggers(client, row.id, input.triggers);
+        await client.query("COMMIT");
+        return toEntity({ ...row, triggers: input.triggers });
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async listAutomaticTriggers(organizationId, chatLinkId, ficheKey) {
+      const { rows } = await pool.query<{
+        event_type: string;
+        field_key: string | null;
+        field_keys: string[] | null;
+      }>(
+        `SELECT DISTINCT t.event_type, t.field_key, t.field_keys
+           FROM webhook_endpoints e
+           JOIN webhook_endpoint_triggers t ON t.endpoint_id = e.id
+          WHERE e.organization_id = $1
+            AND e.chat_link_id = $2
+            AND e.enabled = true
+            AND e.deleted_at IS NULL
+            AND (e.fiche_key IS NULL OR e.fiche_key = $3)`,
+        [organizationId, chatLinkId, ficheKey],
       );
-      return rows[0] ? toEntity(rows[0]) : null;
+      return rows.flatMap((row) => {
+        if (
+          row.event_type !== "fiche.draft.all_fields_filled" &&
+          row.event_type !== "fiche.draft.field_filled" &&
+          row.event_type !== "fiche.draft.fields_filled" &&
+          row.event_type !== "fiche.draft.required_fields_filled" &&
+          row.event_type !== "fiche.validated"
+        ) {
+          return [];
+        }
+        return [
+          {
+            eventType: row.event_type,
+            fieldKey: row.field_key,
+            fieldKeys: row.field_keys,
+          },
+        ];
+      });
+    },
+
+    async hasAutomaticTriggers(organizationId, chatLinkId, ficheKey) {
+      const { rows } = await pool.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1
+             FROM webhook_endpoints e
+             JOIN webhook_endpoint_triggers t ON t.endpoint_id = e.id
+            WHERE e.organization_id = $1
+              AND e.chat_link_id = $2
+              AND e.enabled = true
+              AND e.deleted_at IS NULL
+              AND (e.fiche_key IS NULL OR e.fiche_key = $3)
+         ) AS exists`,
+        [organizationId, chatLinkId, ficheKey],
+      );
+      return rows[0]?.exists === true;
     },
 
     async softDelete(organizationId, id) {

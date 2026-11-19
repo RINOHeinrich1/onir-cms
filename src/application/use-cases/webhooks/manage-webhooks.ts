@@ -18,6 +18,7 @@ import {
 import type { TemplateDefinition, TemplateField } from "@/domain/entities/chat-template";
 import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
 import type { WebhookEndpoint } from "@/domain/entities/webhook";
+import { missingRequiredMappings } from "@/domain/webhook-trigger-contract";
 
 export type WebhookManagementDependencies = {
   endpoints: WebhookEndpointRepository;
@@ -149,6 +150,14 @@ export async function createWebhookEndpointForOrganization(
   const config = parseWebhookConfig(input);
   const { definition } = await definitionForScope(deps, organizationId, config);
   assertMappingsForDefinition(config.fieldMappings, definition);
+  const invalid = missingRequiredMappings(config.triggers, config.fieldMappings, definition);
+  if (invalid.length > 0) {
+    throw new ValidationError(
+      `Le déclencheur ne garantit pas les champs requis : ${invalid
+        .map((entry) => `${entry.field} (${entry.trigger})`)
+        .join(", ")}`,
+    );
+  }
   const endpoint = await deps.endpoints.create(organizationId, {
     ...config,
     createdBy,
@@ -179,6 +188,14 @@ export async function updateWebhookEndpointForOrganization(
   const config = parseWebhookConfig(input, existing);
   const { definition } = await definitionForScope(deps, organizationId, config);
   assertMappingsForDefinition(config.fieldMappings, definition);
+  const invalid = missingRequiredMappings(config.triggers, config.fieldMappings, definition);
+  if (invalid.length > 0) {
+    throw new ValidationError(
+      `Le déclencheur ne garantit pas les champs requis : ${invalid
+        .map((entry) => `${entry.field} (${entry.trigger})`)
+        .join(", ")}`,
+    );
+  }
   const updated = await deps.endpoints.update(organizationId, id, {
     ...config,
     createdBy: existing.createdBy,

@@ -52,10 +52,12 @@ import {
   buildContexteInterne,
   selectConnaissancesUtiles,
 } from "@/application/use-cases/connaissances/select-connaissances";
+import { buildFicheRuntimeContext } from "@/application/use-cases/fiches/build-fiche-runtime-context";
 import {
   executeFicheTool,
   type FicheToolContext,
 } from "@/application/use-cases/fiches/tool-search";
+import type { FicheEventRecorderDependencies } from "@/application/use-cases/webhooks/record-fiche-events";
 import {
   fieldLabelsFromFields,
   sanitizeAssistantBlocks,
@@ -96,11 +98,14 @@ export type SendMessageDependencies = {
   /** Hot set LRU des chatbots (ADR-0094). */
   hotSet?: ChatbotHotSet | undefined;
   ficheInstances?: ConversationFicheInstanceRepository;
+  /** Enregistrement des transitions webhook (ADR-0100). */
+  ficheEvents?: FicheEventRecorderDependencies;
   /** Outils internes de recherche (P3) — absents ⇒ chemin sans outil. */
   ficheTools?: FicheToolRepository;
   searchSessions?: ChatSearchSessionRepository;
   /** Toutes les fiches de collecte de l'organisation (portée de recherche). */
   ficheCollectes?: FicheCollecteRepository;
+  ficheRuntimeContext?: import("@/application/ports/fiche-runtime-context-repository").FicheRuntimeContextRepository;
 };
 
 export type SendMessageResult = {
@@ -351,6 +356,8 @@ export async function sendMessage(
         repo: instancesRepo,
         conversationId: conversation.id,
         organizationId,
+        events: deps.ficheEvents,
+        prospectId: conversation.prospectId,
       });
     }
     const activeFiche = activeInstance === null ? null : findFiche(config, activeInstance.ficheKey);
@@ -365,6 +372,11 @@ export async function sendMessage(
     throw new NotFoundError("Configuration du chatbot introuvable");
   }
 
+  const runtimeContext = await buildFicheRuntimeContext(
+    deps.ficheRuntimeContext,
+    organizationId,
+    conversation.id,
+  );
   if (config.mission !== undefined && config.informationSources !== undefined) {
     const missionResult = await runMissionReply({
       deps,
@@ -377,6 +389,7 @@ export async function sendMessage(
       ai,
       recordUsage,
       activeInstance,
+      runtimeContext,
     });
     if (missionResult !== null) {
       const refreshed = await deps.links.findById(organizationId, link.id);
@@ -459,6 +472,9 @@ ${attachmentContext}`;
     }
     const refreshed = await deps.links.findById(organizationId, link.id);
     if (refreshed !== null) assertChatLinkAvailable(refreshed);
+  }
+  if (runtimeContext !== "") {
+    systemEnrichi = `${systemEnrichi}\n\n${runtimeContext}`;
   }
 
   // Les contextes runtime (pièces jointes, RAG) sont en français : on rappelle

@@ -6,6 +6,7 @@ import type {
   WebhookHeader,
   WebhookHttpMethod,
   WebhookQueryParam,
+  WebhookTrigger,
 } from "@/domain/entities/webhook";
 
 export type WebhookEndpointWriteInput = {
@@ -23,6 +24,7 @@ export type WebhookEndpointWriteInput = {
   bodyMode: WebhookBodyMode;
   bodyTemplate: string;
   fieldMappings: WebhookFieldMapping[];
+  triggers: WebhookTrigger[];
   auth: WebhookAuth;
   timeoutMs: number;
   maxAttempts: number;
@@ -51,4 +53,16 @@ export interface WebhookEndpointRepository {
   ): Promise<WebhookEndpoint | null>;
   /** Suppression logique ; false si introuvable. */
   softDelete(organizationId: string, id: string): Promise<boolean>;
+  /** Triggers automatiques actifs sur ce scope, pour évaluer uniquement le nécessaire. */
+  listAutomaticTriggers(
+    organizationId: string,
+    chatLinkId: string,
+    ficheKey: string,
+  ): Promise<WebhookTrigger[]>;
+  /** Vrai si au moins un endpoint actif a un trigger automatique sur ce scope. */
+  hasAutomaticTriggers(
+    organizationId: string,
+    chatLinkId: string,
+    ficheKey: string,
+  ): Promise<boolean>;
 }

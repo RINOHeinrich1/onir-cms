@@ -10,6 +10,11 @@ export type CreateWebhookDeliveryInput = {
   ficheId: string | null;
   chatLinkId: string | null;
   ficheKey: string | null;
+  ficheEventId: string | null;
+  eventType: string | null;
+  source: string | null;
+  conversationId: string | null;
+  ficheInstanceId: string | null;
   isTest: boolean;
   replayOfId: string | null;
   idempotencyKey: string;
