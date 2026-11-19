@@ -40,12 +40,6 @@
   margin: 0.3rem 0 0.45rem;
 }
 
-.wh-subhead {
-  margin: 0;
-  color: var(--fg-muted);
-  font-size: 0.9rem;
-}
-
 .wh-head-state {
   flex: none;
   padding-bottom: 0.2rem;
