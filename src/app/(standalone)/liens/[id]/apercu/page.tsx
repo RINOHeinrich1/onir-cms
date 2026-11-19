@@ -95,6 +95,12 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
   if (rawLink === null) notFound();
   const [link] = await linkListItems(repository, [rawLink]);
   if (link === undefined) notFound();
+  const allLinks = await repository.list(organizationId);
+  const linkOptions = allLinks.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    type: entry.type,
+  }));
 
   const channels = channelsForLink(link);
   const visualTemplates = await loadVisualTemplateOptions(organizationId, pool);
@@ -111,6 +117,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
       <main className="display-studio-page">
         <LinkDisplaySettings
           link={link}
+          linkOptions={linkOptions}
           visualTemplates={visualTemplates}
           canEdit={canEdit}
           initialSurface={requested ?? fallbackSurface}

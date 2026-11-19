@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLinkWithUrl } from "@/application/use-cases/links/link-urls";
 import { TemplateCover } from "@/components/templates/TemplateCover";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
@@ -23,6 +24,7 @@ import {
 type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
 type ParamTab = "all" | "content" | "colors" | "images" | "advanced";
+type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
 
 const PARAM_TABS: Array<{ id: ParamTab; label: string }> = [
   { id: "all", label: "Tous" },
@@ -36,7 +38,7 @@ function StudioIcon({
   name,
   size = 16,
 }: {
-  name: "back" | "expand" | "external" | "monitor" | "tablet" | "smartphone";
+  name: "back" | "expand" | "external" | "monitor" | "tablet" | "smartphone" | "copy" | "link";
   size?: number;
 }) {
   const paths = {
@@ -65,6 +67,18 @@ function StudioIcon({
       <>
         <rect x="7" y="2" width="10" height="20" rx="2" />
         <path d="M11 18h2" />
+      </>
+    ),
+    copy: (
+      <>
+        <rect x="8" y="8" width="12" height="12" rx="2" />
+        <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+      </>
+    ),
+    link: (
+      <>
+        <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+        <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" />
       </>
     ),
   };
@@ -162,11 +176,13 @@ function paramsForTab(
 
 export function LinkDisplaySettings({
   link,
+  linkOptions,
   visualTemplates,
   canEdit,
   initialSurface,
 }: {
   link: ChatLinkWithUrl;
+  linkOptions: ChatbotOption[];
   visualTemplates: VisualTemplateOption[];
   canEdit: boolean;
   initialSurface: ChatLinkSurface;
@@ -185,7 +201,10 @@ export function LinkDisplaySettings({
   const [zoomMode, setZoomMode] = useState<"fit" | "custom">("fit");
   const [customZoom, setCustomZoom] = useState(100);
   const [fitZoom, setFitZoom] = useState(1);
+  const [chatbotId, setChatbotId] = useState(link.id);
   const previewCanvasRef = useRef<HTMLDivElement>(null);
+  const [savedDrafts, setSavedDrafts] = useState(() => JSON.stringify(initialDrafts(link)));
+  const dirty = JSON.stringify(drafts) !== savedDrafts;
   useToastOnMessage(error);
 
   useEffect(() => {
@@ -270,6 +289,46 @@ export function LinkDisplaySettings({
     });
   };
 
+  const copyParams = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(
+          { linkId: link.id, surface, template: draft.visualTemplate, params: draft.params },
+          null,
+          2,
+        ),
+      );
+      toast.success("Paramètres JSON copiés.");
+    } catch {
+      toast.error("Copie impossible dans ce navigateur.");
+    }
+  };
+
+  const copyPreviewLink = async (): Promise<void> => {
+    try {
+      const url = new URL(debouncedPreviewSrc, window.location.origin).toString();
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien d’aperçu copié.");
+    } catch {
+      toast.error("Copie impossible dans ce navigateur.");
+    }
+  };
+
+  const changeChatbot = async (nextId: string): Promise<void> => {
+    if (nextId === link.id) return;
+    if (dirty) {
+      const accepted = await confirmDialog(
+        "Des modifications ne sont pas enregistrées. Changer de chatbot les perdra. Continuer ?",
+      );
+      if (!accepted) {
+        setChatbotId(link.id);
+        return;
+      }
+    }
+    setChatbotId(nextId);
+    router.push(`/liens/${nextId}/apercu?surface=${surface}`);
+  };
+
   const save = async (): Promise<void> => {
     if (!canEdit || saving) return;
     setError(null);
@@ -291,6 +350,7 @@ export function LinkDisplaySettings({
         return;
       }
       toast.success("Paramètres d’affichage enregistrés.");
+      setSavedDrafts(JSON.stringify(drafts));
       router.refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -312,71 +372,58 @@ export function LinkDisplaySettings({
           <a className="display-studio-icon-button" href="/liens" aria-label="Retour aux chatbots">
             <StudioIcon name="back" />
           </a>
+          <div className="display-studio-title">
+            <strong>Paramètres d’affichage</strong>
+            <small>Personnalisation en direct</small>
+          </div>
+          <label className="display-studio-chatbot">
+            <span>Chatbot</span>
+            <select value={chatbotId} onChange={(event) => void changeChatbot(event.target.value)}>
+              {linkOptions.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label} · {entry.type === "standard" ? "standard" : "spécifique"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="display-mode-switch" role="tablist" aria-label="Mode d’affichage">
+          {(["page", "widget"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              role="tab"
+              aria-selected={surface === entry}
+              className={`display-mode-button${surface === entry ? " is-active" : ""}`}
+              onClick={() => changeSurface(entry)}
+            >
+              {entry === "page" ? "Page" : "Widget"}
+              <span className={`badge ${drafts[entry].enabled ? "" : "muted"}`}>
+                {drafts[entry].enabled ? "actif" : "inactif"}
+              </span>
+            </button>
+          ))}
         </div>
         <div className="display-studio-header-actions">
-          <div className="display-mode-switch" role="tablist" aria-label="Mode d’affichage">
-            {(["page", "widget"] as const).map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                role="tab"
-                aria-selected={surface === entry}
-                className={`display-mode-button${surface === entry ? " is-active" : ""}`}
-                onClick={() => changeSurface(entry)}
-              >
-                {entry === "page" ? "Page" : "Widget"}
-                <span className={`badge ${drafts[entry].enabled ? "" : "muted"}`}>
-                  {drafts[entry].enabled ? "actif" : "inactif"}
-                </span>
-              </button>
-            ))}
-          </div>
           <div className="display-studio-toolgroup">
-            <label className="display-studio-zoom">
-              <span>Zoom</span>
-              <select
-                value={zoomMode === "fit" ? "fit" : String(customZoom)}
-                onChange={(event) => {
-                  if (event.target.value === "fit") {
-                    setZoomMode("fit");
-                    return;
-                  }
-                  setCustomZoom(Number(event.target.value));
-                  setZoomMode("custom");
-                }}
-              >
-                <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
-                {[50, 75, 100, 125, 150].map((value) => (
-                  <option key={value} value={value}>
-                    {value}%
-                  </option>
-                ))}
-              </select>
-            </label>
             <button
               type="button"
               className="display-studio-icon-button"
-              title="Plein écran"
-              aria-label="Plein écran"
-              onClick={() => {
-                const node = previewCanvasRef.current;
-                if (node === null) return;
-                if (document.fullscreenElement !== null) void document.exitFullscreen();
-                else void node.requestFullscreen?.();
-              }}
+              title="Copier les paramètres JSON"
+              aria-label="Copier les paramètres JSON"
+              onClick={() => void copyParams()}
             >
-              <StudioIcon name="expand" />
+              <StudioIcon name="copy" />
             </button>
-            <a
+            <button
+              type="button"
               className="display-studio-icon-button"
-              href={debouncedPreviewSrc}
-              target="_blank"
-              rel="noreferrer"
-              title="Ouvrir l’aperçu dans un nouvel onglet"
-              aria-label="Ouvrir l’aperçu dans un nouvel onglet"
+              title="Copier le lien d’aperçu"
+              aria-label="Copier le lien d’aperçu"
+              onClick={() => void copyPreviewLink()}
             >
-              <StudioIcon name="external" />
-            </a>
+              <StudioIcon name="link" />
+            </button>
           </div>
           <button
             type="button"
@@ -520,6 +567,12 @@ export function LinkDisplaySettings({
                     role="tab"
                     aria-selected={device === entry}
                     className={`display-device-button${device === entry ? " is-active" : ""}`}
+                    title={
+                      entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"
+                    }
+                    aria-label={
+                      entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"
+                    }
                     onClick={() => setDevice(entry)}
                   >
                     <StudioIcon
@@ -530,13 +583,59 @@ export function LinkDisplaySettings({
                             ? "tablet"
                             : "smartphone"
                       }
-                      size={13}
+                      size={15}
                     />
-                    {entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"}
                   </button>
                 ))}
               </div>
             ) : null}
+            <div className="display-studio-preview-tools">
+              <label className="display-studio-zoom">
+                <span>Zoom</span>
+                <select
+                  value={zoomMode === "fit" ? "fit" : String(customZoom)}
+                  onChange={(event) => {
+                    if (event.target.value === "fit") {
+                      setZoomMode("fit");
+                      return;
+                    }
+                    setCustomZoom(Number(event.target.value));
+                    setZoomMode("custom");
+                  }}
+                >
+                  <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
+                  {[50, 75, 100, 125, 150].map((value) => (
+                    <option key={value} value={value}>
+                      {value}%
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="display-studio-icon-button"
+                title="Plein écran"
+                aria-label="Plein écran"
+                onClick={() => {
+                  const node = previewCanvasRef.current;
+                  if (node === null) return;
+                  if (document.fullscreenElement !== null) void document.exitFullscreen();
+                  else void node.requestFullscreen?.();
+                }}
+              >
+                <StudioIcon name="expand" />
+              </button>
+              <a
+                className="display-studio-icon-button"
+                href={debouncedPreviewSrc}
+                target="_blank"
+                rel="noreferrer"
+                title="Ouvrir l’aperçu dans un nouvel onglet"
+                aria-label="Ouvrir l’aperçu dans un nouvel onglet"
+              >
+                <StudioIcon name="external" />
+              </a>
+            </div>
           </div>
           <div
             ref={previewCanvasRef}
