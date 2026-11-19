@@ -5,6 +5,7 @@ import type { ConnaissanceDto } from "@/components/connaissances/types";
 import type { MediaDto } from "@/components/medias/types";
 import type { ChatLinkSources } from "@/domain/entities/chat";
 import type { ChatbotDataSelection as ChatbotDataSelectionValue } from "@/domain/entities/chatbot-config";
+import type { ChatbotMediaAccessMode } from "@/domain/entities/chatbot-information";
 import { ChatbotSearchToolFields } from "./ChatbotSearchToolFields";
 import type { ChatbotSearchToolDraft, FicheDraft } from "./chatbot-config-draft";
 import { selectableDataForChatbot } from "./chatbot-data-draft";
@@ -91,6 +92,10 @@ export function ChatbotDataSelection({
   onChange,
   mediaSelection,
   onMediaSelectionChange,
+  mediaAccess,
+  onMediaAccessChange,
+  mediaMaxResults,
+  onMediaMaxResultsChange,
   chatLinkId,
   onCountsChange,
   searchTool,
@@ -106,6 +111,10 @@ export function ChatbotDataSelection({
   onChange: (next: DataSelection) => void;
   mediaSelection: DataSelection;
   onMediaSelectionChange: (next: DataSelection) => void;
+  mediaAccess: ChatbotMediaAccessMode;
+  onMediaAccessChange: (next: ChatbotMediaAccessMode) => void;
+  mediaMaxResults: number;
+  onMediaMaxResultsChange: (next: number) => void;
   /** Édition : inclut aussi les données déjà scopées à ce chatbot. */
   chatLinkId?: string | null | undefined;
   onCountsChange?: ((counts: DataCounts) => void) | undefined;
@@ -387,6 +396,41 @@ export function ChatbotDataSelection({
             </p>
           ) : (
             <>
+              {tab === "photos" ? (
+                <fieldset className="chatbot-data-mode">
+                  <legend>Photos dans les réponses</legend>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={mediaAccess === "illustration"}
+                      onChange={(event) =>
+                        onMediaAccessChange(event.target.checked ? "illustration" : "on_demand")
+                      }
+                    />
+                    Illustrer automatiquement les réponses avec la photothèque
+                  </label>
+                  <label className="field" style={{ marginTop: "0.55rem", maxWidth: "16rem" }}>
+                    Nombre maximum de photos par réponse
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={mediaMaxResults}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (Number.isInteger(value)) {
+                          onMediaMaxResultsChange(Math.max(1, Math.min(5, value)));
+                        }
+                      }}
+                    />
+                  </label>
+                  <p className="hint">
+                    Si la photothèque contient plus de photos que la limite, les premières sont
+                    envoyées. Sans illustration automatique, les photos restent dans la galerie.
+                  </p>
+                </fieldset>
+              ) : null}
+
               <fieldset className="chatbot-data-mode">
                 <legend>Contenus utilisés par ce chatbot</legend>
                 <label className="check">

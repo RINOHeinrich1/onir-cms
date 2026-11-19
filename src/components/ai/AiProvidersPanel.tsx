@@ -90,6 +90,14 @@ export function AiProvidersPanel({
 
   const activeProviders = providers.filter((provider) => provider.archivedAt === null);
 
+  if (managingModels !== null) {
+    return (
+      <div>
+        <AiModelsPanel provider={managingModels} onClose={() => setManagingModels(null)} />
+      </div>
+    );
+  }
+
   return (
     <div>
       {error !== null ? <p className="alert error">{error}</p> : null}
@@ -155,10 +163,6 @@ export function AiProvidersPanel({
             </div>
           ) : null}
         </>
-      ) : null}
-
-      {managingModels !== null ? (
-        <AiModelsPanel provider={managingModels} onClose={() => setManagingModels(null)} />
       ) : null}
 
       {formMode !== null ? (

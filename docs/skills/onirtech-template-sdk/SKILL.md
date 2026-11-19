@@ -88,7 +88,9 @@ type TemplateContext = {
   brand: { name: string; logoUrl: string | null };
   theme: Record<string, string>;
   capabilities: TemplateCapability[];
-  params: Record<string, string | number | boolean>;
+  // Valeurs JSON complètes : scalaire, objet ou tableau
+  params: Record<string, string | number | boolean | null |
+    TemplateParamValue[] | { [key: string]: TemplateParamValue }>;
   consent: { texte: string; lien: string } | null;
   state: {
     phase: "identity" | "chat";
@@ -116,6 +118,44 @@ Capacités et données :
 | `theme` | `theme` | objet vide |
 | `userState` | `message.userState` | absent (double garde lien) |
 | `knowledge` | `message.knowledge` | absent (double garde source) |
+| `attachments` | `state.pendingAttachments`, `message.attachments` | absents |
+| `fallback` | `state.fallback`, `actions.selectFallback()` | absent |
+| `data` | `ctx.data.load(contract)` | contrats `data` indisponibles |
+
+## Identification (`identificationModes`)
+
+Le manifeste peut déclarer les interfaces d'identification que le template sait
+rendre :
+
+```json
+"identificationModes": ["contact", "anonymous", "otp"]
+```
+
+- absent → défaut legacy `["contact", "anonymous"]` ;
+- `otp` est optionnel pour un rendu personnalisé : sans déclaration, le host
+  affiche `OtpGate` à la place ;
+- le template ne fait jamais l'authentification OTP lui-même : il utilise les
+  actions du host ;
+- le fallback host ne change jamais le mode effectif du lien.
+
+## Médias et photothèque
+
+- `media` expose **uniquement les photos/liens actifs rattachés au chatbot** :
+  `chat_link_ids` vide = média global ; sinon l'id du lien doit être présent.
+- `resources.media.photos` sert la galerie/catalogue du template. Aucune galerie
+  n'est créée automatiquement : le template doit rendre les photos et appeler
+  `actions.openMedia(url)`.
+- `message.medias` sert aux images jointes à une réponse. L'hôte peut les
+  récupérer après coup quand `mediaPending === true` (`POST /api/chat/media`).
+- Mode `illustration` : le runtime peut illustrer automatiquement les réponses
+  (jusqu'à **5 photos**, plafond `maxResults` 1..5).
+- Mode `on_demand` : pas d'attachement automatique ; les photos restent dans
+  `resources.media` pour la galerie ou `actions.request("media")`.
+- Les URL sont signées/proxifiées (`/api/medias/:id/file`) : ne jamais
+  reconstruire un chemin ni coder une URL directe.
+- Une photo seulement importée/labellisée dans la photothèque, sans
+  rattachement au chatbot ou avec la source Médias désactivée, n'arrive jamais
+  dans le contexte.
 
 ## API du SDK (0.1.3)
 
@@ -157,6 +197,47 @@ Build (`@onirtech/template-sdk/vite`) :
 defineTemplateConfig({ entry, element, manifest?, plugins?, minify?, outDir? })
 ```
 
+## Paramètres structurés (`object`, `array`)
+
+Les paramètres ne sont pas limités aux scalaires. `object` et `array` reçoivent
+de vraies valeurs JSON imbriquées dans `ctx.params` : ne faites pas
+`JSON.parse`.
+
+```json
+{
+  "key": "apparence",
+  "label": "Apparence",
+  "description": "Couleurs et arrondis",
+  "type": "object",
+  "default": { "accent": "#023777", "rayon": 12 },
+  "properties": [
+    { "key": "accent", "label": "Accent", "description": "Couleur",
+      "type": "color", "default": "#023777" },
+    { "key": "rayon", "label": "Rayon", "description": "Arrondi",
+      "type": "number", "default": 12, "min": 0, "max": 40 }
+  ]
+}
+```
+
+```json
+{
+  "key": "etapes",
+  "label": "Étapes",
+  "description": "Étapes du parcours",
+  "type": "array",
+  "default": ["Bienvenue"],
+  "minItems": 1,
+  "maxItems": 20,
+  "items": { "type": "string", "default": "", "maxLength": 80 }
+}
+```
+
+Règles : `default` obligatoire sur chaque nœud ; `properties` pour un objet
+(clés non déclarées refusées) ; `items` obligatoire pour un tableau ; bornes
+`minItems`/`maxItems` ; profondeur 8, 300 nœuds, 64 paramètres, 64 Kio au total.
+Un champ absent prend le `default` du nœud ; un objet/tableau invalide retombe
+sur le défaut complet.
+
 ## Manifeste
 
 React/Vue — `src/manifest.ts` :
@@ -187,7 +268,7 @@ Vanilla : même contenu en JSON dans `onirtech.template.json`, avec
 `schemaVersion`, `kind`, `compatibility`, `network` explicites.
 
 Règles des paramètres : `default` **obligatoire**, types `string | text | number |
-boolean | color | url | select`, ≤ 40 paramètres, ≤ 16 Ko.
+boolean | color | url | select`, ≤ 64 paramètres, ≤ 64 Ko.
 
 ## Patterns par stack
 
@@ -293,7 +374,9 @@ Contrôles de cohérence :
 | Élément non affiché | `ui.element` ≠ nom enregistré | aligner les deux |
 | Styles absents | CSS non inliné | `?inline` / `styles.js` |
 | `params.x` undefined | paramètre non déclaré | déclarer + `default`, garder un repli |
-| `resources.media` vide | capacité absente / aucun média actif | déclarer `media`, activer les médias |
+| `resources.media` vide | capacité absente, média non rattaché au chatbot ou source Médias désactivée | déclarer `media`, rattacher les médias, activer la source |
+| Photos visibles en photothèque mais pas dans le chat | mode `on_demand` ou `mediaPending` faux | passer en `illustration` pour illustrer les réponses, ou rendre `resources.media` pour la galerie |
+| `ctx.params.x` est une chaîne JSON au lieu d'un objet | type `string` au lieu de `object`/`array` | déclarer le type structuré + `properties`/`items` |
 | `Invalid hook call` | deux copies de React | supprimer `node_modules`, réinstaller |
 | `validate` échoue (SRI) | bundle modifié après build | rebuild puis validate/pack |
 | `favicon.ico` 404 | harness sans favicon | ignorer |

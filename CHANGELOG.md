@@ -5,6 +5,51 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.18](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.17...v0.38.18) (2026-11-19)
+
+
+### Features
+
+* **medias:** réglage d'illustration et conservation des limites
+* **templates:** modes d'identification et interface OTP Starter
+* **otp:** identification email et SMTP multi-tenant
+
+
+### Documentation
+
+* **adr:** identification email OTP et sémantique identificationModes
+* **templates:** limite de paramètres portée à 64
+
+
+## [0.38.17](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.16...v0.38.17) (2026-11-18)
+
+
+### Features
+
+* **medias:** illustrer jusqu'à 5 photos sur une demande visuelle
+
+
+### Documentation
+
+* **templates:** documenter médias et paramètres objet/tableau
+
+
+## [0.38.16](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.15...v0.38.16) (2026-11-18)
+
+
+### Features
+
+* **loader:** logo ONIR respiration en remplacement du spinner
+
+
+## [0.38.15](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.14...v0.38.15) (2026-11-18)
+
+
+### Features
+
+* **templates:** paramètres statiques structurés objets et tableaux (ADR-0095)
+
+
 ## [0.36.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.35.0...v0.36.0) (2026-11-12)
 
 

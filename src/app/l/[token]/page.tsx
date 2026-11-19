@@ -13,8 +13,10 @@ import {
 import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
 import { ChatPortal } from "@/components/chat/ChatPortal";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { OtpChatPortal } from "@/components/chat/OtpChatPortal";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { AnonymousTemplatePortal } from "@/components/templates/AnonymousTemplatePortal";
+import { OtpTemplatePortal } from "@/components/templates/OtpTemplatePortal";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { TemplateLoader } from "@/components/templates/TemplateLoader";
 import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
@@ -180,6 +182,63 @@ export default async function ChatPortalPage({ params }: PageProps) {
           confidentialite={consent}
           anonymous
           attachmentFields={attachmentFields}
+        />
+      </main>
+    );
+  }
+
+  if (link.type === "standard" && channel.identificationMode === "otp") {
+    if (spec !== null) {
+      // Le template déclare otp : il rend son propre écran, le host garde la
+      // vérification et la création de session via actions OTP.
+      if (spec.identificationModes?.includes("otp") === true) {
+        const context = await buildLinkContext(deps, link, spec, {
+          phase: "otp",
+          messages: [],
+          consent,
+          surface: "page",
+          channel,
+        });
+        return (
+          <main className="chat-page template-page">
+            <TemplateLoader />
+            <TemplateHost
+              token={token}
+              template={spec}
+              baseContext={context}
+              conversationId={null}
+              initialMessages={[]}
+            />
+          </main>
+        );
+      }
+      const context = await buildLinkContext(deps, link, spec, {
+        phase: "chat",
+        messages: [],
+        consent,
+        surface: "page",
+        channel,
+      });
+      return (
+        <main className="chat-page template-page">
+          <TemplateLoader />
+          <OtpTemplatePortal
+            token={token}
+            template={spec}
+            baseContext={context}
+            confidentialite={consent}
+          />
+        </main>
+      );
+    }
+    return (
+      <main className="chat-page">
+        <ChatHeader title="Discussion sécurisée" />
+        <OtpChatPortal
+          token={token}
+          confidentialite={consent}
+          attachmentFields={attachmentFields}
+          canFinish={canFinish}
         />
       </main>
     );

@@ -71,7 +71,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       throw new ValidationError("inputs : objet attendu");
     }
 
-    const version = await pgVisualTemplateRepository(getPool()).findVersion(id, versionName);
+    const version = await pgVisualTemplateRepository(getPool()).findVersionForOrganization(
+      actor.organizationId,
+      id,
+      versionName,
+    );
     if (version === null) throw new ValidationError("Version inconnue");
 
     const rawDraft = body.draft;

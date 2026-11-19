@@ -38,6 +38,25 @@ describe("validateTemplateManifest — norme v1", () => {
     }
   });
 
+  it("expose les modes d'identification legacy par défaut (ADR-0099)", () => {
+    const result = validateTemplateManifest(manifest());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.identificationModes).toEqual(["contact", "anonymous"]);
+    }
+  });
+
+  it("accepte otp et refuse un mode d'identification inconnu", () => {
+    const ok = validateTemplateManifest(
+      manifest({ identificationModes: ["contact", "anonymous", "otp"] }),
+    );
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.value.identificationModes).toEqual(["contact", "anonymous", "otp"]);
+    expect(validateTemplateManifest(manifest({ identificationModes: ["internal"] })).ok).toBe(
+      false,
+    );
+  });
+
   it("refuse schemaVersion/kind/hostProtocol invalides", () => {
     expect(validateTemplateManifest(manifest({ schemaVersion: 2 })).ok).toBe(false);
     expect(validateTemplateManifest(manifest({ kind: "package" })).ok).toBe(false);

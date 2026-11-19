@@ -1,5 +1,5 @@
 import { type Actor, assertSuperAdmin } from "@/application/actor";
-import { NotFoundError } from "@/application/errors";
+import { NotFoundError, TemplateInUseError } from "@/application/errors";
 import type { OrganizationRepository } from "@/application/ports/organization-repository";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 
@@ -33,5 +33,7 @@ export async function unassignVisualTemplate(
     throw new NotFoundError("Template visuel introuvable");
   }
 
-  await deps.templates.unassign(organizationId, templateId);
+  const usages = await deps.templates.countLinkUsages(organizationId, templateId);
+  if (usages > 0) throw new TemplateInUseError(template.name, usages);
+  await deps.templates.uninstall(organizationId, templateId);
 }

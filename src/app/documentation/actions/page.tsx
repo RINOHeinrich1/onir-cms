@@ -62,10 +62,6 @@ export default function ActionsDocsPage() {
         <div>
           <span className="eyebrow">Documentation</span>
           <h1 className="text-title">Les actions d&apos;un template</h1>
-          <p className="hint">
-            Le seul canal du template vers l&apos;hôte : identité, envoi de message, fin,
-            ressources. Ce qui se passe côté serveur, en mock et en production.
-          </p>
         </div>
       </div>
 

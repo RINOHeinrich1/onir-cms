@@ -65,8 +65,8 @@ export default async function NoOrganizationPage() {
         <span className="eyebrow">Accès en attente</span>
         <h1>Aucune organisation</h1>
         <p className="hint" style={{ marginBottom: "1.5rem" }}>
-          Votre compte n&apos;est rattaché à aucune organisation active. Contactez un administrateur
-          pour obtenir un accès.
+          Vous n&apos;avez pas d&apos;organisation active. Contactez un administrateur pour obtenir
+          des détails.
         </p>
         <LogoutButton />
       </section>

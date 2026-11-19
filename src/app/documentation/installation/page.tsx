@@ -177,10 +177,6 @@ export default function InstallationPage() {
         <div>
           <span className="eyebrow">Installation</span>
           <h1 className="text-title">Installer ONIR CMS</h1>
-          <p className="hint">
-            Deux parcours indépendants. Choisissez-en un et suivez-le de A à Z sans mélanger les
-            commandes ni les fichiers d&apos;environnement.
-          </p>
         </div>
       </div>
 

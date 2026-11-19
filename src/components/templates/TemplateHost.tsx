@@ -22,8 +22,16 @@ type TemplateIdentity = {
   consentement?: boolean;
 };
 
+type TemplateOtpChallenge = {
+  challengeId: string;
+  expiresAt: string;
+  transport: "organization" | "platform";
+};
+
 type TemplateActions = {
   submitIdentity(data: TemplateIdentity): void;
+  requestOtp(data: { email: string; consentement?: boolean }): Promise<TemplateOtpChallenge>;
+  verifyOtp(data: { challengeId: string; code: string }): Promise<void>;
   sendMessage(content: string, attachmentIds?: string[]): void;
   attachFile(fieldName: string, file: File): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
@@ -169,7 +177,7 @@ export function TemplateHost({
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<TemplateMessage[]>(initialMessages);
   const [status, setStatus] = useState<"en_cours" | "finalisee">(baseContext.state.status);
-  const [phase, setPhase] = useState<"identity" | "chat">(baseContext.state.phase);
+  const [phase, setPhase] = useState<"identity" | "otp" | "chat">(baseContext.state.phase);
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fallbackMenu, setFallbackMenu] = useState<FallbackMenu | null>(null);
@@ -480,6 +488,67 @@ export function TemplateHost({
             setError("Erreur réseau, veuillez réessayer");
           }
         })();
+      },
+      requestOtp: async (data) => {
+        if (preview) {
+          return {
+            challengeId: "preview-otp",
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+            transport: "platform",
+          };
+        }
+        const response = await fetch(`${platform}/otp/request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            email: data.email,
+            consentement: data.consentement === true,
+            surface,
+          }),
+        });
+        const json = (await response.json()) as TemplateOtpChallenge & { error?: string };
+        if (!response.ok || typeof json.challengeId !== "string") {
+          throw new Error(json.error ?? "Impossible d'envoyer le code");
+        }
+        return json;
+      },
+      verifyOtp: async (data) => {
+        if (preview) {
+          setPhase("chat");
+          setMessages([
+            {
+              id: "preview-otp-chat",
+              role: "assistant",
+              content: "(aperçu) Email vérifié, la discussion peut démarrer.",
+              medias: [],
+              at: new Date().toISOString(),
+            },
+          ]);
+          return;
+        }
+        const response = await fetch(`${platform}/otp/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, challengeId: data.challengeId, code: data.code, surface }),
+        });
+        const json = (await response.json()) as {
+          conversationId?: string;
+          messages?: ApiChatMessage[];
+          error?: string;
+        };
+        if (!response.ok || typeof json.conversationId !== "string") {
+          throw new Error(json.error ?? "Code invalide ou expiré");
+        }
+        const converted = (json.messages ?? []).map((message) =>
+          fromApiMessage(message, allowAttachments),
+        );
+        conversationRef.current = json.conversationId;
+        setConversationId(json.conversationId);
+        setMessages(converted);
+        const latest = converted[converted.length - 1];
+        if (latest !== undefined) lastAtRef.current = latest.at;
+        setPhase("chat");
       },
       sendMessage: (content, requestedIds) => {
         const text = content.trim();
@@ -953,9 +1022,53 @@ export function TemplateHost({
     (action: TemplateAction): void => {
       switch (action.action) {
         case "ready":
+          if (template.mode === "iframe") {
+            const context = {
+              ...liveContextRef.current,
+              actions: undefined,
+              on: undefined,
+              data: undefined,
+            };
+            iframeRef.current?.contentWindow?.postMessage(
+              { __onirtech: 1, type: "init", context },
+              "*",
+            );
+          }
           break;
         case "submitIdentity":
           actions.submitIdentity(action.payload);
+          break;
+        case "requestOtp":
+          void actions.requestOtp(action.payload).then(
+            (challenge) => {
+              iframeRef.current?.contentWindow?.postMessage(
+                { __onirtech: 1, type: "otpChallenge", payload: challenge },
+                "*",
+              );
+            },
+            (error: unknown) => {
+              iframeRef.current?.contentWindow?.postMessage(
+                {
+                  __onirtech: 1,
+                  type: "otpError",
+                  payload: { message: error instanceof Error ? error.message : "Erreur OTP" },
+                },
+                "*",
+              );
+            },
+          );
+          break;
+        case "verifyOtp":
+          void actions.verifyOtp(action.payload).catch((error: unknown) => {
+            iframeRef.current?.contentWindow?.postMessage(
+              {
+                __onirtech: 1,
+                type: "otpError",
+                payload: { message: error instanceof Error ? error.message : "Erreur OTP" },
+              },
+              "*",
+            );
+          });
           break;
         case "sendMessage":
           actions.sendMessage(action.payload.content, action.payload.attachmentIds);
@@ -998,9 +1111,24 @@ export function TemplateHost({
         case "request":
           void actions.request(action.payload.capability).then((value) => emit("resources", value));
           break;
+        case "loadData":
+          void loadData(
+            action.payload.contract,
+            action.payload.inputs === undefined ? undefined : { inputs: action.payload.inputs },
+          ).then((result) => {
+            iframeRef.current?.contentWindow?.postMessage(
+              {
+                __onirtech: 1,
+                type: "dataResult",
+                payload: { requestId: action.payload.requestId, result },
+              },
+              "*",
+            );
+          });
+          break;
       }
     },
-    [actions, emit],
+    [actions, emit, loadData, template.mode],
   );
 
   // Notifie les abonnés + met à jour l'élément à chaque changement de contexte.
@@ -1025,6 +1153,7 @@ export function TemplateHost({
       // Connecter l'élément AVANT d'injecter le contexte (le template se construit
       // dans connectedCallback ; injecter avant casse les templates à refs).
       mountRef.current?.replaceChildren(el);
+      mountRef.current?.setAttribute("data-onirtech-ready", "1");
       (el as HTMLElement & { onirtechContext?: LiveContext }).onirtechContext =
         liveContextRef.current;
     };
@@ -1078,8 +1207,13 @@ export function TemplateHost({
           className="template-frame"
           title="Template de discussion"
           sandbox="allow-scripts allow-forms"
-          src={template.entryUrl}
-          style={{ width: "100%", height: `${height}px`, border: 0 }}
+          src={template.frameUrl ?? template.entryUrl}
+          onLoad={() => iframeRef.current?.setAttribute("data-onirtech-ready", "1")}
+          style={{
+            width: "100%",
+            height: surface === "page" ? "100dvh" : `${height}px`,
+            border: 0,
+          }}
         />
       </div>
     );

@@ -293,6 +293,8 @@ class StarterTemplate extends HTMLElement {
   #collectionOpen = false;
   #collectionPicker = false;
   #collectionFicheKey = null;
+  #finishing = false;
+  #finishTimer = null;
 
   constructor() {
     super();
@@ -310,6 +312,24 @@ class StarterTemplate extends HTMLElement {
 
   connectedCallback() {
     this.#render();
+  }
+
+  disconnectedCallback() {
+    window.clearTimeout(this.#finishTimer);
+  }
+
+  #requestFinish(ctx) {
+    if (this.#finishing || ctx.state.status === "finalisee" || ctx.state.typing) return;
+    this.#finishing = true;
+    this.#render();
+    ctx.actions.finish();
+    window.clearTimeout(this.#finishTimer);
+    this.#finishTimer = window.setTimeout(() => {
+      if (this.#ctx?.state.status !== "finalisee") {
+        this.#finishing = false;
+        this.#render();
+      }
+    }, 15000);
   }
 
   #render() {
@@ -509,6 +529,9 @@ class StarterTemplate extends HTMLElement {
         .identity .check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 400; line-height: 1.45; }
         .identity button[type="submit"] { padding: 11px; border: 0; border-radius: 10px; background: var(--page-primary); color: #fff; font-weight: 700; cursor: pointer; }
         .identity a { color: var(--page-primary); }
+        .identity .otp-error { margin: 0; color: #b42318; font-size: 12px; }
+        .identity .otp-links { display: flex; flex-wrap: wrap; gap: 10px; }
+        .identity .link-button { padding: 0; border: 0; background: transparent; color: var(--page-primary); font-size: 11px; font-weight: 650; cursor: pointer; text-decoration: underline; }
         .collection { margin-top: 16px; padding: 16px; border: 1px solid var(--page-border); border-radius: 14px; background: var(--page-surface); }
         .collection h3 { margin: 0 0 12px; color: var(--page-primary); font-size: 14px; }
         .collection form { display: flex; flex-direction: column; gap: 10px; }
@@ -541,6 +564,10 @@ class StarterTemplate extends HTMLElement {
       `,
     });
 
+    if (ctx.state.status === "finalisee" && this.#finishing) {
+      this.#finishing = false;
+      window.clearTimeout(this.#finishTimer);
+    }
     const title = paramText(ctx, "chat_title", ctx.brand.name || "Discussion");
     const assistantLogo = paramText(ctx, "assistant_logo", "");
     const brandLogo =
@@ -563,10 +590,125 @@ class StarterTemplate extends HTMLElement {
     ]);
 
     const content =
-      ctx.state.phase === "identity"
-        ? this.#identityForm(ctx)
-        : this.#chat(ctx, finalised, header);
+      ctx.state.phase === "otp"
+        ? this.#otpForm(ctx)
+        : ctx.state.phase === "identity"
+          ? this.#identityForm(ctx)
+          : this.#chat(ctx, finalised, header);
     this.#root.replaceChildren(style, el("main", { class: "page" }, [header, content]));
+  }
+
+  #otpForm(ctx) {
+    const error = el("p", { class: "otp-error", role: "alert" });
+    const email = el("input", { type: "email", name: "email", required: "true", placeholder: "vous@exemple.mg", autocomplete: "email" });
+    const consent = el("input", { type: "checkbox", name: "consentement" });
+    const submit = el("button", { type: "submit", text: "Recevoir un code" });
+    const root = el("div", { class: "identity" }, [
+      el("h2", { text: "Vérifions votre email" }),
+      el("p", { text: "Nous vous enverrons un code à 6 chiffres pour démarrer la discussion." }),
+      error,
+    ]);
+
+    const emailForm = el("form", {
+      onsubmit: async (event) => {
+        event.preventDefault();
+        error.textContent = "";
+        if (!email.value.trim()) return;
+        if (ctx.consent && !consent.checked) {
+          error.textContent = "Vous devez accepter la politique de confidentialité.";
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = "Envoi…";
+        try {
+          const challenge = await ctx.actions.requestOtp({
+            email: email.value.trim(),
+            consentement: consent.checked,
+          });
+          if (!challenge || !challenge.challengeId) throw new Error("Réponse OTP invalide");
+          showCode(challenge);
+        } catch (cause) {
+          error.textContent = cause instanceof Error ? cause.message : "Impossible d'envoyer le code";
+          submit.disabled = false;
+          submit.textContent = "Recevoir un code";
+        }
+      },
+    }, [
+      el("label", {}, ["Email", email]),
+      ctx.consent
+        ? el("label", { class: "check" }, [
+            consent,
+            el("span", {}, [
+              el("span", { text: ctx.consent.texte }),
+              ctx.consent.lien
+                ? el("a", { href: ctx.consent.lien, target: "_blank", rel: "noopener", text: " Politique de confidentialité" })
+                : null,
+            ]),
+          ])
+        : null,
+      submit,
+    ]);
+
+    const showCode = (challenge) => {
+      const code = el("input", { type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", placeholder: "123456", required: "true" });
+      const verify = el("button", { type: "submit", text: "Vérifier et démarrer" });
+      const resend = el("button", { type: "button", class: "link-button", text: "Renvoyer le code" });
+      const back = el("button", { type: "button", class: "link-button", text: "Changer d'email" });
+      const codeError = el("p", { class: "otp-error", role: "alert" });
+      const codeForm = el("form", {
+        onsubmit: async (event) => {
+          event.preventDefault();
+          codeError.textContent = "";
+          if (!/^\d{6}$/.test(code.value.trim())) {
+            codeError.textContent = "Saisissez les 6 chiffres du code.";
+            return;
+          }
+          verify.disabled = true;
+          verify.textContent = "Vérification…";
+          try {
+            await ctx.actions.verifyOtp({ challengeId: challenge.challengeId, code: code.value.trim() });
+          } catch (cause) {
+            codeError.textContent = cause instanceof Error ? cause.message : "Code invalide ou expiré";
+            verify.disabled = false;
+            verify.textContent = "Vérifier et démarrer";
+          }
+        },
+      }, [
+        codeError,
+        el("label", {}, ["Code à 6 chiffres", code]),
+        verify,
+        el("div", { class: "otp-links" }, [resend, back]),
+      ]);
+      root.replaceChildren(
+        el("h2", { text: "Code envoyé" }),
+        el("p", { text: `Saisissez le code reçu à ${email.value.trim()}. Il expire dans 10 minutes.` }),
+        codeForm,
+      );
+      code.focus();
+      resend.addEventListener("click", async () => {
+        resend.disabled = true;
+        resend.textContent = "Envoi…";
+        try {
+          await ctx.actions.requestOtp({ email: email.value.trim(), consentement: consent.checked });
+          codeError.textContent = "Un nouveau code a été envoyé.";
+        } catch (cause) {
+          codeError.textContent = cause instanceof Error ? cause.message : "Impossible de renvoyer le code";
+        } finally {
+          resend.disabled = false;
+          resend.textContent = "Renvoyer le code";
+        }
+      });
+      back.addEventListener("click", () => {
+        root.replaceChildren(
+          el("h2", { text: "Vérifions votre email" }),
+          el("p", { text: "Nous vous enverrons un code à 6 chiffres pour démarrer la discussion." }),
+          emailForm,
+        );
+      });
+    };
+
+    root.appendChild(emailForm);
+    return root;
   }
 
   #identityForm(ctx) {
@@ -812,8 +954,9 @@ class StarterTemplate extends HTMLElement {
         ? el("button", {
             type: "button",
             class: "finish",
-            text: paramText(ctx, "finish_label", "Terminer"),
-            onclick: () => ctx.actions.finish(),
+            text: this.#finishing ? "…" : paramText(ctx, "finish_label", "Terminer"),
+            disabled: this.#finishing ? "true" : null,
+            onclick: () => this.#requestFinish(ctx),
           })
         : null;
     headerAction(header, finish);

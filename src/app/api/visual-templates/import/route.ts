@@ -3,6 +3,7 @@ import { importVisualTemplate } from "@/application/use-cases/visual-templates/i
 import { zipTemplateArchive } from "@/infrastructure/archive/zip-template-archive";
 import { nodeTemplateHasher } from "@/infrastructure/crypto/sha256";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgVisualTemplateAuditRepository } from "@/infrastructure/db/visual-template-audit-repository";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { mediaStorage } from "@/infrastructure/storage";
 import { errorResponse } from "../../_lib/errors";
@@ -35,6 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         storage: mediaStorage(actor.organizationId ?? undefined),
         archive: zipTemplateArchive(),
         hasher: nodeTemplateHasher(),
+        audit: pgVisualTemplateAuditRepository(getPool()),
       },
       actor,
       { data: Buffer.from(await fichier.arrayBuffer()) },

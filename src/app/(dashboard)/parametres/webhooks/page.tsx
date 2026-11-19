@@ -71,11 +71,6 @@ export default async function WebhooksPage() {
         <div>
           <span className="eyebrow">Paramètres</span>
           <h1 className="text-title">Webhooks</h1>
-          <p className="muted-text">
-            Envoyez les champs d’une fiche vers un service HTTP externe, depuis une action sur la
-            fiche. Un endpoint est rattaché à un chatbot et, optionnellement, à une fiche de
-            collecte (les modèles de raisonnement restent supportés pour l’existant).
-          </p>
         </div>
       </div>
 

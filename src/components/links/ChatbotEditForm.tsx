@@ -540,6 +540,16 @@ export function ChatbotEditForm({
                     current === null ? current : { ...current, mediaSelection },
                   )
                 }
+                mediaAccess={config.mediaAccess}
+                onMediaAccessChange={(mediaAccess) =>
+                  setConfig((current) => (current === null ? current : { ...current, mediaAccess }))
+                }
+                mediaMaxResults={config.mediaMaxResults}
+                onMediaMaxResultsChange={(mediaMaxResults) =>
+                  setConfig((current) =>
+                    current === null ? current : { ...current, mediaMaxResults },
+                  )
+                }
                 chatLinkId={link.id}
                 onUploadPhoto={uploadDraftPhoto}
                 onRemovePhoto={removeDraftPhoto}
