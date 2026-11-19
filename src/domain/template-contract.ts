@@ -167,7 +167,7 @@ export type TemplateContextPayload = {
   /** Politique de confidentialité rattachée au lien (null si aucune). */
   consent: { texte: string; lien: string } | null;
   state: {
-    phase: "identity" | "chat";
+    phase: "identity" | "otp" | "chat";
     status: "en_cours" | "finalisee";
     messages: TemplateMessage[];
     typing: boolean;
@@ -205,6 +205,8 @@ export type TemplateAction =
     }
   | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
+  | { action: "requestOtp"; payload: { email: string; consentement?: boolean } }
+  | { action: "verifyOtp"; payload: { challengeId: string; code: string } }
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
   | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
@@ -346,6 +348,21 @@ export function parseTemplateAction(
       if (attachmentId === "") return { ok: false, error: "attachmentId requis" };
       return { ok: true, value: { action, payload: { attachmentId } } };
     }
+    case "requestOtp": {
+      const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+      if (!EMAIL_PATTERN.test(email)) return { ok: false, error: "email invalide" };
+      return {
+        ok: true,
+        value: { action, payload: { email, consentement: payload.consentement === true } },
+      };
+    }
+    case "verifyOtp": {
+      const challengeId = typeof payload.challengeId === "string" ? payload.challengeId.trim() : "";
+      const code = typeof payload.code === "string" ? payload.code.trim() : "";
+      if (challengeId === "") return { ok: false, error: "challengeId requis" };
+      if (!/^\d{6}$/.test(code)) return { ok: false, error: "code invalide" };
+      return { ok: true, value: { action, payload: { challengeId, code } } };
+    }
     case "submitIdentity": {
       const nom = typeof payload.nom === "string" ? payload.nom.trim() : "";
       const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
@@ -468,7 +485,7 @@ export type BuildTemplateContextInput = {
   /** Valeurs brutes du lien ; résolues contre le schéma par le constructeur. */
   params?: TemplateParamValues;
   consent: { texte: string; lien: string } | null;
-  phase: "identity" | "chat";
+  phase: "identity" | "otp" | "chat";
   status: "en_cours" | "finalisee";
   messages: TemplateMessage[];
   typing: boolean;

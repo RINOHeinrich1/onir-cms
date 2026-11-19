@@ -189,6 +189,29 @@ export default async function ChatPortalPage({ params }: PageProps) {
 
   if (link.type === "standard" && channel.identificationMode === "otp") {
     if (spec !== null) {
+      // Le template déclare otp : il rend son propre écran, le host garde la
+      // vérification et la création de session via actions OTP.
+      if (spec.identificationModes?.includes("otp") === true) {
+        const context = await buildLinkContext(deps, link, spec, {
+          phase: "otp",
+          messages: [],
+          consent,
+          surface: "page",
+          channel,
+        });
+        return (
+          <main className="chat-page template-page">
+            <TemplateLoader />
+            <TemplateHost
+              token={token}
+              template={spec}
+              baseContext={context}
+              conversationId={null}
+              initialMessages={[]}
+            />
+          </main>
+        );
+      }
       const context = await buildLinkContext(deps, link, spec, {
         phase: "chat",
         messages: [],
