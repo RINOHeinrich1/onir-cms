@@ -5,6 +5,29 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.20](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.19...v0.38.20) (2026-11-19)
+
+
+### Features
+
+* **liens:** refonte UI/UX des paramètres d'affichage
+* **liens:** sélecteur de chatbot, confirmation des changements non enregistrés
+* **liens:** aperçu plein écran, zoom et ouverture externe
+* **liens:** n'afficher que les templates installés pour l'organisation
+
+
+## [0.38.19](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.18...v0.38.19) (2026-11-19)
+
+
+### Features
+
+* **webhooks:** déclencheurs automatiques sur le cycle de vie des fiches
+* **webhooks:** contrat de payload et garde d'exécution
+* **webhooks:** déclencheur ET sur un groupe de champs
+* **fiches:** contexte runtime des erreurs pour les réponses IA
+* **webhooks:** interface de configuration en bêta
+
+
 ## [0.38.18](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.17...v0.38.18) (2026-11-19)
 
 
