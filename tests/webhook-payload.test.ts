@@ -68,6 +68,7 @@ function endpoint(overrides: Partial<WebhookEndpoint> = {}): WebhookEndpoint {
     headers: [{ name: "X-Client", value: "onir-cms", secret: false }],
     bodyMode: "json",
     bodyTemplate: "",
+    triggers: [],
     fieldMappings: [
       {
         source: "field",

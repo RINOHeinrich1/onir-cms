@@ -5,6 +5,7 @@ import type {
   WebhookFieldMapping,
   WebhookHeader,
   WebhookQueryParam,
+  WebhookTrigger,
 } from "@/domain/entities/webhook";
 
 export type WebhookAuthDto = WebhookAuth;
@@ -23,6 +24,7 @@ export type WebhookEndpointAdminDto = {
   bodyMode: WebhookEndpoint["bodyMode"];
   bodyTemplate: string;
   fieldMappings: WebhookFieldMapping[];
+  triggers: WebhookTrigger[];
   auth: WebhookAuthDto;
   authConfigured: boolean;
   timeoutMs: number;
@@ -51,6 +53,11 @@ export type WebhookDeliveryDto = {
   ficheId: string | null;
   chatLinkId: string | null;
   ficheKey: string | null;
+  ficheEventId: string | null;
+  eventType: string | null;
+  source: string | null;
+  conversationId: string | null;
+  ficheInstanceId: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDelivery["status"];
@@ -112,6 +119,7 @@ export function toWebhookEndpointAdminDto(endpoint: WebhookEndpoint): WebhookEnd
     bodyMode: endpoint.bodyMode,
     bodyTemplate: endpoint.bodyTemplate,
     fieldMappings: endpoint.fieldMappings,
+    triggers: endpoint.triggers,
     auth: maskAuth(endpoint.auth),
     authConfigured: endpoint.auth.type !== "none",
     timeoutMs: endpoint.timeoutMs,
@@ -144,6 +152,11 @@ export function toWebhookDeliveryDto(delivery: WebhookDelivery): WebhookDelivery
     ficheId: delivery.ficheId,
     chatLinkId: delivery.chatLinkId,
     ficheKey: delivery.ficheKey,
+    ficheEventId: delivery.ficheEventId,
+    eventType: delivery.eventType,
+    source: delivery.source,
+    conversationId: delivery.conversationId,
+    ficheInstanceId: delivery.ficheInstanceId,
     isTest: delivery.isTest,
     replayOfId: delivery.replayOfId,
     status: delivery.status,

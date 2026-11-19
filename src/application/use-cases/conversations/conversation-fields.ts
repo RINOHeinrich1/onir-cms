@@ -8,12 +8,19 @@ import type { ChatOperatorScopeRepository } from "@/application/ports/chat-opera
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationFieldRepository } from "@/application/ports/conversation-field-repository";
+import type { ConversationIncidentRepository } from "@/application/ports/conversation-incident-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import { withAiUsage } from "@/application/use-cases/ai/with-ai-usage";
 import { assertTokenBudgetAvailable } from "@/application/use-cases/chat/chat-link-quota";
 import { ficheToDefinition } from "@/application/use-cases/chat/chatbot-config-runtime";
 import { resolveConversationLinkScope } from "@/application/use-cases/chat-operators/resolve-chat-scope";
+import { recordConversationIncident } from "@/application/use-cases/conversations/conversation-incidents";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
+import {
+  attachmentCountsForConversation,
+  type FicheEventRecorderDependencies,
+  recordFicheTransition,
+} from "@/application/use-cases/webhooks/record-fiche-events";
 import type { Conversation } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { ChatbotConfig, FicheDefinition } from "@/domain/entities/chatbot-config";
@@ -36,6 +43,8 @@ export type ConversationFieldsDependencies = {
   attachments: AttachmentRepository;
   fields: ConversationFieldRepository;
   ai: AiClientFactory;
+  ficheEvents?: FicheEventRecorderDependencies;
+  incidents?: ConversationIncidentRepository;
 };
 
 type Context = {
@@ -313,23 +322,44 @@ async function persistFicheData(
   const merged = { ...(target.instance?.data ?? {}), ...values };
   const fields = buildFieldViews(target.fiche.fields, merged, {});
   const missingFields = fields.filter((field) => field.missing).map((field) => field.name);
-  if (target.instance === null) {
-    const hasActive = context.instances.some((instance) => instance.status === "active");
-    await deps.ficheInstances.upsert({
+  const before = target.instance;
+  const saved =
+    target.instance === null
+      ? await deps.ficheInstances.upsert({
+          organizationId,
+          conversationId: context.conversation.id,
+          configId: context.config.id,
+          ficheKey: target.fiche.key,
+          status: context.instances.some((instance) => instance.status === "active")
+            ? "detected"
+            : "active",
+          data: values,
+          missingFields,
+        })
+      : await deps.ficheInstances.update(organizationId, target.instance.id, {
+          data: values,
+          missingFields,
+        });
+  if (saved !== null && deps.ficheEvents !== undefined) {
+    const attachmentCounts = await attachmentCountsForConversation(
+      deps.ficheEvents.attachments,
       organizationId,
+      context.conversation.id,
+    );
+    await recordFicheTransition(deps.ficheEvents, {
+      organizationId,
+      config: context.config,
       conversationId: context.conversation.id,
-      configId: context.config.id,
-      ficheKey: target.fiche.key,
-      status: hasActive ? "detected" : "active",
-      data: values,
-      missingFields,
+      prospectId: context.conversation.prospectId,
+      instance: saved,
+      before: {
+        data: before?.data ?? {},
+        status: before?.status ?? "detected",
+        attachmentCounts: before === null ? {} : attachmentCounts,
+      },
+      afterAttachmentCounts: attachmentCounts,
     });
-    return;
   }
-  await deps.ficheInstances.update(organizationId, target.instance.id, {
-    data: values,
-    missingFields,
-  });
 }
 
 export async function getConversationFields(
@@ -459,6 +489,12 @@ export async function refreshConversationFields(
         error: message,
       })
       .catch(() => undefined);
+    if (deps.incidents !== undefined) {
+      await recordConversationIncident(
+        { conversations: deps.conversations, links: deps.links, incidents: deps.incidents },
+        { conversationId, kind: "field_extraction_failed", detail: message },
+      );
+    }
     if (error instanceof AppError) throw error;
     throw new BadGatewayError(message);
   }

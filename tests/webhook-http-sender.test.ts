@@ -25,6 +25,7 @@ const ENDPOINT: WebhookEndpoint = {
   bodyMode: "json",
   bodyTemplate: "",
   fieldMappings: [],
+  triggers: [],
   auth: { type: "none" },
   timeoutMs: 5000,
   maxAttempts: 1,

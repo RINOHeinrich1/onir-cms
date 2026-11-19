@@ -353,6 +353,7 @@ export async function buildWebhookRequest(
   deps: BuildWebhookRequestDependencies,
   endpoint: WebhookEndpoint,
   fiche: Fiche,
+  attachmentsOverride?: readonly FicheAttachment[],
 ): Promise<BuiltWebhookRequest> {
   const definition = resolveDefinition(fiche);
 
@@ -360,7 +361,8 @@ export async function buildWebhookRequest(
     fiche.prospectId === null
       ? null
       : await deps.prospects.findById(endpoint.organizationId, fiche.prospectId);
-  const attachments = await deps.attachments.listByFiche(endpoint.organizationId, fiche.id);
+  const attachments =
+    attachmentsOverride ?? (await deps.attachments.listByFiche(endpoint.organizationId, fiche.id));
   const groups = fieldGroups(attachments);
   const values = baseValues(definition, fiche, prospect, attachments);
   const fields: Record<string, unknown> = {};

@@ -5,6 +5,10 @@ import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
 import { ficheToDefinition } from "@/application/use-cases/chat/chatbot-config-runtime";
+import {
+  type FicheEventRecorderDependencies,
+  recordFicheTransition,
+} from "@/application/use-cases/webhooks/record-fiche-events";
 import type { FicheDefinition } from "@/domain/entities/chatbot-config";
 import { isFieldEmpty, isFieldRequired } from "@/domain/entities/conversation-field";
 import { validatePartialTemplateData } from "@/domain/validate-template-data";
@@ -15,6 +19,7 @@ export type SubmitChatCollectionDependencies = {
   configs: ChatbotConfigRepository;
   ficheInstances: ConversationFicheInstanceRepository;
   attachments: AttachmentRepository;
+  ficheEvents?: FicheEventRecorderDependencies;
 };
 
 export type SubmitChatCollectionInput = {
@@ -181,6 +186,7 @@ export async function submitChatCollection(
     attachmentCounts[attachment.fieldName] = (attachmentCounts[attachment.fieldName] ?? 0) + 1;
   }
   const missing = missingFields(fiche, validated.value, attachmentCounts);
+  const before = target;
   const targetWasActive = target?.status === "active";
   if (target === undefined) {
     target = await deps.ficheInstances.upsert({
@@ -205,6 +211,21 @@ export async function submitChatCollection(
     missingFields: missing,
   });
   if (updated === null) throw new AppError("Impossible de mettre à jour la fiche", 500);
+  if (deps.ficheEvents !== undefined) {
+    await recordFicheTransition(deps.ficheEvents, {
+      organizationId: conversation.organizationId,
+      config,
+      conversationId: conversation.id,
+      prospectId: conversation.prospectId,
+      instance: updated,
+      before: {
+        data: before?.data ?? {},
+        status: before?.status ?? "detected",
+        attachmentCounts: before === undefined ? {} : attachmentCounts,
+      },
+      afterAttachmentCounts: attachmentCounts,
+    });
+  }
   if (typeof deps.conversations.appendMessage === "function") {
     await deps.conversations
       .appendMessage(

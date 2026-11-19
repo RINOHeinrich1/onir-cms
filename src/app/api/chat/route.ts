@@ -18,12 +18,15 @@ import { pgConversationFicheInstanceRepository } from "@/infrastructure/db/conve
 import { pgConversationIncidentRepository } from "@/infrastructure/db/conversation-incident-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
+import { pgFicheRuntimeContextRepository } from "@/infrastructure/db/fiche-runtime-context-repository";
 import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationAiQuotaRepository } from "@/infrastructure/db/organization-ai-quota-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
+import { pgWebhookEndpointRepository } from "@/infrastructure/db/webhook-endpoint-repository";
 import { publishChatEvent } from "@/lib/chat-events";
 import { chatMessageLimiter } from "@/lib/chat-limiters";
 import { errorResponse } from "../_lib/errors";
@@ -75,9 +78,15 @@ export async function POST(request: Request): Promise<NextResponse> {
         configs: pgChatbotConfigRepository(pool),
         hotSet: getChatbotHotSet() ?? undefined,
         ficheInstances: pgConversationFicheInstanceRepository(pool),
+        ficheEvents: {
+          endpoints: pgWebhookEndpointRepository(pool),
+          events: pgFicheEventRepository(pool),
+          attachments: pgAttachmentRepository(pool),
+        },
         ficheTools,
         ficheCollectes: pgFicheCollecteRepository(pool),
         searchSessions: pgChatSearchSessionRepository(pool),
+        ficheRuntimeContext: pgFicheRuntimeContextRepository(pool),
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );

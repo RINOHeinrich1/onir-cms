@@ -24,6 +24,10 @@ import {
 } from "@/application/use-cases/chat/fiche-instances";
 import { draftTemplateDataWithClients } from "@/application/use-cases/fiche/draft-fiche";
 import { defaultStatusKeyFor } from "@/application/use-cases/fiche/manage-fiche-status";
+import {
+  type FicheEventRecorderDependencies,
+  recordValidatedFiche,
+} from "@/application/use-cases/webhooks/record-fiche-events";
 import { type ChatLink, type Conversation, channelsForLink } from "@/domain/entities/chat";
 import type { TemplateDefinition } from "@/domain/entities/chat-template";
 import type { ChatbotConfig } from "@/domain/entities/chatbot-config";
@@ -52,6 +56,7 @@ export type FinishConversationDependencies = {
   configs?: ChatbotConfigRepository;
   /** Registre des instances de fiches (ADR-0049). */
   ficheInstances?: ConversationFicheInstanceRepository;
+  ficheEvents?: FicheEventRecorderDependencies;
 };
 
 export type FinishedFiche = {
@@ -599,6 +604,17 @@ async function finishConfigConversation(
   if (options.finalize) {
     await deps.conversations.setOutcome?.(organizationId, conversation.id, "fiches_creees");
     await deps.conversations.markFinalisee(organizationId, conversation.id);
+  }
+  if (deps.ficheEvents !== undefined) {
+    for (const entry of built) {
+      await recordValidatedFiche(deps.ficheEvents, {
+        organizationId,
+        config,
+        conversationId: conversation.id,
+        prospectId: sharedProspect?.id ?? conversation.prospectId,
+        fiche: entry.fiche,
+      });
+    }
   }
   return {
     fiches: built,

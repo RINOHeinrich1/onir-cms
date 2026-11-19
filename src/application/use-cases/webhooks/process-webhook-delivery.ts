@@ -1,7 +1,10 @@
 import { WebhookSendError } from "@/application/ports/webhook-sender";
 import { buildWebhookRequest } from "@/application/use-cases/webhooks/build-webhook-request";
 import type { WebhookExecutionDependencies } from "@/application/use-cases/webhooks/trigger-webhook";
+import type { FicheAttachment } from "@/domain/entities/attachment";
+import type { Fiche } from "@/domain/entities/fiche";
 import type { WebhookDelivery } from "@/domain/entities/webhook";
+import type { FicheLifecycleEvent } from "@/domain/entities/webhook-event";
 
 function retryableStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status >= 500;
@@ -49,10 +52,50 @@ export async function processWebhookDelivery(
     return failed ?? delivery;
   }
 
-  const fiche =
-    delivery.ficheId === null
-      ? null
-      : await deps.fiches.findById(delivery.organizationId, delivery.ficheId);
+  let fiche: Fiche | null = null;
+  let event: FicheLifecycleEvent | null = null;
+  let attachmentsOverride: FicheAttachment[] | undefined;
+  if (delivery.ficheEventId !== null) {
+    event = await deps.events.findById(delivery.organizationId, delivery.ficheEventId);
+    if (event === null) {
+      const failed = await deps.deliveries.markFailed(delivery.id, {
+        status: null,
+        body: null,
+        errorCode: "event_missing",
+        errorMessage: "Événement webhook introuvable",
+        durationMs: null,
+      });
+      return failed ?? delivery;
+    }
+    const payload = event.payload;
+    fiche = {
+      id: event.ficheId ?? event.ficheInstanceId ?? event.id,
+      organizationId: event.organizationId,
+      conversationId: event.conversationId,
+      prospectId: payload.prospectId,
+      createdBy: null,
+      definition: payload.definition,
+      data: payload.data,
+      archivee: false,
+      configId: event.configId,
+      ficheKey: event.ficheKey,
+      conversationFicheInstanceId: event.ficheInstanceId,
+      chatLinkIds: event.chatLinkId === null ? [] : [event.chatLinkId],
+      createdAt: event.occurredAt,
+    };
+    if (event.conversationId !== null) {
+      const conversationAttachments = await deps.attachments.listByConversation(
+        event.organizationId,
+        event.conversationId,
+      );
+      attachmentsOverride = conversationAttachments.map((attachment) => ({
+        ...attachment,
+        ficheId: event?.ficheId ?? "",
+      }));
+    }
+  } else if (delivery.ficheId !== null) {
+    fiche = await deps.fiches.findById(delivery.organizationId, delivery.ficheId);
+  }
   if (fiche === null) {
     const failed = await deps.deliveries.markFailed(delivery.id, {
       status: null,
@@ -79,7 +122,7 @@ export async function processWebhookDelivery(
   }
 
   try {
-    const built = await buildWebhookRequest(deps, endpoint, fiche);
+    const built = await buildWebhookRequest(deps, endpoint, fiche, attachmentsOverride);
     built.request.headers["Idempotency-Key"] = delivery.idempotencyKey;
     const result = await deps.sender.send(endpoint, built.request);
     const success = result.status >= 200 && result.status < 300;

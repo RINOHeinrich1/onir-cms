@@ -4,6 +4,7 @@ import { NotFoundError, UnprocessableError, ValidationError } from "@/applicatio
 import type { AttachmentRepository } from "@/application/ports/attachment-repository";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { FicheEventRepository } from "@/application/ports/fiche-event-repository";
 import type { FicheRepository } from "@/application/ports/fiche-repository";
 import type { ProspectRepository } from "@/application/ports/prospect-repository";
 import type {
@@ -34,6 +35,7 @@ import { buildSampleData } from "@/domain/template-preview";
 export type WebhookExecutionDependencies = {
   endpoints: WebhookEndpointRepository;
   deliveries: WebhookDeliveryRepository;
+  events: FicheEventRepository;
   configs: ChatbotConfigRepository;
   fiches: FicheRepository;
   prospects: ProspectRepository;
@@ -161,6 +163,11 @@ export async function triggerWebhook(
     ficheId: fiche.id,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
+    ficheEventId: null,
+    eventType: null,
+    source: null,
+    conversationId: fiche.conversationId,
+    ficheInstanceId: fiche.conversationFicheInstanceId ?? null,
     isTest: false,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -240,6 +247,11 @@ export async function testWebhook(
     ficheId: ficheId,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
+    ficheEventId: null,
+    eventType: null,
+    source: null,
+    conversationId: fiche.conversationId,
+    ficheInstanceId: fiche.conversationFicheInstanceId ?? null,
     isTest: true,
     replayOfId: null,
     idempotencyKey: randomUUID(),
@@ -362,6 +374,11 @@ export async function retryWebhookDeliveryForOrganization(
     ficheId: fiche.id,
     chatLinkId: endpoint.chatLinkId,
     ficheKey: fiche.ficheKey ?? endpoint.ficheKey,
+    ficheEventId: null,
+    eventType: null,
+    source: null,
+    conversationId: fiche.conversationId,
+    ficheInstanceId: fiche.conversationFicheInstanceId ?? null,
     isTest: false,
     replayOfId: previous.id,
     idempotencyKey: randomUUID(),

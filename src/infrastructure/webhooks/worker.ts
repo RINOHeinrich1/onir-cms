@@ -1,7 +1,9 @@
+import { dispatchFicheEvents } from "@/application/use-cases/webhooks/dispatch-fiche-events";
 import { processWebhookDelivery } from "@/application/use-cases/webhooks/process-webhook-delivery";
 import type { WebhookExecutionDependencies } from "@/application/use-cases/webhooks/trigger-webhook";
 import { pgAttachmentRepository } from "@/infrastructure/db/attachment-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
 import { pgFicheRepository } from "@/infrastructure/db/fiche-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
@@ -23,6 +25,7 @@ function dependencies(): WebhookExecutionDependencies {
   return {
     endpoints: pgWebhookEndpointRepository(pool),
     deliveries: pgWebhookDeliveryRepository(pool),
+    events: pgFicheEventRepository(pool),
     configs: pgChatbotConfigRepository(pool),
     fiches: pgFicheRepository(pool),
     prospects: pgProspectRepository(pool),
@@ -41,6 +44,7 @@ async function tick(): Promise<void> {
       lastPurge = Date.now();
       await deps.deliveries.purgeOlderThan(30).catch(() => undefined);
     }
+    await dispatchFicheEvents(deps, 50).catch(() => undefined);
     for (let index = 0; index < CONCURRENCY; index += 1) {
       const delivery = await deps.deliveries.claimNext();
       if (delivery === null) break;
