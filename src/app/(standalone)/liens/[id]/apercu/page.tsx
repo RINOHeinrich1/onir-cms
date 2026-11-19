@@ -7,7 +7,6 @@ import {
   type LinkTemplateDependencies,
   loadTemplateSpec,
 } from "@/application/use-cases/visual-templates/link-template";
-import { listVisualTemplates } from "@/application/use-cases/visual-templates/manage-visual-templates";
 import { LinkDisplaySettings } from "@/components/links/LinkDisplaySettings";
 import type { VisualTemplateOption } from "@/components/links/types";
 import { TemplateHost } from "@/components/templates/TemplateHost";
@@ -60,16 +59,17 @@ function decodeTemplateOverride(
 }
 
 async function loadVisualTemplateOptions(
-  actor: Parameters<typeof listVisualTemplates>[1],
+  organizationId: string,
   pool: ReturnType<typeof getPool>,
 ): Promise<VisualTemplateOption[]> {
   const repository = pgVisualTemplateRepository(pool);
-  const templates = await listVisualTemplates({ templates: repository }, actor);
+  const templates = await repository.listForOrganization(organizationId);
   return Promise.all(
     templates.map(async (item) => ({
       id: item.id,
       key: item.key,
       name: item.name,
+      description: item.description,
       versions: (await repository.listVersions(item.id)).map((version) => ({
         version: version.version,
         params: version.manifest.params,
@@ -95,9 +95,15 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
   if (rawLink === null) notFound();
   const [link] = await linkListItems(repository, [rawLink]);
   if (link === undefined) notFound();
+  const allLinks = await repository.list(organizationId);
+  const linkOptions = allLinks.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    type: entry.type,
+  }));
 
   const channels = channelsForLink(link);
-  const visualTemplates = await loadVisualTemplateOptions(sessionContext.actor, pool);
+  const visualTemplates = await loadVisualTemplateOptions(organizationId, pool);
   const canEdit = actorCan(sessionContext.actor, "links:update");
   const requested = requestedSurface(query.surface);
   const fallbackSurface: ChatLinkSurface = channels.page.enabled
@@ -108,9 +114,10 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
 
   if (query.embed !== "1") {
     return (
-      <main className="wrap dashboard-main">
+      <main className="display-studio-page">
         <LinkDisplaySettings
           link={link}
+          linkOptions={linkOptions}
           visualTemplates={visualTemplates}
           canEdit={canEdit}
           initialSurface={requested ?? fallbackSurface}
