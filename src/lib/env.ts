@@ -119,6 +119,14 @@ export function realtimeMode(): RealtimeMode {
 }
 
 /**
+ * Studio de personnalisation de template (route de test).
+ * Actif automatiquement hors production, ou explicitement via le drapeau.
+ */
+export function templateStudioEnabled(): boolean {
+  return env("NODE_ENV") !== "production" || env("TEMPLATE_STUDIO_ENABLED") === "true";
+}
+
+/**
  * Garde-fous de topologie : refuse les combinaisons qui produiraient des
  * fichiers ou des événements incohérents entre instances.
  */

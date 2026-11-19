@@ -1,10 +1,9 @@
 import type { ChatbotDraft } from "@/application/ports/chatbot-draft-repository";
 import type { ChatLinkListItem } from "@/application/use-cases/links/link-urls";
 import type { WithCreatorLabel } from "@/application/use-cases/shared/creator-labels";
+import type { VisualTemplateOptionView } from "@/application/use-cases/visual-templates/visual-template-options";
 import type { ChatLink } from "@/domain/entities/chat";
 import type { Prospect } from "@/domain/entities/prospect";
-import type { TemplateParamSchema } from "@/domain/template-params";
-import type { WidgetDisplay } from "@/domain/widget";
 
 /** Lien exposé au client (jamais le hash du jeton). */
 export type ChatLinkDto = ChatLink;
@@ -22,16 +21,7 @@ export type AiProviderOption = {
   defaultModel: string | null;
 };
 /** Template visuel + versions installées (rattachement d'un lien). */
-export type VisualTemplateOption = {
-  id: string;
-  key: string;
-  name: string;
-  versions: {
-    version: string;
-    params: TemplateParamSchema[];
-    widget: WidgetDisplay | null;
-  }[];
-};
+export type VisualTemplateOption = VisualTemplateOptionView;
 
 export type CreatedLink = {
   link: ChatLinkDto;

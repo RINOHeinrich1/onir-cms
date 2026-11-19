@@ -54,11 +54,13 @@ export function LinkDisplaySettings({
   visualTemplates,
   canEdit,
   initialSurface,
+  studioHref = null,
 }: {
   link: ChatLinkWithUrl;
   visualTemplates: VisualTemplateOption[];
   canEdit: boolean;
   initialSurface: ChatLinkSurface;
+  studioHref?: string | null;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -169,6 +171,11 @@ export function LinkDisplaySettings({
   return (
     <section className="display-settings-page">
       <div className="display-settings-back-row">
+        {studioHref === null ? null : (
+          <a className="btn ghost small" href={studioHref}>
+            Studio template
+          </a>
+        )}
         <a className="btn ghost small" href="/liens">
           ← Chatbots
         </a>

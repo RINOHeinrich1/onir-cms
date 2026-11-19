@@ -15,8 +15,9 @@ export async function GET(
 ): Promise<NextResponse | Response> {
   try {
     const { templateId, version } = await context.params;
-    const surface =
-      new URL(request.url).searchParams.get("surface") === "widget" ? "widget" : "page";
+    const query = new URL(request.url).searchParams;
+    const surface = query.get("surface") === "widget" ? "widget" : "page";
+    const edit = query.get("edit") === "1";
     const repo = pgVisualTemplateRepository(getPool());
     const template = await repo.findById(templateId);
     if (template === null || template.disabledAt !== null) {
@@ -49,6 +50,7 @@ export async function GET(
           ? widget.element
           : templateVersion.manifest.ui.element,
       versionRoot,
+      edit,
     });
     const network = templateVersion.manifest.network.join(" ");
     const connectSources =

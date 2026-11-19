@@ -4,6 +4,7 @@
 
 .display-settings-back-row {
   display: flex;
+  gap: 0.4rem;
   justify-content: flex-end;
   margin-bottom: 0.85rem;
 }
