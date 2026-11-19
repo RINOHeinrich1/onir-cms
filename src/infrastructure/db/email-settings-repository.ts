@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import type { EmailSettingsRepository } from "@/application/ports/email-settings-repository";
+import type { StoredEmailSettings } from "@/domain/entities/email-settings";
 import { sealEmailSecret } from "@/infrastructure/config/email-secret-crypto";
 
 type Row = {
