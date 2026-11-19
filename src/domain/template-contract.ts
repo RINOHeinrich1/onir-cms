@@ -1,7 +1,11 @@
 import type { TemplateDataContract } from "@/domain/data-contracts";
 import type { ConnaissanceRef } from "@/domain/entities/connaissance";
 import type { UserState } from "@/domain/entities/user-state";
-import { TEMPLATE_HOST_PROTOCOL, type TemplateCapability } from "@/domain/entities/visual-template";
+import {
+  TEMPLATE_HOST_PROTOCOL,
+  type TemplateCapability,
+  type TemplateIdentificationMode,
+} from "@/domain/entities/visual-template";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { MessageBlock } from "@/domain/tool-blocks";
 
@@ -25,6 +29,8 @@ export type TemplateSpec = {
   frameUrl?: string;
   element: string | null;
   capabilities: TemplateCapability[];
+  /** Interfaces d'identification supportées par le template (ADR-0099). */
+  identificationModes?: TemplateIdentificationMode[];
   /** Schéma des variables déclarées par la version (ADR-0023). */
   params: TemplateParamSchema[];
   /** Contrats de données déclarés par la version (ADR-0026). */

@@ -43,6 +43,14 @@ export const TEMPLATE_CAPABILITIES = [
 ] as const;
 export type TemplateCapability = (typeof TEMPLATE_CAPABILITIES)[number];
 
+/** Modes d'identification dont le template sait rendre l'interface (ADR-0099). */
+export const TEMPLATE_IDENTIFICATION_MODES = ["contact", "anonymous", "otp"] as const;
+export type TemplateIdentificationMode = (typeof TEMPLATE_IDENTIFICATION_MODES)[number];
+export const DEFAULT_TEMPLATE_IDENTIFICATION_MODES: readonly TemplateIdentificationMode[] = [
+  "contact",
+  "anonymous",
+];
+
 export const TEMPLATE_SHADOW_DOMS = ["open", "closed", "none"] as const;
 export type TemplateShadowDom = (typeof TEMPLATE_SHADOW_DOMS)[number];
 
@@ -72,6 +80,8 @@ export type TemplateManifest = {
     widget?: TemplateWidgetSurface;
   };
   capabilities: TemplateCapability[];
+  /** Interfaces d'identification supportées ; absent = modes legacy. */
+  identificationModes?: TemplateIdentificationMode[];
   network: string[];
   /** Variables paramétrables déclarées (ADR-0023) ; [] si aucune. */
   params: TemplateParamSchema[];
@@ -279,6 +289,24 @@ export function validateTemplateManifest(
   }
 
   const capabilities = isStringArray(src.capabilities) ? src.capabilities : [];
+  let identificationModes: TemplateIdentificationMode[] = [
+    ...DEFAULT_TEMPLATE_IDENTIFICATION_MODES,
+  ];
+  if (src.identificationModes !== undefined) {
+    if (!isStringArray(src.identificationModes)) {
+      add("identificationModes", "liste de modes attendue");
+    } else {
+      const unique = [...new Set(src.identificationModes)];
+      for (const mode of unique) {
+        if (!(TEMPLATE_IDENTIFICATION_MODES as readonly string[]).includes(mode)) {
+          add("identificationModes", `mode inconnu : ${mode}`);
+        }
+      }
+      identificationModes = unique.filter((mode): mode is TemplateIdentificationMode =>
+        (TEMPLATE_IDENTIFICATION_MODES as readonly string[]).includes(mode),
+      );
+    }
+  }
   for (const capability of capabilities) {
     if (!(TEMPLATE_CAPABILITIES as readonly string[]).includes(capability)) {
       add("capabilities", `capacité inconnue : ${capability}`);
@@ -372,6 +400,7 @@ export function validateTemplateManifest(
         ...(widget === undefined ? {} : { widget }),
       },
       capabilities: capabilities as TemplateCapability[],
+      identificationModes,
       network: network as string[],
       params: params.ok ? params.value : [],
       dataContracts,
