@@ -90,7 +90,11 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     const versionName = url.searchParams.get("version");
     if (versionName === null) throw new ValidationError("version requise");
     const templates = pgVisualTemplateRepository(getPool());
-    const version = await templates.findVersion(id, versionName);
+    const version = await templates.findVersionForOrganization(
+      actor.organizationId,
+      id,
+      versionName,
+    );
     if (version === null) throw new ValidationError("Version inconnue");
     const repo = pgTemplateDataBindingRepository(getPool());
     const bindings = await repo.listForVersion(actor.organizationId, version.id);
@@ -124,7 +128,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     if (versionName === undefined || contractKey === undefined || name === undefined) {
       throw new ValidationError("version, contractKey et name requis");
     }
-    const version = await pgVisualTemplateRepository(getPool()).findVersion(id, versionName);
+    const version = await pgVisualTemplateRepository(getPool()).findVersionForOrganization(
+      actor.organizationId,
+      id,
+      versionName,
+    );
     if (version === null) throw new ValidationError("Version inconnue");
     const contract = (version.manifest.dataContracts ?? []).find(
       (entry) => entry.key === contractKey,
@@ -212,7 +220,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Next
       throw new ValidationError("version et contractKey requis");
     }
     const repo = pgVisualTemplateRepository(getPool());
-    const version = await repo.findVersion(id, versionName);
+    const version = await repo.findVersionForOrganization(actor.organizationId, id, versionName);
     if (version === null) throw new ValidationError("Version inconnue");
     const contract = (version.manifest.dataContracts ?? []).find(
       (entry) => entry.key === contractKey,

@@ -15,7 +15,7 @@ const starter = {
 
 function repository(overrides: Partial<VisualTemplateRepository> = {}): VisualTemplateRepository {
   return {
-    findByKey: async () => starter,
+    findPlatformByKey: async () => starter,
     findAssignedById: async () => starter,
     listVersions: async () => [
       {
@@ -114,7 +114,7 @@ describe("Starter par défaut", () => {
 
   it("revient au défaut si Starter n’est pas installé", async () => {
     const result = await resolveDefaultStarterTemplate(
-      repository({ findByKey: async () => null }),
+      repository({ findPlatformByKey: async () => null }),
       "org-1",
     );
     expect(result.template).toBeNull();

@@ -24,7 +24,11 @@ export async function PUT(request: Request, context: RouteContext): Promise<Next
     const versionName = stringField(body, "version");
     if (versionName === undefined) throw new ValidationError("version requise");
 
-    const version = await pgVisualTemplateRepository(getPool()).findVersion(id, versionName);
+    const version = await pgVisualTemplateRepository(getPool()).findVersionForOrganization(
+      actor.organizationId,
+      id,
+      versionName,
+    );
     if (version === null) throw new ValidationError("Version inconnue");
     const repo = pgTemplateDataBindingRepository(getPool());
     const existing = await repo.findById(actor.organizationId, bindingId);

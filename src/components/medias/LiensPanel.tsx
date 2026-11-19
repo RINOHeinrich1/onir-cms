@@ -33,7 +33,7 @@ export function LiensPanel({
       ) : null}
 
       <div className="table-scroll">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Libellé</th>
@@ -47,10 +47,10 @@ export function LiensPanel({
           <tbody>
             {liens.map((lien) => (
               <tr key={lien.id}>
-                <td>
+                <td data-label="Libellé">
                   <strong>{lien.libelle}</strong>
                 </td>
-                <td className="cell-contacts">
+                <td data-label="URL" className="cell-contacts">
                   <a
                     className="link"
                     href={lien.url ?? "#"}
@@ -60,17 +60,19 @@ export function LiensPanel({
                     {lien.url}
                   </a>
                 </td>
-                <td>
+                <td data-label="Portée">
                   <ChatLinkBadges ids={lien.chatLinkIds} />
                 </td>
-                <td>
+                <td data-label="Statut">
                   <span className={`badge ${lien.actif ? "" : "muted"}`}>
                     {lien.actif ? "active" : "inactive"}
                   </span>
                 </td>
-                <td>{lien.createdByLabel ?? <span className="muted-text">—</span>}</td>
+                <td data-label="Créé par">
+                  {lien.createdByLabel ?? <span className="muted-text">—</span>}
+                </td>
                 {canWrite ? (
-                  <td>
+                  <td data-label="Actions" className="cell-actions">
                     <div className="tools">
                       <button
                         type="button"

@@ -189,8 +189,13 @@ export function AiModelsPanel({
             raisonnement des modèles Gemma/Qwen Infomaniak pour éviter les boucles JSON.
           </p>
         </div>
-        <button type="button" className="btn ghost small" onClick={onClose}>
-          Fermer
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={onClose}
+          aria-label="Revenir à la liste des fournisseurs"
+        >
+          Retour
         </button>
       </div>
 

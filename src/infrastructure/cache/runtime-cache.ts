@@ -115,6 +115,81 @@ export class RuntimeCache {
     }
   }
 
+  /** Purge L1 + L2 local sans publier sur le bus central (éviction hot set). */
+  async invalidateLocalPrefix(prefix: string): Promise<void> {
+    this.removeLocalByPrefix(prefix);
+    await this.removeLocalRedisByPrefix(prefix);
+  }
+
+  /** Supprime une clé exacte du L1 et du L2 local. */
+  async deleteLocalKey(key: string): Promise<void> {
+    this.memory.delete(key);
+    if (this.local === null || this.local.status !== "ready") return;
+    try {
+      await this.local.del(key);
+    } catch {
+      // TTL de secours.
+    }
+  }
+
+  /**
+   * Ajoute/met à jour un membre du hot set et retire le LRU uniquement si la
+   * capacité est dépassée. Retourne le membre évincé, ou null.
+   */
+  async touchHotMember(
+    indexKey: string,
+    member: string,
+    score: number,
+    limit: number,
+  ): Promise<string | null> {
+    if (limit <= 0 || this.local === null || this.local.status !== "ready") return null;
+    try {
+      const result: unknown = await this.local.eval(
+        `redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
+         if redis.call('ZCARD', KEYS[1]) > tonumber(ARGV[3]) then
+           local popped = redis.call('ZPOPMIN', KEYS[1])
+           if popped[1] then return popped[1] end
+         end
+         return nil`,
+        1,
+        indexKey,
+        String(score),
+        member,
+        String(limit),
+      );
+      return typeof result === "string" && result !== "" ? result : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setHotConfig(mapKey: string, member: string, configId: string): Promise<void> {
+    if (this.local === null || this.local.status !== "ready") return;
+    try {
+      await this.local.hset(mapKey, member, configId);
+    } catch {
+      // Best-effort : le TTL de la config reste le filet de sécurité.
+    }
+  }
+
+  async getHotConfig(mapKey: string, member: string): Promise<string | null> {
+    if (this.local === null || this.local.status !== "ready") return null;
+    try {
+      return await this.local.hget(mapKey, member);
+    } catch {
+      return null;
+    }
+  }
+
+  async deleteHotConfig(mapKey: string, member: string): Promise<void> {
+    if (this.local === null || this.local.status !== "ready") return;
+    try {
+      await this.local.hdel(mapKey, member);
+    } catch {
+      // Best-effort.
+    }
+  }
+
   private async removeLocalRedisByPrefix(prefix: string): Promise<void> {
     if (this.local === null || this.local.status !== "ready") return;
     try {

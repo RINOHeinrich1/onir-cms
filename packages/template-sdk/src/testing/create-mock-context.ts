@@ -18,6 +18,14 @@ import type {
   TemplateUserState,
 } from "../types.js";
 
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
+}
+
 /**
  * Surcharge partielle et récursive d'un type de contexte.
  *
@@ -127,6 +135,12 @@ function completeMessage(input: unknown, index: number): TemplateMessage {
 function defaultActions(): TemplateActions {
   return {
     submitIdentity: () => undefined,
+    requestOtp: async () => ({
+      challengeId: "mock-challenge",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+      transport: "platform",
+    }),
+    verifyOtp: async () => undefined,
     sendMessage: () => undefined,
     attachFile: () => Promise.resolve(),
     removeAttachment: () => Promise.resolve(),
@@ -190,7 +204,7 @@ export function createMockContext(overrides: DeepPartial<OnirtechContext> = {}):
   const messages = Array.isArray(merged.state.messages) ? merged.state.messages : [];
   return {
     ...merged,
-    params: Object.freeze<TemplateParamValues>({ ...merged.params }),
+    params: deepFreeze(JSON.parse(JSON.stringify(merged.params)) as TemplateParamValues),
     state: { ...merged.state, messages: messages.map(completeMessage) },
   };
 }

@@ -8,6 +8,7 @@ import type {
   ChatLinkType,
   TokenResetMode,
 } from "@/domain/entities/chat";
+import type { TemplateParamValues } from "@/domain/template-params";
 
 export type CreateChatLinkInput = {
   /** Empreinte SHA-256 du jeton (clé de recherche, le clair n'est jamais persisté tel quel). */
@@ -33,7 +34,7 @@ export type CreateChatLinkInput = {
   visualTemplateVersion: string | null;
   visualTemplateConfig: Record<string, string>;
   /** Variables du template visuel valorisées par lien (ADR-0023). */
-  visualTemplateParams: Record<string, string | number | boolean>;
+  visualTemplateParams: TemplateParamValues;
   widgetConfig: Record<string, unknown>;
   /** Canaux page/widget (ADR-0041) ; absent = dérivé des champs legacy. */
   channels?: ChatLinkChannels;
@@ -45,6 +46,12 @@ export type CreateChatLinkInput = {
   maxTokens?: number | null;
   tokenResetMode?: TokenResetMode;
   tokenResetDays?: number | null;
+};
+
+export type RecentChatLink = {
+  organizationId: string;
+  id: string;
+  currentConfigId: string | null;
 };
 
 export type AiTokenUsageInput = {
@@ -60,6 +67,8 @@ export interface ChatLinkRepository {
   /** Résolution publique : le token porte l'organisation (jamais le client). */
   findByTokenHash(tokenHash: string): Promise<ChatLink | null>;
   list(organizationId: string): Promise<ChatLink[]>;
+  /** Liens actifs les plus récemment utilisés, pour le warm-up du cache (ADR-0094). */
+  listRecentlyActive?(limit: number): Promise<RecentChatLink[]>;
   /** Incrémente le compteur d'ouvertures publiques du lien. */
   recordVisit(organizationId: string, id: string): Promise<void>;
   create(organizationId: string, input: CreateChatLinkInput): Promise<ChatLink>;
@@ -80,7 +89,7 @@ export interface ChatLinkRepository {
       visualTemplateId?: string | null;
       visualTemplateVersion?: string | null;
       visualTemplateConfig?: Record<string, string>;
-      visualTemplateParams?: Record<string, string | number | boolean>;
+      visualTemplateParams?: TemplateParamValues;
       widgetConfig?: Record<string, unknown>;
       channels?: ChatLinkChannels;
       aiProviderId?: string | null;

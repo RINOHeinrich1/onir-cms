@@ -13,4 +13,6 @@ export async function register(): Promise<void> {
   startAppSecretsRefresh();
   const { startWebhookWorker } = await import("@/infrastructure/webhooks/worker");
   startWebhookWorker();
+  const { startChatbotCacheWarmer } = await import("@/infrastructure/cache/chatbot-cache-warmer");
+  startChatbotCacheWarmer();
 }

@@ -37,7 +37,10 @@ export async function loadTemplateSpec(
   channel: ChatLinkChannel = channelsForLink(link)[surface],
 ): Promise<TemplateSpec | null> {
   if (channel.visualTemplateId === null || channel.visualTemplateVersion === null) return null;
-  const template = await deps.visualTemplates.findById(channel.visualTemplateId);
+  const template = await deps.visualTemplates.findByIdForOrganization(
+    link.organizationId,
+    channel.visualTemplateId,
+  );
   if (template === null) return null;
   const version = await deps.visualTemplates.findVersion(
     template.id,
@@ -54,9 +57,11 @@ export async function loadTemplateSpec(
     entryUrl: `/api/template-assets/${template.id}/${version.version}/${
       surface === "widget" && widget !== undefined ? widget.entry : version.entry
     }`,
+    frameUrl: `/api/template-frame/${template.id}/${version.version}?surface=${surface}`,
     element:
       surface === "widget" && widget !== undefined ? widget.element : version.manifest.ui.element,
     capabilities: version.manifest.capabilities,
+    identificationModes: version.manifest.identificationModes ?? ["contact", "anonymous"],
     // Manifestes legacy (avant ADR-0023) : `params` absent => aucun paramètre.
     params: Array.isArray(version.manifest.params) ? version.manifest.params : [],
     dataContracts: Array.isArray(version.manifest.dataContracts)
@@ -110,7 +115,7 @@ export async function buildLinkContext(
   link: ChatLink,
   spec: TemplateSpec,
   input: {
-    phase: "identity" | "chat";
+    phase: "identity" | "otp" | "chat";
     messages: TemplateMessage[];
     consent: { texte: string; lien: string } | null;
     theme?: Record<string, string>;

@@ -18,7 +18,7 @@ import { useLiveContext } from "./context.js";
 export type UseTemplateResult = {
   /** Contexte live complet (payload + actions + abonnement). */
   ctx: OnirtechContext;
-  phase: "identity" | "chat";
+  phase: "identity" | "otp" | "chat";
   messages: TemplateMessage[];
   params: TemplateParamValues;
   capabilities: readonly TemplateCapability[];

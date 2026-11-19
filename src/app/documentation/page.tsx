@@ -22,10 +22,6 @@ export default function DocumentationIndexPage() {
         <div>
           <span className="eyebrow">Documentation</span>
           <h1 className="text-title">Documentation ONIR CMS</h1>
-          <p className="hint">
-            Installer ONIR CMS, puis créer et intégrer un template visuel : guide, API, actions et
-            contrat hôte.
-          </p>
         </div>
       </div>
 

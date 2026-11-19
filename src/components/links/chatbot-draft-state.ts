@@ -1,6 +1,7 @@
 import { AI_LINK_USAGES, type AiLinkTarget, type AiLinkUsage } from "@/domain/entities/ai-usage";
 import type { ChatLinkSources, ChatLinkSurface, ChatLinkType } from "@/domain/entities/chat";
 import { isChatLinkSurface, isChatLinkType, parseLinkSources } from "@/domain/entities/chat";
+import { normalizeTemplateParamValues, type TemplateParamValues } from "@/domain/template-params";
 import { isWidgetPosition } from "@/domain/widget";
 import type { LinkAiValue } from "./AiAssignmentField";
 import {
@@ -105,21 +106,16 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function params(value: unknown): Record<string, string | number | boolean> {
-  const source = record(value);
-  const result: Record<string, string | number | boolean> = {};
-  for (const [key, entry] of Object.entries(source)) {
-    if (typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
-      result[key] = entry;
-    }
-  }
-  return result;
+function params(value: unknown): TemplateParamValues {
+  return normalizeTemplateParamValues(value);
 }
 
 function parseChannel(input: unknown, fallback: ChannelDraft): ChannelDraft {
   const source = record(input);
   const identificationMode =
-    source.identificationMode === "anonymous" || source.identificationMode === "contact"
+    source.identificationMode === "anonymous" ||
+    source.identificationMode === "contact" ||
+    source.identificationMode === "otp"
       ? source.identificationMode
       : fallback.identificationMode;
   const widgetPosition =
@@ -280,6 +276,8 @@ function configComparable(config: ChatbotConfigDraft): string {
     })),
     dataSelection: config.dataSelection,
     mediaSelection: config.mediaSelection,
+    mediaAccess: config.mediaAccess,
+    mediaMaxResults: config.mediaMaxResults,
     fallback: config.fallback,
     searchTool: config.searchTool,
   });

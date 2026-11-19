@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -14,9 +13,10 @@ type LoginResponse = {
   error?: string;
 };
 
+const CLOUD_OFFERS_URL = "https://onir-cms.tech/tarifs/#offres-cloud";
+
 /** Formulaire de connexion (US-AUTH-001) — honeypot + redirection rotation. */
-export function LoginForm() {
-  const router = useRouter();
+export function LoginForm({ commercial = false }: { commercial?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
@@ -49,15 +49,15 @@ export function LoginForm() {
         setError(json.error ?? "Connexion impossible");
         return;
       }
-      if (json.mustChangePassword === true) {
-        router.replace("/change-password");
-      } else if (json.organization == null) {
-        // État « aucune organisation » (ADR-0025 §4).
-        router.replace(NO_ORGANIZATION_PATH);
-      } else {
-        router.replace("/dashboard");
-      }
-      router.refresh();
+      const target =
+        json.mustChangePassword === true
+          ? "/change-password"
+          : json.organization == null
+            ? NO_ORGANIZATION_PATH
+            : "/dashboard";
+      // Navigation document complète : évite la course replace/refresh et garantit
+      // que le cookie de session est présent au premier rendu serveur (ADR-0092).
+      window.location.replace(target);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -90,6 +90,12 @@ export function LoginForm() {
       <button type="submit" className="btn" disabled={pending || !ready}>
         {pending ? "Connexion…" : "Se connecter"}
       </button>
+
+      {commercial ? (
+        <p className="auth-switch">
+          <a href={CLOUD_OFFERS_URL}>Pas de compte ? Créer ici</a>
+        </p>
+      ) : null}
     </form>
   );
 }

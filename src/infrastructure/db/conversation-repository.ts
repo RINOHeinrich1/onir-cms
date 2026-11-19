@@ -430,6 +430,14 @@ export function pgConversationRepository(pool: Pool): ConversationRepository {
       return toConversation(row);
     },
 
+    async markEmailVerified(organizationId, id, verifiedAt): Promise<void> {
+      await pool.query(
+        `UPDATE conversations SET visitor_email_verified_at = $1, updated_at = now()
+          WHERE organization_id = $2 AND id = $3`,
+        [verifiedAt, organizationId, id],
+      );
+    },
+
     async setConfig(organizationId, id, configId, activeFicheInstanceId = null): Promise<void> {
       await pool.query(
         `UPDATE conversations

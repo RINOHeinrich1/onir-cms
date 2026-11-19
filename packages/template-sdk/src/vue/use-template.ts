@@ -65,6 +65,8 @@ export function useTemplate(): UseTemplateResult {
 
   const actions: TemplateActions = {
     submitIdentity: (data) => store.value.actions.submitIdentity(data),
+    requestOtp: (data) => store.value.actions.requestOtp(data),
+    verifyOtp: (data) => store.value.actions.verifyOtp(data),
     sendMessage: (content, attachmentIds) =>
       attachmentIds === undefined
         ? store.value.actions.sendMessage(content)

@@ -1,7 +1,11 @@
 import type { TemplateDataContract } from "@/domain/data-contracts";
 import type { ConnaissanceRef } from "@/domain/entities/connaissance";
 import type { UserState } from "@/domain/entities/user-state";
-import { TEMPLATE_HOST_PROTOCOL, type TemplateCapability } from "@/domain/entities/visual-template";
+import {
+  TEMPLATE_HOST_PROTOCOL,
+  type TemplateCapability,
+  type TemplateIdentificationMode,
+} from "@/domain/entities/visual-template";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { MessageBlock } from "@/domain/tool-blocks";
 
@@ -21,8 +25,12 @@ export type TemplateSpec = {
   version: string;
   mode: "web-component" | "iframe";
   entryUrl: string;
+  /** URL du document iframe contrôlé par l'hôte (mode iframe). */
+  frameUrl?: string;
   element: string | null;
   capabilities: TemplateCapability[];
+  /** Interfaces d'identification supportées par le template (ADR-0099). */
+  identificationModes?: TemplateIdentificationMode[];
   /** Schéma des variables déclarées par la version (ADR-0023). */
   params: TemplateParamSchema[];
   /** Contrats de données déclarés par la version (ADR-0026). */
@@ -159,7 +167,7 @@ export type TemplateContextPayload = {
   /** Politique de confidentialité rattachée au lien (null si aucune). */
   consent: { texte: string; lien: string } | null;
   state: {
-    phase: "identity" | "chat";
+    phase: "identity" | "otp" | "chat";
     status: "en_cours" | "finalisee";
     messages: TemplateMessage[];
     typing: boolean;
@@ -197,6 +205,8 @@ export type TemplateAction =
     }
   | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
+  | { action: "requestOtp"; payload: { email: string; consentement?: boolean } }
+  | { action: "verifyOtp"; payload: { challengeId: string; code: string } }
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
   | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
@@ -205,6 +215,14 @@ export type TemplateAction =
       payload: { ficheKey?: string; ficheInstanceId?: string; values: Record<string, unknown> };
     }
   | { action: "request"; payload: { capability: TemplateCapability } }
+  | {
+      action: "loadData";
+      payload: {
+        requestId: string;
+        contract: string;
+        inputs?: Record<string, string | number | boolean>;
+      };
+    }
   | { action: "openMedia"; payload: { url: string } }
   | { action: "resize"; payload: { height: number } }
   | { action: "openWidget"; payload: { width?: number; height?: number } }
@@ -212,6 +230,18 @@ export type TemplateAction =
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_CONTENT = 4000;
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
+}
+
+function cloneParams(params: TemplateParamValues): TemplateParamValues {
+  return JSON.parse(JSON.stringify(params)) as TemplateParamValues;
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -318,6 +348,21 @@ export function parseTemplateAction(
       if (attachmentId === "") return { ok: false, error: "attachmentId requis" };
       return { ok: true, value: { action, payload: { attachmentId } } };
     }
+    case "requestOtp": {
+      const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+      if (!EMAIL_PATTERN.test(email)) return { ok: false, error: "email invalide" };
+      return {
+        ok: true,
+        value: { action, payload: { email, consentement: payload.consentement === true } },
+      };
+    }
+    case "verifyOtp": {
+      const challengeId = typeof payload.challengeId === "string" ? payload.challengeId.trim() : "";
+      const code = typeof payload.code === "string" ? payload.code.trim() : "";
+      if (challengeId === "") return { ok: false, error: "challengeId requis" };
+      if (!/^\d{6}$/.test(code)) return { ok: false, error: "code invalide" };
+      return { ok: true, value: { action, payload: { challengeId, code } } };
+    }
     case "submitIdentity": {
       const nom = typeof payload.nom === "string" ? payload.nom.trim() : "";
       const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
@@ -346,6 +391,42 @@ export function parseTemplateAction(
       return {
         ok: true,
         value: { action, payload: { capability: capability as TemplateCapability } },
+      };
+    }
+    case "loadData": {
+      const requestId = typeof payload.requestId === "string" ? payload.requestId.trim() : "";
+      const contract = typeof payload.contract === "string" ? payload.contract.trim() : "";
+      if (requestId === "" || requestId.length > 120) {
+        return { ok: false, error: "requestId invalide" };
+      }
+      if (!/^[a-z][a-z0-9_]{1,40}$/.test(contract)) {
+        return { ok: false, error: "contract invalide" };
+      }
+      const rawInputs = payload.inputs;
+      let inputs: Record<string, string | number | boolean> | undefined;
+      if (rawInputs !== undefined) {
+        if (rawInputs === null || typeof rawInputs !== "object" || Array.isArray(rawInputs)) {
+          return { ok: false, error: "inputs invalides" };
+        }
+        inputs = {};
+        for (const [key, value] of Object.entries(rawInputs as Record<string, unknown>)) {
+          if (typeof key !== "string" || key === "" || key.length > 64) continue;
+          if (
+            typeof value !== "string" &&
+            typeof value !== "number" &&
+            typeof value !== "boolean"
+          ) {
+            continue;
+          }
+          inputs[key] = value;
+        }
+      }
+      return {
+        ok: true,
+        value: {
+          action,
+          payload: { requestId, contract, ...(inputs === undefined ? {} : { inputs }) },
+        },
       };
     }
     case "openMedia": {
@@ -404,7 +485,7 @@ export type BuildTemplateContextInput = {
   /** Valeurs brutes du lien ; résolues contre le schéma par le constructeur. */
   params?: TemplateParamValues;
   consent: { texte: string; lien: string } | null;
-  phase: "identity" | "chat";
+  phase: "identity" | "otp" | "chat";
   status: "en_cours" | "finalisee";
   messages: TemplateMessage[];
   typing: boolean;
@@ -466,7 +547,7 @@ export function buildTemplateContext(input: BuildTemplateContextInput): Template
     locale: input.locale,
     brand: input.brand,
     theme: capabilities.has("theme") ? input.theme : {},
-    params: Object.freeze({ ...input.params }),
+    params: deepFreeze(cloneParams(input.params ?? {})),
     capabilities: input.capabilities,
     consent: input.consent,
     state: {

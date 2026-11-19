@@ -43,10 +43,6 @@ export default async function ConnaissancesPage() {
           <h1 className="text-title">Connaissances</h1>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Informations internes que l&apos;IA choisit elle-même d&apos;utiliser pour répondre (titre
-        exact, portée globale ou par modèle). Sans entrée active, le chat répond normalement.
-      </p>
       <ConnaissancesTable
         initialConnaissances={connaissancesWithCreators}
         canWrite={actorCan(context.actor, "connaissances:create")}

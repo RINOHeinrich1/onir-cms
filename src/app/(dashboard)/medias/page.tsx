@@ -40,11 +40,6 @@ export default async function MediasPage() {
           <h1 className="text-title">Médias</h1>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Photos et liens que l&apos;IA peut proposer au visiteur (libellé exact, portée globale ou
-        par modèle). Seules les sources cochées sur un lien de chat sont recherchées ; les images
-        apparaissent après la réponse.
-      </p>
       <MediasManager
         initialMedias={mediasWithCreators}
         canWrite={actorCan(context.actor, "medias:create")}

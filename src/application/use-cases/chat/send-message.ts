@@ -12,6 +12,7 @@ import type { AttachmentRepository } from "@/application/ports/attachment-reposi
 import type { ChatLinkRepository } from "@/application/ports/chat-link-repository";
 import type { ChatSearchSessionRepository } from "@/application/ports/chat-search-session-repository";
 import type { ChatbotConfigRepository } from "@/application/ports/chatbot-config-repository";
+import type { ChatbotHotSet } from "@/application/ports/chatbot-hot-set";
 import type { ConnaissanceRepository } from "@/application/ports/connaissance-repository";
 import type { ConversationFicheInstanceRepository } from "@/application/ports/conversation-fiche-instance-repository";
 import type { ConversationRepository } from "@/application/ports/conversation-repository";
@@ -92,6 +93,8 @@ export type SendMessageDependencies = {
   ai: AiClientFactory;
   /** Configuration chatbot autonome (ADR-0049). */
   configs?: ChatbotConfigRepository;
+  /** Hot set LRU des chatbots (ADR-0094). */
+  hotSet?: ChatbotHotSet | undefined;
   ficheInstances?: ConversationFicheInstanceRepository;
   /** Outils internes de recherche (P3) — absents ⇒ chemin sans outil. */
   ficheTools?: FicheToolRepository;
@@ -249,6 +252,7 @@ export async function sendMessage(
   }
   assertChatLinkAvailable(link);
   const config = await resolveCurrentConfig(deps.configs, organizationId, link);
+  if (config !== null) await deps.hotSet?.touch(organizationId, link.id, config.id);
   const instancesRepo = deps.ficheInstances;
   let activeInstance: ConversationFicheInstance | null = null;
   let templateDefinition: TemplateDefinition | null = null;

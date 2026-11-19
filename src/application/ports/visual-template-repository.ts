@@ -10,9 +10,29 @@ export type VisualTemplate = {
   name: string;
   description: string;
   author: string;
+  ownerOrganizationId: string | null;
+  uploadedBy: string | null;
+  disabledAt: string | null;
+  disabledBy: string | null;
+  disabledReason: string | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type InstallationSource =
+  | "legacy"
+  | "platform_default"
+  | "platform_admin"
+  | "organization_upload"
+  | "organization_admin";
+
+export type VisualTemplateInstallation = {
+  organizationId: string;
+  templateId: string;
+  installedBy: string | null;
+  installedAt: string;
+  source: InstallationSource;
 };
 
 export type VisualTemplateVersion = {
@@ -43,6 +63,8 @@ export type CreateVisualTemplateInput = {
   name: string;
   description: string;
   author: string;
+  ownerOrganizationId?: string | null;
+  uploadedBy?: string | null;
   createdBy: string | null;
 };
 
@@ -70,22 +92,60 @@ export type CreateVisualTemplateAssetInput = {
 export interface VisualTemplateRepository {
   /** Catalogue global (super-admin). */
   list(): Promise<VisualTemplate[]>;
-  /** Templates assignés à une organisation (ADR-0025 §6). */
+  /** Templates installés dans une organisation (ADR-0025 §6 / ADR-0091). */
   listForOrganization(organizationId: string): Promise<VisualTemplate[]>;
-  /** Template du catalogue, uniquement s'il est assigné à l'organisation. */
+  /** Catalogue plateforme non installé, visible par toutes les organisations. */
+  listAvailableForOrganization(organizationId: string): Promise<VisualTemplate[]>;
+  /** Templates privés de l'organisation. */
+  listOwnedByOrganization(organizationId: string): Promise<VisualTemplate[]>;
+  /** Template visible par une organisation (plateforme ou privé à l'org). */
+  findByIdForOrganization(
+    organizationId: string,
+    id: string,
+    includeDisabled?: boolean,
+  ): Promise<VisualTemplate | null>;
+  /** Template installé dans l'organisation. */
   findAssignedById(organizationId: string, id: string): Promise<VisualTemplate | null>;
-  /** Tous les identifiants du catalogue (assignation en masse). */
-  listAllIds(): Promise<string[]>;
-  assignAllToOrganization(organizationId: string): Promise<void>;
-  assignToAllOrganizations(templateId: string): Promise<void>;
-  unassign(organizationId: string, templateId: string): Promise<void>;
+  /** Template plateforme par clé (starter, etc.). */
+  findPlatformByKey(key: string): Promise<VisualTemplate | null>;
+  /** Template privé d'une organisation par clé. */
+  findByKeyForOrganization(organizationId: string, key: string): Promise<VisualTemplate | null>;
+  findInstallation(
+    organizationId: string,
+    templateId: string,
+  ): Promise<VisualTemplateInstallation | null>;
+  countOwnedByOrganization(organizationId: string): Promise<number>;
+  countLinkUsages(organizationId: string, templateId: string): Promise<number>;
+  /** Tous les identifiants du catalogue plateforme (assignation en masse). */
+  listAllPlatformIds(): Promise<string[]>;
+  assignAllToOrganization(organizationId: string, source?: InstallationSource): Promise<void>;
+  assignToAllOrganizations(templateId: string, source?: InstallationSource): Promise<void>;
+  install(
+    organizationId: string,
+    templateId: string,
+    actorId: string | null,
+    source: InstallationSource,
+  ): Promise<VisualTemplateInstallation>;
+  /** Retourne true si l'installation a été retirée. */
+  uninstall(organizationId: string, templateId: string): Promise<boolean>;
   findById(id: string): Promise<VisualTemplate | null>;
   findByKey(key: string): Promise<VisualTemplate | null>;
   listVersions(templateId: string): Promise<VisualTemplateVersion[]>;
   findVersion(templateId: string, version: string): Promise<VisualTemplateVersion | null>;
+  findVersionForOrganization(
+    organizationId: string,
+    templateId: string,
+    version: string,
+  ): Promise<VisualTemplateVersion | null>;
   findAsset(versionId: string, path: string): Promise<VisualTemplateAsset | null>;
   createTemplate(input: CreateVisualTemplateInput): Promise<VisualTemplate>;
   createVersion(input: CreateVisualTemplateVersionInput): Promise<VisualTemplateVersion>;
   addAsset(input: CreateVisualTemplateAssetInput): Promise<VisualTemplateAsset>;
+  setDisabled(
+    id: string,
+    disabled: boolean,
+    actorId: string | null,
+    reason: string | null,
+  ): Promise<VisualTemplate | null>;
   deleteTemplate(id: string): Promise<boolean>;
 }

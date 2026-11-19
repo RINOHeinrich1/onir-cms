@@ -202,14 +202,101 @@ describe("validateTemplateParamValues (écriture stricte)", () => {
 });
 
 describe("normalizeTemplateParamValues", () => {
-  it("ne garde que les scalaires et conserve les orphelines", () => {
+  it("conserve les structures JSON valides et écarte le reste", () => {
     expect(
-      normalizeTemplateParamValues({ a: "x", b: 2, c: true, d: { non: "scalaire" }, e: null }),
-    ).toEqual({ a: "x", b: 2, c: true });
+      normalizeTemplateParamValues({
+        a: "x",
+        b: 2,
+        c: true,
+        d: { non: "scalaire", items: [1, "deux"] },
+        e: null,
+      }),
+    ).toEqual({ a: "x", b: 2, c: true, d: { non: "scalaire", items: [1, "deux"] } });
   });
 
   it("identifie les clés non déclarées", () => {
     expect(orphanParamKeys(SCHEMA, { titre_de_livre: "x", ancien: "y" })).toEqual(["ancien"]);
+  });
+});
+
+describe("paramètres structurés (ADR-0095)", () => {
+  const structured: TemplateParamSchema[] = [
+    {
+      key: "cards",
+      label: "Cartes",
+      description: "Cartes de présentation",
+      type: "array",
+      default: [{ title: "Accueil", color: "#023777" }],
+      minItems: 1,
+      maxItems: 3,
+      items: {
+        type: "object",
+        default: {},
+        properties: [
+          { key: "title", label: "Titre", description: "", type: "string", default: "" },
+          { key: "color", label: "Couleur", description: "", type: "color", default: "#023777" },
+        ],
+      },
+    },
+  ];
+
+  it("valide un objet et un tableau d'objets", () => {
+    expect(
+      validateTemplateParamSchema([
+        {
+          key: "header",
+          label: "En-tête",
+          description: "",
+          type: "object",
+          default: { title: "ONIR" },
+          properties: [
+            { key: "title", label: "Titre", description: "", type: "string", default: "" },
+          ],
+        },
+        ...structured,
+      ]).ok,
+    ).toBe(true);
+  });
+
+  it("résout les propriétés manquantes avec les défauts imbriqués", () => {
+    expect(
+      resolveTemplateParams(structured, {
+        cards: [{ title: "Accueil" }, { title: "Contact", color: "#123456" }],
+      }),
+    ).toEqual({
+      cards: [
+        { title: "Accueil", color: "#023777" },
+        { title: "Contact", color: "#123456" },
+      ],
+    });
+  });
+
+  it("refuse un tableau sous le minItems", () => {
+    expect(resolveTemplateParams(structured, { cards: [] })).toEqual({
+      cards: [{ title: "Accueil", color: "#023777" }],
+    });
+    expect(validateTemplateParamValues(structured, { cards: [] })).toEqual([
+      { field: "cards", message: "nombre d'éléments attendu : 1..3" },
+    ]);
+  });
+
+  it("fusionne les objets et tableaux compatibles", () => {
+    const next: TemplateParamSchema[] = [
+      {
+        ...(structured[0] as TemplateParamSchema),
+        items: {
+          ...structured[0]?.items,
+          properties: [
+            ...(structured[0]?.items?.properties ?? []),
+            { key: "subtitle", label: "Sous-titre", description: "", type: "string", default: "" },
+          ],
+        },
+      } as TemplateParamSchema,
+    ];
+    const result = mergeTemplateParams(structured, next, {
+      cards: [{ title: "Accueil", color: "#123456" }],
+    });
+    expect(result.values.cards).toEqual([{ title: "Accueil", color: "#123456", subtitle: "" }]);
   });
 });
 

@@ -16,6 +16,7 @@ function deps(params: unknown): LinkTemplateDependencies {
   return {
     visualTemplates: {
       findById: async () => ({ id: "template-1" }),
+      findByIdForOrganization: async () => ({ id: "template-1" }),
       findVersion: async () => ({
         version: "1.0.0",
         mode: "web-component",

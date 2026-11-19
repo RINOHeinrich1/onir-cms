@@ -28,11 +28,23 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
     if (asset === null) {
       return NextResponse.json({ error: "Introuvable" }, { status: 404 });
     }
+    const connectSources = asset.network.length > 0 ? asset.network.join(" ") : "'none'";
     return new Response(new Uint8Array(asset.data), {
       headers: {
         "Content-Type": asset.contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
+        "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Content-Security-Policy": [
+          "sandbox allow-scripts allow-forms",
+          "default-src 'none'",
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: https:",
+          "font-src 'self' data:",
+          `connect-src ${connectSources}`,
+        ].join("; "),
       },
     });
   } catch (error) {

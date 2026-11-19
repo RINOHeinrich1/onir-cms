@@ -126,12 +126,14 @@ export function cachedConnaissanceRepository(
 
 export function cachedMediaRepository(base: MediaRepository, cache: RuntimeCache): MediaRepository {
   const config = runtimeCacheConfig();
+  // L'ordre organisation → lien → type permet la purge locale par lien lors
+  // d'une éviction du hot set (ADR-0094).
   const mediaKey = (
     organizationId: string,
     type: TypeMedia,
     chatLinkId: string,
     selection: string,
-  ): string => cache.key("media", organizationId, type, chatLinkId, selection);
+  ): string => cache.key("media", organizationId, chatLinkId, type, selection);
   const orgPrefix = (organizationId: string): string => cache.prefixFor("media", organizationId);
 
   const listAll = base.listActivesByTypeForChatLink;
