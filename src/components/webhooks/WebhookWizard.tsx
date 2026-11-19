@@ -783,10 +783,25 @@ export function WebhookWizard({
                     chatbots={chatbots}
                     value={scope}
                     labelId="wh-scope-label"
-                    onChange={(nextScope) => {
+                    onChange={async (nextScope) => {
+                      if (
+                        nextScope.chatLinkId === scope.chatLinkId &&
+                        nextScope.ficheKey === scope.ficheKey
+                      ) {
+                        return true;
+                      }
+                      if (
+                        mappings.length > 0 &&
+                        !(await confirmDialog(
+                          "Changer de périmètre effacera les champs sélectionnés à l’étape Données. Continuer ?",
+                        ))
+                      ) {
+                        return false;
+                      }
                       setScope(nextScope);
                       setMappings([]);
                       setActiveTab("model");
+                      return true;
                     }}
                   />
                   <small className="wh-hint">
@@ -904,6 +919,12 @@ export function WebhookWizard({
                   Choisissez les champs utiles et associez-les aux clés attendues par votre API.
                 </p>
               </div>
+              {mappings.length === 0 && bodyTemplate.trim() === "" ? (
+                <p className="alert warning">
+                  Aucun champ à envoyer pour le moment. Sélectionnez au moins un champ ou définissez
+                  un template de corps.
+                </p>
+              ) : null}
               <div className="wh-data-toolbar">
                 <div className="wh-tabs" role="tablist" aria-label="Catégories de champs">
                   {(["model", "meta", "prospect"] as const).map((kind) => (
@@ -1225,12 +1246,26 @@ export function WebhookWizard({
                 </Link>
                 <div className="wh-footer-actions">
                   <button
-                    className="btn ghost"
+                    className="btn ghost wh-prev-desktop"
                     type="button"
                     disabled={step === 0 || pending}
                     onClick={() => goToStep(step - 1)}
                   >
                     Précédent
+                  </button>
+                  <button
+                    className="btn ghost wh-prev-mobile"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (step === 0) {
+                        router.push("/parametres/webhooks");
+                        return;
+                      }
+                      goToStep(step - 1);
+                    }}
+                  >
+                    {step === 0 ? "Annuler" : "Précédent"}
                   </button>
                   {step === 4 ? (
                     <button className="btn" type="submit" disabled={pending}>

@@ -88,7 +88,7 @@ export function ScopePicker({
 }: {
   chatbots: WebhookChatbotOption[];
   value: Scope;
-  onChange: (scope: Scope) => void;
+  onChange: (scope: Scope) => boolean | Promise<boolean>;
   labelId: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -114,9 +114,16 @@ export function ScopePicker({
     if (returnFocus) requestAnimationFrame(() => triggerRef.current?.focus());
   }, []);
 
-  function choose(option: PickerOption): void {
-    onChange({ chatLinkId: option.chatLinkId, ficheKey: option.ficheKey });
-    close();
+  async function choose(option: PickerOption): Promise<void> {
+    if (option.chatLinkId === value.chatLinkId && option.ficheKey === value.ficheKey) {
+      close();
+      return;
+    }
+    const accepted = await onChange({
+      chatLinkId: option.chatLinkId,
+      ficheKey: option.ficheKey,
+    });
+    if (accepted) close();
   }
 
   function openPicker(): void {
@@ -226,7 +233,7 @@ export function ScopePicker({
     } else if (event.key === "Enter") {
       event.preventDefault();
       const option = options[activeIndex];
-      if (option !== undefined) choose(option);
+      if (option !== undefined) void choose(option);
     } else if (event.key === "Escape") {
       event.preventDefault();
       close();
@@ -336,7 +343,7 @@ export function ScopePicker({
                         )
                       }
                       onClick={() =>
-                        choose({
+                        void choose({
                           id: allOptionId(group.bot.chatLinkId),
                           chatLinkId: group.bot.chatLinkId,
                           ficheKey: "",
@@ -375,7 +382,7 @@ export function ScopePicker({
                           setActiveIndex(options.findIndex((option) => option.id === id))
                         }
                         onClick={() =>
-                          choose({
+                          void choose({
                             id,
                             chatLinkId: group.bot.chatLinkId,
                             ficheKey: fiche.key,

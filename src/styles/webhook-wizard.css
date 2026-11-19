@@ -773,6 +773,10 @@
   gap: 0.65rem;
 }
 
+.wh-prev-mobile {
+  display: none;
+}
+
 @media (max-width: 1050px) {
   .wh-workspace {
     grid-template-columns: 209px minmax(0, 1fr);
@@ -926,6 +930,14 @@
 
   .wh-footer-actions {
     width: 100%;
+  }
+
+  .wh-prev-desktop {
+    display: none;
+  }
+
+  .wh-prev-mobile {
+    display: inline-flex;
   }
 
   .wh-footer-actions .btn {
