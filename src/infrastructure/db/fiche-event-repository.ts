@@ -21,6 +21,7 @@ type Row = {
   fiche_instance_id: string | null;
   fiche_id: string | null;
   field_key: string | null;
+  field_keys: string[] | null;
   status: FicheLifecycleEvent["status"];
   payload: unknown;
   occurred_at: Date;
@@ -29,7 +30,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "id, organization_id, event_type, source, chat_link_id, config_id, fiche_key, conversation_id, fiche_instance_id, fiche_id, field_key, status, payload, occurred_at, dispatched_at, error_message";
+  "id, organization_id, event_type, source, chat_link_id, config_id, fiche_key, conversation_id, fiche_instance_id, fiche_id, field_key, field_keys, status, payload, occurred_at, dispatched_at, error_message";
 
 function toEvent(row: Row): FicheLifecycleEvent {
   if (!isFicheWebhookEventType(row.event_type)) {
@@ -47,6 +48,7 @@ function toEvent(row: Row): FicheLifecycleEvent {
     ficheInstanceId: row.fiche_instance_id,
     ficheId: row.fiche_id,
     fieldKey: row.field_key,
+    fieldKeys: row.field_keys,
     status: row.status,
     payload: (row.payload ?? {}) as FicheEventPayload,
     occurredAt: row.occurred_at.toISOString(),
@@ -61,8 +63,8 @@ export function pgFicheEventRepository(pool: Pool): FicheEventRepository {
       const { rows } = await pool.query<Row>(
         `INSERT INTO fiche_lifecycle_events
            (organization_id, event_type, source, chat_link_id, config_id, fiche_key,
-            conversation_id, fiche_instance_id, fiche_id, field_key, payload)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+            conversation_id, fiche_instance_id, fiche_id, field_key, field_keys, payload)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
          RETURNING ${COLUMNS}`,
         [
           input.organizationId,
@@ -75,6 +77,7 @@ export function pgFicheEventRepository(pool: Pool): FicheEventRepository {
           input.ficheInstanceId,
           input.ficheId,
           input.fieldKey,
+          input.fieldKeys ?? null,
           JSON.stringify(input.payload),
         ],
       );

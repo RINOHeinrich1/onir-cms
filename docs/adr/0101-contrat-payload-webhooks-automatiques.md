@@ -32,6 +32,7 @@ Chaque déclencheur définit un ensemble de champs garantis :
 | `fiche.draft.all_fields_filled` | tous les champs, facultatifs inclus |
 | `fiche.draft.required_fields_filled` | champs obligatoires de la fiche |
 | `fiche.draft.field_filled` | uniquement le champ configuré |
+| `fiche.draft.fields_filled` | tous les champs du groupe configuré |
 | `fiche.validated` | champs obligatoires de la fiche finale |
 
 Les métadonnées ont leurs propres garanties :
@@ -63,6 +64,7 @@ Règles :
 - chaque trigger est évalué **individuellement** ; un trigger ne peut pas
   dépendre d'un autre événement pour compléter son payload ;
 - un `field_filled(X)` ne peut pas avoir un autre champ requis que X ;
+- un `fields_filled([X, Y, …])` garantit uniquement les champs du groupe ;
 - `required_fields_filled` et `validated` ne garantissent pas les champs
   facultatifs ;
 - `validated` est le seul événement qui garantit `fiche.id` ;

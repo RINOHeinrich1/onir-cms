@@ -16,10 +16,12 @@ function guaranteedFieldNames(
   eventType: FicheWebhookEventType,
   definition: TemplateDefinition,
   fieldKey: string | null,
+  fieldKeys: readonly string[] | null | undefined,
 ): Set<string> {
   const all = new Set(definition.fields.map((field) => field.name));
   if (eventType === "fiche.draft.all_fields_filled") return all;
   if (eventType === "fiche.draft.field_filled") return new Set(fieldKey === null ? [] : [fieldKey]);
+  if (eventType === "fiche.draft.fields_filled") return new Set(fieldKeys ?? []);
   // Les champs conditionnels ne sont pas garantis pour un événement générique.
   const required = definition.fields
     .filter((field) => field.required && field.requiredIf === undefined)
@@ -32,8 +34,9 @@ function mappingGuaranteed(
   eventType: FicheWebhookEventType,
   definition: TemplateDefinition,
   fieldKey: string | null,
+  fieldKeys: readonly string[] | null | undefined,
 ): boolean {
-  const fields = guaranteedFieldNames(eventType, definition, fieldKey);
+  const fields = guaranteedFieldNames(eventType, definition, fieldKey, fieldKeys);
   if (mapping.source === "field" || mapping.source === "attachment") {
     return fields.has(mapping.field);
   }
@@ -51,7 +54,17 @@ export function missingRequiredMappings(
   for (const trigger of triggers) {
     for (const mapping of mappings) {
       if (!mapping.required) continue;
-      if (mappingGuaranteed(mapping, trigger.eventType, definition, trigger.fieldKey)) continue;
+      if (
+        mappingGuaranteed(
+          mapping,
+          trigger.eventType,
+          definition,
+          trigger.fieldKey,
+          trigger.fieldKeys,
+        )
+      ) {
+        continue;
+      }
       missing.push({ trigger: trigger.eventType, field: mapping.field });
     }
   }

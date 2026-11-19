@@ -62,7 +62,7 @@ const COLUMNS =
   "id, organization_id, chat_link_id, fiche_key, name, description, enabled, http_method, url, query_params, headers, body_mode, body_template, field_mappings, auth_type, auth_config_enc, timeout_ms, max_attempts, retry_backoff_ms, follow_redirects, tls_verify, allow_insecure_http, allow_private_network, created_by, created_at, updated_at, deleted_at";
 
 const TRIGGER_COLUMNS =
-  "COALESCE((SELECT jsonb_agg(jsonb_build_object('eventType', t.event_type, 'fieldKey', t.field_key) ORDER BY t.event_type, t.field_key) FROM webhook_endpoint_triggers t WHERE t.endpoint_id = webhook_endpoints.id), '[]'::jsonb) AS triggers";
+  "COALESCE((SELECT jsonb_agg(jsonb_build_object('eventType', t.event_type, 'fieldKey', t.field_key, 'fieldKeys', t.field_keys) ORDER BY t.event_type, t.field_key) FROM webhook_endpoint_triggers t WHERE t.endpoint_id = webhook_endpoints.id), '[]'::jsonb) AS triggers";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -143,15 +143,19 @@ function parseTriggers(value: unknown): WebhookTrigger[] {
     if (!isRecord(entry)) return [];
     const eventType = typeof entry.eventType === "string" ? entry.eventType : "";
     const fieldKey = typeof entry.fieldKey === "string" ? entry.fieldKey : null;
+    const fieldKeys = Array.isArray(entry.fieldKeys)
+      ? entry.fieldKeys.filter((value): value is string => typeof value === "string")
+      : null;
     if (
       eventType !== "fiche.draft.all_fields_filled" &&
       eventType !== "fiche.draft.field_filled" &&
+      eventType !== "fiche.draft.fields_filled" &&
       eventType !== "fiche.draft.required_fields_filled" &&
       eventType !== "fiche.validated"
     ) {
       return [];
     }
-    return [{ eventType, fieldKey }];
+    return [{ eventType, fieldKey, fieldKeys }];
   });
 }
 
@@ -224,10 +228,11 @@ async function replaceTriggers(
   await client.query("DELETE FROM webhook_endpoint_triggers WHERE endpoint_id = $1", [endpointId]);
   for (const trigger of triggers) {
     await client.query(
-      `INSERT INTO webhook_endpoint_triggers (endpoint_id, event_type, field_key)
-       VALUES ($1, $2, $3)
+      `INSERT INTO webhook_endpoint_triggers
+       (endpoint_id, event_type, field_key, field_keys)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT DO NOTHING`,
-      [endpointId, trigger.eventType, trigger.fieldKey],
+      [endpointId, trigger.eventType, trigger.fieldKey, trigger.fieldKeys],
     );
   }
 }
@@ -322,6 +327,42 @@ export function pgWebhookEndpointRepository(pool: Pool): WebhookEndpointReposito
       } finally {
         client.release();
       }
+    },
+
+    async listAutomaticTriggers(organizationId, chatLinkId, ficheKey) {
+      const { rows } = await pool.query<{
+        event_type: string;
+        field_key: string | null;
+        field_keys: string[] | null;
+      }>(
+        `SELECT DISTINCT t.event_type, t.field_key, t.field_keys
+           FROM webhook_endpoints e
+           JOIN webhook_endpoint_triggers t ON t.endpoint_id = e.id
+          WHERE e.organization_id = $1
+            AND e.chat_link_id = $2
+            AND e.enabled = true
+            AND e.deleted_at IS NULL
+            AND (e.fiche_key IS NULL OR e.fiche_key = $3)`,
+        [organizationId, chatLinkId, ficheKey],
+      );
+      return rows.flatMap((row) => {
+        if (
+          row.event_type !== "fiche.draft.all_fields_filled" &&
+          row.event_type !== "fiche.draft.field_filled" &&
+          row.event_type !== "fiche.draft.fields_filled" &&
+          row.event_type !== "fiche.draft.required_fields_filled" &&
+          row.event_type !== "fiche.validated"
+        ) {
+          return [];
+        }
+        return [
+          {
+            eventType: row.event_type,
+            fieldKey: row.field_key,
+            fieldKeys: row.field_keys,
+          },
+        ];
+      });
     },
 
     async hasAutomaticTriggers(organizationId, chatLinkId, ficheKey) {

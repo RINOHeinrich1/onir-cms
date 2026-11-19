@@ -1291,3 +1291,11 @@
   max-width: 28rem;
   margin-left: 0;
 }
+
+.wh-trigger-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.55rem 0.9rem;
+  width: 100%;
+  margin-top: 0.3rem;
+}

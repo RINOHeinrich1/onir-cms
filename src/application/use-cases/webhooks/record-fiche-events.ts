@@ -73,15 +73,30 @@ export async function recordFicheTransition(
   try {
     const definition = definitionFor(input.config, input.instance.ficheKey);
     if (definition === null) return;
-    if (
-      !(await deps.endpoints.hasAutomaticTriggers(
-        input.organizationId,
-        input.config.chatLinkId,
-        input.instance.ficheKey,
-      ))
-    ) {
-      return;
-    }
+    const triggers = await deps.endpoints.listAutomaticTriggers(
+      input.organizationId,
+      input.config.chatLinkId,
+      input.instance.ficheKey,
+    );
+    if (triggers.length === 0) return;
+    const fields = [
+      ...new Set(
+        triggers
+          .filter((trigger) => trigger.eventType === "fiche.draft.field_filled")
+          .flatMap((trigger) => (trigger.fieldKey === null ? [] : [trigger.fieldKey])),
+      ),
+    ];
+    const seenGroups = new Set<string>();
+    const fieldGroups = triggers
+      .filter((trigger) => trigger.eventType === "fiche.draft.fields_filled")
+      .flatMap((trigger) => {
+        const keys = trigger.fieldKeys ?? [];
+        if (keys.length === 0) return [];
+        const key = [...keys].sort().join(",");
+        if (seenGroups.has(key)) return [];
+        seenGroups.add(key);
+        return [keys];
+      });
     const after: FicheTransitionState = {
       data: input.instance.data,
       status: input.instance.status,
@@ -96,9 +111,14 @@ export async function recordFicheTransition(
       },
       after,
       {
-        allFields: true,
-        requiredFields: true,
-        fields: definition.fields.map((field) => field.name),
+        allFields: triggers.some(
+          (trigger) => trigger.eventType === "fiche.draft.all_fields_filled",
+        ),
+        requiredFields: triggers.some(
+          (trigger) => trigger.eventType === "fiche.draft.required_fields_filled",
+        ),
+        fields,
+        fieldGroups,
       },
     );
     for (const event of events) {
@@ -113,6 +133,7 @@ export async function recordFicheTransition(
         ficheInstanceId: input.instance.id,
         ficheId: null,
         fieldKey: event.fieldKey,
+        fieldKeys: event.fieldKeys ?? null,
         payload: payloadFor({
           config: input.config,
           conversationId: input.conversationId,

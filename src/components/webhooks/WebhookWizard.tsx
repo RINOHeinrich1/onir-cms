@@ -659,9 +659,18 @@ export function WebhookWizard({
       if (!enabled) return without;
       if (eventType === "fiche.draft.field_filled") {
         const fieldKey = options.find((option) => option.kind === "model")?.field ?? null;
-        return fieldKey === null ? without : [...without, { eventType, fieldKey }];
+        return fieldKey === null ? without : [...without, { eventType, fieldKey, fieldKeys: null }];
       }
-      return [...without, { eventType, fieldKey: null }];
+      if (eventType === "fiche.draft.fields_filled") {
+        const fieldKeys = options
+          .filter((option) => option.kind === "model")
+          .slice(0, 2)
+          .map((option) => option.field);
+        return fieldKeys.length < 2
+          ? without
+          : [...without, { eventType, fieldKey: null, fieldKeys }];
+      }
+      return [...without, { eventType, fieldKey: null, fieldKeys: null }];
     });
   }
 
@@ -674,7 +683,26 @@ export function WebhookWizard({
   function setPartialField(fieldKey: string): void {
     setTriggers((previous) => [
       ...previous.filter((trigger) => trigger.eventType !== "fiche.draft.field_filled"),
-      ...(fieldKey === "" ? [] : [{ eventType: "fiche.draft.field_filled" as const, fieldKey }]),
+      ...(fieldKey === ""
+        ? []
+        : [{ eventType: "fiche.draft.field_filled" as const, fieldKey, fieldKeys: null }]),
+    ]);
+  }
+
+  const modelFields = options.filter((option) => option.kind === "model");
+
+  function fieldsFilledKeys(): string[] {
+    return (
+      triggers.find((trigger) => trigger.eventType === "fiche.draft.fields_filled")?.fieldKeys ?? []
+    );
+  }
+
+  function setFieldsFilledKeys(keys: string[]): void {
+    setTriggers((previous) => [
+      ...previous.filter((trigger) => trigger.eventType !== "fiche.draft.fields_filled"),
+      ...(keys.length === 0
+        ? []
+        : [{ eventType: "fiche.draft.fields_filled" as const, fieldKey: null, fieldKeys: keys }]),
     ]);
   }
 
@@ -833,7 +861,9 @@ export function WebhookWizard({
                       setMappings([]);
                       setTriggers((previous) =>
                         previous.filter(
-                          (trigger) => trigger.eventType !== "fiche.draft.field_filled",
+                          (trigger) =>
+                            trigger.eventType !== "fiche.draft.field_filled" &&
+                            trigger.eventType !== "fiche.draft.fields_filled",
                         ),
                       );
                       setActiveTab("model");
@@ -931,6 +961,53 @@ export function WebhookWizard({
                           ))}
                       </select>
                     </label>
+                  ) : null}
+                  <label className="wh-toggle-line">
+                    <span className="wh-toggle-copy">
+                      <strong>Tous ces champs sont remplis</strong>
+                      <small>
+                        Déclenche une seule fois quand tous les champs du groupe sont renseignés.
+                      </small>
+                    </span>
+                    <span className="wh-switch">
+                      <input
+                        type="checkbox"
+                        checked={triggerEnabled("fiche.draft.fields_filled")}
+                        disabled={modelFields.length < 2}
+                        onChange={(event) =>
+                          setTriggerEnabled("fiche.draft.fields_filled", event.target.checked)
+                        }
+                      />
+                      <span className="wh-switch-track" />
+                    </span>
+                  </label>
+                  {triggerEnabled("fiche.draft.fields_filled") ? (
+                    <fieldset className="wh-field wh-trigger-field">
+                      <legend>Champs du groupe (au moins 2)</legend>
+                      <div className="wh-trigger-checkboxes">
+                        {modelFields.map((option) => {
+                          const selected = fieldsFilledKeys().includes(option.field);
+                          return (
+                            <label className="wh-check" key={option.key}>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                disabled={selected && fieldsFilledKeys().length <= 2}
+                                onChange={(event) => {
+                                  const current = fieldsFilledKeys();
+                                  setFieldsFilledKeys(
+                                    event.target.checked
+                                      ? [...current, option.field]
+                                      : current.filter((field) => field !== option.field),
+                                  );
+                                }}
+                              />
+                              {option.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                   ) : null}
                   <label className="wh-toggle-line">
                     <span className="wh-toggle-copy">

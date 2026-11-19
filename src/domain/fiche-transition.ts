@@ -13,11 +13,13 @@ export type FicheTransitionRequest = {
   allFields: boolean;
   requiredFields: boolean;
   fields: readonly string[];
+  fieldGroups: readonly (readonly string[])[];
 };
 
 export type FicheTransitionEvent = {
   eventType: FicheWebhookEventType;
   fieldKey: string | null;
+  fieldKeys?: string[] | null;
 };
 
 function fieldEmpty(
@@ -56,14 +58,22 @@ export function evaluateFicheTransitions(
   const events: FicheTransitionEvent[] = [];
 
   if (requested.allFields && !allFilled(definition, before) && allFilled(definition, after)) {
-    events.push({ eventType: "fiche.draft.all_fields_filled", fieldKey: null });
+    events.push({
+      eventType: "fiche.draft.all_fields_filled",
+      fieldKey: null,
+      fieldKeys: null,
+    });
   }
   if (
     requested.requiredFields &&
     !requiredFilled(definition, before) &&
     requiredFilled(definition, after)
   ) {
-    events.push({ eventType: "fiche.draft.required_fields_filled", fieldKey: null });
+    events.push({
+      eventType: "fiche.draft.required_fields_filled",
+      fieldKey: null,
+      fieldKeys: null,
+    });
   }
   for (const fieldName of requested.fields) {
     const field = definition.fields.find((entry) => entry.name === fieldName);
@@ -77,7 +87,34 @@ export function evaluateFicheTransitions(
         ? (after.attachmentCounts?.[field.name] ?? 0) === 0
         : isFieldEmpty(field, after.data[field.name]);
     if (beforeEmpty && !afterEmpty) {
-      events.push({ eventType: "fiche.draft.field_filled", fieldKey: field.name });
+      events.push({
+        eventType: "fiche.draft.field_filled",
+        fieldKey: field.name,
+        fieldKeys: null,
+      });
+    }
+  }
+  for (const group of requested.fieldGroups) {
+    const fieldsInGroup = group
+      .map((fieldName) => definition.fields.find((entry) => entry.name === fieldName))
+      .filter((field): field is TemplateField => field !== undefined);
+    if (fieldsInGroup.length !== group.length || fieldsInGroup.length === 0) continue;
+    const beforeAll = fieldsInGroup.every((field) =>
+      field.type === "file"
+        ? (before.attachmentCounts?.[field.name] ?? 0) > 0
+        : !isFieldEmpty(field, before.data[field.name]),
+    );
+    const afterAll = fieldsInGroup.every((field) =>
+      field.type === "file"
+        ? (after.attachmentCounts?.[field.name] ?? 0) > 0
+        : !isFieldEmpty(field, after.data[field.name]),
+    );
+    if (!beforeAll && afterAll) {
+      events.push({
+        eventType: "fiche.draft.fields_filled",
+        fieldKey: null,
+        fieldKeys: [...group],
+      });
     }
   }
   return events;

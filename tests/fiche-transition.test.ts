@@ -25,6 +25,7 @@ const requested = {
   allFields: true,
   requiredFields: true,
   fields: ["nom", "telephone", "societe"],
+  fieldGroups: [["nom", "telephone"]],
 };
 
 describe("evaluateFicheTransitions", () => {
@@ -43,6 +44,21 @@ describe("evaluateFicheTransitions", () => {
     expect(events).toContainEqual({
       eventType: "fiche.draft.field_filled",
       fieldKey: "telephone",
+      fieldKeys: null,
+    });
+  });
+
+  it("émet fields_filled une seule fois quand tout le groupe est rempli", () => {
+    const events = evaluateFicheTransitions(
+      definition,
+      { data: { nom: "Camille", telephone: "" }, status: "active" },
+      { data: { nom: "Camille", telephone: "034" }, status: "active" },
+      requested,
+    );
+    expect(events).toContainEqual({
+      eventType: "fiche.draft.fields_filled",
+      fieldKey: null,
+      fieldKeys: ["nom", "telephone"],
     });
   });
 

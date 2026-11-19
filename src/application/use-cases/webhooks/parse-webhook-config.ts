@@ -287,6 +287,7 @@ function parseTriggers(value: unknown, existing: readonly WebhookTrigger[]): Web
   const allowed = new Set([
     "fiche.draft.all_fields_filled",
     "fiche.draft.field_filled",
+    "fiche.draft.fields_filled",
     "fiche.draft.required_fields_filled",
     "fiche.validated",
   ]);
@@ -300,14 +301,41 @@ function parseTriggers(value: unknown, existing: readonly WebhookTrigger[]): Web
     const eventType = typeof raw.eventType === "string" ? raw.eventType : "";
     const fieldKey =
       typeof raw.fieldKey === "string" && raw.fieldKey.trim() !== "" ? raw.fieldKey.trim() : null;
+    const fieldKeys = Array.isArray(raw.fieldKeys)
+      ? [
+          ...new Set(
+            raw.fieldKeys
+              .filter((entry): entry is string => typeof entry === "string")
+              .map((entry) => entry.trim())
+              .filter((entry) => entry !== ""),
+          ),
+        ]
+      : null;
     if (!allowed.has(eventType)) throw new ValidationError("Événement de webhook invalide");
     if (eventType === "fiche.draft.field_filled" && fieldKey === null) {
       throw new ValidationError("Un champ est requis pour le déclencheur field_filled");
     }
-    const key = `${eventType}:${fieldKey ?? ""}`;
+    if (
+      eventType === "fiche.draft.fields_filled" &&
+      (fieldKeys === null || fieldKeys.length === 0)
+    ) {
+      throw new ValidationError(
+        "Au moins deux champs sont requis pour le déclencheur fields_filled",
+      );
+    }
+    if (eventType === "fiche.draft.fields_filled" && fieldKeys !== null && fieldKeys.length < 2) {
+      throw new ValidationError("Le déclencheur fields_filled exige au moins deux champs");
+    }
+    const normalizedFieldKey = eventType === "fiche.draft.field_filled" ? fieldKey : null;
+    const normalizedFieldKeys = eventType === "fiche.draft.fields_filled" ? fieldKeys : null;
+    const key = `${eventType}:${normalizedFieldKey ?? ""}:${(normalizedFieldKeys ?? []).join(",")}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push({ eventType: eventType as WebhookTrigger["eventType"], fieldKey });
+    result.push({
+      eventType: eventType as WebhookTrigger["eventType"],
+      fieldKey: normalizedFieldKey,
+      fieldKeys: normalizedFieldKeys,
+    });
   }
   return result;
 }

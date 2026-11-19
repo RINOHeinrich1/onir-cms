@@ -90,7 +90,10 @@ export type WebhookFieldMapping = {
 /** Abonnement automatique d'un endpoint à un événement de cycle de vie. */
 export type WebhookTrigger = {
   eventType: FicheWebhookEventType;
+  /** Champ unique pour `field_filled`. */
   fieldKey: string | null;
+  /** Groupe ET pour `fields_filled`. */
+  fieldKeys?: string[] | null;
 };
 
 export type WebhookAuth =

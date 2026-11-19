@@ -40,6 +40,9 @@ Règles de transition :
 
 - un événement décrit une **transition**, jamais un état absolu ;
 - `field_filled` ne se déclenche que sur `vide → non vide` ;
+- `fields_filled` se déclenche uniquement sur la transition
+  « groupe non entièrement rempli → groupe entièrement rempli », une fois par
+  groupe et par transition ;
 - `required_fields_filled` se déclenche sur `missingRequired > 0 → 0` ;
 - `all_fields_filled` se déclenche lorsque le nombre de champs vides passe de
   `> 0` à `0` ;
@@ -73,7 +76,7 @@ L'outbox contient au minimum :
 
 ```text
 id, organization_id, event_type, source, chat_link_id, config_id,
-fiche_key, conversation_id, fiche_instance_id, fiche_id, field_key,
+fiche_key, conversation_id, fiche_instance_id, fiche_id, field_key, field_keys,
 status, payload, occurred_at, dispatched_at
 ```
 
@@ -93,6 +96,8 @@ webhook_endpoint_triggers (
 ```
 
 - `field_key` est requis pour `fiche.draft.field_filled` ;
+- `field_keys` est requis pour `fiche.draft.fields_filled` et contient le groupe
+  de champs à surveiller en ET ;
 - un endpoint peut cumuler plusieurs déclencheurs ;
 - un endpoint **sans ligne de trigger reste manuel uniquement** ;
 - les endpoints existants ne changent donc pas de comportement après migration ;

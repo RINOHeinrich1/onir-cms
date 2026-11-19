@@ -3,6 +3,7 @@ import type { TemplateDefinition } from "@/domain/entities/chat-template";
 export const FICHE_WEBHOOK_EVENT_TYPES = [
   "fiche.draft.all_fields_filled",
   "fiche.draft.field_filled",
+  "fiche.draft.fields_filled",
   "fiche.draft.required_fields_filled",
   "fiche.validated",
 ] as const;
@@ -45,6 +46,7 @@ export type FicheLifecycleEvent = {
   ficheInstanceId: string | null;
   ficheId: string | null;
   fieldKey: string | null;
+  fieldKeys?: string[] | null;
   status: FicheEventStatus;
   payload: FicheEventPayload;
   occurredAt: string;

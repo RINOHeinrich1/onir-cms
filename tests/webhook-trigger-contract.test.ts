@@ -25,8 +25,9 @@ function mapping(field: string, required = true): WebhookFieldMapping {
 function trigger(
   eventType: WebhookTrigger["eventType"],
   fieldKey: string | null = null,
+  fieldKeys: string[] | null = null,
 ): WebhookTrigger {
-  return { eventType, fieldKey };
+  return { eventType, fieldKey, fieldKeys };
 }
 
 describe("webhook trigger contract", () => {
@@ -58,6 +59,26 @@ describe("webhook trigger contract", () => {
         definition,
       ),
     ).toContainEqual({ trigger: "fiche.draft.field_filled", field: "nom" });
+  });
+
+  it("accepte fields_filled quand tous les champs requis appartiennent au groupe", () => {
+    expect(
+      missingRequiredMappings(
+        [trigger("fiche.draft.fields_filled", null, ["nom", "email"])],
+        [mapping("nom")],
+        definition,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuse fields_filled quand un champ requis est hors du groupe", () => {
+    expect(
+      missingRequiredMappings(
+        [trigger("fiche.draft.fields_filled", null, ["email"])],
+        [mapping("nom")],
+        definition,
+      ),
+    ).toHaveLength(1);
   });
 
   it("refuse validated avec un mapping requis sur un champ facultatif", () => {

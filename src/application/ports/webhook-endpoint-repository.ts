@@ -53,6 +53,12 @@ export interface WebhookEndpointRepository {
   ): Promise<WebhookEndpoint | null>;
   /** Suppression logique ; false si introuvable. */
   softDelete(organizationId: string, id: string): Promise<boolean>;
+  /** Triggers automatiques actifs sur ce scope, pour évaluer uniquement le nécessaire. */
+  listAutomaticTriggers(
+    organizationId: string,
+    chatLinkId: string,
+    ficheKey: string,
+  ): Promise<WebhookTrigger[]>;
   /** Vrai si au moins un endpoint actif a un trigger automatique sur ce scope. */
   hasAutomaticTriggers(
     organizationId: string,

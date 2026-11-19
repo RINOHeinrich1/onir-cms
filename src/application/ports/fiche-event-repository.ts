@@ -15,6 +15,7 @@ export type CreateFicheEventInput = {
   ficheInstanceId: string | null;
   ficheId: string | null;
   fieldKey: string | null;
+  fieldKeys?: string[] | null;
   payload: FicheEventPayload;
 };
 
