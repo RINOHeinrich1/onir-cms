@@ -26,6 +26,7 @@ export type VisualTemplateOption = {
   id: string;
   key: string;
   name: string;
+  description?: string;
   versions: {
     version: string;
     params: TemplateParamSchema[];
