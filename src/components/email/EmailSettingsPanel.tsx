@@ -37,7 +37,8 @@ function formFrom(settings: PublicEmailSettings | null): FormState {
   return {
     host: settings?.host ?? "",
     port: String(settings?.port ?? 587),
-    secure: settings?.secure ?? true,
+    // 587 = submission STARTTLS ; le TLS implicite est réservé à 465.
+    secure: settings?.secure ?? false,
     username: settings?.username ?? "",
     password: "",
     fromEmail: settings?.fromEmail ?? "",
@@ -182,7 +183,13 @@ export function EmailSettingsPanel({
             min={1}
             max={65535}
             value={form.port}
-            onChange={(e) => patch({ port: e.target.value })}
+            onChange={(e) => {
+              const value = e.target.value;
+              patch({
+                port: value,
+                ...(value === "465" ? { secure: true } : value === "587" ? { secure: false } : {}),
+              });
+            }}
             disabled={!canEdit}
           />
         </label>
@@ -261,7 +268,7 @@ export function EmailSettingsPanel({
           onChange={(e) => patch({ secure: e.target.checked })}
           disabled={!canEdit}
         />{" "}
-        TLS implicite (port généralement 465)
+        TLS implicite (généralement port 465 ; laisser décoché pour 587/STARTTLS)
       </label>
 
       {settings?.lastTestedAt ? (
