@@ -61,6 +61,7 @@ export async function loadTemplateSpec(
     element:
       surface === "widget" && widget !== undefined ? widget.element : version.manifest.ui.element,
     capabilities: version.manifest.capabilities,
+    identificationModes: version.manifest.identificationModes ?? ["contact", "anonymous"],
     // Manifestes legacy (avant ADR-0023) : `params` absent => aucun paramètre.
     params: Array.isArray(version.manifest.params) ? version.manifest.params : [],
     dataContracts: Array.isArray(version.manifest.dataContracts)

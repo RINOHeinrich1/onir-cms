@@ -122,6 +122,22 @@ Capacités et données :
 | `fallback` | `state.fallback`, `actions.selectFallback()` | absent |
 | `data` | `ctx.data.load(contract)` | contrats `data` indisponibles |
 
+## Identification (`identificationModes`)
+
+Le manifeste peut déclarer les interfaces d'identification que le template sait
+rendre :
+
+```json
+"identificationModes": ["contact", "anonymous", "otp"]
+```
+
+- absent → défaut legacy `["contact", "anonymous"]` ;
+- `otp` est optionnel pour un rendu personnalisé : sans déclaration, le host
+  affiche `OtpGate` à la place ;
+- le template ne fait jamais l'authentification OTP lui-même : il utilise les
+  actions du host ;
+- le fallback host ne change jamais le mode effectif du lien.
+
 ## Médias et photothèque
 
 - `media` expose **uniquement les photos/liens actifs rattachés au chatbot** :
