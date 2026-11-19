@@ -379,6 +379,10 @@ export function WebhookWizard({
         setError("Chaque champ inclus doit posséder une clé cible.");
         return false;
       }
+      if (mappings.length === 0 && bodyTemplate.trim() === "") {
+        setError("Sélectionnez au moins un champ à envoyer ou définissez un template de corps.");
+        return false;
+      }
     }
     return true;
   }
