@@ -135,9 +135,27 @@ Le manifeste expose une capability additive :
 "identificationModes": ["contact", "anonymous", "otp"]
 ```
 
-Une absence de déclaration conserve le comportement par défaut
-(`contact`/`anonymous`). Un template qui ne déclare pas `otp` ne peut pas être
-sélectionné pour ce mode.
+Cette liste décrit **les interfaces d'identification que le template sait
+rendre**, pas les modes que le cœur sait authentifier. Le cœur reste l'unique
+responsable de la session, du consentement, de la vérification OTP et de
+l'enregistrement du prospect.
+
+Sémantique de rendu :
+
+1. `identificationMode` est le mode effectif du lien ;
+2. si le template déclare ce mode dans `identificationModes`, il peut rendre son
+   écran personnalisé et appelle les actions du host ;
+3. sinon, le host rend son écran générique **pour ce même mode** :
+   - `contact` → `ContactGate` ;
+   - `anonymous` → chat host sans formulaire ;
+   - `otp` → `OtpGate`.
+4. Le fallback ne change **jamais** le mode effectif : un lien OTP reste OTP,
+   même si l'écran affiché est celui du host.
+
+`identificationModes` est donc une capability de **compatibilité/UX**, pas une
+condition d'authentification. Un template sans déclaration n'est pas bloqué :
+le host prend le rendu par défaut. Une politique stricte pourra plus tard
+masquer un mode dans le sélecteur, mais ce n'est pas la décision actuelle.
 
 ### 6. Interface backoffice
 
