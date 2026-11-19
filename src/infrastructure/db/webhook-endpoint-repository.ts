@@ -229,10 +229,18 @@ async function replaceTriggers(
   for (const trigger of triggers) {
     await client.query(
       `INSERT INTO webhook_endpoint_triggers
-       (endpoint_id, event_type, field_key, field_keys)
-       VALUES ($1, $2, $3, $4)
+       (endpoint_id, event_type, field_key, field_keys, group_key)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING`,
-      [endpointId, trigger.eventType, trigger.fieldKey, trigger.fieldKeys],
+      [
+        endpointId,
+        trigger.eventType,
+        trigger.fieldKey,
+        trigger.fieldKeys,
+        trigger.fieldKeys === undefined || trigger.fieldKeys === null
+          ? null
+          : [...trigger.fieldKeys].sort().join(","),
+      ],
     );
   }
 }

@@ -4,6 +4,12 @@
 
 ALTER TABLE webhook_endpoint_triggers
   ADD COLUMN IF NOT EXISTS field_keys text[];
+ALTER TABLE webhook_endpoint_triggers
+  ADD COLUMN IF NOT EXISTS group_key text;
+
+UPDATE webhook_endpoint_triggers
+   SET group_key = array_to_string(field_keys, ',')
+ WHERE field_keys IS NOT NULL AND group_key IS NULL;
 
 ALTER TABLE webhook_endpoint_triggers
   DROP CONSTRAINT IF EXISTS webhook_endpoint_triggers_event_check;
@@ -33,7 +39,7 @@ CREATE UNIQUE INDEX webhook_endpoint_triggers_unique_idx
     endpoint_id,
     event_type,
     COALESCE(field_key, ''),
-    COALESCE(array_to_string(field_keys, ','), '')
+    COALESCE(group_key, '')
   );
 
 ALTER TABLE fiche_lifecycle_events
