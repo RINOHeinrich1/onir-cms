@@ -60,6 +60,7 @@ export type MissionReplyInput = {
   ai: AiClient;
   recordUsage: RecordAiUsage;
   activeInstance: ConversationFicheInstance | null;
+  runtimeContext?: string;
 };
 
 export type MissionReplyResult = {
@@ -176,6 +177,9 @@ async function runCollect(
     const state = buildCollecteState(fiche.fields, input.activeInstance.data);
     if (state !== "") system = `${system}\n\n${state}`;
   }
+  if (input.runtimeContext !== undefined && input.runtimeContext !== "") {
+    system = `${system}\n\n${input.runtimeContext}`;
+  }
   if (collectDefinition.simple !== undefined) {
     system = `${system}\n\n${languageReminder(collectDefinition.simple.language)}`;
   }
@@ -215,6 +219,9 @@ async function runInform(
   const sources = input.config.informationSources;
   if (sources === undefined) throw new UnprocessableError("Sources d'information indisponibles");
   let system = buildBaseSystem(input, definition, prospect);
+  if (input.runtimeContext !== undefined && input.runtimeContext !== "") {
+    system = `${system}\n\n${input.runtimeContext}`;
+  }
   system = `${system}\n\n${sourcePrompt(sources, intent, needsSources)}`;
 
   const settled =

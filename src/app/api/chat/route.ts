@@ -19,6 +19,7 @@ import { pgConversationIncidentRepository } from "@/infrastructure/db/conversati
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgFicheCollecteRepository } from "@/infrastructure/db/fiche-collecte-repository";
 import { pgFicheEventRepository } from "@/infrastructure/db/fiche-event-repository";
+import { pgFicheRuntimeContextRepository } from "@/infrastructure/db/fiche-runtime-context-repository";
 import { pgFicheToolRepository } from "@/infrastructure/db/fiche-tool-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationAiQuotaRepository } from "@/infrastructure/db/organization-ai-quota-repository";
@@ -85,6 +86,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         ficheTools,
         ficheCollectes: pgFicheCollecteRepository(pool),
         searchSessions: pgChatSearchSessionRepository(pool),
+        ficheRuntimeContext: pgFicheRuntimeContextRepository(pool),
       },
       { conversationId, content: body.content, attachmentIds: body.attachmentIds },
     );

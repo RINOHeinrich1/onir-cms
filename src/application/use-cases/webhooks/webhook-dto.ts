@@ -56,6 +56,8 @@ export type WebhookDeliveryDto = {
   ficheEventId: string | null;
   eventType: string | null;
   source: string | null;
+  conversationId: string | null;
+  ficheInstanceId: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDelivery["status"];
@@ -153,6 +155,8 @@ export function toWebhookDeliveryDto(delivery: WebhookDelivery): WebhookDelivery
     ficheEventId: delivery.ficheEventId,
     eventType: delivery.eventType,
     source: delivery.source,
+    conversationId: delivery.conversationId,
+    ficheInstanceId: delivery.ficheInstanceId,
     isTest: delivery.isTest,
     replayOfId: delivery.replayOfId,
     status: delivery.status,

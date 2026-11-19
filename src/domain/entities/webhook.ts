@@ -161,6 +161,8 @@ export type WebhookDelivery = {
   ficheEventId: string | null;
   eventType: string | null;
   source: string | null;
+  conversationId: string | null;
+  ficheInstanceId: string | null;
   isTest: boolean;
   replayOfId: string | null;
   status: WebhookDeliveryStatus;

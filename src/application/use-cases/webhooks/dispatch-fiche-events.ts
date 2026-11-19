@@ -71,6 +71,8 @@ export async function dispatchFicheEvents(
           ficheEventId: event.id,
           eventType: event.eventType,
           source: event.source,
+          conversationId: event.conversationId,
+          ficheInstanceId: event.ficheInstanceId,
           isTest: false,
           replayOfId: null,
           idempotencyKey: `${event.id}:${endpoint.id}`,
