@@ -151,7 +151,7 @@ export function legacyChannelFields(
 export const CHAT_LINK_IDENTIFICATION_MODES = ["contact", "anonymous", "otp", "internal"] as const;
 
 /** Modes réellement ouverts à la configuration. */
-export const ACTIVE_LINK_IDENTIFICATION_MODES = ["contact", "anonymous"] as const;
+export const ACTIVE_LINK_IDENTIFICATION_MODES = ["contact", "anonymous", "otp"] as const;
 
 export type ChatLinkIdentificationMode = (typeof CHAT_LINK_IDENTIFICATION_MODES)[number];
 export type ActiveLinkIdentificationMode = (typeof ACTIVE_LINK_IDENTIFICATION_MODES)[number];

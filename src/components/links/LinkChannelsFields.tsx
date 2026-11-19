@@ -165,6 +165,7 @@ export function LinkChannelsFields({
               >
                 <option value="contact">Nom et contact</option>
                 <option value="anonymous">Anonyme</option>
+                <option value="otp">Code par email (OTP)</option>
               </select>
             </label>
           )}

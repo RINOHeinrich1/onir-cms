@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AiRateLimitError, AppError } from "@/application/errors";
+import { AiRateLimitError, AppError, OtpRateLimitError } from "@/application/errors";
 
 /** Mappe une erreur applicative vers une réponse HTTP sans fuite d'infrastructure. */
 export function errorResponse(error: unknown): NextResponse {
@@ -13,7 +13,7 @@ export function errorResponse(error: unknown): NextResponse {
       },
       {
         status: error.status,
-        ...(error instanceof AiRateLimitError
+        ...(error instanceof AiRateLimitError || error instanceof OtpRateLimitError
           ? { headers: { "Retry-After": String(error.retryAfterSeconds) } }
           : {}),
       },
