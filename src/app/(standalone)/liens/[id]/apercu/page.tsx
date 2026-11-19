@@ -7,7 +7,6 @@ import {
   type LinkTemplateDependencies,
   loadTemplateSpec,
 } from "@/application/use-cases/visual-templates/link-template";
-import { listVisualTemplates } from "@/application/use-cases/visual-templates/manage-visual-templates";
 import { LinkDisplaySettings } from "@/components/links/LinkDisplaySettings";
 import type { VisualTemplateOption } from "@/components/links/types";
 import { TemplateHost } from "@/components/templates/TemplateHost";
@@ -60,11 +59,11 @@ function decodeTemplateOverride(
 }
 
 async function loadVisualTemplateOptions(
-  actor: Parameters<typeof listVisualTemplates>[1],
+  organizationId: string,
   pool: ReturnType<typeof getPool>,
 ): Promise<VisualTemplateOption[]> {
   const repository = pgVisualTemplateRepository(pool);
-  const templates = await listVisualTemplates({ templates: repository }, actor);
+  const templates = await repository.listForOrganization(organizationId);
   return Promise.all(
     templates.map(async (item) => ({
       id: item.id,
@@ -97,7 +96,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
   if (link === undefined) notFound();
 
   const channels = channelsForLink(link);
-  const visualTemplates = await loadVisualTemplateOptions(sessionContext.actor, pool);
+  const visualTemplates = await loadVisualTemplateOptions(organizationId, pool);
   const canEdit = actorCan(sessionContext.actor, "links:update");
   const requested = requestedSurface(query.surface);
   const fallbackSurface: ChatLinkSurface = channels.page.enabled
