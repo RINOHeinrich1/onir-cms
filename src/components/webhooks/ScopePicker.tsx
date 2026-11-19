@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { WebhookChatbotOption } from "./types";
 
 type Scope = { chatLinkId: string; ficheKey: string };
@@ -86,6 +94,7 @@ export function ScopePicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
@@ -151,6 +160,45 @@ export function ScopePicker({
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setPopoverStyle(null);
+      return;
+    }
+    function updatePosition(): void {
+      const trigger = triggerRef.current;
+      if (trigger === null) return;
+      if (window.matchMedia("(max-width: 760px)").matches) {
+        setPopoverStyle(null);
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      const width = Math.min(520, window.innerWidth - 32);
+      const spaceBelow = window.innerHeight - rect.bottom - 16;
+      const spaceAbove = rect.top - 16;
+      const openAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(420, Math.max(openAbove ? spaceAbove : spaceBelow, 220));
+      const top = openAbove
+        ? Math.max(16, rect.top - maxHeight - 8)
+        : Math.min(rect.bottom + 8, window.innerHeight - maxHeight - 16);
+      const left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16));
+      setPopoverStyle({
+        position: "fixed",
+        top,
+        left,
+        width,
+        maxHeight,
+      });
+    }
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
 
@@ -222,7 +270,7 @@ export function ScopePicker({
             aria-label="Fermer la sélection du périmètre"
             onClick={() => close(false)}
           />
-          <div className="wh-scope-popover" id={listboxId}>
+          <div className="wh-scope-popover" id={listboxId} style={popoverStyle ?? undefined}>
             <div className="wh-scope-search">
               <span aria-hidden="true">⌕</span>
               <input
