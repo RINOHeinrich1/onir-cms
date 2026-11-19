@@ -700,7 +700,6 @@ export function WebhookWizard({
         <div>
           <span className="eyebrow">Configuration d’intégration</span>
           <h1 className="text-title">{currentTitle}</h1>
-          <p className="wh-subhead">Un parcours simple, une configuration complète.</p>
         </div>
         <div className="wh-head-state">
           <span className={`wh-status ${enabled ? "" : "is-inactive"}`}>
