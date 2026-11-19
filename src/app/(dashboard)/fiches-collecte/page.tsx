@@ -32,12 +32,6 @@ export default async function FichesCollectePage() {
           <h1 className="text-title">Fiches de collecte</h1>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Fiches réutilisables, indépendantes des chatbots. Une fiche importée dans un chatbot est
-        copiée : les modifications ultérieures créent une nouvelle version sans affecter les
-        chatbots existants. Toutes les fiches d’un chatbot sont automatiquement disponibles ici, y
-        compris celles générées par l’IA.
-      </p>
       <FichesCollecteTable
         initialFiches={fiches}
         canWrite={actorCan(context.actor, "fiches_collecte:create")}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
@@ -9,7 +8,6 @@ type ChangeResponse = { ok?: boolean; error?: string };
 
 /** Formulaire de rotation forcée du mot de passe (US-AUTH-001). */
 export function ChangePasswordForm() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
   const [pending, setPending] = useState(false);
@@ -39,8 +37,8 @@ export function ChangePasswordForm() {
         setError(json.error ?? "Changement impossible");
         return;
       }
-      router.replace("/dashboard");
-      router.refresh();
+      // Navigation document complète après rotation du mot de passe (ADR-0092).
+      window.location.replace("/dashboard");
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {

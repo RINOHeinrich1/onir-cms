@@ -19,10 +19,6 @@ export default async function LimitProfilesPage() {
         <div>
           <span className="eyebrow">Plateforme</span>
           <h1 className="text-title">Profils de limites</h1>
-          <p className="hint">
-            Préréglages réutilisables pour les invitations : chatbots, budgets IA et ressources
-            autorisées.
-          </p>
         </div>
       </div>
       <LimitProfilesManager />

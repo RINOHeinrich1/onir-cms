@@ -48,7 +48,7 @@ export default async function LiensPage() {
     <section>
       <div className="page-head">
         <div>
-          <span className="eyebrow">Prospection</span>
+          <span className="eyebrow">Liste de chatbot</span>
           <h1 className="text-title">Chatbots</h1>
         </div>
       </div>

@@ -1,7 +1,13 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type {
+  TemplateParamNode,
+  TemplateParamScalar,
+  TemplateParamSchema,
+  TemplateParamValue,
+  TemplateParamValues,
+} from "@/domain/template-params";
 import { isCompleteColorInput, normalizeColorInput } from "./color-input";
 
 type TemplateParamsFieldsProps = {
@@ -13,8 +19,26 @@ type TemplateParamsFieldsProps = {
   onRemoveOrphan?: (key: string) => void;
 };
 
+function isObject(
+  value: TemplateParamValue | undefined,
+): value is Record<string, TemplateParamValue> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isSameValue(left: TemplateParamValue, right: TemplateParamValue): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function cloneValue(value: TemplateParamValue): TemplateParamValue {
+  return JSON.parse(JSON.stringify(value)) as TemplateParamValue;
+}
+
+function controlId(path: string): string {
+  return `template-param-${path.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 /**
- * Champs de paramétrage **générés depuis le schéma** du template (ADR-0023).
+ * Champs de paramétrage générés depuis le schéma du template (ADR-0023 / ADR-0095).
  * Aucun libellé ni règle métier n'est codé ici : le cœur ne connaît que les
  * types du contrat.
  */
@@ -27,7 +51,7 @@ export function TemplateParamsFields({
 }: TemplateParamsFieldsProps) {
   if (schema.length === 0 && orphans.length === 0) return null;
 
-  const set = (key: string, value: string | number | boolean): void => {
+  const set = (key: string, value: TemplateParamValue): void => {
     onChange({ ...values, [key]: value });
   };
 
@@ -39,57 +63,14 @@ export function TemplateParamsFields({
       ) : null}
       {schema.map((param) => {
         const current = values[param.key];
-        const value = current === undefined ? param.default : current;
-        const isDefault = value === param.default;
-        const controlId = `template-param-${param.key}`;
         return (
-          <div key={param.key} className="param-field">
-            {param.type === "boolean" ? (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={value === true}
-                  onChange={(event) => set(param.key, event.target.checked)}
-                />{" "}
-                {param.label}
-              </label>
-            ) : param.type === "image" ? (
-              <div>
-                <span className="param-label">{param.label}</span>
-                <ImageParamField
-                  id={controlId}
-                  value={typeof value === "string" ? value : ""}
-                  onChange={(next) => set(param.key, next)}
-                />
-              </div>
-            ) : param.type === "color" ? (
-              <div>
-                <span className="param-label">{param.label}</span>
-                <ColorParamField
-                  id={controlId}
-                  label={param.label}
-                  value={typeof value === "string" ? value : String(param.default)}
-                  defaultValue={String(param.default)}
-                  onChange={(next) => set(param.key, next)}
-                />
-              </div>
-            ) : (
-              <label htmlFor={controlId}>
-                {param.label}
-                {renderControl(param, value, (next) => set(param.key, next), controlId)}
-              </label>
-            )}
-            {param.description === "" ? null : <span className="hint">{param.description}</span>}
-            {isDefault ? null : (
-              <button
-                type="button"
-                className="btn ghost small"
-                onClick={() => set(param.key, param.default)}
-              >
-                Réinitialiser
-              </button>
-            )}
-          </div>
+          <ParamField
+            key={param.key}
+            param={param}
+            value={current === undefined ? cloneValue(param.default) : current}
+            onChange={(next) => set(param.key, next)}
+            path={param.key}
+          />
         );
       })}
       {orphans.length === 0 ? null : (
@@ -117,6 +98,208 @@ export function TemplateParamsFields({
         </div>
       )}
     </fieldset>
+  );
+}
+
+function ParamField({
+  param,
+  value,
+  onChange,
+  path,
+}: {
+  param: TemplateParamSchema;
+  value: TemplateParamValue;
+  onChange: (next: TemplateParamValue) => void;
+  path: string;
+}) {
+  const isDefault = isSameValue(value, param.default);
+  return (
+    <div className="param-field" data-param-path={path}>
+      {param.type === "boolean" ? (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={value === true}
+            onChange={(event) => onChange(event.target.checked)}
+          />{" "}
+          {param.label}
+        </label>
+      ) : (
+        <span className="param-label">{param.label}</span>
+      )}
+      {param.type === "boolean" ? null : (
+        <ParamValueEditor
+          node={param}
+          value={value}
+          onChange={onChange}
+          path={path}
+          label={param.label}
+        />
+      )}
+      {param.description === "" ? null : <span className="hint">{param.description}</span>}
+      {isDefault ? null : (
+        <button
+          type="button"
+          className="btn ghost small"
+          onClick={() => onChange(cloneValue(param.default))}
+        >
+          Réinitialiser
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ParamValueEditor({
+  node,
+  value,
+  onChange,
+  path,
+  label,
+}: {
+  node: TemplateParamNode;
+  value: TemplateParamValue;
+  onChange: (next: TemplateParamValue) => void;
+  path: string;
+  label: string;
+}): ReactNode {
+  if (node.type === "object") {
+    const source = isObject(value) ? value : {};
+    return (
+      <div className="param-object">
+        {(node.properties ?? []).map((property) => (
+          <ParamField
+            key={property.key}
+            param={property}
+            value={
+              source[property.key] === undefined
+                ? cloneValue(property.default)
+                : (source[property.key] as TemplateParamValue)
+            }
+            onChange={(next) => onChange({ ...source, [property.key]: next })}
+            path={`${path}.${property.key}`}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (node.type === "array") {
+    const items = Array.isArray(value) ? value : [];
+    const itemNode = node.items;
+    if (itemNode === undefined) {
+      return <span className="hint">Tableau sans schéma d&apos;élément.</span>;
+    }
+    const minItems = node.minItems ?? 0;
+    const maxItems = node.maxItems ?? 100;
+    return (
+      <div className="param-array">
+        {items.map((entry, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: tableau de configuration sans identifiant stable
+          <div className="param-array-item" key={`${path}[${index}]`}>
+            <div className="param-array-item-head">
+              <span className="param-label">
+                {label} {index + 1}
+              </span>
+              <button
+                type="button"
+                className="btn ghost small"
+                disabled={items.length <= minItems}
+                onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+              >
+                Supprimer
+              </button>
+            </div>
+            <ParamValueEditor
+              node={itemNode}
+              value={entry}
+              onChange={(next) => {
+                const copy = [...items];
+                copy[index] = next;
+                onChange(copy);
+              }}
+              path={`${path}[${index}]`}
+              label={`${label} ${index + 1}`}
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn ghost small"
+          disabled={items.length >= maxItems}
+          onClick={() => onChange([...items, cloneValue(itemNode.default)])}
+        >
+          Ajouter un élément
+        </button>
+      </div>
+    );
+  }
+
+  if (node.type === "boolean") {
+    return (
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={value === true}
+          onChange={(event) => onChange(event.target.checked)}
+        />{" "}
+        {label}
+      </label>
+    );
+  }
+
+  return (
+    <ScalarParamControl
+      param={node}
+      value={value}
+      onChange={onChange}
+      controlId={controlId(path)}
+      label={label}
+    />
+  );
+}
+
+function ScalarParamControl({
+  param,
+  value,
+  onChange,
+  controlId,
+  label,
+}: {
+  param: TemplateParamNode;
+  value: TemplateParamValue;
+  onChange: (next: TemplateParamValue) => void;
+  controlId: string;
+  label: string;
+}) {
+  if (param.type === "image") {
+    return (
+      <ImageParamField
+        id={controlId}
+        value={typeof value === "string" ? value : ""}
+        onChange={(next) => onChange(next)}
+      />
+    );
+  }
+  if (param.type === "color") {
+    const defaultValue = typeof param.default === "string" ? param.default : "#000000";
+    return (
+      <ColorParamField
+        id={controlId}
+        label={label}
+        value={typeof value === "string" ? value : defaultValue}
+        defaultValue={defaultValue}
+        onChange={(next) => onChange(next)}
+      />
+    );
+  }
+  return renderControl(
+    param,
+    typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+      ? value
+      : "",
+    onChange as (next: TemplateParamScalar) => void,
+    controlId,
   );
 }
 
@@ -293,9 +476,9 @@ function ColorParamField({ id, label, value, defaultValue, onChange }: ColorPara
 }
 
 function renderControl(
-  param: TemplateParamSchema,
-  value: string | number | boolean,
-  onChange: (next: string | number | boolean) => void,
+  param: TemplateParamNode,
+  value: TemplateParamScalar,
+  onChange: (next: TemplateParamScalar) => void,
   controlId: string,
 ): ReactNode {
   switch (param.type) {
@@ -320,7 +503,7 @@ function renderControl(
           value={typeof value === "number" ? String(value) : String(param.default)}
           onChange={(event) => {
             if (event.target.value === "") {
-              onChange(param.default);
+              if (typeof param.default === "number") onChange(param.default);
               return;
             }
             const parsed = Number(event.target.value);

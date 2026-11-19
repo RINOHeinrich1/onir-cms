@@ -868,6 +868,14 @@ export function ChatbotCreateForm({
                 onMediaSelectionChange={(mediaSelection) =>
                   setConfig((current) => ({ ...current, mediaSelection }))
                 }
+                mediaAccess={config.mediaAccess}
+                onMediaAccessChange={(mediaAccess) =>
+                  setConfig((current) => ({ ...current, mediaAccess }))
+                }
+                mediaMaxResults={config.mediaMaxResults}
+                onMediaMaxResultsChange={(mediaMaxResults) =>
+                  setConfig((current) => ({ ...current, mediaMaxResults }))
+                }
                 onGlobalCountsChange={setGlobalDataCounts}
                 onUploadPhoto={uploadDraftPhoto}
                 onRemovePhoto={removeDraftPhoto}

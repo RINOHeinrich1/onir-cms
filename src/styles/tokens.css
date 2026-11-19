@@ -80,24 +80,24 @@
   --stagger: 60ms;
 }
 
-/* Palette sombre — nuit végétale. */
+/* Palette sombre — graphite éditorial. */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --brand-green: #a6d3a7;
-  --brand-green-deep: #002b21;
-  --brand-mint: #173d2d;
-  --brand-cream: #061f18;
-  --brand-paper: #0b2b21;
-  --brand-orange: #ff9a1f;
-  --brand-orange-light: #ffc46b;
-  --brand-ink: #f2f8ef;
-  --brand-muted: #b8cfc2;
-  --brand-line: #214736;
+  --brand-green: #9dbfae;
+  --brand-green-deep: #2d7e66;
+  --brand-mint: #1e2a26;
+  --brand-cream: #111315;
+  --brand-paper: #1a1d20;
+  --brand-orange: #d99a57;
+  --brand-orange-light: #e8c79e;
+  --brand-ink: #f2f1ed;
+  --brand-muted: #a1a5aa;
+  --brand-line: rgb(242 241 237 / 0.11);
 
   --navy: var(--brand-green);
   --orange: var(--brand-orange);
-  --on-orange: #06281f;
+  --on-orange: #2a1600;
 
   --surface: var(--brand-cream);
   --surface-raised: var(--brand-paper);
@@ -105,26 +105,26 @@
   --fg-muted: var(--brand-muted);
   --border: var(--brand-line);
   --accent: var(--brand-green);
-  --accent-fg: #06281f;
+  --accent-fg: #10221c;
   --accent-2: var(--brand-orange);
   --accent-2-ink: var(--on-orange);
   --accent-soft: var(--brand-mint);
-  --accent-soft-ink: #dcefe0;
-  --head: #ffffff;
-  --code-bg: #020c1f;
-  --code-fg: #eef8f1;
-  --band: var(--brand-green-deep);
-  --band-fg: #f2f8ef;
-  --band-muted: #b8cfc2;
+  --accent-soft-ink: #d8f0e6;
+  --head: #f2f1ed;
+  --code-bg: #0b0d0f;
+  --code-fg: #f2f1ed;
+  --band: #171a1d;
+  --band-fg: #f2f1ed;
+  --band-muted: #a1a5aa;
   --focus: var(--brand-orange);
   --success: #7dd3a7;
-  --success-soft: #103b2b;
-  --warning: #ffc46b;
-  --warning-soft: #3b2a13;
-  --danger: #ff7a64;
-  --danger-soft: #3d1c1a;
-  --info: #a6d3a7;
-  --info-soft: #173d2d;
-  --sh-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 34px -24px rgb(0 0 0 / 0.55);
-  --sh-lifted: 0 2px 4px rgb(0 0 0 / 0.5), 0 26px 52px -28px rgb(0 0 0 / 0.7);
+  --success-soft: #15251f;
+  --warning: #e8c79e;
+  --warning-soft: #30251a;
+  --danger: #ff8a75;
+  --danger-soft: #3a1f1c;
+  --info: #9dbfae;
+  --info-soft: #1e2a26;
+  --sh-card: 0 20px 48px -34px rgb(0 0 0 / 0.72);
+  --sh-lifted: 0 28px 60px -42px rgb(0 0 0 / 0.9);
 }

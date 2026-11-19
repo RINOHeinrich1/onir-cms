@@ -25,6 +25,7 @@ import {
 } from "@/domain/entities/chatbot-config";
 import {
   type ChatbotInformationSources,
+  type ChatbotMediaAccessMode,
   type ChatbotMission,
   defaultChatbotInformationSources,
   isChatbotMission,
@@ -102,6 +103,10 @@ export type ChatbotConfigDraft = {
   dataSelection: ChatbotDataSelection;
   /** Sélection indépendante des médias (Photos/Liens). */
   mediaSelection: ChatbotDataSelection;
+  /** Médias : galerie à la demande ou illustration automatique des réponses. */
+  mediaAccess: ChatbotMediaAccessMode;
+  /** Nombre maximal de photos/liens attachés à une réponse. */
+  mediaMaxResults: number;
   fallback: ChatbotFallback;
   /** Configuration versionnée de l'outil de recherche de fiches (ADR-0067). */
   searchTool: ChatbotSearchToolDraft;
@@ -228,6 +233,8 @@ export function chatbotConfigDraftFromAi(
       mediaIds: [],
     },
     mediaSelection: { mode: "selected", connaissanceIds: [], mediaIds: [] },
+    mediaAccess: "on_demand",
+    mediaMaxResults: 3,
     fallback:
       fiches.length === 0 ? { ...draft.fallback, showCollectionForm: false } : draft.fallback,
     searchTool: defaultChatbotSearchToolDraft(),
@@ -291,6 +298,8 @@ export function defaultChatbotConfigDraft(): ChatbotConfigDraft {
     fiches: [],
     dataSelection: defaultChatbotDataSelection(),
     mediaSelection: defaultChatbotDataSelection(),
+    mediaAccess: "on_demand",
+    mediaMaxResults: 3,
     fallback: defaultChatbotFallback(),
     searchTool: defaultChatbotSearchToolDraft(),
     ficheUsageHint: defaultChatbotInformationSources().fiches.usageHint,
@@ -402,6 +411,8 @@ function informationSourcesFromDraft(
         mode: draft.mediaSelection.mode,
         ids: draft.mediaSelection.mediaIds,
       },
+      access: draft.mediaAccess,
+      maxResults: draft.mediaMaxResults,
     },
   };
 }
@@ -654,6 +665,8 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
   const ficheUsageHint = informationSources.ok
     ? informationSources.value.fiches.usageHint
     : defaultChatbotInformationSources().fiches.usageHint;
+  const mediaAccess = informationSources.ok ? informationSources.value.medias.access : "on_demand";
+  const mediaMaxResults = informationSources.ok ? informationSources.value.medias.maxResults : 3;
   const mission: ChatbotMission = isChatbotMission(raw.mission)
     ? raw.mission
     : searchTool.ok && searchTool.value.enabled
@@ -681,6 +694,8 @@ export function draftFromConfig(input: unknown): ChatbotConfigDraft | null {
     fiches,
     dataSelection: dataSelection.ok ? dataSelection.value : defaultChatbotDataSelection(),
     mediaSelection,
+    mediaAccess,
+    mediaMaxResults,
     fallback: fallback.ok ? fallback.value : defaultChatbotFallback(),
     searchTool: searchTool.ok ? searchTool.value : defaultChatbotSearchToolDraft(),
     ficheUsageHint,

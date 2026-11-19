@@ -63,3 +63,9 @@ export const chatStateLimiter = createRateLimiter({
   limit: envInt("CHAT_STATE_LIMIT", 30),
   windowMs: envInt("CHAT_STATE_WINDOW_MS", 5 * 60 * 1000),
 });
+
+/** Identification OTP email (ADR-0099) : par IP + lien, défaut 10 / 10 min. */
+export const chatOtpLimiter = createRateLimiter({
+  limit: envInt("CHAT_OTP_LIMIT", 10),
+  windowMs: envInt("CHAT_OTP_WINDOW_MS", 10 * 60 * 1000),
+});

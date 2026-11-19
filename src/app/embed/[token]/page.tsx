@@ -11,7 +11,11 @@ import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
 import { TemplateHost } from "@/components/templates/TemplateHost";
 import { WidgetReadySignal } from "@/components/templates/WidgetReadySignal";
 import { WidgetStandaloneRedirect } from "@/components/templates/WidgetStandaloneRedirect";
-import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
+import {
+  channelsForLink,
+  chatLinkBlockReason,
+  parseVisualTemplateParams,
+} from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
@@ -30,7 +34,28 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type PageProps = { params: Promise<{ token: string }> };
+type PageProps = {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function decodePreviewParams(value: string): unknown {
+  try {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function decodePreviewTemplate(
+  value: string | string[] | undefined,
+): { id: string; version: string } | null {
+  if (typeof value !== "string" || value === "") return null;
+  const at = value.lastIndexOf("@");
+  if (at <= 0 || at === value.length - 1) return null;
+  return { id: value.slice(0, at), version: value.slice(at + 1) };
+}
 
 const WIDGET_TRANSPARENT_STYLES = `
   html, body, #__next { background: transparent !important; }
@@ -42,18 +67,36 @@ const WIDGET_TRANSPARENT_STYLES = `
  * Aucun header dashboard, aucun formulaire de contact, aucune politique.
  * Le template widget démarre directement en phase `chat`.
  */
-export default async function WidgetPage({ params }: PageProps) {
+export default async function WidgetPage({ params, searchParams }: PageProps) {
   const { token } = await params;
+  const query = await searchParams;
   const pool = getPool();
   const links = pgChatLinkRepository(pool);
   const link = await links.findByTokenHash(hashLinkToken(token.trim()));
   if (link === null || !link.actif) {
     notFound();
   }
-  const channel = channelsForLink(link).widget;
-  if (!channel.enabled) {
+  const baseChannel = channelsForLink(link).widget;
+  if (!baseChannel.enabled && query.preview !== "1") {
     notFound();
   }
+  const previewTemplate = query.preview === "1" ? decodePreviewTemplate(query.template) : null;
+  const previewParams =
+    query.preview === "1" && typeof query.params === "string"
+      ? decodePreviewParams(query.params)
+      : undefined;
+  const channel =
+    previewTemplate === null
+      ? baseChannel
+      : {
+          ...baseChannel,
+          visualTemplateId: previewTemplate.id,
+          visualTemplateVersion: previewTemplate.version,
+          visualTemplateParams:
+            previewParams === undefined
+              ? baseChannel.visualTemplateParams
+              : parseVisualTemplateParams(previewParams),
+        };
   const organization = await pgOrganizationRepository(pool).findById(link.organizationId);
   if (organization === null || organization.suspendedAt !== null) {
     notFound();

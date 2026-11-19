@@ -138,6 +138,8 @@ export async function startConversation(
     visitor?: unknown;
     consentement?: unknown;
     channel?: ChatLinkSurface;
+    /** Identité déjà vérifiée par OTP email (ADR-0099), jamais fournie par le client public. */
+    verifiedEmail?: { email: string; verifiedAt: string };
   },
 ): Promise<StartedConversation> {
   if (typeof input.token !== "string" || input.token.trim() === "") {
@@ -184,6 +186,66 @@ export async function startConversation(
     });
     await prepareChatbotConfig(deps, link, conversation);
     return { conversation, prospect: null, resumed: false };
+  }
+
+  if (link.type === "standard" && channel.identificationMode === "otp") {
+    const verified = input.verifiedEmail;
+    if (verified === undefined) {
+      throw new ValidationError("Vérification email requise");
+    }
+    const email = verified.email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) throw new ValidationError("Email invalide");
+    const source =
+      input.visitor !== null && typeof input.visitor === "object" && !Array.isArray(input.visitor)
+        ? (input.visitor as Record<string, unknown>)
+        : {};
+    const nom = typeof source.nom === "string" ? source.nom.trim() : "";
+    const contacts = parseContacts(source.contacts);
+    const consentementRequis = channel.confidentialiteId !== null;
+    const consentement = input.consentement === true;
+    if (consentementRequis && !consentement) {
+      throw new ValidationError(
+        "Vous devez accepter la politique de confidentialité avant de discuter",
+      );
+    }
+    const prospect = await findOrCreateVisitorProspect(
+      deps.prospects,
+      organizationId,
+      { nom: nom === "" ? (email.split("@")[0] ?? email) : nom, email, contacts },
+      link.id,
+    );
+    const existing = await deps.conversations.findOpenByLinkAndProspect(
+      organizationId,
+      link.id,
+      prospect.id,
+      channelKind,
+    );
+    if (existing !== null) {
+      await deps.conversations.markEmailVerified?.(
+        organizationId,
+        existing.id,
+        verified.verifiedAt,
+      );
+      await prepareChatbotConfig(deps, link, existing);
+      return { conversation: existing, prospect, resumed: true };
+    }
+    const conversation = await deps.conversations.create(organizationId, {
+      linkId: link.id,
+      visitorNom: nom === "" ? (email.split("@")[0] ?? email) : nom,
+      visitorEmail: email,
+      visitorContacts: contacts,
+      prospectId: prospect.id,
+      consentementAt: consentementRequis && consentement ? new Date().toISOString() : null,
+      confidentialiteId: consentementRequis ? channel.confidentialiteId : null,
+      channel: channelKind,
+    });
+    await deps.conversations.markEmailVerified?.(
+      organizationId,
+      conversation.id,
+      verified.verifiedAt,
+    );
+    await prepareChatbotConfig(deps, link, conversation);
+    return { conversation, prospect, resumed: false };
   }
 
   if (link.type === "standard") {

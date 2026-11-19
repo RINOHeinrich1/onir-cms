@@ -67,6 +67,7 @@ export function ConversationLive({
   const [transport, setTransport] = useState<"sse" | "polling">("sse");
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [actionPending, setActionPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useToastOnMessage(error);
@@ -269,12 +270,34 @@ export function ConversationLive({
       receiveMessages([json.message]);
       applyConversation(json.conversation);
       setDraft("");
-      toast.success("Message envoyé au visiteur.");
       draftRef.current?.focus();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
       setPending(false);
+    }
+  };
+
+  const suggest = async (): Promise<void> => {
+    if (pending || suggesting || actionPending || conversation.statut === "finalisee") return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversation.id)}/suggest-reply`,
+        { method: "POST" },
+      );
+      const json = (await response.json()) as { suggestion?: string; error?: string };
+      if (!response.ok || typeof json.suggestion !== "string") {
+        setError(json.error ?? "Suggestion impossible");
+        return;
+      }
+      setDraft(json.suggestion);
+      draftRef.current?.focus();
+    } catch {
+      setError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setSuggesting(false);
     }
   };
 
@@ -312,22 +335,42 @@ export function ConversationLive({
   const operatorName = conversation.assignedOperatorName ?? conversation.lastOperatorName;
   const awaiting = isAwaiting(conversation);
   const finalisee = conversation.statut === "finalisee";
+  const aiActive = conversation.interventionMode === "ai";
 
   return (
     <>
       <div className="conversation-status">
-        {conversation.interventionMode === "human" ? (
-          <span className="badge orange">Humain</span>
-        ) : (
-          <span className="badge">IA</span>
-        )}
-        {operatorName !== null ? (
-          <span className="badge muted">Opérateur : {operatorName}</span>
-        ) : null}
-        {awaiting ? <span className="badge orange">À répondre</span> : null}
-        {!canIntervene ? <span className="badge muted">Lecture seule</span> : null}
-        {transport === "polling" ? (
-          <span className="hint">Actualisation toutes les 4 s</span>
+        <div className="conversation-status-meta">
+          {conversation.interventionMode === "human" ? (
+            <span className="badge orange">Humain</span>
+          ) : (
+            <span className="badge">IA</span>
+          )}
+          {operatorName !== null ? (
+            <span className="badge muted">Opérateur : {operatorName}</span>
+          ) : null}
+          {awaiting ? <span className="badge orange">À répondre</span> : null}
+          {!canIntervene ? <span className="badge muted">Lecture seule</span> : null}
+          {transport === "polling" ? (
+            <span className="hint">Actualisation toutes les 4 s</span>
+          ) : null}
+        </div>
+        {canIntervene && !finalisee ? (
+          <div className="conversation-ai-toggle">
+            <span className="conversation-ai-toggle-label">IA</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={aiActive}
+              aria-label={aiActive ? "Désactiver l'IA et prendre la main" : "Réactiver l'IA"}
+              title={aiActive ? "Désactiver l'IA et prendre la main" : "Réactiver l'IA"}
+              className={`conversation-switch${aiActive ? " is-on" : ""}`}
+              disabled={actionPending}
+              onClick={() => void changeMode(aiActive ? "takeover" : "release")}
+            >
+              <span className="conversation-switch-thumb" aria-hidden="true" />
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -373,31 +416,57 @@ export function ConversationLive({
             }
             rows={3}
             maxLength={4000}
-            disabled={pending}
+            disabled={pending || suggesting}
           />
           <div className="conversation-composer-actions">
-            <button type="submit" className="btn small" disabled={pending || draft.trim() === ""}>
-              {pending ? "Envoi…" : "Envoyer"}
-            </button>
             {conversation.interventionMode === "human" ? (
               <button
                 type="button"
-                className="btn ghost small"
-                disabled={actionPending}
-                onClick={() => void changeMode("release")}
+                className="btn ghost small conversation-composer-suggest"
+                disabled={pending || suggesting || actionPending}
+                onClick={() => void suggest()}
+                aria-label="Générer une suggestion de réponse avec l'IA"
+                title="Générer une suggestion et remplacer le message"
               >
-                Rendre à l&apos;IA
+                <svg
+                  className="conversation-btn-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m12 3 1.7 4.9L19 9.6l-5.3 1.7L12 16l-1.7-5.3L5 9l5.3-1.1L12 3Z" />
+                  <path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z" />
+                </svg>
+                <span className="conversation-btn-label">
+                  {suggesting ? "Suggestion…" : "Suggestion IA"}
+                </span>
               </button>
-            ) : (
-              <button
-                type="button"
-                className="btn ghost small"
-                disabled={actionPending}
-                onClick={() => void changeMode("takeover")}
+            ) : null}
+            <button
+              type="submit"
+              className="btn small conversation-composer-send"
+              disabled={pending || suggesting || draft.trim() === ""}
+              aria-label={pending ? "Envoi en cours" : "Envoyer le message"}
+            >
+              <svg
+                className="conversation-btn-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                Prendre la main
-              </button>
-            )}
+                <path d="m22 2-7 20-4-9-9-4Z" />
+                <path d="M22 2 11 13" />
+              </svg>
+              <span className="conversation-btn-label">{pending ? "Envoi…" : "Envoyer"}</span>
+            </button>
           </div>
         </form>
       ) : null}

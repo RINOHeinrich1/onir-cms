@@ -40,10 +40,6 @@ export default function SkillDocsPage() {
         <div>
           <span className="eyebrow">Pour les agents IA</span>
           <h1 className="text-title">Skill : utiliser le SDK ONIR CMS</h1>
-          <p className="hint">
-            Un fichier de compétences autonome pour qu&apos;un agent crée, teste et empaquette un
-            template sans inventer d&apos;API.
-          </p>
         </div>
       </div>
 

@@ -30,11 +30,6 @@ export default function ApiFichesPage() {
         <div>
           <span className="eyebrow">Référence</span>
           <h1 className="text-title">API</h1>
-          <p className="hint">
-            API server-to-server, isolée par organisation et limitée par scopes. Les clés sont
-            créées dans le backoffice par un administrateur et ne doivent jamais être exposées dans
-            un navigateur.
-          </p>
           <p>
             <a className="btn small" href="/api/v1/docs" target="_blank" rel="noreferrer">
               Ouvrir Swagger

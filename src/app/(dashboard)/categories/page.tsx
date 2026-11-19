@@ -39,10 +39,6 @@ export default async function CategoriesPage() {
           <h1 className="text-title">Catégories</h1>
         </div>
       </div>
-      <p className="hint" style={{ marginBottom: "1.5rem" }}>
-        Taxonomie partagée : un média, une connaissance ou un lien peut appartenir à plusieurs
-        catégories. Les templates y accèdent via des vues avec une clé de rattachement scalaire.
-      </p>
       <CategoriesManager
         initialCategories={categoriesWithCreators}
         canWrite={actorCan(context.actor, "categories:create")}
