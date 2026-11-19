@@ -15,6 +15,7 @@ import {
   WEBHOOK_PROSPECT_FIELD_LABELS,
   WEBHOOK_PROSPECT_FIELDS,
 } from "@/domain/entities/webhook";
+import { ScopePicker } from "./ScopePicker";
 import type { WebhookChatbotOption, WebhookEndpointAdminDto, WebhookFieldOption } from "./types";
 
 type HeaderDraft = { uid: string; name: string; value: string; secret: boolean };
@@ -140,15 +141,6 @@ function initialScope(
   }
   const bot = chatbots.find((candidate) => candidate.fiches.length > 0);
   return { chatLinkId: bot?.chatLinkId ?? "", ficheKey: bot?.fiches[0]?.key ?? "" };
-}
-
-function scopeValue(scope: ScopeDraft): string {
-  return `chatbot:${scope.chatLinkId}:${scope.ficheKey}`;
-}
-
-function parseScope(value: string): ScopeDraft {
-  const [, chatLinkId = "", ...ficheParts] = value.split(":");
-  return { chatLinkId, ficheKey: ficheParts.join(":") };
 }
 
 function scopeFields(
@@ -783,41 +775,24 @@ export function WebhookWizard({
                     Un nom interne pour retrouver facilement cette intégration.
                   </small>
                 </label>
-                <label className="wh-field wh-span2">
-                  <span>
+                <div className="wh-field wh-span2">
+                  <span id="wh-scope-label">
                     Périmètre de déclenchement <span className="wh-required">*</span>
                   </span>
-                  <select
-                    value={scopeValue(scope)}
-                    onChange={(event) => {
-                      setScope(parseScope(event.target.value));
+                  <ScopePicker
+                    chatbots={chatbots}
+                    value={scope}
+                    labelId="wh-scope-label"
+                    onChange={(nextScope) => {
+                      setScope(nextScope);
                       setMappings([]);
                       setActiveTab("model");
                     }}
-                    required
-                  >
-                    {chatbots.length > 0 ? (
-                      <optgroup label="Chatbots / fiches de collecte">
-                        {chatbots.flatMap((bot) => [
-                          <option key={`${bot.chatLinkId}:*`} value={`chatbot:${bot.chatLinkId}:`}>
-                            {bot.label} — toutes les fiches
-                          </option>,
-                          ...bot.fiches.map((fiche) => (
-                            <option
-                              key={`${bot.chatLinkId}:${fiche.key}`}
-                              value={`chatbot:${bot.chatLinkId}:${fiche.key}`}
-                            >
-                              {bot.label} — {fiche.label}
-                            </option>
-                          )),
-                        ])}
-                      </optgroup>
-                    ) : null}
-                  </select>
+                  />
                   <small className="wh-hint">
                     Sélectionnez un chatbot entier ou une fiche précise.
                   </small>
-                </label>
+                </div>
                 <label className="wh-field wh-span2">
                   <span>
                     Description <span className="wh-muted">(facultatif)</span>
