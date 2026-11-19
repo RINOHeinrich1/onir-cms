@@ -198,7 +198,7 @@ export function LinkDisplaySettings({
   const [gallerySearch, setGallerySearch] = useState("");
   const [paramTab, setParamTab] = useState<ParamTab>("all");
   const [paramSearch, setParamSearch] = useState("");
-  const [zoomMode, setZoomMode] = useState<"fit" | "custom">("fit");
+  const [zoomMode, setZoomMode] = useState<"fit" | "custom">("custom");
   const [customZoom, setCustomZoom] = useState(100);
   const [fitZoom, setFitZoom] = useState(1);
   const [chatbotId, setChatbotId] = useState(link.id);
