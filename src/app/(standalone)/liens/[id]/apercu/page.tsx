@@ -69,6 +69,7 @@ async function loadVisualTemplateOptions(
       id: item.id,
       key: item.key,
       name: item.name,
+      description: item.description,
       versions: (await repository.listVersions(item.id)).map((version) => ({
         version: version.version,
         params: version.manifest.params,

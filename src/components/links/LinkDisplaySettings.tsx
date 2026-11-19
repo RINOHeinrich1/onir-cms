@@ -349,12 +349,12 @@ export function LinkDisplaySettings({
                         version={selectedVersion?.version ?? null}
                         name={template.name}
                       />
+                      {isSelected ? <span className="display-studio-check">✓</span> : null}
                     </span>
                     <span className="display-studio-template-name">
                       <strong>{template.name}</strong>
                       <small>{template.key}</small>
                     </span>
-                    {isSelected ? <span className="display-studio-check">✓</span> : null}
                   </button>
                   <label className="display-studio-version">
                     <span>Version</span>
@@ -405,14 +405,35 @@ export function LinkDisplaySettings({
             ) : null}
           </div>
           <div
-            className={`display-preview-stage display-preview-stage--${surface} display-preview-stage--${device}`}
+            className={`display-preview-canvas display-preview-canvas--${surface} display-preview-canvas--${device}`}
             data-widget-position={surface === "widget" ? draft.widgetPosition : undefined}
           >
-            <iframe
-              key={`${surface}-${device}`}
-              title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
-              src={debouncedPreviewSrc}
-            />
+            <div className="display-preview-device">
+              <div className="display-preview-chrome" aria-hidden="true">
+                <span className="display-preview-dots">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="display-preview-address">
+                  {surface === "page" ? "aperçu du template" : "site hôte · widget"}
+                </span>
+                <span className="display-preview-size">
+                  {device === "desktop"
+                    ? "1280 × 800"
+                    : device === "tablet"
+                      ? "834 × 1112"
+                      : "390 × 844"}
+                </span>
+              </div>
+              <div className="display-preview-viewport">
+                <iframe
+                  key={`${surface}-${device}`}
+                  title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
+                  src={debouncedPreviewSrc}
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -422,9 +443,6 @@ export function LinkDisplaySettings({
               <span className="eyebrow">Inspecteur</span>
               <h2>Réglages</h2>
             </div>
-            <a className="btn ghost small" href={`/liens/${link.id}/apercu?surface=${surface}`}>
-              Aperçu seul
-            </a>
           </div>
 
           <form
@@ -451,37 +469,66 @@ export function LinkDisplaySettings({
                 </div>
               </section>
 
-              <section className="display-studio-group">
-                <h3>Template — {surface === "page" ? "Page" : "Widget"}</h3>
-                <p className="hint">
-                  {selectedTemplate === null
-                    ? "Template par défaut"
-                    : `${selectedTemplate.name} · ${selectedTemplate.key}`}
-                </p>
-                {surface === "widget" && widgetDisplay !== null ? (
-                  <label className="field">
-                    Position du widget
+              <section className="display-studio-summary">
+                <div className="display-studio-summary-head">
+                  <div>
+                    <strong>{selectedTemplate?.name ?? "Template par défaut"}</strong>
+                    <small>{selectedTemplate?.key ?? "interface ONIR-CMS"}</small>
+                  </div>
+                  <span
+                    className={`display-studio-surface-badge display-studio-surface-badge--${surface}`}
+                  >
+                    {surface === "page" ? "Page" : "Widget"}
+                  </span>
+                </div>
+                {selectedTemplate?.description ? (
+                  <p className="display-studio-summary-description">
+                    {selectedTemplate.description}
+                  </p>
+                ) : null}
+                {selectedTemplate !== null ? (
+                  <label className="display-studio-version display-studio-version--inspector">
+                    <span>Version active</span>
                     <select
-                      value={draft.widgetPosition}
-                      onChange={(event) =>
-                        setDraft({ widgetPosition: event.target.value as WidgetPosition })
-                      }
+                      value={draft.visualTemplate}
+                      onChange={(event) => changeTemplate(event.target.value)}
                     >
-                      {WIDGET_POSITIONS.filter((position) =>
-                        widgetDisplay.allowedPositions.includes(position),
-                      ).map((position) => (
-                        <option key={position} value={position}>
-                          {position === "bottom-right"
-                            ? "En bas à droite"
-                            : position === "bottom-left"
-                              ? "En bas à gauche"
-                              : position === "top-right"
-                                ? "En haut à droite"
-                                : "En haut à gauche"}
+                      {templateVersions(selectedTemplate, surface).map((entry) => (
+                        <option
+                          key={entry.version}
+                          value={`${selectedTemplate.id}@${entry.version}`}
+                        >
+                          {entry.version}
+                          {entry.widget === null ? " · page" : ""}
                         </option>
                       ))}
                     </select>
                   </label>
+                ) : null}
+                {surface === "widget" && widgetDisplay !== null ? (
+                  <div className="display-studio-position">
+                    <span className="display-studio-position-label">Position du widget</span>
+                    <div className="display-studio-position-grid">
+                      {WIDGET_POSITIONS.filter((position) =>
+                        widgetDisplay.allowedPositions.includes(position),
+                      ).map((position) => (
+                        <button
+                          key={position}
+                          type="button"
+                          className={`display-studio-position-button${draft.widgetPosition === position ? " is-active" : ""}`}
+                          onClick={() => setDraft({ widgetPosition: position as WidgetPosition })}
+                        >
+                          {position === "bottom-right"
+                            ? "Bas droite"
+                            : position === "bottom-left"
+                              ? "Bas gauche"
+                              : position === "top-right"
+                                ? "Haut droite"
+                                : "Haut gauche"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </section>
 
