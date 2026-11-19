@@ -909,6 +909,13 @@
     font-size: 0.69rem;
   }
 
+  .wh-data-name > span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
   .wh-target {
     height: 2rem;
     padding: 0 0.35rem;
