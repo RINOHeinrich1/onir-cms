@@ -80,6 +80,8 @@ export const ACTIONS = [
   "webhooks:update",
   "webhooks:delete",
   "webhooks:test",
+  "emailsettings:read",
+  "emailsettings:manage",
   "organizations:list",
   "organizations:read",
   "organizations:create",

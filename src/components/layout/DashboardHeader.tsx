@@ -91,6 +91,12 @@ const ICONS = {
       <path d="M21 2l-9.6 9.6M15.5 7.5l3 3" />
     </>
   ),
+  email: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </>
+  ),
   webhooks: (
     <>
       <circle cx="12" cy="12" r="2" />
@@ -198,6 +204,7 @@ const ITEMS: readonly NavItem[] = [
     action: "visualtemplates:list",
     icon: "templates",
   },
+  { href: "/parametres/email", label: "Email", action: "emailsettings:read", icon: "email" },
   { href: "/parametres/webhooks", label: "Webhooks", action: "webhooks:create", icon: "webhooks" },
   {
     href: "/documentation",

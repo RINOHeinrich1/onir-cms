@@ -158,3 +158,13 @@ export class TemplateKeyReservedError extends AppError {
     super(`La clé « ${key} » est réservée aux templates plateforme`, 400, "TEMPLATE_KEY_RESERVED");
   }
 }
+
+/** Trop de demandes OTP (email, lien ou IP) — ADR-0099. */
+export class OtpRateLimitError extends AppError {
+  readonly retryAfterSeconds: number;
+
+  constructor(message = "Trop de demandes de code, réessayez plus tard", retryAfterSeconds = 60) {
+    super(message, 429, "OTP_RATE_LIMITED");
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}

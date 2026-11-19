@@ -93,6 +93,8 @@ export interface ConversationRepository {
   /** Compte les conversations non archivées par statut, scopé organisation. */
   countByStatut(organizationId: string): Promise<ConversationStatusCounts>;
   create(organizationId: string, input: CreateConversationInput): Promise<Conversation>;
+  /** Trace une vérification d'email OTP sur la conversation (ADR-0099). */
+  markEmailVerified?(organizationId: string, id: string, verifiedAt: string): Promise<void>;
   /** Passe la conversation au statut `finalisee`. */
   markFinalisee(organizationId: string, id: string): Promise<void>;
   /** Archive / désarchive une conversation ; false si introuvable. */

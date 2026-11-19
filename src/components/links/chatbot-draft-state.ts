@@ -113,7 +113,9 @@ function params(value: unknown): TemplateParamValues {
 function parseChannel(input: unknown, fallback: ChannelDraft): ChannelDraft {
   const source = record(input);
   const identificationMode =
-    source.identificationMode === "anonymous" || source.identificationMode === "contact"
+    source.identificationMode === "anonymous" ||
+    source.identificationMode === "contact" ||
+    source.identificationMode === "otp"
       ? source.identificationMode
       : fallback.identificationMode;
   const widgetPosition =
