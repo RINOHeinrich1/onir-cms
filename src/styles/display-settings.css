@@ -184,7 +184,16 @@
 }
 
 .display-studio-default {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
   margin-bottom: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
 }
 
 .display-studio-default:hover,

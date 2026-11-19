@@ -453,22 +453,6 @@ export function LinkDisplaySettings({
             }}
           >
             <fieldset disabled={!canEdit}>
-              <section className="display-studio-group">
-                <h3>Canaux de diffusion</h3>
-                <div className="display-channel-switches">
-                  {(["page", "widget"] as const).map((channel) => (
-                    <label key={channel} className="display-channel-toggle">
-                      <input
-                        type="checkbox"
-                        checked={drafts[channel].enabled}
-                        onChange={(event) => toggleChannel(channel, event.target.checked)}
-                      />
-                      <span>{channel === "page" ? "Page" : "Widget"}</span>
-                    </label>
-                  ))}
-                </div>
-              </section>
-
               <section className="display-studio-summary">
                 <div className="display-studio-summary-head">
                   <div>
@@ -530,6 +514,22 @@ export function LinkDisplaySettings({
                     </div>
                   </div>
                 ) : null}
+              </section>
+
+              <section className="display-studio-group">
+                <h3>Canaux de diffusion</h3>
+                <div className="display-channel-switches">
+                  {(["page", "widget"] as const).map((channel) => (
+                    <label key={channel} className="display-channel-toggle">
+                      <input
+                        type="checkbox"
+                        checked={drafts[channel].enabled}
+                        onChange={(event) => toggleChannel(channel, event.target.checked)}
+                      />
+                      <span>{channel === "page" ? "Page" : "Widget"}</span>
+                    </label>
+                  ))}
+                </div>
               </section>
 
               <section className="display-studio-group">
