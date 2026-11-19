@@ -596,11 +596,23 @@ export function LinkDisplaySettings({
                     <strong>{selectedTemplate?.name ?? "Template par défaut"}</strong>
                     <small>{selectedTemplate?.key ?? "interface ONIR-CMS"}</small>
                   </div>
-                  <span
-                    className={`display-studio-surface-badge display-studio-surface-badge--${surface}`}
-                  >
-                    {surface === "page" ? "Page" : "Widget"}
-                  </span>
+                  <div className="display-studio-summary-actions">
+                    {selectedTemplate !== null ? (
+                      <a
+                        className="display-studio-template-link"
+                        href={`/templates-visuels/${selectedTemplate.id}`}
+                        title="Voir la page du template"
+                        aria-label="Voir la page du template"
+                      >
+                        <StudioIcon name="external" size={14} />
+                      </a>
+                    ) : null}
+                    <span
+                      className={`display-studio-surface-badge display-studio-surface-badge--${surface}`}
+                    >
+                      {surface === "page" ? "Page" : "Widget"}
+                    </span>
+                  </div>
                 </div>
                 {selectedTemplate?.description ? (
                   <p className="display-studio-summary-description">
