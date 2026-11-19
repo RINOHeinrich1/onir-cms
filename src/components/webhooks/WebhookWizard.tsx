@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { WebhookAuth } from "@/domain/entities/webhook";
@@ -273,6 +273,7 @@ export function WebhookWizard({
   );
   const [activeTab, setActiveTab] = useState<Tab>("model");
   const [search, setSearch] = useState("");
+  const submittingRef = useRef(false);
   const [pending, setPending] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -400,7 +401,9 @@ export function WebhookWizard({
   }
 
   async function submit(): Promise<void> {
+    if (submittingRef.current) return;
     if (!validateStep(0) || !validateStep(1) || !validateStep(2)) return;
+    submittingRef.current = true;
     setPending(true);
     setError(null);
     try {
@@ -443,6 +446,7 @@ export function WebhookWizard({
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
+      submittingRef.current = false;
       setPending(false);
     }
   }
