@@ -330,7 +330,7 @@ export type TemplateGeneratedFiche = {
 };
 
 export type TemplateState = {
-  phase: "identity" | "chat";
+  phase: "identity" | "otp" | "chat";
   status: "en_cours" | "finalisee";
   messages: TemplateMessage[];
   typing: boolean;
@@ -360,6 +360,8 @@ export type TemplateAction =
     }
   | { action: "removeAttachment"; payload: { attachmentId: string } }
   | { action: "submitIdentity"; payload: TemplateIdentity }
+  | { action: "requestOtp"; payload: { email: string; consentement?: boolean } }
+  | { action: "verifyOtp"; payload: { challengeId: string; code: string } }
   | { action: "finish" }
   | { action: "selectFallback"; payload: { questionId: string } }
   | { action: "openCollectionForm"; payload?: { ficheKey?: string } }
@@ -419,8 +421,16 @@ export type TemplateDataApi = {
 };
 
 /** Actions exécutées par l'hôte pour le compte du template. */
+export type TemplateOtpChallenge = {
+  challengeId: string;
+  expiresAt: string;
+  transport: "organization" | "platform";
+};
+
 export type TemplateActions = {
   submitIdentity(data: TemplateIdentity): void;
+  requestOtp(data: { email: string; consentement?: boolean }): Promise<TemplateOtpChallenge>;
+  verifyOtp(data: { challengeId: string; code: string }): Promise<void>;
   sendMessage(content: string, attachmentIds?: string[]): void;
   attachFile(fieldName: string, file: File): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;

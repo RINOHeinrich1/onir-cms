@@ -115,7 +115,7 @@ export async function buildLinkContext(
   link: ChatLink,
   spec: TemplateSpec,
   input: {
-    phase: "identity" | "chat";
+    phase: "identity" | "otp" | "chat";
     messages: TemplateMessage[];
     consent: { texte: string; lien: string } | null;
     theme?: Record<string, string>;
