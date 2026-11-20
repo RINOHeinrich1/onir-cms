@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.22](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.21...v0.38.22) (2026-11-20)
+
+
+### Bug Fixes
+
+* **chatbots:** placer la carte de création en tête de liste
+
+
 ## [0.38.21](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.20...v0.38.21) (2026-11-20)
 
 
