@@ -6,8 +6,13 @@ import { decryptLinkToken } from "@/lib/link-crypto";
 /** Ligne de lien avec son URL partageable (ou null). */
 export type ChatLinkWithUrl = ChatLink & { url: string | null };
 
-/** Ligne de lien exposée aux clients : URL + libellé du créateur. */
-export type ChatLinkListItem = ChatLinkWithUrl & { createdByLabel: string | null };
+/** Ligne de lien avec l'objectif éditorial du chatbot. */
+export type ChatLinkWithDescription = ChatLinkWithUrl & {
+  description?: string | null;
+};
+
+/** Ligne de lien exposée aux clients : URL, créateur et objectif du chatbot. */
+export type ChatLinkListItem = ChatLinkWithDescription & { createdByLabel: string | null };
 
 /** URL partageable d'un chiffré (null si absent ou illisible). */
 export function publicUrl(tokenEnc: string | null): string | null {
@@ -26,11 +31,13 @@ export function publicUrl(tokenEnc: string | null): string | null {
 export async function linkListItems(
   links: ChatLinkRepository,
   items: ChatLink[],
-): Promise<ChatLinkWithUrl[]> {
+  descriptions?: ReadonlyMap<string, string>,
+): Promise<ChatLinkWithDescription[]> {
   return Promise.all(
     items.map(async (link) => ({
       ...link,
       url: publicUrl(await links.getTokenEnc(link.organizationId, link.id)),
+      description: descriptions?.get(link.id) ?? null,
     })),
   );
 }

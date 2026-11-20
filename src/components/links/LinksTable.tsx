@@ -22,7 +22,7 @@ import { RoundCheckbox } from "@/components/ui/RoundCheckbox";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { usePagination } from "@/components/ui/use-pagination";
-import { channelsForLink } from "@/domain/entities/chat";
+import { channelsForLink, chatLinkBlockReason } from "@/domain/entities/chat";
 import { resolveActionMenuPlacement } from "./action-menu-placement";
 import { ChatbotAnalysisModal } from "./ChatbotAnalysisModal";
 import { CHATBOT_STEPS } from "./chatbot-steps";
@@ -62,21 +62,165 @@ function templatePreviewUrl(link: ChatLinkRow): string {
   return `/api/template-assets/${encodeURIComponent(link.visualTemplateId)}/${encodeURIComponent(link.visualTemplateVersion)}/preview.png`;
 }
 
+type ChatbotSection = "all" | "active" | "drafts";
+type ChatbotTone = "success" | "warn" | "muted";
+
+function isExpired(link: ChatLinkRow, nowIso: string): boolean {
+  return (
+    link.expiresAt !== null && new Date(link.expiresAt).getTime() <= new Date(nowIso).getTime()
+  );
+}
+
+function linkStatus(link: ChatLinkRow, nowIso: string): { label: string; tone: ChatbotTone } {
+  if (isExpired(link, nowIso)) return { label: "Expiré", tone: "warn" };
+  if (chatLinkBlockReason(link) !== null) return { label: "Bloqué", tone: "warn" };
+  if (link.actif) return { label: "Actif", tone: "success" };
+  return { label: "Révoqué", tone: "muted" };
+}
+
+function linkSurfaceSummary(link: ChatLinkRow): string {
+  const channels = channelsForLink(link);
+  if (channels.page.enabled && channels.widget.enabled) return "Page publique + widget";
+  if (channels.page.enabled) return "Page publique";
+  if (channels.widget.enabled) return "Widget intégrable";
+  return "Assistant IA";
+}
+
+function formatVisits(count: number): string {
+  if (count < 1_000) return String(count);
+  const thousands = count / 1_000;
+  return `${thousands.toFixed(thousands >= 10 ? 0 : 1).replace(".0", "")}k`;
+}
+
+function draftStep(draft: ChatbotDraftRow): { current: number; total: number } {
+  const rawStep = draft.state.step;
+  const stepIndex = typeof rawStep === "number" ? Math.trunc(rawStep) : 0;
+  return {
+    current: Math.min(CHATBOT_STEPS.length, Math.max(1, stepIndex + 1)),
+    total: CHATBOT_STEPS.length,
+  };
+}
+
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5.5 5.5h13a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4.5 3v-3a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
+        fill="currentColor"
+        opacity="0.16"
+      />
+      <path
+        d="M5.5 5.5h13a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4.5 3v-3a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M8 10h8M8 13h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RobotIllustration() {
+  return (
+    <svg className="chatbots-hero-art" viewBox="0 0 360 280" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="hero-bot-body" x1="135" y1="98" x2="250" y2="230">
+          <stop stopColor="#0b725c" />
+          <stop offset="1" stopColor="#023f33" />
+        </linearGradient>
+        <linearGradient id="hero-bot-screen" x1="150" y1="102" x2="225" y2="174">
+          <stop stopColor="#0b4c41" />
+          <stop offset="1" stopColor="#02251f" />
+        </linearGradient>
+        <linearGradient id="hero-bot-arm" x1="248" y1="168" x2="306" y2="196">
+          <stop stopColor="#e9f6ef" />
+          <stop offset="1" stopColor="#bfe4d5" />
+        </linearGradient>
+        <radialGradient
+          id="hero-bot-glow"
+          cx="0"
+          cy="0"
+          r="1"
+          gradientTransform="translate(192 144) rotate(90) scale(100)"
+        >
+          <stop stopColor="#7be0bc" stopOpacity="0.5" />
+          <stop offset="1" stopColor="#7be0bc" stopOpacity="0" />
+        </radialGradient>
+        <filter id="hero-bot-shadow" x="-30%" y="-30%" width="160%" height="180%">
+          <feDropShadow dx="0" dy="14" stdDeviation="13" floodColor="#005943" floodOpacity="0.22" />
+        </filter>
+      </defs>
+      <circle cx="197" cy="143" r="118" fill="url(#hero-bot-glow)" />
+      <path
+        d="M67 77c21-35 65-47 104-31 18-24 64-25 84 2 29-4 54 16 57 44 25 13 31 45 11 64 7 34-22 61-55 58-23 27-67 28-91 3-28 15-65 2-74-28-27-4-44-30-34-54-13-17-12-42-2-58Z"
+        fill="#d4f0e2"
+        opacity="0.72"
+      />
+      <g filter="url(#hero-bot-shadow)">
+        <rect x="123" y="204" width="126" height="50" rx="24" fill="url(#hero-bot-body)" />
+        <rect x="153" y="197" width="66" height="16" rx="8" fill="#bfe4d5" />
+        <rect x="133" y="96" width="108" height="112" rx="36" fill="url(#hero-bot-body)" />
+        <rect x="143" y="107" width="88" height="76" rx="27" fill="url(#hero-bot-screen)" />
+        <rect x="151" y="116" width="72" height="50" rx="20" fill="#062f27" opacity="0.7" />
+        <circle cx="174" cy="139" r="7" fill="#7be0bc" />
+        <circle cx="207" cy="139" r="7" fill="#7be0bc" />
+        <circle cx="176" cy="137" r="2.5" fill="#ffffff" />
+        <circle cx="209" cy="137" r="2.5" fill="#ffffff" />
+        <path d="M176 155c9 8 24 8 33 0" stroke="#7be0bc" strokeWidth="4" strokeLinecap="round" />
+        <rect x="159" y="91" width="56" height="10" rx="5" fill="#e9f6ef" />
+        <rect x="185" y="78" width="4" height="15" rx="2" fill="#e9f6ef" />
+        <circle cx="188" cy="75" r="6" fill="#ffc46b" />
+        <path
+          d="M133 132c-18 0-28 12-28 28s10 28 28 28"
+          stroke="#e9f6ef"
+          strokeWidth="18"
+          strokeLinecap="round"
+        />
+        <path
+          d="M241 132c18 0 28 12 28 28"
+          stroke="url(#hero-bot-arm)"
+          strokeWidth="18"
+          strokeLinecap="round"
+        />
+        <circle cx="273" cy="174" r="17" fill="#e9f6ef" />
+        <path
+          d="M268 170v9M273 166v13M278 170v9"
+          stroke="#0b725c"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </g>
+      <g fill="#005943">
+        <circle cx="74" cy="184" r="4" opacity="0.36" />
+        <circle cx="91" cy="206" r="2.5" opacity="0.24" />
+        <circle cx="304" cy="109" r="3.5" opacity="0.3" />
+      </g>
+      <g>
+        <rect x="268" y="82" width="60" height="44" rx="14" fill="#fffdf6" opacity="0.96" />
+        <circle cx="287" cy="104" r="4" fill="#004a38" />
+        <circle cx="298" cy="104" r="4" fill="#004a38" opacity="0.72" />
+        <circle cx="309" cy="104" r="4" fill="#004a38" opacity="0.42" />
+      </g>
+    </svg>
+  );
+}
+
 /** Petit aperçu du template visuel associé au chatbot. */
 function ChatbotTemplatePreview({
   url,
   name,
-  children,
+  fallback,
 }: {
   url: string;
   name: string;
-  children?: ReactNode;
+  fallback?: ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return null;
+  if (failed) {
+    return <div className="chatbot-card-preview chatbot-card-preview--fallback">{fallback}</div>;
+  }
   return (
     <div className="chatbot-card-preview">
-      {children}
       <Image
         src={url}
         alt={`Aperçu du template ${name}`}
@@ -183,30 +327,64 @@ export function LinksTable({
   useToastOnMessage(error);
   const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [section, setSection] = useState<ChatbotSection>("all");
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkPending, setBulkPending] = useState(false);
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
   const [draftBulkPending, setDraftBulkPending] = useState(false);
-  const creators = creatorOptions(links);
-  const showUnassigned = hasUnassignedCreator(links);
+  const creators = creatorOptions([...links, ...drafts]);
+  const showUnassigned = hasUnassignedCreator([...links, ...drafts]);
   const query = search.trim().toLocaleLowerCase("fr");
-  const visibleLinks = links
-    .filter((link) => matchesCreator(link, creatorFilter))
-    .filter((link) => {
-      if (query === "") return true;
-      const provider = aiProviders.find((entry) => entry.id === link.aiProviderId)?.label ?? "";
-      return [link.label, link.url ?? "", link.aiModel ?? "", provider]
-        .join(" ")
-        .toLocaleLowerCase("fr")
-        .includes(query);
-    });
+  const matchesSearch = (values: readonly (string | null)[]): boolean =>
+    query === "" || values.join(" ").toLocaleLowerCase("fr").includes(query);
+  const filteredLinks = links.filter((link) => {
+    if (!matchesCreator(link, creatorFilter)) return false;
+    const provider = aiProviders.find((entry) => entry.id === link.aiProviderId)?.label ?? "";
+    return matchesSearch([
+      link.label,
+      link.url,
+      link.aiModel,
+      provider,
+      link.createdByLabel,
+      linkSurfaceSummary(link),
+    ]);
+  });
+  const filteredDrafts = drafts.filter((draft) => {
+    if (!matchesCreator(draft, creatorFilter)) return false;
+    return matchesSearch([draft.label, draft.createdByLabel]);
+  });
+  const activeLinks = filteredLinks.filter((link) => linkStatus(link, nowIso).tone === "success");
+  const visibleLinks = section === "active" ? activeLinks : section === "all" ? filteredLinks : [];
   const visibleIds = visibleLinks.map((link) => link.id);
   const visibleSelection = selectionState(selectedIds, visibleIds);
-  const pagination = usePagination(visibleLinks, 9, `${search}|${creatorFilter.join(",")}`);
+  const pagination = usePagination(
+    visibleLinks,
+    9,
+    `${section}|${search}|${creatorFilter.join(",")}`,
+  );
+  const visibleDrafts =
+    section === "drafts" || (section === "all" && pagination.page === 1) ? filteredDrafts : [];
+  const activeCount = links.filter((link) => linkStatus(link, nowIso).tone === "success").length;
+  const allCount = links.length + drafts.length;
   const creatorFilterOptions = [
     ...creators.map((creator) => ({ value: creator.id, label: creator.label })),
     ...(showUnassigned ? [{ value: NO_CREATOR, label: "Non renseigné" }] : []),
   ];
+  const changeSection = (next: ChatbotSection): void => {
+    setSection(next);
+    setSelectedIds([]);
+    setSelectedDraftIds([]);
+  };
+  const toggleSelectionMode = (): void => {
+    setSelectionMode((current) => {
+      if (current) {
+        setSelectedIds([]);
+        setSelectedDraftIds([]);
+      }
+      return !current;
+    });
+  };
 
   const refresh = async (): Promise<void> => {
     try {
@@ -227,11 +405,20 @@ export function LinksTable({
     router.refresh();
   };
 
-  const visibleDraftIds = drafts.map((draft) => draft.id);
+  const visibleDraftIds = visibleDrafts.map((draft) => draft.id);
   const draftSelection = selectionState(selectedDraftIds, visibleDraftIds);
+  const selectableIds = section === "drafts" ? visibleDraftIds : visibleIds;
+  const selectableState = section === "drafts" ? draftSelection : visibleSelection;
 
   const toggleDrafts = (): void => {
     setSelectedDraftIds((current) => toggleVisibleSelection(current, visibleDraftIds));
+  };
+  const toggleSelectable = (): void => {
+    if (section === "drafts") {
+      toggleDrafts();
+      return;
+    }
+    setSelectedIds((current) => toggleVisibleSelection(current, visibleIds));
   };
 
   const removeSelectedDrafts = async (): Promise<void> => {
@@ -416,20 +603,34 @@ export function LinksTable({
   };
 
   return (
-    <div className="links-admin">
+    <div className={`links-admin${selectionMode ? " is-selecting" : ""}`}>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <div className="list-filters">
+      <section className="chatbots-hero" aria-labelledby="chatbots-title">
+        <div className="chatbots-hero-copy">
+          <span className="chatbots-hero-eyebrow">Espace chatbots</span>
+          <h1 id="chatbots-title">Mes Chatbots</h1>
+          <p>Créez, gérez et personnalisez vos assistants intelligents.</p>
+          <a className="btn chatbots-hero-cta" href="https://onir-cms.tech/articles/">
+            Découvrir ONIR-CMS <span aria-hidden="true">→</span>
+          </a>
+        </div>
+        <RobotIllustration />
+      </section>
+
+      <div className="list-filters links-toolbar">
         <SearchInput
           value={search}
           onChange={(value) => {
             setSearch(value);
             setSelectedIds([]);
+            setSelectedDraftIds([]);
           }}
           placeholder="Rechercher un chatbot…"
           label="Rechercher un chatbot"
         />
         <FilterMenu
+          label="Filtres"
           sections={
             [
               {
@@ -443,25 +644,57 @@ export function LinksTable({
           onApply={(values) => {
             setCreatorFilter(values.createur ?? []);
             setSelectedIds([]);
+            setSelectedDraftIds([]);
           }}
         />
-      </div>
-
-      <div className="links-selection-toolbar">
-        <RoundCheckbox
-          checked={visibleSelection === "all"}
-          indeterminate={visibleSelection === "partial"}
-          disabled={visibleIds.length === 0}
-          onChange={() => setSelectedIds((current) => toggleVisibleSelection(current, visibleIds))}
-          ariaLabel={visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+        <button
+          type="button"
+          className="btn ghost small links-select-toggle"
+          aria-pressed={selectionMode}
+          onClick={toggleSelectionMode}
         >
-          {visibleSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
-          <span className="connaissance-select-count">({visibleIds.length})</span>
-        </RoundCheckbox>
-        <button type="button" className="btn small" onClick={() => setNewChatbotOpen(true)}>
-          Nouveau chatbot
+          {selectionMode ? "Terminer" : "Sélectionner"}
         </button>
       </div>
+
+      <div className="chatbot-tabs" role="tablist" aria-label="Filtrer les chatbots">
+        {(
+          [
+            { id: "all", label: "Tous", count: allCount },
+            { id: "active", label: "Actifs", count: activeCount },
+            { id: "drafts", label: "Brouillons", count: drafts.length },
+          ] satisfies { id: ChatbotSection; label: string; count: number }[]
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={section === tab.id}
+            className={`chatbot-tab${section === tab.id ? " is-active" : ""}`}
+            onClick={() => changeSection(tab.id)}
+          >
+            <span className={`chatbot-tab-icon is-${tab.id}`} aria-hidden="true" />
+            <span>{tab.label}</span>
+            <span className="chatbot-tab-count">({tab.count})</span>
+          </button>
+        ))}
+      </div>
+
+      {selectionMode ? (
+        <div className="links-selection-toolbar">
+          <RoundCheckbox
+            checked={selectableState === "all"}
+            indeterminate={selectableState === "partial"}
+            disabled={selectableIds.length === 0}
+            onChange={toggleSelectable}
+            ariaLabel={selectableState === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+          >
+            {selectableState === "all" ? "Tout désélectionner" : "Tout sélectionner"}
+            <span className="connaissance-select-count">({selectableIds.length})</span>
+          </RoundCheckbox>
+          <span className="hint">Sélectionnez les chatbots à supprimer.</span>
+        </div>
+      ) : null}
 
       {selectedIds.length > 0 ? (
         <div className="links-bulk-bar" role="status">
@@ -480,231 +713,64 @@ export function LinksTable({
         </div>
       ) : null}
 
-      {drafts.length > 0 ? (
-        <section className="chatbot-drafts" aria-label="Brouillons de chatbot">
-          <div className="chatbot-step-head">
-            <h2>Brouillons</h2>
-            <p className="hint">
-              Reprenez une création interrompue ou supprimez-la. Un brouillon n’est pas un chatbot
-              actif : il n’a ni URL publique ni conversation.
-            </p>
-          </div>
-          <div className="links-selection-toolbar chatbot-draft-toolbar">
-            <RoundCheckbox
-              checked={draftSelection === "all"}
-              indeterminate={draftSelection === "partial"}
-              onChange={toggleDrafts}
-              ariaLabel={
-                draftSelection === "all" ? "Tout désélectionner" : "Sélectionner les brouillons"
-              }
-            >
-              {draftSelection === "all" ? "Tout désélectionner" : "Tout sélectionner"}
-              <span className="connaissance-select-count">({drafts.length})</span>
-            </RoundCheckbox>
-            {selectedDraftIds.length > 0 ? (
-              <button
-                type="button"
-                className="btn danger small"
-                disabled={draftBulkPending}
-                onClick={() => void removeSelectedDrafts()}
-              >
-                {draftBulkPending
-                  ? "Suppression…"
-                  : `Supprimer la sélection (${selectedDraftIds.length})`}
-              </button>
-            ) : null}
-          </div>
-          <div className="chatbot-grid">
-            {drafts.map((draft) => {
-              const rawStep = draft.state.step;
-              const stepIndex = typeof rawStep === "number" ? Math.trunc(rawStep) : 0;
-              const step = Math.min(CHATBOT_STEPS.length - 1, Math.max(0, stepIndex));
-              return (
-                <article className="chatbot-card" key={draft.id}>
-                  <header className="chatbot-card-head">
-                    <RoundCheckbox
-                      className="chatbot-card-select"
-                      checked={selectedDraftIds.includes(draft.id)}
-                      onChange={(checked) =>
-                        setSelectedDraftIds((current) =>
-                          checked
-                            ? [...current, draft.id]
-                            : current.filter((id) => id !== draft.id),
-                        )
-                      }
-                      ariaLabel={`Sélectionner ${draft.label.trim() === "" ? "le brouillon" : draft.label}`}
-                    />
-                    <div>
-                      <h2>{draft.label.trim() === "" ? "Brouillon sans nom" : draft.label}</h2>
-                      <p>{draft.createdByLabel ?? "Créateur non renseigné"}</p>
-                    </div>
-                    <div className="chatbot-status">
-                      <span className="badge warn">Brouillon</span>
-                    </div>
-                  </header>
-                  <dl className="chatbot-facts">
-                    <div>
-                      <dt>Étape</dt>
-                      <dd>
-                        {step + 1} / {CHATBOT_STEPS.length}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Dernière sauvegarde</dt>
-                      <dd>{new Date(draft.updatedAt).toLocaleDateString("fr-FR")}</dd>
-                    </div>
-                  </dl>
-                  <footer className="chatbot-card-actions">
-                    <button
-                      type="button"
-                      className="btn small"
-                      onClick={() => router.push(`/liens/brouillons/${draft.id}`)}
-                    >
-                      Reprendre
-                    </button>
-                    <button
-                      type="button"
-                      className="btn danger ghost small"
-                      onClick={() => void removeDraft(draft)}
-                    >
-                      Supprimer
-                    </button>
-                  </footer>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+      {selectedDraftIds.length > 0 ? (
+        <div className="links-bulk-bar" role="status">
+          <strong>
+            {selectedDraftIds.length} brouillon{selectedDraftIds.length > 1 ? "s" : ""} sélectionné
+            {selectedDraftIds.length > 1 ? "s" : ""}
+          </strong>
+          <button
+            type="button"
+            className="btn danger small"
+            disabled={draftBulkPending}
+            onClick={() => void removeSelectedDrafts()}
+          >
+            {draftBulkPending ? "Suppression…" : "Supprimer la sélection"}
+          </button>
+        </div>
       ) : null}
 
-      <div className="chatbot-grid chatbot-grid--links">
+      <div className={`chatbot-grid chatbot-grid--links${selectionMode ? " is-selecting" : ""}`}>
         {pagination.pageItems.map((link) => {
           const displaySettingsHref = displaySettingsHrefFor(link);
           const previewUrl = templatePreviewUrl(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
+          const status = linkStatus(link, nowIso);
+          const label = link.label === "" ? "Chatbot sans nom" : link.label;
           return (
             <article
-              className={`chatbot-card chatbot-card--links${" chatbot-card--with-preview"}${selectedIds.includes(link.id) ? " is-selected" : ""}`}
+              className={`chatbot-card chatbot-card--links${selectedIds.includes(link.id) ? " is-selected" : ""}`}
               key={link.id}
             >
-              <ChatbotTemplatePreview
-                url={previewUrl}
-                name={link.label === "" ? "Chatbot sans nom" : link.label}
-              >
-                <div className="chatbot-card-quick-actions">
-                  <a
-                    className="chatbot-quick-action"
-                    href={link.url ?? "#"}
-                    target={link.url === null ? undefined : "_blank"}
-                    rel={link.url === null ? undefined : "noopener noreferrer"}
-                    aria-label="Ouvrir le chatbot dans un nouvel onglet"
-                    title={
-                      link.url === null
-                        ? "Lien indisponible"
-                        : "Ouvrir le chatbot dans un nouvel onglet"
-                    }
-                    aria-disabled={link.url === null}
-                    onClick={(event) => {
-                      if (link.url === null) event.preventDefault();
-                    }}
-                  >
-                    <span className="sr-only">Ouvrir le chatbot dans un nouvel onglet</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M14 4h6v6" />
-                      <path d="M20 4 10 14" />
-                      <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5" />
-                    </svg>
-                  </a>
-                  <button
-                    type="button"
-                    className="chatbot-quick-action"
-                    onClick={() => void doCopy(link)}
-                    disabled={link.url === null}
-                    aria-label="Copier le lien"
-                    title={link.url === null ? "Lien indisponible" : "Copier le lien"}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="9" y="9" width="11" height="11" rx="2" />
-                      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="chatbot-quick-action"
-                    onClick={() => router.push(`/liens/${link.id}/modifier`)}
-                    aria-label="Modifier"
-                    title="Modifier"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="m4 20 4.2-1 10.8-10.8a2.1 2.1 0 0 0-3-3L5.2 16Z" />
-                      <path d="m13.5 6.5 3 3" />
-                    </svg>
-                  </button>
-                </div>
-              </ChatbotTemplatePreview>
-              <header className="chatbot-card-head">
-                <RoundCheckbox
-                  className="chatbot-card-select"
-                  checked={selectedIds.includes(link.id)}
-                  onChange={(checked) =>
-                    setSelectedIds((current) =>
-                      checked
-                        ? [...new Set([...current, link.id])]
-                        : current.filter((id) => id !== link.id),
-                    )
+              <div className="chatbot-card-media">
+                <ChatbotTemplatePreview
+                  url={previewUrl}
+                  name={label}
+                  fallback={
+                    <span className="chatbot-card-fallback">
+                      <ChatIcon />
+                    </span>
                   }
-                  ariaLabel={`Sélectionner « ${link.label === "" ? "Chatbot sans nom" : link.label} »`}
                 />
-                <div className="chatbot-card-identity">
-                  <span className="chatbot-card-mark" aria-hidden="true">
-                    {(link.label.trim() || "?").slice(0, 1).toLocaleUpperCase("fr")}
+                {selectionMode ? (
+                  <RoundCheckbox
+                    className="chatbot-card-select chatbot-card-select--overlay"
+                    checked={selectedIds.includes(link.id)}
+                    onChange={(checked) =>
+                      setSelectedIds((current) =>
+                        checked
+                          ? [...new Set([...current, link.id])]
+                          : current.filter((id) => id !== link.id),
+                      )
+                    }
+                    ariaLabel={`Sélectionner « ${label} »`}
+                  />
+                ) : (
+                  <span className={`chatbot-status-pill is-${status.tone}`}>
+                    <span className="chatbot-status-dot" aria-hidden="true" />
+                    {status.label}
                   </span>
-                  <div className="chatbot-card-copy">
-                    <h2 title={link.label === "" ? "Chatbot sans nom" : link.label}>
-                      {link.label === "" ? "Chatbot sans nom" : link.label}
-                    </h2>
-                    <p className="chatbot-card-creator">
-                      <svg
-                        className="chatbot-card-creator-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <circle cx="12" cy="8" r="3.2" />
-                        <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
-                      </svg>
-                      <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
-                    </p>
-                  </div>
-                </div>
+                )}
                 <details
                   className="action-menu chatbot-card-menu"
                   onToggle={(event) => {
@@ -719,13 +785,22 @@ export function LinksTable({
                       ?.style.removeProperty("--action-menu-max-height");
                   }}
                 >
-                  <summary className="btn ghost small" aria-label="Autres actions">
+                  <summary className="chatbot-card-menu-trigger" aria-label="Autres actions">
                     ⋯
                   </summary>
+                  <button
+                    type="button"
+                    className="action-menu-sheet-backdrop"
+                    aria-label="Fermer le menu"
+                    onClick={(event) => {
+                      const details = event.currentTarget.closest("details");
+                      if (details !== null) details.open = false;
+                    }}
+                  />
                   <div className="action-menu-panel">
-                    <button type="button" onClick={() => setDetailsLinkId(link.id)}>
-                      Voir les détails
-                    </button>
+                    <a href={previewHrefFor(link)} target="_blank" rel="noopener noreferrer">
+                      Aperçu
+                    </a>
                     {link.url === null ? (
                       <button
                         type="button"
@@ -735,10 +810,18 @@ export function LinksTable({
                         {generatingId === link.id ? "Génération…" : "Régénérer le lien"}
                       </button>
                     ) : (
-                      <button type="button" onClick={() => void doCopy(link)}>
-                        Copier le lien
-                      </button>
+                      <>
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          Ouvrir le chatbot
+                        </a>
+                        <button type="button" onClick={() => void doCopy(link)}>
+                          Copier le lien
+                        </button>
+                      </>
                     )}
+                    <button type="button" onClick={() => setDetailsLinkId(link.id)}>
+                      Voir les détails
+                    </button>
                     <a href={displaySettingsHref} target="_blank" rel="noopener noreferrer">
                       Paramètres d&apos;affichage
                     </a>
@@ -771,17 +854,197 @@ export function LinksTable({
                     </button>
                   </div>
                 </details>
-              </header>
+              </div>
+              <div className="chatbot-card-body">
+                <h2 title={label}>{label}</h2>
+                <p className="chatbot-card-creator">
+                  <svg
+                    className="chatbot-card-creator-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="8" r="3.2" />
+                    <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
+                  </svg>
+                  <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
+                </p>
+                <p className="chatbot-card-subtitle">
+                  {link.description?.trim() || linkSurfaceSummary(link)}
+                </p>
+                <div className="chatbot-card-footer">
+                  <span className="chatbot-card-visits">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 19V9M10 19V5M15 19v-7M20 19v-4" />
+                    </svg>
+                    {formatVisits(link.visitCount)} visite{link.visitCount > 1 ? "s" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn small chatbot-card-manage"
+                    onClick={() => router.push(`/liens/${link.id}/modifier`)}
+                  >
+                    Gérer <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </div>
             </article>
           );
         })}
-        {visibleLinks.length === 0 ? (
+
+        {visibleDrafts.map((draft) => {
+          const step = draftStep(draft);
+          const label = draft.label.trim() === "" ? "Brouillon sans nom" : draft.label;
+          return (
+            <article
+              className="chatbot-card chatbot-card--links chatbot-card--draft"
+              key={draft.id}
+            >
+              <div className="chatbot-card-media chatbot-card-media--draft">
+                <div className="chatbot-card-draft-art">
+                  <ChatIcon />
+                </div>
+                {selectionMode ? (
+                  <RoundCheckbox
+                    className="chatbot-card-select chatbot-card-select--overlay"
+                    checked={selectedDraftIds.includes(draft.id)}
+                    onChange={(checked) =>
+                      setSelectedDraftIds((current) =>
+                        checked ? [...current, draft.id] : current.filter((id) => id !== draft.id),
+                      )
+                    }
+                    ariaLabel={`Sélectionner « ${label} »`}
+                  />
+                ) : (
+                  <span className="chatbot-status-pill is-muted">
+                    <span className="chatbot-status-dot" aria-hidden="true" />
+                    Brouillon
+                  </span>
+                )}
+                <details
+                  className="action-menu chatbot-card-menu"
+                  onToggle={(event) => {
+                    const details = event.currentTarget;
+                    if (details.open) {
+                      placeActionMenu(details);
+                      return;
+                    }
+                    delete details.dataset.placement;
+                    details
+                      .querySelector<HTMLElement>(".action-menu-panel")
+                      ?.style.removeProperty("--action-menu-max-height");
+                  }}
+                >
+                  <summary className="chatbot-card-menu-trigger" aria-label="Autres actions">
+                    ⋯
+                  </summary>
+                  <button
+                    type="button"
+                    className="action-menu-sheet-backdrop"
+                    aria-label="Fermer le menu"
+                    onClick={(event) => {
+                      const details = event.currentTarget.closest("details");
+                      if (details !== null) details.open = false;
+                    }}
+                  />
+                  <div className="action-menu-panel">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/liens/brouillons/${draft.id}`)}
+                    >
+                      Reprendre
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => void removeDraft(draft)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </details>
+              </div>
+              <div className="chatbot-card-body">
+                <h2 title={label}>{label}</h2>
+                <p className="chatbot-card-creator">
+                  <svg
+                    className="chatbot-card-creator-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="8" r="3.2" />
+                    <path d="M5.5 19c.8-3.1 3.2-4.8 6.5-4.8s5.7 1.7 6.5 4.8" />
+                  </svg>
+                  <strong>{draft.createdByLabel ?? "Créateur non renseigné"}</strong>
+                </p>
+                <p className="chatbot-card-subtitle">
+                  Création en cours · Étape {step.current} / {step.total}
+                </p>
+                <div className="chatbot-card-footer">
+                  <span className="chatbot-card-visits">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="8" />
+                      <path d="M12 8v4l2.5 1.5" />
+                    </svg>
+                    Dernière sauvegarde le {new Date(draft.updatedAt).toLocaleDateString("fr-FR")}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn small chatbot-card-manage"
+                    onClick={() => router.push(`/liens/brouillons/${draft.id}`)}
+                  >
+                    Reprendre <span aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+
+        {visibleLinks.length === 0 &&
+        visibleDrafts.length === 0 &&
+        (links.length > 0 || drafts.length > 0) ? (
           <div className="empty-state">
             <strong>Aucun chatbot.</strong>
-            <span>Créer un assistant IA partageable</span>
-            {links.length > 0 ? <span>Aucun résultat pour ces filtres.</span> : null}
+            <span>Aucun résultat pour ces filtres.</span>
           </div>
         ) : null}
+
+        <button
+          type="button"
+          className="chatbot-card chatbot-card--links chatbot-card--new"
+          onClick={() => setNewChatbotOpen(true)}
+        >
+          <span className="chatbot-new-icon" aria-hidden="true">
+            +
+          </span>
+          <strong>Créer un nouveau chatbot</strong>
+        </button>
       </div>
       <Pagination
         page={pagination.page}

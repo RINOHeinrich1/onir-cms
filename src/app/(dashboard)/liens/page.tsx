@@ -9,6 +9,7 @@ import { attachCreatorLabels } from "@/application/use-cases/shared/creator-labe
 import { LinksTable } from "@/components/links/LinksTable";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
+import { listChatbotObjectives } from "@/infrastructure/db/chatbot-config-repository";
 import { pgChatbotDraftRepository } from "@/infrastructure/db/chatbot-draft-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
 import { getPool } from "@/infrastructure/db/pool";
@@ -32,13 +33,20 @@ export default async function LiensPage() {
 
   const pool = getPool();
   const linkRepository = pgChatLinkRepository(pool);
-  const [links, drafts, aiProviders] = await Promise.all([
-    listChatLinks({ links: linkRepository }, context.actor).then((items) =>
-      linkListItems(linkRepository, items),
-    ),
+  const [rawLinks, drafts, aiProviders] = await Promise.all([
+    listChatLinks({ links: linkRepository }, context.actor),
     listChatbotDrafts({ drafts: pgChatbotDraftRepository(pool) }, context.actor),
     listAiProviders({ providers: pgAiProviderRepository(pool) }, context.actor),
   ]);
+  const descriptions =
+    context.actor.organizationId === null
+      ? new Map<string, string>()
+      : await listChatbotObjectives(
+          pool,
+          context.actor.organizationId,
+          rawLinks.map((link) => link.id),
+        );
+  const links = await linkListItems(linkRepository, rawLinks, descriptions);
   const [linksWithCreators, draftsWithCreators] = await Promise.all([
     attachCreatorLabels(links, pgCreatorNameRepository(pool)),
     attachCreatorLabels(drafts, pgCreatorNameRepository(pool)),
@@ -46,12 +54,6 @@ export default async function LiensPage() {
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Liste de chatbot</span>
-          <h1 className="text-title">Chatbots</h1>
-        </div>
-      </div>
       <LinksTable
         initialLinks={linksWithCreators}
         initialDrafts={draftsWithCreators}
