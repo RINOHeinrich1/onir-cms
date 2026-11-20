@@ -731,6 +731,16 @@ export function LinksTable({
       ) : null}
 
       <div className={`chatbot-grid chatbot-grid--links${selectionMode ? " is-selecting" : ""}`}>
+        <button
+          type="button"
+          className="chatbot-card chatbot-card--links chatbot-card--new"
+          onClick={() => setNewChatbotOpen(true)}
+        >
+          <span className="chatbot-new-icon" aria-hidden="true">
+            +
+          </span>
+          <strong>Créer un nouveau chatbot</strong>
+        </button>
         {pagination.pageItems.map((link) => {
           const displaySettingsHref = displaySettingsHrefFor(link);
           const previewUrl = templatePreviewUrl(link);
@@ -1034,17 +1044,6 @@ export function LinksTable({
             <span>Aucun résultat pour ces filtres.</span>
           </div>
         ) : null}
-
-        <button
-          type="button"
-          className="chatbot-card chatbot-card--links chatbot-card--new"
-          onClick={() => setNewChatbotOpen(true)}
-        >
-          <span className="chatbot-new-icon" aria-hidden="true">
-            +
-          </span>
-          <strong>Créer un nouveau chatbot</strong>
-        </button>
       </div>
       <Pagination
         page={pagination.page}
