@@ -11038,8 +11038,8 @@ a.subtab {
 }
 
 .links-admin .chatbot-grid--links {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.15rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1rem;
 }
 
 .links-admin .chatbot-card--links {
@@ -11409,13 +11409,62 @@ a.subtab {
   pointer-events: none;
 }
 
-@media (max-width: 560px) {
-  .links-admin .chatbot-grid--links {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 700px) {
+  .links-admin .chatbot-grid--links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .links-admin .chatbot-card-body {
+    gap: 0.2rem;
+    padding: 0.72rem 0.75rem 0.8rem;
+  }
+
+  .links-admin .chatbot-card-body h2 {
+    font-size: 0.88rem;
+  }
+
+  .links-admin .chatbot-card-creator {
+    font-size: 0.66rem;
+  }
+
+  .links-admin .chatbot-card-subtitle {
+    font-size: 0.66rem;
+  }
+
+  .links-admin .chatbot-card-footer {
+    gap: 0.3rem;
+    padding-top: 0.55rem;
+  }
+
+  .links-admin .chatbot-card-visits {
+    font-size: 0.62rem;
+  }
+
+  .links-admin .chatbot-card-manage {
+    min-height: 1.75rem;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.66rem;
+  }
+
+  .chatbot-status-pill {
+    top: 0.5rem;
+    left: 0.5rem;
+    padding: 0.22rem 0.42rem;
+    font-size: 0.6rem;
+  }
+
+  .links-admin .chatbot-card-menu {
+    top: 0.45rem;
+    right: 0.45rem;
+  }
+
+  .chatbot-card-menu-trigger {
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 1rem;
+  }
+
   .chatbots-hero {
     grid-template-columns: minmax(0, 1fr);
     min-height: 13.5rem;
