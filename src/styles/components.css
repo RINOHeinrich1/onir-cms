@@ -6222,6 +6222,17 @@ a.subtab {
   height: 1rem;
 }
 
+.filter-trigger-chevron {
+  width: 0.8rem !important;
+  height: 0.8rem !important;
+  margin-left: 0.05rem;
+  opacity: 0.55;
+}
+
+.filter-trigger[aria-expanded="true"] .filter-trigger-chevron {
+  transform: rotate(180deg);
+}
+
 .filter-count {
   display: grid;
   place-items: center;
@@ -11029,6 +11040,19 @@ a.subtab {
   opacity: 0.82;
 }
 
+.links-toolbar .filter-trigger {
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border-radius: 0.8rem;
+  background: var(--surface-raised);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.links-toolbar .filter-trigger-icon {
+  flex: none;
+}
+
 .links-admin .links-selection-toolbar {
   margin-bottom: 0;
   padding: 0.6rem 0.75rem;
@@ -11408,6 +11432,69 @@ a.subtab {
     text-size-adjust: 100%;
   }
 
+  .links-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .links-toolbar .list-search {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .links-toolbar .links-select-toggle {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    margin-left: 0;
+  }
+
+  .links-toolbar .filter-menu {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    width: auto;
+  }
+
+  .links-toolbar .filter-trigger-row {
+    width: auto;
+    flex-wrap: nowrap;
+  }
+
+  .links-toolbar .filter-trigger {
+    width: auto;
+    min-height: 2.5rem;
+    justify-content: center;
+    padding: 0 0.7rem;
+  }
+
+  .links-toolbar .filter-applied-group {
+    display: none;
+  }
+
+  .chatbot-tabs {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+
+  .chatbot-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    gap: 0.28rem;
+    padding: 0.42rem 0.35rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .chatbot-tab-count {
+    font-size: 0.66rem;
+  }
+
   .links-admin .chatbot-grid--links {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.7rem;
@@ -11496,6 +11583,16 @@ a.subtab {
 
   .links-select-toggle {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .chatbot-tab-icon {
+    display: none;
+  }
+
+  .chatbot-tab {
+    padding: 0.42rem 0.25rem;
   }
 }
 

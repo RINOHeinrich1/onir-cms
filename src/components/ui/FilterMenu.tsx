@@ -98,11 +98,31 @@ export function FilterMenu({
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-            <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
+          <svg
+            className="filter-trigger-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden
+          >
+            <path d="M4 7h6M14 7h6M4 12h10M18 12h2M4 17h4M12 17h8" strokeLinecap="round" />
+            <circle cx="12" cy="7" r="2" />
+            <circle cx="16" cy="12" r="2" />
+            <circle cx="10" cy="17" r="2" />
           </svg>
           <span>{label}</span>
           {selectedCount > 0 ? <span className="filter-count">{selectedCount}</span> : null}
+          <svg
+            className="filter-trigger-chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {sections.map((section) =>
           section.value.length > 0 ? (
