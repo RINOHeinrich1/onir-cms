@@ -11410,9 +11410,19 @@ a.subtab {
 }
 
 @media (max-width: 700px) {
+  .links-admin {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   .links-admin .chatbot-grid--links {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
     gap: 0.7rem;
+  }
+
+  .links-admin .chatbot-card--new {
+    min-height: 0;
   }
 
   .links-admin .chatbot-card-body {
@@ -11494,10 +11504,6 @@ a.subtab {
 
   .links-select-toggle {
     margin-left: 0;
-  }
-
-  .links-admin .chatbot-card--new {
-    min-height: 15rem;
   }
 }
 
