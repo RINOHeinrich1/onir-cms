@@ -11038,7 +11038,8 @@ a.subtab {
 }
 
 .links-admin .chatbot-grid--links {
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem;
 }
 
 .links-admin .chatbot-card--links {
@@ -11047,7 +11048,7 @@ a.subtab {
   gap: 0;
   min-height: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--border));
   border-radius: 1.05rem;
   background: var(--surface-raised);
@@ -11073,7 +11074,8 @@ a.subtab {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 10;
-  overflow: hidden;
+  overflow: visible;
+  border-radius: 1.05rem 1.05rem 0 0;
   background:
     radial-gradient(circle at 72% 16%, rgb(255 255 255 / 0.65), transparent 38%),
     linear-gradient(135deg, #dff4e8, #a9dfc9);
@@ -11083,7 +11085,8 @@ a.subtab {
   width: 100%;
   height: 100%;
   margin: 0;
-  border-radius: 0;
+  overflow: hidden;
+  border-radius: 1.05rem 1.05rem 0 0;
   aspect-ratio: auto;
   background: transparent;
 }
@@ -11404,6 +11407,12 @@ a.subtab {
   color: var(--accent-fg);
   font-weight: 800;
   pointer-events: none;
+}
+
+@media (max-width: 560px) {
+  .links-admin .chatbot-grid--links {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 700px) {

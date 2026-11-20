@@ -611,7 +611,7 @@ export function LinksTable({
           <span className="chatbots-hero-eyebrow">Espace chatbots</span>
           <h1 id="chatbots-title">Mes Chatbots</h1>
           <p>Créez, gérez et personnalisez vos assistants intelligents.</p>
-          <a className="btn chatbots-hero-cta" href="/documentation">
+          <a className="btn chatbots-hero-cta" href="https://onir-cms.tech/articles/">
             Découvrir ONIR-CMS <span aria-hidden="true">→</span>
           </a>
         </div>
