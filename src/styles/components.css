@@ -11242,13 +11242,15 @@ a.subtab {
 }
 
 .links-admin .chatbot-card-subtitle {
+  display: -webkit-box;
+  min-height: 2.1em;
   margin: 0.1rem 0 0;
   overflow: hidden;
   color: var(--fg-muted);
   font-size: 0.76rem;
   line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .links-admin .chatbot-card-footer {

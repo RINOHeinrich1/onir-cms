@@ -198,3 +198,27 @@ export function pgChatbotConfigRepository(pool: Pool): ChatbotConfigRepository {
   const cache = getRuntimeCache();
   return cache === null ? base : cachedChatbotConfigRepository(base, cache);
 }
+
+/** Objectif lisible des configurations courantes de plusieurs chatbots. */
+export async function listChatbotObjectives(
+  pool: Pool,
+  organizationId: string,
+  chatLinkIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (chatLinkIds.length === 0) return new Map();
+  const { rows } = await pool.query<{ chat_link_id: string; objective: string | null }>(
+    `SELECT DISTINCT ON (chat_link_id)
+            chat_link_id,
+            NULLIF(btrim(simple_settings->>'objective'), '') AS objective
+       FROM chatbot_configs
+      WHERE organization_id = $1
+        AND chat_link_id = ANY($2::uuid[])
+      ORDER BY chat_link_id, version DESC`,
+    [organizationId, chatLinkIds],
+  );
+  return new Map(
+    rows.flatMap((row) =>
+      row.objective === null ? [] : [[row.chat_link_id, row.objective] as const],
+    ),
+  );
+}

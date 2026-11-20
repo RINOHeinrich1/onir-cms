@@ -8,7 +8,10 @@ import { channelsForLink } from "@/domain/entities/chat";
 import { pgAiProviderModelRepository } from "@/infrastructure/db/ai-model-repository";
 import { pgAiProviderRepository } from "@/infrastructure/db/ai-provider-repository";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
-import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
+import {
+  listChatbotObjectives,
+  pgChatbotConfigRepository,
+} from "@/infrastructure/db/chatbot-config-repository";
 import { pgChatbotProvisioningRepository } from "@/infrastructure/db/chatbot-provisioning-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgCreatorNameRepository } from "@/infrastructure/db/creator-name-repository";
@@ -32,7 +35,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     const pool = getPool();
     const repository = pgChatLinkRepository(pool);
     const links = await listChatLinks({ links: repository }, actor);
-    const items = await linkListItems(repository, links);
+    const descriptions =
+      actor.organizationId === null
+        ? new Map<string, string>()
+        : await listChatbotObjectives(
+            pool,
+            actor.organizationId,
+            links.map((link) => link.id),
+          );
+    const items = await linkListItems(repository, links, descriptions);
     return NextResponse.json({
       links: await attachCreatorLabels(items, pgCreatorNameRepository(pool)),
     });

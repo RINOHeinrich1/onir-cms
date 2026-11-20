@@ -864,7 +864,9 @@ export function LinksTable({
                   </svg>
                   <strong>{link.createdByLabel ?? "Créateur non renseigné"}</strong>
                 </p>
-                <p className="chatbot-card-subtitle">{linkSurfaceSummary(link)}</p>
+                <p className="chatbot-card-subtitle">
+                  {link.description?.trim() || linkSurfaceSummary(link)}
+                </p>
                 <div className="chatbot-card-footer">
                   <span className="chatbot-card-visits">
                     <svg
