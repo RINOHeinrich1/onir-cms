@@ -11416,16 +11416,6 @@ a.subtab {
   letter-spacing: -0.02em;
 }
 
-.chatbot-new-cta {
-  margin-top: 0.35rem;
-  border-color: transparent;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-weight: 800;
-  pointer-events: none;
-}
-
 @media (max-width: 700px) {
   .links-admin {
     -webkit-text-size-adjust: 100%;
