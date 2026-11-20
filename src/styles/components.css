@@ -11630,6 +11630,10 @@ a.subtab {
     z-index: auto;
   }
 
+  .links-admin .chatbot-card--links .action-menu[open] {
+    z-index: 90;
+  }
+
   body:has(.links-admin .chatbot-card-menu[open]) {
     overflow: hidden;
   }
