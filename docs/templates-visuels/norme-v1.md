@@ -448,11 +448,24 @@ const titre = ctx.params.titre_de_livre; // string | number | boolean (gelé)
 | `key` | unique, `^[a-z][a-z0-9_]{1,40}$` |
 | `label` | 1..80 caractères (libellé du champ opérateur) |
 | `description` | 0..200 caractères (aide sous le champ) |
-| `type` | `string` \| `text` \| `number` \| `boolean` \| `color` \| `url` \| `select` |
-| `default` | **obligatoire** |
+| `type` | `string` \| `text` \| `number` \| `boolean` \| `color` \| `url` \| `image` \| `select` |
+| `default` | **obligatoire** ; pour `image` : `""` ou URL `http(s)` |
 | `maxLength` | `string`/`text`, 1..2000 (défaut 200) |
 | `min` / `max` | `number` |
 | `options` | `select` : `{ value, label }[]`, `default` ∈ valeurs |
+
+Pour un paramètre `image`, le `default` doit être une chaîne vide (`""`) ou une
+URL `http(s)` absolue. Un `default` absent, `null` ou un chemin relatif est
+refusé à l'import avec `défaut attendu : vide ou URL http(s)`.
+
+```json
+{
+  "key": "logo",
+  "label": "Logo",
+  "type": "image",
+  "default": ""
+}
+```
 
 Limites : **64 paramètres**, bloc ≤ **64 Ko**.
 

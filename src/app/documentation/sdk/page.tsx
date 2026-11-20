@@ -42,6 +42,13 @@ export default defineManifest({
       default: "Discutons de votre projet",
       maxLength: 80,
     },
+    {
+      key: "logo",
+      label: "Logo",
+      description: "Logo affiché dans l'en-tête (optionnel)",
+      type: "image",
+      default: "",
+    },
   ],
 });`;
 
@@ -70,6 +77,13 @@ const MANIFEST_VANILLA = `{
       "type": "string",
       "default": "Discutons de votre projet",
       "maxLength": 80
+    },
+    {
+      "key": "logo",
+      "label": "Logo",
+      "description": "Logo affiché dans l'en-tête (optionnel)",
+      "type": "image",
+      "default": ""
     }
   ]
 }`;
@@ -525,6 +539,12 @@ export default function SdkDocsPage() {
           l&apos;exploitant ne renseigne rien.
         </li>
         <li>
+          Pour <code>type: &quot;image&quot;</code>, <code>default</code> doit être{" "}
+          <code>&quot;&quot;</code> ou une URL <code>http(s)</code> absolue. Un champ absent,{" "}
+          <code>null</code> ou un chemin relatif est refusé avec{" "}
+          <code>défaut attendu : vide ou URL http(s)</code>.
+        </li>
+        <li>
           Les types <code>object</code> et <code>array</code> reçoivent de vraies valeurs JSON
           imbriquées dans <code>ctx.params</code> ; déclarez <code>properties</code> ou{" "}
           <code>items</code>, pas une chaîne à parser.
@@ -861,6 +881,15 @@ export default function SdkDocsPage() {
         <dd>
           Le CSS doit être importé en <code>?inline</code> puis passé à l&apos;option{" "}
           <code>css</code> ; un fichier CSS séparé n&apos;est pas chargé dans le Shadow DOM.
+        </dd>
+        <dt>
+          L&apos;import refuse un paramètre <code>image</code> avec « défaut attendu : vide ou URL
+          http(s) ».
+        </dt>
+        <dd>
+          Le champ <code>default</code> est absent, vaut <code>null</code> ou contient un chemin
+          relatif. Déclarez <code>default: &quot;&quot;</code> si aucune image n&apos;est fournie,
+          ou une URL <code>http(s)</code> absolue.
         </dd>
         <dt>
           <code>params.titre</code> est <code>undefined</code>.
