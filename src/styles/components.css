@@ -11465,9 +11465,14 @@ a.subtab {
     flex-wrap: nowrap;
   }
 
+  .links-toolbar .links-select-toggle,
+  .links-toolbar .filter-trigger {
+    height: 2.5rem;
+    min-height: 2.5rem;
+  }
+
   .links-toolbar .filter-trigger {
     width: auto;
-    min-height: 2.5rem;
     justify-content: center;
     padding: 0 0.7rem;
   }
