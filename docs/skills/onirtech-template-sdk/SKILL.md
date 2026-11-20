@@ -33,6 +33,9 @@ le template est une interface UI-only.
 8. Vanilla reste **sans build**. React/Vue/TS passent par Vite.
 9. Ne modifie pas `dist/` ni `release/` à la main.
 10. Ne déclare pas un succès sans avoir exécuté les vérifications ci-dessous.
+11. Chaque entrée de `params[]` doit avoir un `default`. Pour `type: "image"`,
+    le défaut doit être `""` ou une URL `http(s)` : jamais `null`, jamais un
+    chemin relatif, jamais un champ omis.
 
 ## Modèle mental
 
@@ -197,6 +200,37 @@ Build (`@onirtech/template-sdk/vite`) :
 defineTemplateConfig({ entry, element, manifest?, plugins?, minify?, outDir? })
 ```
 
+## Paramètres : `default` obligatoire
+
+Chaque paramètre déclaré dans `manifest.params` doit fournir un `default`.
+L'import échoue avec `params[N].default : ...` si ce n'est pas le cas.
+
+| Type | `default` valide |
+| --- | --- |
+| `string`, `text` | chaîne (éventuellement `""`) |
+| `number` | nombre fini, dans `min`..`max` si fournis |
+| `boolean` | `true` ou `false` |
+| `color` | couleur `#rrggbb` |
+| `url` | URL `http(s)` absolue |
+| `image` | **`""` ou URL `http(s)` absolue** ; jamais `null` ni chemin relatif |
+| `select` | l'une des `options[].value` |
+| `object`, `array` | valeur structurée complète (voir ci-dessous) |
+
+Exemple correct pour une image optionnelle :
+
+```json
+{
+  "key": "logo",
+  "label": "Logo",
+  "description": "Logo affiché dans l'en-tête",
+  "type": "image",
+  "default": ""
+}
+```
+
+Erreur exacte si le champ `default` est omis ou vaut `null` :
+`params[21].default : défaut attendu : vide ou URL http(s)`.
+
 ## Paramètres structurés (`object`, `array`)
 
 Les paramètres ne sont pas limités aux scalaires. `object` et `array` reçoivent
@@ -260,6 +294,7 @@ export default defineManifest({
   capabilities: ["messages", "media", "theme"],
   params: [
     { key: "titre", label: "Titre", type: "string", default: "Discutons…", maxLength: 80 },
+    { key: "logo", label: "Logo", type: "image", default: "" },
   ],
 });
 ```
@@ -267,8 +302,10 @@ export default defineManifest({
 Vanilla : même contenu en JSON dans `onirtech.template.json`, avec
 `schemaVersion`, `kind`, `compatibility`, `network` explicites.
 
-Règles des paramètres : `default` **obligatoire**, types `string | text | number |
-boolean | color | url | select`, ≤ 64 paramètres, ≤ 64 Ko.
+Règles des paramètres : `default` **obligatoire** sur chaque paramètre, types
+`string | text | number | boolean | color | url | image | select`, ≤ 64
+paramètres, ≤ 64 Ko. Pour `image`, le défaut est `""` ou une URL `http(s)` :
+un `default` absent ou `null` est refusé à l'import.
 
 ## Patterns par stack
 
@@ -373,6 +410,8 @@ Contrôles de cohérence :
 | `Cannot find module 'react'` | dépendances absentes | `npm install` |
 | Élément non affiché | `ui.element` ≠ nom enregistré | aligner les deux |
 | Styles absents | CSS non inliné | `?inline` / `styles.js` |
+| `params[N].default : défaut attendu : vide ou URL http(s)` | `type: "image"` sans `default`, avec `default: null` ou un chemin relatif | mettre `default: ""` ou une URL `http(s)` absolue |
+| `params[N].default : défaut attendu : ...` | `default` absent ou du mauvais type | fournir un `default` valide pour le type déclaré |
 | `params.x` undefined | paramètre non déclaré | déclarer + `default`, garder un repli |
 | `resources.media` vide | capacité absente, média non rattaché au chatbot ou source Médias désactivée | déclarer `media`, rattacher les médias, activer la source |
 | Photos visibles en photothèque mais pas dans le chat | mode `on_demand` ou `mediaPending` faux | passer en `illustration` pour illustrer les réponses, ou rendre `resources.media` pour la galerie |
