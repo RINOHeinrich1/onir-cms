@@ -5,6 +5,17 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.21](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.20...v0.38.21) (2026-11-20)
+
+
+### Features
+
+* **chatbots:** refonte de la page de gestion des chatbots
+* **chatbots:** hero, filtres, onglets d'état et cartes enrichies
+* **chatbots:** menu d'actions en bottom sheet sur mobile
+* **listes:** conversion des tableaux en cartes pleine largeur
+
+
 ## [0.38.18](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.17...v0.38.18) (2026-11-19)
 
 
