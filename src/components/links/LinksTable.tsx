@@ -356,8 +356,6 @@ export function LinksTable({
   });
   const activeLinks = filteredLinks.filter((link) => linkStatus(link, nowIso).tone === "success");
   const visibleLinks = section === "active" ? activeLinks : section === "all" ? filteredLinks : [];
-  const visibleDrafts =
-    section === "drafts" ? filteredDrafts : section === "all" ? filteredDrafts : [];
   const visibleIds = visibleLinks.map((link) => link.id);
   const visibleSelection = selectionState(selectedIds, visibleIds);
   const pagination = usePagination(
@@ -365,6 +363,8 @@ export function LinksTable({
     9,
     `${section}|${search}|${creatorFilter.join(",")}`,
   );
+  const visibleDrafts =
+    section === "drafts" || (section === "all" && pagination.page === 1) ? filteredDrafts : [];
   const activeCount = links.filter((link) => linkStatus(link, nowIso).tone === "success").length;
   const allCount = links.length + drafts.length;
   const creatorFilterOptions = [
