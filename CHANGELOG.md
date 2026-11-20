@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.23](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.22...v0.38.23) (2026-11-20)
+
+
+### Documentation
+
+* **templates:** expliciter le défaut obligatoire des paramètres image
+
+
 ## [0.38.22](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.21...v0.38.22) (2026-11-20)
 
 
