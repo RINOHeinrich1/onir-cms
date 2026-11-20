@@ -11616,3 +11616,82 @@ a.subtab {
     max-width: 12rem;
   }
 }
+
+.action-menu-sheet-backdrop {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .links-admin .chatbot-card--links:hover {
+    transform: none;
+  }
+
+  .links-admin .chatbot-card--links:has(.action-menu[open]) {
+    z-index: auto;
+  }
+
+  body:has(.links-admin .chatbot-card-menu[open]) {
+    overflow: hidden;
+  }
+
+  .links-admin .chatbot-card--links .action-menu-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgb(6 30 24 / 0.48);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  .links-admin .chatbot-card--links .action-menu[open] > .action-menu-panel {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    z-index: 80;
+    width: auto;
+    max-height: min(72dvh, 32rem);
+    padding: 0.55rem 0.6rem calc(0.7rem + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-radius: 1.25rem 1.25rem 0 0;
+    border-bottom: 0;
+    background: var(--surface-raised);
+    box-shadow: 0 -20px 60px rgb(0 25 18 / 0.32);
+    overscroll-behavior: contain;
+    animation: action-sheet-in 180ms var(--ease-out-expo);
+  }
+
+  .links-admin .chatbot-card--links .action-menu[open] > .action-menu-panel::before {
+    display: block;
+    width: 2.6rem;
+    height: 0.25rem;
+    margin: 0 auto 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+    content: "";
+  }
+
+  .links-admin .chatbot-card--links .action-menu[open] > .action-menu-panel button,
+  .links-admin .chatbot-card--links .action-menu[open] > .action-menu-panel a {
+    min-height: 2.75rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.65rem;
+    font-size: 0.88rem;
+  }
+}
+
+@keyframes action-sheet-in {
+  from {
+    opacity: 0.6;
+    transform: translateY(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

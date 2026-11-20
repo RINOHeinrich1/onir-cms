@@ -788,6 +788,15 @@ export function LinksTable({
                   <summary className="chatbot-card-menu-trigger" aria-label="Autres actions">
                     ⋯
                   </summary>
+                  <button
+                    type="button"
+                    className="action-menu-sheet-backdrop"
+                    aria-label="Fermer le menu"
+                    onClick={(event) => {
+                      const details = event.currentTarget.closest("details");
+                      if (details !== null) details.open = false;
+                    }}
+                  />
                   <div className="action-menu-panel">
                     <a href={previewHrefFor(link)} target="_blank" rel="noopener noreferrer">
                       Aperçu
@@ -941,6 +950,15 @@ export function LinksTable({
                   <summary className="chatbot-card-menu-trigger" aria-label="Autres actions">
                     ⋯
                   </summary>
+                  <button
+                    type="button"
+                    className="action-menu-sheet-backdrop"
+                    aria-label="Fermer le menu"
+                    onClick={(event) => {
+                      const details = event.currentTarget.closest("details");
+                      if (details !== null) details.open = false;
+                    }}
+                  />
                   <div className="action-menu-panel">
                     <button
                       type="button"
