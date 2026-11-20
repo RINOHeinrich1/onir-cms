@@ -21,9 +21,11 @@ function valuesBySection(sections: readonly FilterMenuSection[]): Record<string,
 export function FilterMenu({
   sections,
   onApply,
+  label = "Filtrer",
 }: {
   sections: readonly FilterMenuSection[];
   onApply: (values: Record<string, string[]>) => void;
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string[]>>(() => valuesBySection(sections));
@@ -99,7 +101,7 @@ export function FilterMenu({
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
             <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
           </svg>
-          <span>Filtrer</span>
+          <span>{label}</span>
           {selectedCount > 0 ? <span className="filter-count">{selectedCount}</span> : null}
         </button>
         {sections.map((section) =>

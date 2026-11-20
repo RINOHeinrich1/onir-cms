@@ -46,12 +46,6 @@ export default async function LiensPage() {
 
   return (
     <section>
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Liste de chatbot</span>
-          <h1 className="text-title">Chatbots</h1>
-        </div>
-      </div>
       <LinksTable
         initialLinks={linksWithCreators}
         initialDrafts={draftsWithCreators}
