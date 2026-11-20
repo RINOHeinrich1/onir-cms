@@ -11392,13 +11392,6 @@ a.subtab {
   letter-spacing: -0.02em;
 }
 
-.chatbot-new-copy {
-  max-width: 13rem;
-  color: var(--fg-muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
 .chatbot-new-cta {
   margin-top: 0.35rem;
   border-color: transparent;
@@ -11417,7 +11410,6 @@ a.subtab {
 
   .links-admin .chatbot-grid--links {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
     gap: 0.7rem;
   }
 

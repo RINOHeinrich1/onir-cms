@@ -1026,7 +1026,6 @@ export function LinksTable({
             +
           </span>
           <strong>Créer un nouveau chatbot</strong>
-          <span className="chatbot-new-copy">Commencez dès maintenant votre assistant IA</span>
           <span className="btn small chatbot-new-cta">
             Créer un chatbot <span aria-hidden="true">→</span>
           </span>
