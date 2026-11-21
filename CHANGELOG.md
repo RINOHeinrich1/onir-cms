@@ -5,6 +5,27 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.24](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.23...v0.38.24) (2026-11-21)
+
+
+### Features
+
+* **templates:** cycle de vie des versions, désactivation et désinstallation sécurisée
+* **liens:** masquer les onglets de paramètres vides
+
+
+### Bug Fixes
+
+* **templates:** détecter les imports incomplets et compenser les imports échoués
+* **stockage:** expliciter les erreurs de stockage indisponible
+
+
+### Documentation
+
+* **adr:** cycle de vie des versions de templates
+* **templates:** documenter les paramètres structurés `object` et `array`
+
+
 ## [0.38.23](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.22...v0.38.23) (2026-11-20)
 
 
