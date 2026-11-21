@@ -142,6 +142,31 @@ export class TemplateInUseError extends AppError {
   }
 }
 
+/** Une version de template est encore référencée par un lien ou une donnée (ADR-0103). */
+export class TemplateVersionInUseError extends AppError {
+  readonly usage: { links: number; bindings: number; assets: number };
+
+  constructor(version: string, usage: { links: number; bindings: number; assets: number }) {
+    const details = [
+      usage.links > 0 ? `${usage.links} lien(s)` : null,
+      usage.bindings > 0 ? `${usage.bindings} configuration(s) de données` : null,
+    ].filter((entry): entry is string => entry !== null);
+    super(
+      `Impossible de désinstaller la version ${version} : ${details.join(" et ")} la référence(nt) encore.`,
+      409,
+      "TEMPLATE_VERSION_IN_USE",
+    );
+    this.usage = usage;
+  }
+}
+
+/** Une version ne remplit pas les conditions de désinstallation (ADR-0103). */
+export class TemplateVersionNotUninstallableError extends AppError {
+  constructor(message: string) {
+    super(message, 409, "TEMPLATE_VERSION_NOT_UNINSTALLABLE");
+  }
+}
+
 /** L'organisation a atteint la limite de templates propriétaires (ADR-0091 §3). */
 export class TemplateLimitReachedError extends AppError {
   readonly limit: number;

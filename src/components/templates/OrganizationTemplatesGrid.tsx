@@ -11,7 +11,13 @@ import { modeLabel, trustLabel } from "./template-labels";
 
 export type OrganizationTemplateCard = VisualTemplate & {
   versionCount: number;
-  latest: { version: string; mode: string; trustLevel: string } | null;
+  latest: {
+    version: string;
+    mode: string;
+    trustLevel: string;
+    healthStatus: "unknown" | "ok" | "error";
+    disabledAt: string | null;
+  } | null;
 };
 
 type CatalogProps = {
@@ -50,9 +56,17 @@ function TemplateCard({
                 <span className="badge orange">Désactivé</span>
               ) : null}
               {last !== null ? (
-                <span className={last.trustLevel === "community" ? "badge muted" : "badge"}>
-                  {trustLabel(last.trustLevel)}
-                </span>
+                <>
+                  <span className={last.trustLevel === "community" ? "badge muted" : "badge"}>
+                    {trustLabel(last.trustLevel)}
+                  </span>
+                  {last.healthStatus === "error" ? (
+                    <span className="badge danger">Dernière incomplète</span>
+                  ) : null}
+                  {last.disabledAt !== null ? (
+                    <span className="badge muted">Dernière désactivée</span>
+                  ) : null}
+                </>
               ) : null}
             </span>
           </div>
@@ -109,6 +123,9 @@ export function OrganizationTemplatesGrid({
   const [fichier, setFichier] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [confirmingUninstall, setConfirmingUninstall] = useState<OrganizationTemplateCard | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   useToastOnMessage(error, message);
@@ -159,7 +176,7 @@ export function OrganizationTemplatesGrid({
   const act = async (
     template: OrganizationTemplateCard,
     method: "PUT" | "DELETE",
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     setPendingId(template.id);
     setError(null);
     setMessage(null);
@@ -170,7 +187,7 @@ export function OrganizationTemplatesGrid({
       const json = (await response.json()) as { error?: string };
       if (!response.ok) {
         setError(json.error ?? "Action impossible");
-        return;
+        return false;
       }
       setMessage(
         method === "PUT"
@@ -178,11 +195,18 @@ export function OrganizationTemplatesGrid({
           : `Template désinstallé : ${template.name}`,
       );
       router.refresh();
+      return true;
     } catch {
       setError("Erreur réseau, veuillez réessayer");
+      return false;
     } finally {
       setPendingId(null);
     }
+  };
+
+  const confirmUninstall = async (): Promise<void> => {
+    if (confirmingUninstall === null) return;
+    if (await act(confirmingUninstall, "DELETE")) setConfirmingUninstall(null);
   };
 
   return (
@@ -226,7 +250,11 @@ export function OrganizationTemplatesGrid({
                         label: "Désinstaller",
                         danger: true,
                         pending: pendingId === template.id,
-                        onClick: () => void act(template, "DELETE"),
+                        onClick: () => {
+                          setError(null);
+                          setMessage(null);
+                          setConfirmingUninstall(template);
+                        },
                       }
                     : undefined
                 }
@@ -288,7 +316,11 @@ export function OrganizationTemplatesGrid({
                           label: "Désinstaller",
                           danger: true,
                           pending: pendingId === template.id,
-                          onClick: () => void act(template, "DELETE"),
+                          onClick: () => {
+                            setError(null);
+                            setMessage(null);
+                            setConfirmingUninstall(template);
+                          },
                         }
                       : {
                           label: "Installer",
@@ -343,6 +375,44 @@ export function OrganizationTemplatesGrid({
               </button>
             </div>
           </form>
+        </Modal>
+      ) : null}
+
+      {confirmingUninstall !== null ? (
+        <Modal
+          title={`Désinstaller « ${confirmingUninstall.name} » ?`}
+          onClose={() => {
+            if (pendingId === null) setConfirmingUninstall(null);
+          }}
+          dismissible={pendingId === null}
+        >
+          <p>
+            Le template <strong>{confirmingUninstall.name}</strong> et toutes ses versions seront
+            retirés de l’organisation.
+          </p>
+          <p className="alert error">
+            Les liens qui utilisent encore ce template doivent d’abord être modifiés. Cette action
+            ne supprime pas les versions du catalogue.
+          </p>
+          {error === null ? null : <p className="alert error">{error}</p>}
+          <div className="tools" style={{ marginTop: "1.25rem" }}>
+            <button
+              type="button"
+              className="btn danger small"
+              disabled={pendingId === confirmingUninstall.id}
+              onClick={() => void confirmUninstall()}
+            >
+              {pendingId === confirmingUninstall.id ? "Désinstallation…" : "Désinstaller"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost small"
+              disabled={pendingId === confirmingUninstall.id}
+              onClick={() => setConfirmingUninstall(null)}
+            >
+              Annuler
+            </button>
+          </div>
         </Modal>
       ) : null}
     </div>

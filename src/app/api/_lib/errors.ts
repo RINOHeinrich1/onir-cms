@@ -9,6 +9,9 @@ export function errorResponse(error: unknown): NextResponse {
         error: error.message,
         ...(error.code === undefined ? {} : { code: error.code }),
         ...("usages" in error && typeof error.usages === "number" ? { usages: error.usages } : {}),
+        ...("usage" in error && typeof error.usage === "object" && error.usage !== null
+          ? { usage: error.usage }
+          : {}),
         ...("limit" in error && typeof error.limit === "number" ? { limit: error.limit } : {}),
       },
       {

@@ -5,6 +5,7 @@ import { actorCan } from "@/application/actor";
 import { NotFoundError } from "@/application/errors";
 import { getVisualTemplate } from "@/application/use-cases/visual-templates/manage-visual-templates";
 import { TemplateCover } from "@/components/templates/TemplateCover";
+import { TemplateVersionActions } from "@/components/templates/TemplateVersionActions";
 import {
   type TemplateVersionSummary,
   TemplateVersionsPanel,
@@ -68,8 +69,18 @@ export default async function VisualTemplatePage({ params, searchParams }: PageP
     version: version.version,
     mode: version.mode,
     trustLevel: version.trustLevel,
+    healthStatus: version.healthStatus,
+    lastErrorCode: version.lastErrorCode,
+    disabledAt: version.disabledAt,
     createdAt: version.createdAt,
   }));
+  const selectedUsage =
+    selected === null ? null : await templates.getVersionUsage(template.id, selected.version);
+  const canManageVersion =
+    context.actor.isSuperAdmin ||
+    (template.ownerOrganizationId !== null &&
+      template.ownerOrganizationId === context.actor.organizationId &&
+      actorCan(context.actor, "visualtemplates:uninstall"));
 
   return (
     <section>
@@ -107,6 +118,12 @@ export default async function VisualTemplatePage({ params, searchParams }: PageP
                 </span>
                 <span className="badge muted">{modeLabel(selected.mode)}</span>
                 <span className="badge muted">{selected.version}</span>
+                {selected.disabledAt !== null ? (
+                  <span className="badge muted">Désactivée</span>
+                ) : null}
+                {selected.healthStatus === "error" ? (
+                  <span className="badge orange">En erreur</span>
+                ) : null}
               </>
             ) : null}
           </div>
@@ -188,6 +205,18 @@ export default async function VisualTemplatePage({ params, searchParams }: PageP
                 <p className="template-version-description">{selected.manifest.description}</p>
               )}
 
+              {selected.healthStatus === "error" ? (
+                <p className="alert error">
+                  {selected.lastErrorMessage ?? "Cette version est en erreur."}
+                  {selected.lastErrorCode === null ? null : (
+                    <>
+                      {" "}
+                      <code>{selected.lastErrorCode}</code>
+                    </>
+                  )}
+                </p>
+              ) : null}
+
               <div className="template-capabilities">
                 {(selected.manifest.capabilities ?? []).length === 0 ? (
                   <span className="muted-text">Aucune capacité déclarée.</span>
@@ -215,6 +244,18 @@ export default async function VisualTemplatePage({ params, searchParams }: PageP
                 >
                   Configurer les données
                 </Link>
+                {selectedUsage === null ? null : (
+                  <TemplateVersionActions
+                    templateId={template.id}
+                    templateName={template.name}
+                    version={selected.version}
+                    versionCount={versions.length}
+                    isDisabled={selected.disabledAt !== null}
+                    healthStatus={selected.healthStatus}
+                    usage={selectedUsage}
+                    canManage={canManageVersion}
+                  />
+                )}
               </div>
             </>
           )}

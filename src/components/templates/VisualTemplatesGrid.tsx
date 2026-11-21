@@ -11,7 +11,13 @@ import { modeLabel, trustLabel } from "./template-labels";
 
 type TemplateCard = VisualTemplate & {
   versionCount: number;
-  latest: { version: string; mode: string; trustLevel: string } | null;
+  latest: {
+    version: string;
+    mode: string;
+    trustLevel: string;
+    healthStatus: "unknown" | "ok" | "error";
+    disabledAt: string | null;
+  } | null;
 };
 
 function trustBadgeClass(trustLevel: string): string {
@@ -118,9 +124,17 @@ export function VisualTemplatesGrid({
                   <div className="template-card-head">
                     <h2>{template.name}</h2>
                     {last !== null ? (
-                      <span className={trustBadgeClass(last.trustLevel)}>
-                        {trustLabel(last.trustLevel)}
-                      </span>
+                      <>
+                        <span className={trustBadgeClass(last.trustLevel)}>
+                          {trustLabel(last.trustLevel)}
+                        </span>
+                        {last.healthStatus === "error" ? (
+                          <span className="badge danger">Dernière incomplète</span>
+                        ) : null}
+                        {last.disabledAt !== null ? (
+                          <span className="badge muted">Dernière désactivée</span>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                   <p className="template-card-key">
