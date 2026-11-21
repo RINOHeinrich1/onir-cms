@@ -8,11 +8,15 @@ export function WidgetPreviewSite({
   position,
   template,
   params,
+  previewToken,
+  revision,
 }: {
   token: string;
   position: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   template?: string | undefined;
   params?: string | undefined;
+  previewToken?: string | undefined;
+  revision?: string | undefined;
 }) {
   useEffect(() => {
     const script = document.createElement("script");
@@ -27,6 +31,12 @@ export function WidgetPreviewSite({
     if (params !== undefined && params !== "") {
       script.dataset.onirPreviewParams = params;
     }
+    if (previewToken !== undefined && previewToken !== "") {
+      script.dataset.onirPreviewToken = previewToken;
+    }
+    if (revision !== undefined && revision !== "") {
+      script.dataset.onirPreviewRevision = revision;
+    }
     document.body.appendChild(script);
     return () => {
       script.remove();
@@ -36,7 +46,7 @@ export function WidgetPreviewSite({
         iframe.remove();
       }
     };
-  }, [params, position, template, token]);
+  }, [params, position, previewToken, revision, template, token]);
 
   return (
     <main className="widget-preview-site">

@@ -16,7 +16,6 @@ import { type ParamTab, paramsForTab, paramTabsForSchema } from "./param-tabs";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { VisualTemplateOption } from "./types";
 import {
-  encodeParamsOverride,
   mergeParamsForSelection,
   paramsSchemaForSelection,
   widgetDisplayForSelection,
@@ -203,28 +202,72 @@ export function LinkDisplaySettings({
     if (!paramTabs.some((tab) => tab.id === paramTab)) setParamTab("all");
   }, [paramTab, paramTabs]);
 
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const previewTokenRef = useRef<string | null>(null);
+  const [previewRevision, setPreviewRevision] = useState(0);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          const response = await fetch(
+            `/api/links/${encodeURIComponent(link.id)}/preview-session`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                token: previewTokenRef.current,
+                surface,
+                template: draft.visualTemplate === "" ? null : draft.visualTemplate,
+                params: draft.params,
+              }),
+              signal: controller.signal,
+            },
+          );
+          const json = (await response.json()) as { token?: string; error?: string };
+          if (!response.ok || typeof json.token !== "string") {
+            setPreviewError(json.error ?? "Aperçu indisponible");
+            return;
+          }
+          previewTokenRef.current = json.token;
+          setPreviewToken(json.token);
+          setPreviewRevision((value) => value + 1);
+          setPreviewError(null);
+        } catch {
+          if (!controller.signal.aborted) setPreviewError("Aperçu indisponible");
+        }
+      },
+      previewTokenRef.current === null ? 0 : 240,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [draft.params, draft.visualTemplate, link.id, surface]);
+
   const previewSrc = useMemo(() => {
-    const params = encodeParamsOverride(draft.params);
-    const template = draft.visualTemplate === "" ? "" : draft.visualTemplate;
+    if (previewToken === null) return "";
     if (surface === "widget") {
       const token = widgetToken(link.url);
       if (token !== null) {
-        const query = new URLSearchParams();
-        if (template !== "") query.set("template", template);
-        if (params !== "") query.set("params", params);
-        query.set("position", draft.widgetPosition);
-        const suffix = query.toString();
-        return `/embed/${encodeURIComponent(token)}/preview${suffix === "" ? "" : `?${suffix}`}`;
+        const query = new URLSearchParams({
+          preview: previewToken,
+          position: draft.widgetPosition,
+          v: String(previewRevision),
+        });
+        return `/embed/${encodeURIComponent(token)}/preview?${query.toString()}`;
       }
     }
-    return `/liens/${link.id}/apercu?embed=1&surface=${surface}&template=${encodeURIComponent(template)}&params=${params}`;
-  }, [draft.params, draft.visualTemplate, draft.widgetPosition, link.id, link.url, surface]);
-  const [debouncedPreviewSrc, setDebouncedPreviewSrc] = useState(previewSrc);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedPreviewSrc(previewSrc), 220);
-    return () => window.clearTimeout(timer);
-  }, [previewSrc]);
+    const query = new URLSearchParams({
+      embed: "1",
+      surface,
+      preview: previewToken,
+      v: String(previewRevision),
+    });
+    return `/liens/${link.id}/apercu?${query.toString()}`;
+  }, [draft.widgetPosition, link.id, link.url, previewRevision, previewToken, surface]);
 
   const setDraft = (patch: Partial<ChannelDraft>): void => {
     setDrafts((current) => ({
@@ -557,7 +600,7 @@ export function LinkDisplaySettings({
               </button>
               <a
                 className="display-studio-icon-button"
-                href={debouncedPreviewSrc}
+                href={previewSrc === "" ? "#" : previewSrc}
                 target="_blank"
                 rel="noreferrer"
                 title="Ouvrir l’aperçu dans un nouvel onglet"
@@ -592,11 +635,16 @@ export function LinkDisplaySettings({
                   </span>
                 </div>
                 <div className="display-preview-viewport">
-                  <iframe
-                    key={`${surface}-${device}`}
-                    title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
-                    src={debouncedPreviewSrc}
-                  />
+                  {previewSrc === "" ? (
+                    <p className="hint">Préparation de l’aperçu…</p>
+                  ) : (
+                    <iframe
+                      key={`${surface}-${device}`}
+                      title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
+                      src={previewSrc}
+                    />
+                  )}
+                  {previewError === null ? null : <p className="alert error">{previewError}</p>}
                 </div>
               </div>
             </div>

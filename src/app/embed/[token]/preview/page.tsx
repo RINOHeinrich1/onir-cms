@@ -49,6 +49,10 @@ export default async function WidgetPreviewPage({ params, searchParams }: PagePr
       position={parsePosition(query.position, link.widgetConfig.position ?? "bottom-right")}
       template={typeof query.template === "string" ? query.template : undefined}
       params={typeof query.params === "string" ? query.params : undefined}
+      previewToken={
+        typeof query.preview === "string" && query.preview !== "1" ? query.preview : undefined
+      }
+      revision={typeof query.v === "string" ? query.v : undefined}
     />
   );
 }
