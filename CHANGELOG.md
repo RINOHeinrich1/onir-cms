@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.25](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.24...v0.38.25) (2026-11-21)
+
+
+### Documentation
+
+* **templates:** clés de schéma `object`/`array` valides à toute profondeur
+
+
 ## [0.38.24](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.23...v0.38.24) (2026-11-21)
 
 
