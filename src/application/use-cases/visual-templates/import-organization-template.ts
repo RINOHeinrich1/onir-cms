@@ -168,17 +168,19 @@ export async function importOrganizationVisualTemplate(
       await deps.templates.install(organizationId, template.id, actor.id, "organization_upload");
     }
 
-    await deps.audit?.record({
-      organizationId,
-      templateId: template.id,
-      actorId: actor.id,
-      event: "upload",
-      metadata: {
-        version: version.version,
-        ownerOrganizationId: organizationId,
-        isNewTemplate,
-      },
-    });
+    await deps.audit
+      ?.record({
+        organizationId,
+        templateId: template.id,
+        actorId: actor.id,
+        event: "upload",
+        metadata: {
+          version: version.version,
+          ownerOrganizationId: organizationId,
+          isNewTemplate,
+        },
+      })
+      .catch(() => undefined);
 
     return { template, version };
   } catch (error) {

@@ -274,6 +274,28 @@ describe("importVisualTemplate — US-TEMPLATE-001", () => {
     expect(base.files()).toBe(0);
   });
 
+  it("reste réussi si l'audit échoue après l'import", async () => {
+    const base = deps();
+    const data = zip({
+      "onirtech.template.json": JSON.stringify(manifest()),
+      "index.js": ENTRY,
+    });
+    const result = await importVisualTemplate(
+      {
+        ...base.deps,
+        audit: {
+          record: async () => {
+            throw new Error("audit indisponible");
+          },
+        },
+      },
+      ADMIN,
+      { data },
+    );
+    expect(result.version.version).toBe("1.0.0");
+    expect(base.files()).toBe(2);
+  });
+
   it("refuse de réinstaller une version déjà publiée (immuable)", async () => {
     const base = deps();
     const data = zip({

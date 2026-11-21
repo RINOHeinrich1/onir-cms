@@ -143,17 +143,19 @@ export async function importVisualTemplate(
       await deps.templates.assignToAllOrganizations(template.id, "platform_default");
     }
 
-    await deps.audit?.record({
-      organizationId: null,
-      templateId: template.id,
-      actorId: actor.id,
-      event: "upload",
-      metadata: {
-        version: version.version,
-        ownerOrganizationId: null,
-        isNewTemplate: existing === null,
-      },
-    });
+    await deps.audit
+      ?.record({
+        organizationId: null,
+        templateId: template.id,
+        actorId: actor.id,
+        event: "upload",
+        metadata: {
+          version: version.version,
+          ownerOrganizationId: null,
+          isNewTemplate: existing === null,
+        },
+      })
+      .catch(() => undefined);
 
     return { template, version };
   } catch (error) {
