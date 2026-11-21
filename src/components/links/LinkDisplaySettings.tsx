@@ -219,12 +219,25 @@ export function LinkDisplaySettings({
     }
     return `/liens/${link.id}/apercu?embed=1&surface=${surface}&template=${encodeURIComponent(template)}&params=${params}`;
   }, [draft.params, draft.visualTemplate, draft.widgetPosition, link.id, link.url, surface]);
-  const [debouncedPreviewSrc, setDebouncedPreviewSrc] = useState(previewSrc);
+  const previewIdentity = `${surface}:${draft.visualTemplate === "" ? "default" : draft.visualTemplate}`;
+  const [debouncedPreview, setDebouncedPreview] = useState({
+    identity: previewIdentity,
+    src: previewSrc,
+  });
+  const previewIdentityChanged = debouncedPreview.identity !== previewIdentity;
+  const iframeSrc = previewIdentityChanged ? previewSrc : debouncedPreview.src;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedPreviewSrc(previewSrc), 220);
+    if (previewIdentityChanged) {
+      setDebouncedPreview({ identity: previewIdentity, src: previewSrc });
+      return;
+    }
+    if (debouncedPreview.src === previewSrc) return;
+    const timer = window.setTimeout(() => {
+      setDebouncedPreview({ identity: previewIdentity, src: previewSrc });
+    }, 220);
     return () => window.clearTimeout(timer);
-  }, [previewSrc]);
+  }, [previewIdentity, previewIdentityChanged, previewSrc, debouncedPreview.src]);
 
   const setDraft = (patch: Partial<ChannelDraft>): void => {
     setDrafts((current) => ({
@@ -557,7 +570,7 @@ export function LinkDisplaySettings({
               </button>
               <a
                 className="display-studio-icon-button"
-                href={debouncedPreviewSrc}
+                href={iframeSrc}
                 target="_blank"
                 rel="noreferrer"
                 title="Ouvrir l’aperçu dans un nouvel onglet"
@@ -593,9 +606,9 @@ export function LinkDisplaySettings({
                 </div>
                 <div className="display-preview-viewport">
                   <iframe
-                    key={`${surface}-${device}`}
+                    key={`${surface}-${device}-${previewIdentity}`}
                     title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
-                    src={debouncedPreviewSrc}
+                    src={iframeSrc}
                   />
                 </div>
               </div>
