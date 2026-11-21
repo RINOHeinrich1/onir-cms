@@ -145,7 +145,7 @@ les plugins du SDK restent toujours appliqués.
 ## Manifeste et variables
 
 `defineManifest` produit l'objet `onirtech.template.json` (défauts injectés,
-objet **gelé**). Les variables scalaires (`params`, ADR-0023) arrivent résolues
+objet **gelé**). Les variables (`params`, ADR-0023 et ADR-0095) arrivent résolues
 dans `ctx.params` :
 
 ```ts
@@ -161,6 +161,11 @@ export default defineManifest({
   params: [{ key: "titre", label: "Titre", type: "string", default: "Discutons" }],
 });
 ```
+
+Pour une configuration structurée, utilisez `object` (propriétés fermées) ou
+`array` (éléments homogènes, `items` obligatoire). Ne transportez jamais du JSON
+sérialisé dans un `string`/`text` : les valeurs structurées arrivent déjà
+résolues dans `ctx.params`.
 
 ## Ressources de données (ADR-0026)
 
