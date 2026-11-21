@@ -8,10 +8,11 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
-import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { type ChannelDraft, type ChannelDrafts, channelApiPayload } from "./LinkChannelsFields";
+import { type ParamTab, paramsForTab, paramTabsForSchema } from "./param-tabs";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { VisualTemplateOption } from "./types";
 import {
@@ -23,16 +24,7 @@ import {
 
 type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
-type ParamTab = "all" | "content" | "colors" | "images" | "advanced";
 type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
-
-const PARAM_TABS: Array<{ id: ParamTab; label: string }> = [
-  { id: "all", label: "Tous" },
-  { id: "content", label: "Contenu" },
-  { id: "colors", label: "Couleurs" },
-  { id: "images", label: "Images" },
-  { id: "advanced", label: "Avancé" },
-];
 
 function StudioIcon({
   name,
@@ -136,32 +128,6 @@ function templateVersions(
     : template.versions;
 }
 
-function paramsForTab(
-  schema: TemplateParamSchema[],
-  tab: ParamTab,
-  search: string,
-): TemplateParamSchema[] {
-  const byTab = schema.filter((param) => {
-    switch (tab) {
-      case "content":
-        return ["string", "text", "url", "select"].includes(param.type);
-      case "colors":
-        return param.type === "color";
-      case "images":
-        return param.type === "image";
-      case "advanced":
-        return ["number", "boolean", "object", "array"].includes(param.type);
-      default:
-        return true;
-    }
-  });
-  const needle = search.trim().toLocaleLowerCase("fr");
-  if (needle === "") return byTab;
-  return byTab.filter((param) =>
-    [param.key, param.label, param.description].join(" ").toLocaleLowerCase("fr").includes(needle),
-  );
-}
-
 export function LinkDisplaySettings({
   link,
   linkOptions,
@@ -228,8 +194,14 @@ export function LinkDisplaySettings({
   });
   const selected = splitSelection(draft.visualTemplate);
   const selectedTemplate = visualTemplates.find((template) => template.id === selected.id) ?? null;
-  const filteredParams = paramsForTab(paramsSchema, paramTab, paramSearch);
+  const paramTabs = useMemo(() => paramTabsForSchema(paramsSchema), [paramsSchema]);
+  const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
+  const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const zoom = zoomMode === "fit" ? fitZoom : customZoom / 100;
+
+  useEffect(() => {
+    if (!paramTabs.some((tab) => tab.id === paramTab)) setParamTab("all");
+  }, [paramTab, paramTabs]);
 
   const previewSrc = useMemo(() => {
     const params = encodeParamsOverride(draft.params);
@@ -728,21 +700,28 @@ export function LinkDisplaySettings({
                   <h3>Paramètres</h3>
                   <span className="badge muted">{filteredParams.length}</span>
                 </div>
-                <div className="display-studio-param-tabs">
-                  {PARAM_TABS.map((tab) => {
-                    const count = paramsForTab(paramsSchema, tab.id, "").length;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`display-studio-param-tab${paramTab === tab.id ? " is-active" : ""}`}
-                        onClick={() => setParamTab(tab.id)}
-                      >
-                        {tab.label} <span>{count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {paramTabs.length === 0 ? null : (
+                  <div className="display-studio-param-tabs">
+                    {paramTabs.map((tab) => {
+                      const count = paramsForTab(paramsSchema, tab.id, "").length;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          className={`display-studio-param-tab${activeParamTab === tab.id ? " is-active" : ""}`}
+                          title={
+                            tab.id === "advanced"
+                              ? "Nombres, booléens, objets et listes"
+                              : undefined
+                          }
+                          onClick={() => setParamTab(tab.id)}
+                        >
+                          {tab.label} <span>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <label className="display-studio-search display-studio-search--params">
                   <span aria-hidden="true">⌕</span>
                   <input
