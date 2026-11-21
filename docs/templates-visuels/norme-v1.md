@@ -97,8 +97,8 @@ aperçu du template dans le catalogue et sur sa fiche.
   fournie). `userState`, `knowledge`, `attachments` et `fallback` sont des **extensions
   additives** (ADR-0020, ADR-0034).
 - `network` : liste de domaines externes autorisés — **vide par défaut**.
-- `params` : variables **paramétrables par lien** (ADR-0023, §12) — optionnel,
-  `[]` par défaut.
+- `params` : variables **paramétrables par lien** (ADR-0023 et ADR-0095, §12) —
+  optionnel, `[]` par défaut.
 
 > Champs **non repris** pour l'instant (présents dans ONIRIA V3 mais inutiles ici) :
 > `views`, `navigation`, `intentions`, `resources`, `migrations`,
@@ -119,6 +119,13 @@ export type TemplateCapability =
   | "knowledge"     // extension additive (ADR-0020)
   | "attachments"   // extension additive (ADR-0034)
   | "fallback";     // extension additive (ADR-0059)
+
+export type TemplateParamValue =
+  | string
+  | number
+  | boolean
+  | TemplateParamValue[]
+  | { [key: string]: TemplateParamValue };
 
 export type TemplateMessageMedia = {
   type: "photo" | "lien";
@@ -183,7 +190,7 @@ export type OnirtechTemplateContext = Readonly<{
   brand: { name: string; logoUrl: string | null };
   theme: Readonly<Record<string, string>>;          // tokens opérateur (couleurs…)
   /** Variables déclarées par le template, résolues (défauts ⊕ lien), GELÉES. */
-  params: Readonly<Record<string, string | number | boolean>>;
+  params: Readonly<Record<string, TemplateParamValue>>;
   capabilities: readonly TemplateCapability[];
   /** Politique de confidentialité rattachée au lien (null si aucune). */
   consent: Readonly<{ texte: string; lien: string }> | null;
@@ -428,7 +435,7 @@ Un template peut déclarer des **variables** que l'exploitant d'un lien renseign
 dans le paramétrage du lien. Elles arrivent **résolues** dans `ctx.params` :
 
 ```js
-const titre = ctx.params.titre_de_livre; // string | number | boolean (gelé)
+const titre = ctx.params.titre_de_livre; // TemplateParamValue (gelé)
 ```
 
 ### Déclaration (`manifest.params`)
@@ -448,11 +455,44 @@ const titre = ctx.params.titre_de_livre; // string | number | boolean (gelé)
 | `key` | unique, `^[a-z][a-z0-9_]{1,40}$` |
 | `label` | 1..80 caractères (libellé du champ opérateur) |
 | `description` | 0..200 caractères (aide sous le champ) |
-| `type` | `string` \| `text` \| `number` \| `boolean` \| `color` \| `url` \| `image` \| `select` |
+| `type` | `string` \| `text` \| `number` \| `boolean` \| `color` \| `url` \| `image` \| `select` \| `object` \| `array` |
 | `default` | **obligatoire** ; pour `image` : `""` ou URL `http(s)` |
 | `maxLength` | `string`/`text`, 1..2000 (défaut 200) |
 | `min` / `max` | `number` |
 | `options` | `select` : `{ value, label }[]`, `default` ∈ valeurs |
+
+`object` et `array` (ADR-0095) servent à la configuration statique structurée :
+un `object` a des clés fixes déclarées dans `properties` ; un `array` est une
+liste répétable dont les éléments suivent `items`. Les champs `string`/`text`
+restent du texte : ne jamais y sérialiser du JSON. Les données runtime passent
+par les contrats de données (ADR-0026), pas par `params`.
+
+```json
+{
+  "key": "apparence",
+  "label": "Apparence",
+  "description": "Couleurs et arrondis",
+  "type": "object",
+  "default": { "accent": "#023777", "rayon": 12 },
+  "properties": [
+    { "key": "accent", "label": "Accent", "description": "Couleur principale",
+      "type": "color", "default": "#023777" },
+    { "key": "rayon", "label": "Rayon", "description": "Arrondi des cartes",
+      "type": "number", "default": 12, "min": 0, "max": 40 }
+  ]
+}
+```
+
+```json
+{
+  "key": "etapes",
+  "label": "Étapes",
+  "description": "Étapes du parcours",
+  "type": "array",
+  "default": ["Bienvenue"],
+  "items": { "type": "string", "default": "", "maxLength": 80 }
+}
+```
 
 Pour un paramètre `image`, le `default` doit être une chaîne vide (`""`) ou une
 URL `http(s)` absolue. Un `default` absent, `null` ou un chemin relatif est
@@ -467,7 +507,8 @@ refusé à l'import avec `défaut attendu : vide ou URL http(s)`.
 }
 ```
 
-Limites : **64 paramètres**, bloc ≤ **64 Ko**.
+Limites : **64 paramètres**, bloc ≤ **64 Ko** ; pour les paramètres structurés :
+profondeur `8`, `300` nœuds, `50` propriétés par objet, `100` éléments par tableau.
 
 ### Invariants
 - **Aucun secret** : les valeurs sont **publiques** (vues par le visiteur).

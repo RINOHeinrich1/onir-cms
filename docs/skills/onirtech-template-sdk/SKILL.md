@@ -36,6 +36,8 @@ le template est une interface UI-only.
 11. Chaque entrée de `params[]` doit avoir un `default`. Pour `type: "image"`,
     le défaut doit être `""` ou une URL `http(s)` : jamais `null`, jamais un
     chemin relatif, jamais un champ omis.
+12. Une configuration structurée se déclare en `object` ou `array` : jamais dans
+    un `string`/`text` contenant du JSON à parser.
 
 ## Modèle mental
 
@@ -237,6 +239,20 @@ Les paramètres ne sont pas limités aux scalaires. `object` et `array` reçoive
 de vraies valeurs JSON imbriquées dans `ctx.params` : ne faites pas
 `JSON.parse`.
 
+### Quand utiliser `object` ou `array`
+
+- `object` : réglages à clés fixes et connues (thème, en-tête, coordonnées,
+  contenu structuré d'une page). Chaque clé est déclarée dans `properties`.
+- `array` : liste répétable d'éléments homogènes (cartes, étapes, liens sociaux),
+  avec `items` obligatoire.
+- `string` / `text` : texte atomique ou long. Ne jamais y sérialiser du JSON :
+  un template ne doit pas faire `JSON.parse(ctx.params.x)`.
+- `data.contracts` (ADR-0026) : données runtime ; `params` reste de la
+  configuration/design statique.
+
+Un paramètre structuré n'est pas un « JSON libre » : le schéma est fermé et les
+valeurs sont validées, normalisées et gelées par l'hôte.
+
 ```json
 {
   "key": "apparence",
@@ -415,7 +431,7 @@ Contrôles de cohérence :
 | `params.x` undefined | paramètre non déclaré | déclarer + `default`, garder un repli |
 | `resources.media` vide | capacité absente, média non rattaché au chatbot ou source Médias désactivée | déclarer `media`, rattacher les médias, activer la source |
 | Photos visibles en photothèque mais pas dans le chat | mode `on_demand` ou `mediaPending` faux | passer en `illustration` pour illustrer les réponses, ou rendre `resources.media` pour la galerie |
-| `ctx.params.x` est une chaîne JSON au lieu d'un objet | type `string` au lieu de `object`/`array` | déclarer le type structuré + `properties`/`items` |
+| `ctx.params.x` est une chaîne JSON au lieu d'un objet | type `string`/`text` au lieu de `object`/`array` | déclarer le type structuré + `properties`/`items`, puis retirer `JSON.parse` |
 | `Invalid hook call` | deux copies de React | supprimer `node_modules`, réinstaller |
 | `validate` échoue (SRI) | bundle modifié après build | rebuild puis validate/pack |
 | `favicon.ico` 404 | harness sans favicon | ignorer |
@@ -436,4 +452,4 @@ Contrôles de cohérence :
   `/documentation/sdk`, `/documentation/actions`, `/documentation/host`,
   `/documentation/templates-visuels`.
 - ADR-0019 (packages UI-only), ADR-0020 (capacités), ADR-0023 (paramètres),
-  ADR-0024 (SDK).
+  ADR-0024 (SDK), ADR-0095 (paramètres structurés `object`/`array`).

@@ -799,6 +799,11 @@ export default function TemplateDocsPage() {
         imbriquées. Ils sont validés récursivement et arrivent déjà normalisés dans{" "}
         <code>ctx.params</code> — il ne faut pas faire <code>JSON.parse</code>.
       </p>
+      <p className="hint">
+        Utilisez <code>object</code> pour des réglages à clés fixes et <code>array</code> pour une
+        liste répétable. <code>string</code>/<code>text</code> restent du texte : ne sérialisez
+        jamais du JSON dans ces champs.
+      </p>
       <Code>{PARAMS_STRUCTURED_EXAMPLE}</Code>
       <p>Chaque paramètre déclare :</p>
       <div className="table-scroll">
