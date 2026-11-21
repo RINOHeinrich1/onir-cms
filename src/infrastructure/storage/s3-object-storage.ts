@@ -142,14 +142,18 @@ export function s3AttachmentStorage(config: S3Config): AttachmentStorage {
         throw new Error("Identifiant d'organisation invalide pour le stockage");
       }
       const key = `orgs/${organizationId}/${randomUUID()}.${attachmentExtension(mime)}`;
-      await client(config).send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: objectKey(config, key),
-          Body: data,
-          ContentType: mime,
-        }),
-      );
+      try {
+        await client(config).send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: objectKey(config, key),
+            Body: data,
+            ContentType: mime,
+          }),
+        );
+      } catch (error) {
+        throw new StorageUnavailableError(undefined, error);
+      }
       return key;
     },
 
