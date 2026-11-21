@@ -1,6 +1,6 @@
 {
   "name": "onir-cms",
-  "version": "0.38.25",
+  "version": "0.38.26",
   "private": true,
   "scripts": {
     "dev": "next dev",

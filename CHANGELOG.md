@@ -5,6 +5,19 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.26](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.25...v0.38.26) (2026-11-21)
+
+
+### Features
+
+* **aperçu:** remplacer les paramètres dans l’URL par une session tokenisée courte
+
+
+### Documentation
+
+* **adr:** sessions d’aperçu éphémères et token court
+
+
 ## [0.38.25](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.24...v0.38.25) (2026-11-21)
 
 
