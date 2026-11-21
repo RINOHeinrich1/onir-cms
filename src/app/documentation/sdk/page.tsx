@@ -549,6 +549,10 @@ export default function SdkDocsPage() {
           imbriquées dans <code>ctx.params</code> ; déclarez <code>properties</code> ou{" "}
           <code>items</code>, pas une chaîne à parser.
         </li>
+        <li>
+          Utilisez <code>object</code> pour des réglages à clés fixes et <code>array</code> pour une
+          liste répétable. Ne sérialisez jamais du JSON dans <code>string</code>/<code>text</code>.
+        </li>
         <li>Une capacité non déclarée ⇒ la donnée correspondante est absente/ vide.</li>
       </ul>
 
