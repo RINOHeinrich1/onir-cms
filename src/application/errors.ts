@@ -126,6 +126,20 @@ export class StorageQuotaExceededError extends AppError {
   }
 }
 
+/** Le stockage des fichiers refuse l'écriture (espace insuffisant, S3 indisponible). */
+export class StorageUnavailableError extends AppError {
+  readonly cause: unknown;
+
+  constructor(
+    message = "Stockage des fichiers indisponible : espace insuffisant ou service de stockage en erreur. Réessayez après libération de l’espace.",
+    cause?: unknown,
+  ) {
+    super(message, 503, "STORAGE_UNAVAILABLE");
+    this.name = "StorageUnavailableError";
+    this.cause = cause;
+  }
+}
+
 /** Le template est encore utilisé par au moins un chatbot (ADR-0091 §6). */
 export class TemplateInUseError extends AppError {
   readonly usages: number;
