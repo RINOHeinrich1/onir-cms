@@ -1,4 +1,4 @@
-# 0103. Cycle de vie des versions de templates — test, erreur, désactivation, suppression sécurisée et retour arrière
+# 0103. Cycle de vie des versions de templates — test, erreur, désactivation, désinstallation sécurisée et retour arrière
 
 - **Statut** : Proposé
 - **Date** : 2026-11-21
@@ -30,9 +30,9 @@ Un import interrompu avant l'indexation des assets peut aussi laisser une
 version sans entrée ni assets : elle est inutilisable, mais reste présente dans
 la liste et ne peut pas être retirée.
 
-Supprimer physiquement une version n'est pas une bonne réponse par défaut :
+Désinstaller physiquement une version n'est pas une bonne réponse par défaut :
 cela casse les liens qui l'utilisent et efface l'historique nécessaire au
-diagnostic et au retour arrière. Une suppression doit donc être encadrée et
+diagnostic et au retour arrière. Une désinstallation doit donc être encadrée et
 réservée aux versions réellement orphelines.
 
 Il faut donc un cycle de vie de version explicite, distinct du contenu figé de
@@ -170,16 +170,16 @@ version_test_error
 version_disabled
 version_enabled
 version_rollback
-version_deleted
+version_uninstalled
 ```
 
 Ils portent `template_id`, `version`, l'acteur et, pour les erreurs, le code
 normalisé. Les événements existants d'installation et de désinstallation du
 template restent inchangés.
 
-### 8. Suppression physique sécurisée des versions sans usage
+### 8. Désinstallation physique sécurisée des versions sans usage
 
-La désactivation reste l'action par défaut. La suppression physique est une
+La désactivation reste l'action par défaut. La désinstallation physique est une
 action distincte, réservée aux versions orphelines, avec les gardes suivantes :
 
 - aucun `chat_links` ni `chat_link_channels` ne référence le template et la
@@ -189,13 +189,14 @@ action distincte, réservée aux versions orphelines, avec les gardes suivantes 
 - la version est `error` (dont `import_incomplete`) ou déjà désactivée ;
 - au moins une autre version du template subsiste.
 
-Une version saine et active ne peut donc pas être supprimée en un seul geste :
+Une version saine et active ne peut donc pas être désinstallée en un seul geste :
 il faut d'abord la désactiver. Une version issue d'un import incomplet peut être
-supprimée directement.
+désinstallée directement.
 
-L'action est libellée **« Supprimer la version »**, jamais « Désinstaller ».
-Elle affiche avant confirmation le nombre de liens, de canaux, de configurations
-et d'assets concernés, puis exige une double confirmation.
+L'action est libellée **« Désinstaller la version »**. Elle affiche avant
+confirmation le nombre de liens, de canaux, de configurations et d'assets
+concernés, puis exige une double confirmation précisant que la désinstallation
+de la version et de ses fichiers est définitive.
 
 Procédure :
 
@@ -206,26 +207,40 @@ Procédure :
 5. en cas d'échec du nettoyage stockage, conserver une trace et une reprise de
    purge : aucun objet orphelin ne doit rester silencieusement.
 
-La suppression d'une version ne supprime pas le template. Si c'était la dernière
-version, l'action est refusée : la suppression du template relève d'une autre
-décision.
+La désinstallation d'une version ne désinstalle pas le template. Si c'était la
+dernière version, l'action est refusée : la désinstallation du template relève
+d'une autre décision.
 
 Les droits suivent le propriétaire du template : super-administrateur pour un
 template plateforme, administrateur de l'organisation disposant de
 `visualtemplates:uninstall` pour un template propriétaire.
 
+### 9. Emplacements des actions
+
+Les deux actions ne partagent pas le même emplacement :
+
+- **« Désinstaller le template »** reste sur la carte du template dans la liste
+  des templates de l'organisation ; elle retire le template entier de
+  l'organisation.
+- **« Désinstaller la version »** apparaît uniquement dans la fiche de la
+  version sélectionnée, à côté de **« Désactiver la version »**. Elle ne doit
+  jamais être affichée sur la carte du template ni dans la liste des versions
+  sans sélection.
+- La confirmation de désinstallation de version rappelle le template, la
+  version et le caractère définitif de l'opération.
+
 ## Alternatives écartées
 
-### Supprimer physiquement sans condition
+### Désinstaller sans condition
 
 Refusé : un lien peut encore référencer la version, et la suppression empêche
-le diagnostic et le retour arrière. La suppression n'est autorisée qu'après
+le diagnostic et le retour arrière. La désinstallation n'est autorisée qu'après
 vérification des usages et des gardes ci-dessus.
 
-### Supprimer la dernière version du template
+### Désinstaller la dernière version du template
 
 Refusé : cela laisserait un template installé sans version utilisable. La
-suppression du template est une opération distincte.
+désinstallation du template est une opération distincte.
 
 ### Désinstaller le template entier
 
@@ -292,14 +307,14 @@ pour pouvoir agir.
   existant ;
 - réactivation sans changement de santé ;
 - retour arrière d'un lien vers une version saine ;
-- suppression refusée si un lien, un canal ou une configuration de données
+- désinstallation refusée si un lien, un canal ou une configuration de données
   référence la version ;
-- suppression refusée pour une version saine non désactivée ;
-- suppression refusée pour la dernière version du template ;
-- suppression acceptée pour une version `import_incomplete` sans usage, avec
+- désinstallation refusée pour une version saine non désactivée ;
+- désinstallation refusée pour la dernière version du template ;
+- désinstallation acceptée pour une version `import_incomplete` sans usage, avec
   assets et objets de stockage supprimés ;
 - audit de chaque test, désactivation, réactivation, retour arrière et
-  suppression ;
+  désinstallation ;
 - isolation du test : aucun accès IA, base ou réseau externe ;
 - utilisateur non autorisé : aucune action de test, de désactivation ou de
-  suppression.
+  désinstallation.
