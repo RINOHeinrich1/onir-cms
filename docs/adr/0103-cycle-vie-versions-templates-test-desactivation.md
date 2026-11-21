@@ -1,4 +1,4 @@
-# 0103. Cycle de vie des versions de templates — test, erreur, désactivation et retour arrière
+# 0103. Cycle de vie des versions de templates — test, erreur, désactivation, suppression sécurisée et retour arrière
 
 - **Statut** : Proposé
 - **Date** : 2026-11-21
@@ -17,7 +17,7 @@ Aujourd'hui :
 
 - la désinstallation agit sur le **template entier** (ADR-0091) ;
 - la liste des versions est en lecture seule : aucune version ne peut être
-  testée, désactivée ou retirée individuellement ;
+  testée, désactivée, supprimée ou retirée individuellement ;
 - un import peut réussir les contrôles statiques puis échouer à l'exécution
   (entrée non chargée, erreur JavaScript, élément personnalisé absent, asset
   manquant, intégrité incohérente, timeout) ;
@@ -26,9 +26,14 @@ Aujourd'hui :
 - l'administrateur ne peut ni empêcher la sélection d'une version cassée, ni
   revenir proprement à une version précédente sans toucher au template entier.
 
+Un import interrompu avant l'indexation des assets peut aussi laisser une
+version sans entrée ni assets : elle est inutilisable, mais reste présente dans
+la liste et ne peut pas être retirée.
+
 Supprimer physiquement une version n'est pas une bonne réponse par défaut :
 cela casse les liens qui l'utilisent et efface l'historique nécessaire au
-diagnostic et au retour arrière.
+diagnostic et au retour arrière. Une suppression doit donc être encadrée et
+réservée aux versions réellement orphelines.
 
 Il faut donc un cycle de vie de version explicite, distinct du contenu figé de
 la version.
@@ -92,7 +97,12 @@ element_missing
 runtime_exception
 timeout
 protocol_incompatible
+import_incomplete
 ```
+
+`import_incomplete` est affecté à une version qui ne possède pas l'asset
+d'entrée ou aucun asset : l'import a été interrompu avant la fin de
+l'indexation.
 
 `last_error_message` est un message court et non sensible.
 `last_error_detail` contient les détails techniques bornés (fichier, ligne,
@@ -160,25 +170,62 @@ version_test_error
 version_disabled
 version_enabled
 version_rollback
+version_deleted
 ```
 
 Ils portent `template_id`, `version`, l'acteur et, pour les erreurs, le code
 normalisé. Les événements existants d'installation et de désinstallation du
 template restent inchangés.
 
-### 8. Suppression physique exclue de cette décision
+### 8. Suppression physique sécurisée des versions sans usage
 
-Cette ADR ne crée pas d'action de suppression physique d'une version. Une
-suppression définitive soulève des questions distinctes : conservation de
-l'historique, liens épinglés, audit et rétention des assets. Elle fera l'objet
-d'une décision ultérieure si le besoin est confirmé.
+La désactivation reste l'action par défaut. La suppression physique est une
+action distincte, réservée aux versions orphelines, avec les gardes suivantes :
+
+- aucun `chat_links` ni `chat_link_channels` ne référence le template et la
+  version ;
+- aucune configuration de données liée à cette version
+  (`template_data_bindings`) ;
+- la version est `error` (dont `import_incomplete`) ou déjà désactivée ;
+- au moins une autre version du template subsiste.
+
+Une version saine et active ne peut donc pas être supprimée en un seul geste :
+il faut d'abord la désactiver. Une version issue d'un import incomplet peut être
+supprimée directement.
+
+L'action est libellée **« Supprimer la version »**, jamais « Désinstaller ».
+Elle affiche avant confirmation le nombre de liens, de canaux, de configurations
+et d'assets concernés, puis exige une double confirmation.
+
+Procédure :
+
+1. vérifier les gardes dans une transaction ;
+2. collecter les clés de stockage des assets de la version ;
+3. supprimer la ligne de version (les assets suivent en cascade) ;
+4. après commit, supprimer les objets de stockage ;
+5. en cas d'échec du nettoyage stockage, conserver une trace et une reprise de
+   purge : aucun objet orphelin ne doit rester silencieusement.
+
+La suppression d'une version ne supprime pas le template. Si c'était la dernière
+version, l'action est refusée : la suppression du template relève d'une autre
+décision.
+
+Les droits suivent le propriétaire du template : super-administrateur pour un
+template plateforme, administrateur de l'organisation disposant de
+`visualtemplates:uninstall` pour un template propriétaire.
 
 ## Alternatives écartées
 
-### Supprimer physiquement la version en erreur
+### Supprimer physiquement sans condition
 
-Refusé comme première réponse : un lien peut encore la référencer, et la
-suppression empêche le diagnostic et le retour arrière.
+Refusé : un lien peut encore référencer la version, et la suppression empêche
+le diagnostic et le retour arrière. La suppression n'est autorisée qu'après
+vérification des usages et des gardes ci-dessus.
+
+### Supprimer la dernière version du template
+
+Refusé : cela laisserait un template installé sans version utilisable. La
+suppression du template est une opération distincte.
 
 ### Désinstaller le template entier
 
@@ -206,10 +253,11 @@ pour pouvoir agir.
 ### Positives
 
 - Diagnostic exploitable en cas de version cassée ;
-- aucune suppression destructive nécessaire pour retirer une version des choix ;
+- la désactivation reste l’action par défaut pour retirer une version des choix ;
 - les liens existants ne sont pas cassés par une désactivation catalogue ;
 - retour arrière explicite et traçable ;
 - import échoué sans résidu ;
+- nettoyage possible des imports incomplets et des versions orphelines ;
 - compatibilité avec les versions et manifestes existants.
 
 ### Négatives
@@ -217,7 +265,8 @@ pour pouvoir agir.
 - nouvelles colonnes et migration sur les versions ;
 - surface de test runtime à maintenir (timeout, capture d'erreurs, rendu isolé) ;
 - règles de sélection à expliquer dans l'UI ;
-- la suppression physique reste absente et devra être traitée séparément ;
+- action destructive supplémentaire à sécuriser (gardes, double confirmation,
+  audit, purge stockage) ;
 - les tests runtime peuvent être plus lents qu'une validation statique.
 
 ## Migration
@@ -227,6 +276,9 @@ pour pouvoir agir.
 - `disabled_at = null` pour toutes les versions existantes ;
 - aucun changement de manifeste, d'asset ni de référence de lien ;
 - index partiel sur les versions sélectionnables (`health_status`, `disabled_at`) ;
+- les versions existantes sans asset d’entrée ou sans aucun asset (import
+  interrompu) sont marquées `health_status = 'error'` avec
+  `last_error_code = 'import_incomplete'` ;
 - les liens existants continuent de résoudre leur version épinglée.
 
 ## Vérifications attendues
@@ -240,6 +292,14 @@ pour pouvoir agir.
   existant ;
 - réactivation sans changement de santé ;
 - retour arrière d'un lien vers une version saine ;
-- audit de chaque test, désactivation, réactivation et retour arrière ;
+- suppression refusée si un lien, un canal ou une configuration de données
+  référence la version ;
+- suppression refusée pour une version saine non désactivée ;
+- suppression refusée pour la dernière version du template ;
+- suppression acceptée pour une version `import_incomplete` sans usage, avec
+  assets et objets de stockage supprimés ;
+- audit de chaque test, désactivation, réactivation, retour arrière et
+  suppression ;
 - isolation du test : aucun accès IA, base ou réseau externe ;
-- utilisateur non autorisé : aucune action de test ou de désactivation.
+- utilisateur non autorisé : aucune action de test, de désactivation ou de
+  suppression.
