@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { TemplateVersionNotUninstallableError } from "@/application/errors";
 import type {
   CreateVisualTemplateAssetInput,
   CreateVisualTemplateInput,
@@ -466,12 +467,51 @@ export function pgVisualTemplateRepository(pool: Pool): VisualTemplateRepository
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        const { rows } = await client.query<{ storage_key: string }>(
+        await client.query(
+          "LOCK TABLE visual_template_versions, chat_links, chat_link_channels, template_data_bindings IN SHARE ROW EXCLUSIVE MODE",
+        );
+        const target = await client.query<{ id: string }>(
+          `SELECT id FROM visual_template_versions
+            WHERE template_id = $1 AND version = $2
+            FOR UPDATE`,
+          [templateId, version],
+        );
+        if (target.rows[0] === undefined) {
+          await client.query("ROLLBACK");
+          return { deleted: false, assetKeys: [] };
+        }
+
+        const usage = await client.query<{ links: number; bindings: number }>(
+          `SELECT
+             (SELECT count(DISTINCT link_id)::int
+                FROM (
+                  SELECT id AS link_id
+                    FROM chat_links
+                   WHERE visual_template_id = $1 AND visual_template_version = $2
+                  UNION
+                  SELECT c.link_id
+                    FROM chat_link_channels c
+                    JOIN chat_links l ON l.id = c.link_id
+                   WHERE c.visual_template_id = $1 AND c.visual_template_version = $2
+                ) usages) AS links,
+             (SELECT count(*)::int
+                FROM template_data_bindings b
+                JOIN visual_template_versions v ON v.id = b.template_version_id
+               WHERE v.template_id = $1 AND v.version = $2) AS bindings`,
+          [templateId, version],
+        );
+        const usageRow = usage.rows[0];
+        if (usageRow !== undefined && (usageRow.links > 0 || usageRow.bindings > 0)) {
+          throw new TemplateVersionNotUninstallableError(
+            `La version ${version} est devenue utilisée pendant l’opération.`,
+          );
+        }
+
+        const assets = await client.query<{ storage_key: string }>(
           `SELECT a.storage_key
              FROM visual_template_assets a
              JOIN visual_template_versions v ON v.id = a.version_id
-            WHERE v.template_id = $1 AND v.version = $2
-            FOR UPDATE OF v`,
+            WHERE v.template_id = $1 AND v.version = $2`,
           [templateId, version],
         );
         const result = await client.query(
@@ -481,7 +521,7 @@ export function pgVisualTemplateRepository(pool: Pool): VisualTemplateRepository
         await client.query("COMMIT");
         return {
           deleted: (result.rowCount ?? 0) > 0,
-          assetKeys: rows.map((row) => row.storage_key),
+          assetKeys: assets.rows.map((row) => row.storage_key),
         };
       } catch (error) {
         await client.query("ROLLBACK");
