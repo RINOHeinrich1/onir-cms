@@ -2,6 +2,7 @@ import type {
   TemplateManifest,
   TemplateMode,
   TemplateTrustLevel,
+  TemplateVersionHealth,
 } from "@/domain/entities/visual-template";
 
 export type VisualTemplate = {
@@ -45,7 +46,26 @@ export type VisualTemplateVersion = {
   manifest: TemplateManifest;
   entry: string;
   integrity: string;
+  healthStatus: TemplateVersionHealth;
+  lastCheckedAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  lastErrorDetail: Record<string, unknown> | null;
+  disabledAt: string | null;
+  disabledBy: string | null;
+  disabledReason: string | null;
   createdAt: string;
+};
+
+export type VisualTemplateVersionUsage = {
+  links: number;
+  bindings: number;
+  assets: number;
+};
+
+export type VisualTemplateVersionDeletion = {
+  deleted: boolean;
+  assetKeys: string[];
 };
 
 export type VisualTemplateAsset = {
@@ -137,6 +157,15 @@ export interface VisualTemplateRepository {
     templateId: string,
     version: string,
   ): Promise<VisualTemplateVersion | null>;
+  getVersionUsage(templateId: string, version: string): Promise<VisualTemplateVersionUsage>;
+  setVersionDisabled(
+    templateId: string,
+    version: string,
+    disabled: boolean,
+    actorId: string | null,
+    reason: string | null,
+  ): Promise<VisualTemplateVersion | null>;
+  deleteVersion(templateId: string, version: string): Promise<VisualTemplateVersionDeletion>;
   findAsset(versionId: string, path: string): Promise<VisualTemplateAsset | null>;
   createTemplate(input: CreateVisualTemplateInput): Promise<VisualTemplate>;
   createVersion(input: CreateVisualTemplateVersionInput): Promise<VisualTemplateVersion>;

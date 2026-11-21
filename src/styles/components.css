@@ -4220,6 +4220,11 @@ a.subtab {
   margin-top: 1.25rem;
 }
 
+.template-version-actions .hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .template-version-select {
   display: inline-flex;
   flex-wrap: wrap;

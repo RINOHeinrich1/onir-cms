@@ -62,7 +62,9 @@ export function defaultStarterSelection(
 ): { visualTemplate: string; params: TemplateParamValues } | null {
   const starter = templates.find((template) => template.key.toLowerCase() === "starter");
   if (starter === undefined) return null;
-  const latest = latestTemplateVersion(starter.versions);
+  const latest = latestTemplateVersion(
+    starter.versions.filter((entry) => !entry.disabled && entry.healthStatus !== "error"),
+  );
   if (latest === null) return null;
   return {
     visualTemplate: `${starter.id}@${latest.version}`,

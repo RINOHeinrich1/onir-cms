@@ -410,12 +410,15 @@ export function LinkDisplaySettings({
             ) : null}
             {visibleTemplates.map((template) => {
               const versions = templateVersions(template, surface);
-              const latest = latestTemplateVersion(versions);
+              const latest = latestTemplateVersion(
+                versions.filter((entry) => !entry.disabled && entry.healthStatus !== "error"),
+              );
               const isSelected = selected.id === template.id;
               const selectedVersion =
                 isSelected && selected.version !== null
                   ? (versions.find((entry) => entry.version === selected.version) ?? latest)
                   : latest;
+              const currentVersion = isSelected ? selected.version : null;
               return (
                 <article
                   key={template.id}
@@ -455,12 +458,24 @@ export function LinkDisplaySettings({
                       onChange={(event) => changeTemplate(event.target.value)}
                     >
                       {versions.length === 0 ? <option value="">Aucune</option> : null}
-                      {versions.map((entry) => (
-                        <option key={entry.version} value={`${template.id}@${entry.version}`}>
-                          {entry.version}
-                          {entry.widget === null ? " · page" : ""}
-                        </option>
-                      ))}
+                      {versions.map((entry) => {
+                        const unavailable = entry.disabled || entry.healthStatus === "error";
+                        return (
+                          <option
+                            key={entry.version}
+                            value={`${template.id}@${entry.version}`}
+                            disabled={unavailable && entry.version !== currentVersion}
+                          >
+                            {entry.version}
+                            {entry.widget === null ? " · page" : ""}
+                            {entry.disabled
+                              ? " · désactivée"
+                              : entry.healthStatus === "error"
+                                ? " · en erreur"
+                                : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 </article>
@@ -640,15 +655,24 @@ export function LinkDisplaySettings({
                       value={draft.visualTemplate}
                       onChange={(event) => changeTemplate(event.target.value)}
                     >
-                      {templateVersions(selectedTemplate, surface).map((entry) => (
-                        <option
-                          key={entry.version}
-                          value={`${selectedTemplate.id}@${entry.version}`}
-                        >
-                          {entry.version}
-                          {entry.widget === null ? " · page" : ""}
-                        </option>
-                      ))}
+                      {templateVersions(selectedTemplate, surface).map((entry) => {
+                        const unavailable = entry.disabled || entry.healthStatus === "error";
+                        return (
+                          <option
+                            key={entry.version}
+                            value={`${selectedTemplate.id}@${entry.version}`}
+                            disabled={unavailable && entry.version !== selected.version}
+                          >
+                            {entry.version}
+                            {entry.widget === null ? " · page" : ""}
+                            {entry.disabled
+                              ? " · désactivée"
+                              : entry.healthStatus === "error"
+                                ? " · en erreur"
+                                : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 ) : null}

@@ -99,3 +99,4 @@ ADR qui remplace la précédente.
 | [0100](./0100-webhooks-evenementiels-cycle-vie-fiches.md) | Webhooks événementiels sur le cycle de vie des fiches — outbox et déclenchement par transition | Accepté |
 | [0101](./0101-contrat-payload-webhooks-automatiques.md) | Contrat de payload des webhooks automatiques — champs garantis et garde d'exécution | Accepté |
 | [0102](./0102-contexte-runtime-erreurs-fiche-webhooks-ia.md) | Contexte runtime des erreurs de fiche et webhooks pour les réponses IA | Accepté |
+| [0103](./0103-cycle-vie-versions-templates-test-desactivation.md) | Cycle de vie des versions de templates — test, erreur, désactivation, désinstallation sécurisée et retour arrière | Proposé |

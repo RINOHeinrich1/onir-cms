@@ -74,6 +74,8 @@ async function loadVisualTemplateOptions(
         version: version.version,
         params: version.manifest.params,
         widget: version.manifest.ui.widget?.display ?? null,
+        disabled: version.disabledAt !== null,
+        healthStatus: version.healthStatus,
       })),
     })),
   );
