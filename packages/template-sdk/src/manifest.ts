@@ -11,6 +11,7 @@ import type {
   ShadowDomMode,
   TemplateCapability,
   TemplateDataContract,
+  TemplateEditorManifest,
   TemplateParamNode,
   TemplateParamOption,
   TemplateParamSchema,
@@ -70,6 +71,8 @@ export type TemplateManifestInput = {
   capabilities: readonly TemplateCapability[];
   network?: readonly string[];
   params?: readonly TemplateManifestParamInput[];
+  /** Zones et bindings du mode d’inspection (ADR-0105). */
+  editor?: TemplateEditorManifest;
   /** Contrats de données (ADR-0026) — requis si la capacité `data` est déclarée. */
   data?: { contracts: readonly TemplateDataContract[] };
 };
@@ -94,6 +97,7 @@ export type TemplateManifestOutput = {
   capabilities: readonly TemplateCapability[];
   network: readonly string[];
   params: TemplateParamSchema[];
+  editor?: TemplateEditorManifest;
   data?: { contracts: TemplateDataContract[] };
 };
 
@@ -200,6 +204,11 @@ export function defineManifest(input: TemplateManifestInput): TemplateManifestOu
     capabilities: [...input.capabilities],
     network: [...(input.network ?? [])],
     params: (input.params ?? []).map(toParamSchema),
+    ...(input.editor === undefined
+      ? {}
+      : {
+          editor: JSON.parse(JSON.stringify(input.editor)) as TemplateEditorManifest,
+        }),
     ...(input.data === undefined
       ? {}
       : {

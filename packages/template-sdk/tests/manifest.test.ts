@@ -78,4 +78,17 @@ describe("defineManifest", () => {
     const manifest = defineManifest({ ...INPUT, network: ["api.onirtech.mg"] });
     expect(manifest.network).toEqual(["api.onirtech.mg"]);
   });
+
+  it("conserve le contrat editor", () => {
+    const manifest = defineManifest({
+      ...INPUT,
+      editor: {
+        version: 1,
+        regions: [{ id: "header", label: "En-tête" }],
+        bindings: [{ param: "titre", regions: ["header"], category: "content" }],
+      },
+    });
+    expect(manifest.editor?.regions[0]?.id).toBe("header");
+    expect(Object.isFrozen(manifest.editor)).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 ---
 name: onirtech-template-sdk
-description: Use when creating, modifying, testing, building, validating, or packaging an Onirtech visual template (React, Vue, or vanilla HTML/CSS/JS) with @onirtech/template-sdk. Covers the host contract, capabilities, params, actions, the mock harness, build, validation, packing, and known pitfalls.
+description: Use when creating, modifying, testing, building, validating, or packaging an Onirtech visual template (React, Vue, or vanilla HTML/CSS/JS) with @onirtech/template-sdk. Covers the host contract, capabilities, params, zones d’inspection (ADR-0105), actions, the mock harness, build, validation, packing, and known pitfalls.
 ---
 
 # Onirtech template SDK
@@ -413,6 +413,76 @@ Règles d'usage :
 - `finish` : une seule fois, masquer le bouton après succès.
 - `request` : facultatif, les données sont déjà dans le contexte initial.
 
+## Zones d’inspection (ADR-0105)
+
+Le mode d’inspection V1 ne modifie **pas** le template. Il permet à l’opérateur
+de cliquer une zone et de filtrer l’inspecteur du studio sur les paramètres
+rattachés à cette zone.
+
+### Déclaration dans le manifeste
+
+Ajouter un bloc `editor` optionnel :
+
+```json
+{
+  "editor": {
+    "version": 1,
+    "regions": [
+      { "id": "header", "label": "En-tête" },
+      { "id": "welcome", "label": "Bienvenue" }
+    ],
+    "bindings": [
+      {
+        "param": "chat_title",
+        "regions": ["header"],
+        "category": "content"
+      },
+      {
+        "param": "primary_color",
+        "regions": ["header", "welcome", "composer"],
+        "category": "appearance"
+      }
+    ]
+  }
+}
+```
+
+- `category` : `content`, `appearance` ou `action`.
+- Un paramètre présent dans **une** zone est local.
+- Un paramètre présent dans **plusieurs** zones est **partagé**.
+- Aucun champ `scope` : le statut partagé est déduit de `regions.length > 1`.
+- `visibilityParam` peut désigner un booléen pour les zones masquables.
+
+### Marqueurs DOM
+
+Le template doit exposer des zones stables :
+
+```html
+<header data-onir-region="header">...</header>
+<div data-onir-region="welcome">...</div>
+```
+
+Règles :
+
+- `data-onir-region` doit correspondre à un `id` déclaré dans `editor.regions` ;
+- placer le marqueur sur un conteneur stable, pas sur un élément recréé à chaque
+  frappe ou à chaque message ;
+- ne pas utiliser de sélecteur CSS arbitraire dans le manifeste ;
+- ne pas mettre de marqueur sur les contenus dynamiques du chat ;
+- `data-onir-param` est **réservé à la V2** (édition directe), pas nécessaire en V1.
+
+### Transports
+
+- **Web Component** : le host accède au `shadowRoot` **open**. Un shadow DOM
+  `closed` désactive l’inspection.
+- **iframe** : le pont d’inspection est fourni par la frame hôte ; les marqueurs
+  doivent rester dans le DOM accessible de la frame.
+
+### Versionnement
+
+Toute ajout de zones ou de bindings impose une **nouvelle version** du template.
+Ne jamais modifier une version déjà publiée.
+
 ## Vérifications obligatoires
 
 ```bash
@@ -474,4 +544,5 @@ Contrôles de cohérence :
   `/documentation/sdk`, `/documentation/actions`, `/documentation/host`,
   `/documentation/templates-visuels`.
 - ADR-0019 (packages UI-only), ADR-0020 (capacités), ADR-0023 (paramètres),
-  ADR-0024 (SDK), ADR-0095 (paramètres structurés `object`/`array`).
+  ADR-0024 (SDK), ADR-0095 (paramètres structurés `object`/`array`),
+  ADR-0105 (curseur d’inspection et zones).
