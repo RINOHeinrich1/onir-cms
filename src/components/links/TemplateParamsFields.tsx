@@ -49,7 +49,13 @@ function controlId(path: string): string {
 function isPathVisible(path: string, visiblePaths: ReadonlySet<string> | undefined): boolean {
   if (visiblePaths === undefined || visiblePaths.size === 0) return true;
   for (const visible of visiblePaths) {
-    if (visible === path || visible.startsWith(`${path}.`) || visible.startsWith(`${path}[`)) {
+    if (
+      visible === path ||
+      visible.startsWith(`${path}.`) ||
+      visible.startsWith(`${path}[`) ||
+      path.startsWith(`${visible}.`) ||
+      path.startsWith(`${visible}[`)
+    ) {
       return true;
     }
   }
