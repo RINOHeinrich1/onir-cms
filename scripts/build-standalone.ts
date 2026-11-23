@@ -10,7 +10,6 @@ import { pgStandaloneRepository } from "@/infrastructure/db/standalone-repositor
 import { tryTemplateDataDependencies } from "@/infrastructure/db/template-data-runtime";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { mediaStorage, standaloneBuildStorage } from "@/infrastructure/storage";
-import { appUrl } from "@/lib/env";
 
 async function main(): Promise<void> {
   const buildId = process.argv[2]?.trim();
@@ -37,7 +36,6 @@ async function main(): Promise<void> {
       buildStorage: standaloneBuildStorage(),
       builds: pgStandaloneRepository(pool),
       ...(data === undefined ? {} : { data }),
-      chatApiBaseUrl: `${appUrl().replace(/\/+$/, "")}/api/chat`,
       runtimeJs,
       runtimeCss,
     },

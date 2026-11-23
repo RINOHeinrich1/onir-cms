@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { Readable } from "node:stream";
 import type { StandaloneBuildStorage } from "@/application/ports/standalone-build-storage";
 import type {
   ActiveStandaloneMapping,
@@ -9,6 +10,8 @@ import { isValidStandaloneHostname, normalizeStandaloneHostname } from "@/domain
 export type StandaloneEdgeDependencies = {
   mappings: Pick<StandaloneRepository, "findActiveMappingByHostname">;
   storage: StandaloneBuildStorage;
+  /** Origine interne de l'API ONIR-CMS pour le proxy same-origin. */
+  apiOrigin: string;
   mappingTtlMs?: number;
   fileTtlMs?: number;
   maxCacheBytes?: number;
@@ -85,6 +88,54 @@ function send(
   response.end(body);
 }
 
+async function proxyChatApi(
+  request: IncomingMessage,
+  response: ServerResponse,
+  apiOrigin: string,
+  hostname: string,
+): Promise<void> {
+  const target = new URL(request.url ?? "/", apiOrigin);
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value === undefined || name === "host" || name === "connection") continue;
+    if (Array.isArray(value)) {
+      for (const item of value) headers.append(name, item);
+    } else {
+      headers.set(name, value);
+    }
+  }
+  headers.set("x-forwarded-host", hostname);
+  headers.set(
+    "x-forwarded-proto",
+    typeof request.headers["x-forwarded-proto"] === "string"
+      ? request.headers["x-forwarded-proto"]
+      : "https",
+  );
+
+  const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  const init = {
+    method: request.method ?? "GET",
+    headers,
+    redirect: "manual" as const,
+    ...(hasBody
+      ? {
+          body: Readable.toWeb(request) as ReadableStream<Uint8Array>,
+          duplex: "half" as const,
+        }
+      : {}),
+  } satisfies RequestInit & { duplex?: "half" };
+
+  const upstream = await fetch(target, init);
+  response.writeHead(upstream.status, Object.fromEntries(upstream.headers.entries()));
+  if (upstream.body === null) {
+    response.end();
+    return;
+  }
+  Readable.fromWeb(upstream.body as unknown as import("node:stream/web").ReadableStream<Uint8Array>)
+    .on("error", () => response.destroy())
+    .pipe(response);
+}
+
 /**
  * Crée le serveur edge multi-tenant.
  * Le serveur ne construit rien et ne lit pas les secrets : il sert un build actif.
@@ -146,12 +197,6 @@ export function createStandaloneEdgeServer(deps: StandaloneEdgeDependencies): Se
         return;
       }
 
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        response.setHeader("Allow", "GET, HEAD");
-        send(response, 405, "Method Not Allowed", { "Content-Type": "text/plain; charset=utf-8" });
-        return;
-      }
-
       const hostname = hostFromRequest(request);
       if (hostname === null) {
         send(response, 400, "Invalid host", { "Content-Type": "text/plain; charset=utf-8" });
@@ -167,6 +212,18 @@ export function createStandaloneEdgeServer(deps: StandaloneEdgeDependencies): Se
       const path = normalizeEdgeRequestPath(request.url ?? "/");
       if (path === null) {
         send(response, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
+        return;
+      }
+
+      // API de chat : proxy same-origin vers ONIR-CMS. Pas de CORS nécessaire.
+      if (path === "api" || path.startsWith("api/")) {
+        await proxyChatApi(request, response, deps.apiOrigin, hostname);
+        return;
+      }
+
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        response.setHeader("Allow", "GET, HEAD");
+        send(response, 405, "Method Not Allowed", { "Content-Type": "text/plain; charset=utf-8" });
         return;
       }
 

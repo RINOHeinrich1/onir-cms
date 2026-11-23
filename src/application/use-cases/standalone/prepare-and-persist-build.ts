@@ -28,7 +28,6 @@ export type StandaloneBuildDependencies = {
   buildStorage: StandaloneBuildStorage;
   builds: StandaloneRepository;
   data?: TemplateDataDependencies;
-  chatApiBaseUrl: string;
   runtimeJs: Uint8Array;
   runtimeCss: Uint8Array;
 };
@@ -113,7 +112,8 @@ export async function prepareAndPersistBuild(
 
     const config: StandaloneRuntimeConfig = {
       version: 1,
-      chatApiBaseUrl: deps.chatApiBaseUrl.replace(/\/+$/, ""),
+      // Same-origin : l'edge proxifie /api/chat vers ONIR-CMS.
+      chatApiBaseUrl: "/api/chat",
       token,
       template: spec,
       context,
