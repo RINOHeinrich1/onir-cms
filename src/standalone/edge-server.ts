@@ -10,9 +10,14 @@ export type StandaloneEdgeDependencies = {
   mappings: Pick<StandaloneRepository, "findActiveMappingByHostname">;
   storage: StandaloneBuildStorage;
   mappingTtlMs?: number;
+  fileTtlMs?: number;
+  maxCacheBytes?: number;
   now?: () => number;
   logger?: (message: string, detail?: Record<string, unknown>) => void;
 };
+
+type CachedFile = { data: Uint8Array; contentType: string };
+type CachedFileEntry = { file: CachedFile; expiresAt: number; size: number };
 
 type CacheEntry = { value: ActiveStandaloneMapping | null; expiresAt: number };
 
@@ -85,16 +90,50 @@ function send(
  * Le serveur ne construit rien et ne lit pas les secrets : il sert un build actif.
  */
 export function createStandaloneEdgeServer(deps: StandaloneEdgeDependencies): Server {
-  const cache = new Map<string, CacheEntry>();
+  const mappingCache = new Map<string, CacheEntry>();
+  const fileCache = new Map<string, CachedFileEntry>();
   const ttl = deps.mappingTtlMs ?? 60_000;
+  const fileTtl = deps.fileTtlMs ?? 300_000;
+  const maxCacheBytes = deps.maxCacheBytes ?? 64 * 1024 * 1024;
+  let cachedBytes = 0;
   const now = deps.now ?? Date.now;
 
   async function mappingFor(hostname: string): Promise<ActiveStandaloneMapping | null> {
-    const cached = cache.get(hostname);
+    const cached = mappingCache.get(hostname);
     if (cached !== undefined && cached.expiresAt > now()) return cached.value;
     const value = await deps.mappings.findActiveMappingByHostname(hostname);
-    cache.set(hostname, { value, expiresAt: now() + ttl });
+    mappingCache.set(hostname, { value, expiresAt: now() + ttl });
     return value;
+  }
+
+  function readFileCache(key: string): CachedFile | null {
+    const cached = fileCache.get(key);
+    if (cached === undefined) return null;
+    if (cached.expiresAt <= now()) {
+      fileCache.delete(key);
+      cachedBytes -= cached.size;
+      return null;
+    }
+    return cached.file;
+  }
+
+  function writeFileCache(key: string, file: CachedFile): void {
+    const size = file.data.byteLength;
+    if (size > maxCacheBytes) return;
+    const previous = fileCache.get(key);
+    if (previous !== undefined) {
+      cachedBytes -= previous.size;
+      fileCache.delete(key);
+    }
+    while (cachedBytes + size > maxCacheBytes && fileCache.size > 0) {
+      const oldest = fileCache.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      const removed = fileCache.get(oldest);
+      if (removed !== undefined) cachedBytes -= removed.size;
+      fileCache.delete(oldest);
+    }
+    fileCache.set(key, { file, expiresAt: now() + fileTtl, size });
+    cachedBytes += size;
   }
 
   return createServer(async (request, response) => {
@@ -131,7 +170,9 @@ export function createStandaloneEdgeServer(deps: StandaloneEdgeDependencies): Se
         return;
       }
 
-      const file = await deps.storage.get(`${mapping.artifactKey}/${path}`);
+      const cacheKey = `${mapping.buildId}:${path}`;
+      const cachedFile = readFileCache(cacheKey);
+      const file = cachedFile ?? (await deps.storage.get(`${mapping.artifactKey}/${path}`));
       if (file === null) {
         deps.logger?.("standalone_edge_missing", {
           hostname,
@@ -141,6 +182,7 @@ export function createStandaloneEdgeServer(deps: StandaloneEdgeDependencies): Se
         send(response, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
         return;
       }
+      if (cachedFile === null) writeFileCache(cacheKey, file);
 
       response.setHeader("Content-Type", file.contentType);
       response.setHeader("Content-Length", String(file.data.byteLength));
