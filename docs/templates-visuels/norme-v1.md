@@ -618,3 +618,72 @@ else fallback(res.code); // DATA_UNBOUND, DATA_TIMEOUT, DATA_CONTRACT_INVALID…
 - Une ressource non liée est une **erreur typée** (`DATA_UNBOUND`), jamais une
   requête implicite.
 - Le template ne voit **jamais** SQL, base ou credentials, et ne peut pas écrire.
+
+## 14. Zones d’inspection (ADR-0105)
+
+Un template peut déclarer un bloc `editor` **optionnel** pour le mode
+d’inspection du studio. La V1 est une inspection : elle filtre l’inspecteur,
+elle ne modifie jamais le template.
+
+### Déclaration
+
+```json
+{
+  "editor": {
+    "version": 1,
+    "regions": [
+      { "id": "header", "label": "En-tête" },
+      { "id": "welcome", "label": "Bienvenue", "parent": "header" },
+      { "id": "hero", "label": "Hero", "visibilityParam": "sections.show_hero" }
+    ],
+    "bindings": [
+      { "param": "chat_title", "regions": ["header"], "category": "content" },
+      { "param": "primary_color", "regions": ["header", "welcome"], "category": "appearance" }
+    ]
+  }
+}
+```
+
+Règles :
+
+| Champ | Règle |
+| --- | --- |
+| `version` | `1` |
+| `regions[].id` | unique, `^[a-z][a-z0-9_-]{0,40}$` |
+| `regions[].label` | libellé opérateur, 1..80 caractères |
+| `regions[].parent` | doit référencer une région existante, sans cycle |
+| `regions[].visibilityParam` | chemin d’un paramètre `boolean` existant |
+| `bindings[].param` | chemin d’un paramètre existant dans `manifest.params` |
+| `bindings[].regions` | 1..N régions existantes |
+| `bindings[].category` | `content`, `appearance` ou `action` |
+
+Un paramètre lié à une seule zone est **local** ; lié à plusieurs zones, il est
+**partagé**. Le statut partagé est calculé, il n’existe pas de champ `scope`.
+
+### Marqueurs DOM
+
+```html
+<header data-onir-region="header">
+  <h1 data-onir-param="chat_title">Assistant</h1>
+</header>
+```
+
+- `data-onir-region` : zone sélectionnable, obligatoire en V1.
+- `data-onir-param` : chemin de paramètre, réservé à l’édition directe V2.
+- Le host résout la région la plus proche dans `composedPath()`.
+- Aucun sélecteur CSS arbitraire n’est accepté dans le manifeste.
+
+### Transports et sécurité
+
+- **Web Component** : shadow DOM `open` requis pour l’inspection. `closed`
+  désactive le curseur.
+- **iframe** : le pont d’inspection est exécuté dans la frame contrôlée par
+  l’hôte ; `allow-same-origin` n’est pas nécessaire.
+- Le host bloque les actions du template pendant l’inspection.
+- Aucune modification du DOM du template n’est persistée : le studio filtre
+  les paramètres et conserve les valeurs dans `visual_template_params`.
+
+### Versionnement
+
+Une modification de `editor` ou des marqueurs DOM impose une nouvelle version
+du template. Les versions existantes sans `editor` restent valides.

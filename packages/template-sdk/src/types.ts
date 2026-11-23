@@ -26,6 +26,27 @@ export type TemplateCapability =
 /** Mode du Shadow DOM (option de `defineTemplate`). */
 export type ShadowDomMode = "open" | "closed" | "none";
 
+export type TemplateEditorCategory = "content" | "appearance" | "action";
+
+export type TemplateEditorRegion = {
+  id: string;
+  label: string;
+  parent?: string;
+  visibilityParam?: string;
+};
+
+export type TemplateEditorBinding = {
+  param: string;
+  regions: string[];
+  category: TemplateEditorCategory;
+};
+
+export type TemplateEditorManifest = {
+  version: 1;
+  regions: TemplateEditorRegion[];
+  bindings: TemplateEditorBinding[];
+};
+
 /** Niveau de confiance d'un éditeur de template. */
 export type TemplateTrustLevel = "official" | "verified" | "community";
 
