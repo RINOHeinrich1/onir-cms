@@ -540,6 +540,14 @@ export function pgVisualTemplateRepository(pool: Pool): VisualTemplateRepository
       return row ? toAsset(row) : null;
     },
 
+    async listAssets(versionId): Promise<VisualTemplateAsset[]> {
+      const { rows } = await pool.query<AssetRow>(
+        `SELECT ${ASSET_COLUMNS} FROM visual_template_assets WHERE version_id = $1 ORDER BY path`,
+        [versionId],
+      );
+      return rows.map(toAsset);
+    },
+
     async createTemplate(input: CreateVisualTemplateInput): Promise<VisualTemplate> {
       const { rows } = await pool.query<TemplateRow>(
         `INSERT INTO visual_templates

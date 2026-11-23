@@ -66,6 +66,7 @@ function baseRepo(overrides: Partial<VisualTemplateRepository> = {}): VisualTemp
     findVersion: async () => null,
     findVersionForOrganization: async () => null,
     findAsset: async () => null,
+    listAssets: async () => [],
     createTemplate: async () => {
       throw new Error("non utilisé");
     },

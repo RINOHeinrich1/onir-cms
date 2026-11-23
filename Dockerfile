@@ -27,7 +27,7 @@ ENV BILLING_ENABLED=${BILLING_ENABLED}
 ENV BILLING_PORTAL_URL=${BILLING_PORTAL_URL}
 ENV BILLING_API_URL=${BILLING_API_URL}
 COPY . .
-RUN npm run build && npm run build:db-cli && rm -rf .next/cache
+RUN npm run build && npm run build:db-cli && npm run build:standalone-runtime && npm run build:standalone-worker && rm -rf .next/cache
 
 # Dépendances de production uniquement.
 FROM base AS prod-deps

@@ -93,6 +93,7 @@ function repo(): VisualTemplateRepository {
       versions.find((v) => v.templateId === templateId && v.version === version) ?? null,
     findAsset: async (versionId, path) =>
       assets.find((a) => a.versionId === versionId && a.path === path) ?? null,
+    listAssets: async (versionId) => assets.filter((a) => a.versionId === versionId),
     createTemplate: async (input) => {
       const now = new Date(0).toISOString();
       const template: VisualTemplate = {
