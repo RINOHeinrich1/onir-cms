@@ -171,6 +171,11 @@ export function LinkDisplaySettings({
   const [chatbotId, setChatbotId] = useState(link.id);
   const previewCanvasRef = useRef<HTMLDivElement>(null);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const previewFocusRef = useRef<{
+    element: HTMLInputElement | HTMLTextAreaElement;
+    start: number | null;
+    end: number | null;
+  } | null>(null);
   const [inspectMode, setInspectMode] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [savedDrafts, setSavedDrafts] = useState(() => JSON.stringify(initialDrafts(link)));
@@ -290,6 +295,7 @@ export function LinkDisplaySettings({
       }
       if (data.type === "select" && typeof data.regionId === "string") {
         setSelectedRegion(data.regionId);
+        setMobileTab("settings");
       }
     };
     window.addEventListener("message", onMessage);
@@ -349,6 +355,19 @@ export function LinkDisplaySettings({
             return;
           }
           previewTokenRef.current = json.token;
+          const activeElement = document.activeElement;
+          if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+          ) {
+            if (activeElement.closest(".display-studio-inspector") !== null) {
+              previewFocusRef.current = {
+                element: activeElement,
+                start: activeElement.selectionStart,
+                end: activeElement.selectionEnd,
+              };
+            }
+          }
           setPreviewToken(json.token);
           setPreviewRevision((value) => value + 1);
           setPreviewError(null);
@@ -363,6 +382,27 @@ export function LinkDisplaySettings({
       controller.abort();
     };
   }, [draft.params, draft.visualTemplate, link.id, surface]);
+
+  const restorePreviewFocus = useCallback((): void => {
+    const saved = previewFocusRef.current;
+    if (saved === null) return;
+    previewFocusRef.current = null;
+    window.setTimeout(() => {
+      if (!saved.element.isConnected) return;
+      saved.element.focus({ preventScroll: true });
+      if (
+        typeof saved.element.setSelectionRange === "function" &&
+        saved.start !== null &&
+        saved.end !== null
+      ) {
+        try {
+          saved.element.setSelectionRange(saved.start, saved.end);
+        } catch {
+          // Certains types d’input (couleur, fichier…) ne supportent pas la sélection.
+        }
+      }
+    }, 250);
+  }, []);
 
   const previewSrc = useMemo(() => {
     if (previewToken === null) return "";
@@ -781,7 +821,10 @@ export function LinkDisplaySettings({
                     <iframe
                       ref={previewIframeRef}
                       key={`${surface}-${device}`}
-                      onLoad={() => postEditorState()}
+                      onLoad={() => {
+                        postEditorState();
+                        restorePreviewFocus();
+                      }}
                       title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
                       src={previewSrc}
                     />
