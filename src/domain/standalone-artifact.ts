@@ -33,6 +33,8 @@ export type StandaloneArtifactInput = {
   title?: string;
   lang?: string;
   config: StandaloneRuntimeConfig;
+  /** Chemins relatifs des assets template déjà copiés (sans préfixe template/). */
+  templateFiles?: string[];
 };
 
 function escapeScriptJson(value: unknown): string {
@@ -91,7 +93,14 @@ export function renderStandaloneManifest(
     createdAt: input.createdAt,
     entry: "index.html",
     runtime: { js: "runtime.js", css: "runtime.css" },
-    files: ["index.html", "config.json", "build.json", "runtime.js", "runtime.css"],
+    files: [
+      "index.html",
+      "config.json",
+      "build.json",
+      "runtime.js",
+      "runtime.css",
+      ...(input.templateFiles ?? []).map((file) => `template/${file}`),
+    ],
   };
 }
 

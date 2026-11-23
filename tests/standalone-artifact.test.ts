@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { assembleStandaloneArtifact } from "@/application/use-cases/standalone/assemble-artifact";
 import type { StandaloneRuntimeConfig } from "@/domain/standalone";
 import {
   renderStandaloneIndexHtml,
@@ -76,5 +77,68 @@ describe("artefact standalone", () => {
     expect(JSON.parse(renderStandaloneManifestJson(input))).toEqual(
       renderStandaloneManifest(input),
     );
+  });
+});
+
+describe("assemblage standalone", () => {
+  it("inclut le runtime, le shell et les assets template", () => {
+    const artifact = assembleStandaloneArtifact({
+      buildId: input.buildId,
+      chatLinkId: input.chatLinkId,
+      organizationId: input.organizationId,
+      configHash: input.configHash,
+      createdAt: input.createdAt,
+      config,
+      templateEntryPath: "dist/index.js",
+      runtimeJs: new Uint8Array([1, 2, 3]),
+      runtimeCss: new Uint8Array([4, 5]),
+      templateFiles: [
+        {
+          path: "dist/index.js",
+          contentType: "text/javascript",
+          data: new Uint8Array([6]),
+        },
+        {
+          path: "preview.png",
+          contentType: "image/png",
+          data: new Uint8Array([7]),
+        },
+      ],
+    });
+
+    expect(artifact.manifest.files).toContain("template/dist/index.js");
+    expect(artifact.manifest.files).toContain("template/preview.png");
+    expect(artifact.files.map((file) => file.path)).toEqual(
+      expect.arrayContaining([
+        "index.html",
+        "config.json",
+        "build.json",
+        "runtime.js",
+        "runtime.css",
+        "template/dist/index.js",
+        "template/preview.png",
+      ]),
+    );
+    const configFile = artifact.files.find((file) => file.path === "config.json");
+    const configJson = JSON.parse(new TextDecoder().decode(configFile?.data));
+    expect(configJson.template.entryUrl).toBe("./template/dist/index.js");
+    expect(configJson.template.frameUrl).toBeUndefined();
+  });
+
+  it("refuse les chemins d'asset hors artefact", () => {
+    expect(() =>
+      assembleStandaloneArtifact({
+        buildId: input.buildId,
+        chatLinkId: input.chatLinkId,
+        organizationId: input.organizationId,
+        configHash: input.configHash,
+        createdAt: input.createdAt,
+        config,
+        templateEntryPath: "dist/index.js",
+        runtimeJs: new Uint8Array(),
+        runtimeCss: new Uint8Array(),
+        templateFiles: [{ path: "../secret", contentType: "text/plain", data: new Uint8Array() }],
+      }),
+    ).toThrow();
   });
 });
