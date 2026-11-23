@@ -64,6 +64,7 @@ export async function loadTemplateSpec(
     identificationModes: version.manifest.identificationModes ?? ["contact", "anonymous"],
     // Manifestes legacy (avant ADR-0023) : `params` absent => aucun paramètre.
     params: Array.isArray(version.manifest.params) ? version.manifest.params : [],
+    ...(version.manifest.editor === undefined ? {} : { editor: version.manifest.editor }),
     dataContracts: Array.isArray(version.manifest.dataContracts)
       ? version.manifest.dataContracts
       : [],

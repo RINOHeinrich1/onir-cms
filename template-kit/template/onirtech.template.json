@@ -4,7 +4,7 @@
   "id": "starter",
   "name": "Starter",
   "description": "Template de référence (identité, chat, médias) avec un widget de discussion soigné.",
-  "version": "1.6.16",
+  "version": "1.7.0",
   "publisher": {
     "id": "onirtech",
     "name": "ONIRTECH",
@@ -17,12 +17,12 @@
     "mode": "web-component",
     "entry": "./src/index.js",
     "element": "onirtech-template-starter",
-    "integrity": "sha256-wyXEOH3m1tXAx1zgyGL+kBq5scyFo/W6RRSePh8M6EU=",
+    "integrity": "sha256-LxYVYBiC9BZ3fISzvQ1UpNMi6fRkOVS4+GnidoZcSfc=",
     "shadowDom": "open",
     "widget": {
       "entry": "./src/widget.js",
       "element": "onirtech-widget-starter",
-      "integrity": "sha256-zeUeTpbHcNlPIqsj5KrVCnH79Eu65zqwIaaXr/q8zl4=",
+      "integrity": "sha256-RA3DqOcCrLaE635T7pO+hPwapiCevCWWWVs7Eq34exI=",
       "display": {
         "defaultPosition": "bottom-right",
         "allowedPositions": [
@@ -154,5 +154,130 @@
       "type": "color",
       "default": "#e2e8f0"
     }
-  ]
+  ],
+  "editor": {
+    "version": 1,
+    "regions": [
+      {
+        "id": "header",
+        "label": "En-tête"
+      },
+      {
+        "id": "welcome",
+        "label": "Bienvenue"
+      },
+      {
+        "id": "conversation",
+        "label": "Conversation"
+      },
+      {
+        "id": "composer",
+        "label": "Composeur"
+      },
+      {
+        "id": "launcher",
+        "label": "Bouton flottant"
+      }
+    ],
+    "bindings": [
+      {
+        "param": "chat_title",
+        "regions": [
+          "header"
+        ],
+        "category": "content"
+      },
+      {
+        "param": "assistant_logo",
+        "regions": [
+          "header"
+        ],
+        "category": "content"
+      },
+      {
+        "param": "finish_label",
+        "regions": [
+          "header"
+        ],
+        "category": "action"
+      },
+      {
+        "param": "welcome_title",
+        "regions": [
+          "welcome"
+        ],
+        "category": "content"
+      },
+      {
+        "param": "welcome_message",
+        "regions": [
+          "welcome"
+        ],
+        "category": "content"
+      },
+      {
+        "param": "primary_color",
+        "regions": [
+          "header",
+          "conversation",
+          "composer"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "accent_color",
+        "regions": [
+          "conversation",
+          "composer"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "launcher_icon_color",
+        "regions": [
+          "launcher"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "background_color",
+        "regions": [
+          "conversation"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "surface_color",
+        "regions": [
+          "conversation",
+          "composer"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "text_color",
+        "regions": [
+          "conversation",
+          "composer"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "muted_color",
+        "regions": [
+          "header",
+          "conversation"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "border_color",
+        "regions": [
+          "conversation",
+          "composer"
+        ],
+        "category": "appearance"
+      }
+    ]
+  }
 }
