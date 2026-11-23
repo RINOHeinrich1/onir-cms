@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import {
   REASONING_PROFILE_LABELS,
@@ -168,10 +169,10 @@ export function AiProviderForm({
           </span>
         </label>
 
-        <label className="field">
+        <label className="field" htmlFor="ai-provider-api-key">
           Clé API {provider === undefined ? "" : "(laisser vide pour conserver)"}
-          <input
-            type="password"
+          <PasswordInput
+            id="ai-provider-api-key"
             autoComplete="new-password"
             value={apiKey}
             placeholder={provider === undefined ? "sk-…" : `${provider.apiKeyHint} (inchangée)`}

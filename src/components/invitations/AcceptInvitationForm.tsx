@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type AcceptResponse = {
@@ -71,18 +72,29 @@ export function AcceptInvitationForm({ token }: { token: string }) {
         <input type="email" name="email" autoComplete="username" required />
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="invitation-password">
         Mot de passe
-        <input type="password" name="password" autoComplete="new-password" minLength={8} required />
+        <PasswordInput
+          id="invitation-password"
+          name="password"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
         <span className="hint">
           Si un compte existe déjà avec cet email, saisissez son mot de passe actuel. 8 caractères
           minimum pour un nouveau compte.
         </span>
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="invitation-confirmation">
         Confirmation
-        <input type="password" name="confirmation" autoComplete="new-password" required />
+        <PasswordInput
+          id="invitation-confirmation"
+          name="confirmation"
+          autoComplete="new-password"
+          required
+        />
       </label>
 
       <div className="hp" aria-hidden>

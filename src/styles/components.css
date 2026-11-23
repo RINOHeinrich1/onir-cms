@@ -11694,3 +11694,40 @@ a.subtab {
     transform: translateY(0);
   }
 }
+
+.password-control {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-control > input {
+  width: 100%;
+  padding-right: 2.6rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--muted, #647067);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  background: var(--surface-2, #f1eee3);
+  color: var(--text, #17221b);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--accent, #245a3f);
+  outline-offset: 1px;
+}

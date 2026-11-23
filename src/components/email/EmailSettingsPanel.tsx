@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type PublicEmailSettings = {
@@ -203,11 +204,11 @@ export function EmailSettingsPanel({
             autoComplete="username"
           />
         </label>
-        <label className="field">
+        <label className="field" htmlFor="smtp-password">
           Mot de passe
-          <input
+          <PasswordInput
+            id="smtp-password"
             className="input"
-            type="password"
             value={form.password}
             onChange={(e) => patch({ password: e.target.value })}
             disabled={!canEdit}

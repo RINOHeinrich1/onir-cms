@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { NO_ORGANIZATION_PATH } from "@/domain/session";
 
@@ -74,9 +75,14 @@ export function LoginForm({ commercial = false }: { commercial?: boolean }) {
         <input type="email" name="email" autoComplete="username" required />
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="login-password">
         Mot de passe
-        <input type="password" name="password" autoComplete="current-password" required />
+        <PasswordInput
+          id="login-password"
+          name="password"
+          autoComplete="current-password"
+          required
+        />
       </label>
 
       {/* Honeypot anti-bot — invisible pour l'utilisateur */}
