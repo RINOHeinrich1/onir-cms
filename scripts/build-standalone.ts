@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { prepareAndPersistBuild } from "@/application/use-cases/standalone/prepare-and-persist-build";
+import { ensureAppSecretsLoaded } from "@/infrastructure/config/app-secrets";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
@@ -24,6 +25,7 @@ async function main(): Promise<void> {
   ]);
 
   const pool = getPool();
+  await ensureAppSecretsLoaded();
   const data = await tryTemplateDataDependencies(pool);
   const result = await prepareAndPersistBuild(
     {
