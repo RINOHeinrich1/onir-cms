@@ -23,7 +23,7 @@ async function login(request: APIRequestContext): Promise<void> {
 async function loginPage(page: Page): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
-  await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
+  await page.locator('input[name="password"]').fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL(
     (current) => current.pathname === "/dashboard" || current.pathname === "/organisations",
@@ -87,7 +87,7 @@ test("page sans organisation : un compte rattaché est redirigé vers le dashboa
   await login(request);
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
-  await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
+  await page.locator('input[name="password"]').fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL((current) => current.pathname === "/dashboard");
   await page.goto("/no-organization");
