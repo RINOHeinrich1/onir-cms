@@ -467,6 +467,11 @@ liste répétable dont les éléments suivent `items`. Les champs `string`/`text
 restent du texte : ne jamais y sérialiser du JSON. Les données runtime passent
 par les contrats de données (ADR-0026), pas par `params`.
 
+La regex des `key` s'applique **récursivement** à `properties` et
+`items.properties` : une clé `camelCase` ou `kebab-case` recopiée d'un JSON est
+refusée. La convertir en `snake_case` (`startPage` → `start_page`) ; les
+identifiants et URLs restent des valeurs.
+
 ```json
 {
   "key": "apparence",

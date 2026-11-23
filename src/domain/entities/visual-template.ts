@@ -24,6 +24,21 @@ export type TemplateTrustLevel = (typeof TEMPLATE_TRUST_LEVELS)[number];
 export const TEMPLATE_MODES = ["web-component", "iframe"] as const;
 export type TemplateMode = (typeof TEMPLATE_MODES)[number];
 
+export const TEMPLATE_VERSION_HEALTH = ["unknown", "ok", "error"] as const;
+export type TemplateVersionHealth = (typeof TEMPLATE_VERSION_HEALTH)[number];
+
+export const TEMPLATE_VERSION_ERROR_CODES = [
+  "entry_unreachable",
+  "sri_mismatch",
+  "asset_missing",
+  "element_missing",
+  "runtime_exception",
+  "timeout",
+  "protocol_incompatible",
+  "import_incomplete",
+] as const;
+export type TemplateVersionErrorCode = (typeof TEMPLATE_VERSION_ERROR_CODES)[number];
+
 export const TEMPLATE_CAPABILITIES = [
   "messages",
   "media",

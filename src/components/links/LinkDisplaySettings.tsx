@@ -8,14 +8,14 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
-import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { type ChannelDraft, type ChannelDrafts, channelApiPayload } from "./LinkChannelsFields";
+import { type ParamTab, paramsForTab, paramTabsForSchema } from "./param-tabs";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { VisualTemplateOption } from "./types";
 import {
-  encodeParamsOverride,
   mergeParamsForSelection,
   paramsSchemaForSelection,
   widgetDisplayForSelection,
@@ -23,16 +23,7 @@ import {
 
 type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
-type ParamTab = "all" | "content" | "colors" | "images" | "advanced";
 type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
-
-const PARAM_TABS: Array<{ id: ParamTab; label: string }> = [
-  { id: "all", label: "Tous" },
-  { id: "content", label: "Contenu" },
-  { id: "colors", label: "Couleurs" },
-  { id: "images", label: "Images" },
-  { id: "advanced", label: "Avancé" },
-];
 
 function StudioIcon({
   name,
@@ -136,32 +127,6 @@ function templateVersions(
     : template.versions;
 }
 
-function paramsForTab(
-  schema: TemplateParamSchema[],
-  tab: ParamTab,
-  search: string,
-): TemplateParamSchema[] {
-  const byTab = schema.filter((param) => {
-    switch (tab) {
-      case "content":
-        return ["string", "text", "url", "select"].includes(param.type);
-      case "colors":
-        return param.type === "color";
-      case "images":
-        return param.type === "image";
-      case "advanced":
-        return ["number", "boolean", "object", "array"].includes(param.type);
-      default:
-        return true;
-    }
-  });
-  const needle = search.trim().toLocaleLowerCase("fr");
-  if (needle === "") return byTab;
-  return byTab.filter((param) =>
-    [param.key, param.label, param.description].join(" ").toLocaleLowerCase("fr").includes(needle),
-  );
-}
-
 export function LinkDisplaySettings({
   link,
   linkOptions,
@@ -228,31 +193,81 @@ export function LinkDisplaySettings({
   });
   const selected = splitSelection(draft.visualTemplate);
   const selectedTemplate = visualTemplates.find((template) => template.id === selected.id) ?? null;
-  const filteredParams = paramsForTab(paramsSchema, paramTab, paramSearch);
+  const paramTabs = useMemo(() => paramTabsForSchema(paramsSchema), [paramsSchema]);
+  const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
+  const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const zoom = zoomMode === "fit" ? fitZoom : customZoom / 100;
 
+  useEffect(() => {
+    if (!paramTabs.some((tab) => tab.id === paramTab)) setParamTab("all");
+  }, [paramTab, paramTabs]);
+
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const previewTokenRef = useRef<string | null>(null);
+  const [previewRevision, setPreviewRevision] = useState(0);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          const response = await fetch(
+            `/api/links/${encodeURIComponent(link.id)}/preview-session`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                token: previewTokenRef.current,
+                surface,
+                template: draft.visualTemplate === "" ? null : draft.visualTemplate,
+                params: draft.params,
+              }),
+              signal: controller.signal,
+            },
+          );
+          const json = (await response.json()) as { token?: string; error?: string };
+          if (!response.ok || typeof json.token !== "string") {
+            setPreviewError(json.error ?? "Aperçu indisponible");
+            return;
+          }
+          previewTokenRef.current = json.token;
+          setPreviewToken(json.token);
+          setPreviewRevision((value) => value + 1);
+          setPreviewError(null);
+        } catch {
+          if (!controller.signal.aborted) setPreviewError("Aperçu indisponible");
+        }
+      },
+      previewTokenRef.current === null ? 0 : 240,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [draft.params, draft.visualTemplate, link.id, surface]);
+
   const previewSrc = useMemo(() => {
-    const params = encodeParamsOverride(draft.params);
-    const template = draft.visualTemplate === "" ? "" : draft.visualTemplate;
+    if (previewToken === null) return "";
     if (surface === "widget") {
       const token = widgetToken(link.url);
       if (token !== null) {
-        const query = new URLSearchParams();
-        if (template !== "") query.set("template", template);
-        if (params !== "") query.set("params", params);
-        query.set("position", draft.widgetPosition);
-        const suffix = query.toString();
-        return `/embed/${encodeURIComponent(token)}/preview${suffix === "" ? "" : `?${suffix}`}`;
+        const query = new URLSearchParams({
+          preview: previewToken,
+          position: draft.widgetPosition,
+          v: String(previewRevision),
+        });
+        return `/embed/${encodeURIComponent(token)}/preview?${query.toString()}`;
       }
     }
-    return `/liens/${link.id}/apercu?embed=1&surface=${surface}&template=${encodeURIComponent(template)}&params=${params}`;
-  }, [draft.params, draft.visualTemplate, draft.widgetPosition, link.id, link.url, surface]);
-  const [debouncedPreviewSrc, setDebouncedPreviewSrc] = useState(previewSrc);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedPreviewSrc(previewSrc), 220);
-    return () => window.clearTimeout(timer);
-  }, [previewSrc]);
+    const query = new URLSearchParams({
+      embed: "1",
+      surface,
+      preview: previewToken,
+      v: String(previewRevision),
+    });
+    return `/liens/${link.id}/apercu?${query.toString()}`;
+  }, [draft.widgetPosition, link.id, link.url, previewRevision, previewToken, surface]);
 
   const setDraft = (patch: Partial<ChannelDraft>): void => {
     setDrafts((current) => ({
@@ -438,12 +453,15 @@ export function LinkDisplaySettings({
             ) : null}
             {visibleTemplates.map((template) => {
               const versions = templateVersions(template, surface);
-              const latest = latestTemplateVersion(versions);
+              const latest = latestTemplateVersion(
+                versions.filter((entry) => !entry.disabled && entry.healthStatus !== "error"),
+              );
               const isSelected = selected.id === template.id;
               const selectedVersion =
                 isSelected && selected.version !== null
                   ? (versions.find((entry) => entry.version === selected.version) ?? latest)
                   : latest;
+              const currentVersion = isSelected ? selected.version : null;
               return (
                 <article
                   key={template.id}
@@ -483,12 +501,24 @@ export function LinkDisplaySettings({
                       onChange={(event) => changeTemplate(event.target.value)}
                     >
                       {versions.length === 0 ? <option value="">Aucune</option> : null}
-                      {versions.map((entry) => (
-                        <option key={entry.version} value={`${template.id}@${entry.version}`}>
-                          {entry.version}
-                          {entry.widget === null ? " · page" : ""}
-                        </option>
-                      ))}
+                      {versions.map((entry) => {
+                        const unavailable = entry.disabled || entry.healthStatus === "error";
+                        return (
+                          <option
+                            key={entry.version}
+                            value={`${template.id}@${entry.version}`}
+                            disabled={unavailable && entry.version !== currentVersion}
+                          >
+                            {entry.version}
+                            {entry.widget === null ? " · page" : ""}
+                            {entry.disabled
+                              ? " · désactivée"
+                              : entry.healthStatus === "error"
+                                ? " · en erreur"
+                                : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 </article>
@@ -570,7 +600,7 @@ export function LinkDisplaySettings({
               </button>
               <a
                 className="display-studio-icon-button"
-                href={debouncedPreviewSrc}
+                href={previewSrc === "" ? "#" : previewSrc}
                 target="_blank"
                 rel="noreferrer"
                 title="Ouvrir l’aperçu dans un nouvel onglet"
@@ -605,11 +635,16 @@ export function LinkDisplaySettings({
                   </span>
                 </div>
                 <div className="display-preview-viewport">
-                  <iframe
-                    key={`${surface}-${device}`}
-                    title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
-                    src={debouncedPreviewSrc}
-                  />
+                  {previewSrc === "" ? (
+                    <p className="hint">Préparation de l’aperçu…</p>
+                  ) : (
+                    <iframe
+                      key={`${surface}-${device}`}
+                      title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
+                      src={previewSrc}
+                    />
+                  )}
+                  {previewError === null ? null : <p className="alert error">{previewError}</p>}
                 </div>
               </div>
             </div>
@@ -668,15 +703,24 @@ export function LinkDisplaySettings({
                       value={draft.visualTemplate}
                       onChange={(event) => changeTemplate(event.target.value)}
                     >
-                      {templateVersions(selectedTemplate, surface).map((entry) => (
-                        <option
-                          key={entry.version}
-                          value={`${selectedTemplate.id}@${entry.version}`}
-                        >
-                          {entry.version}
-                          {entry.widget === null ? " · page" : ""}
-                        </option>
-                      ))}
+                      {templateVersions(selectedTemplate, surface).map((entry) => {
+                        const unavailable = entry.disabled || entry.healthStatus === "error";
+                        return (
+                          <option
+                            key={entry.version}
+                            value={`${selectedTemplate.id}@${entry.version}`}
+                            disabled={unavailable && entry.version !== selected.version}
+                          >
+                            {entry.version}
+                            {entry.widget === null ? " · page" : ""}
+                            {entry.disabled
+                              ? " · désactivée"
+                              : entry.healthStatus === "error"
+                                ? " · en erreur"
+                                : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 ) : null}
@@ -728,21 +772,28 @@ export function LinkDisplaySettings({
                   <h3>Paramètres</h3>
                   <span className="badge muted">{filteredParams.length}</span>
                 </div>
-                <div className="display-studio-param-tabs">
-                  {PARAM_TABS.map((tab) => {
-                    const count = paramsForTab(paramsSchema, tab.id, "").length;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`display-studio-param-tab${paramTab === tab.id ? " is-active" : ""}`}
-                        onClick={() => setParamTab(tab.id)}
-                      >
-                        {tab.label} <span>{count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {paramTabs.length === 0 ? null : (
+                  <div className="display-studio-param-tabs">
+                    {paramTabs.map((tab) => {
+                      const count = paramsForTab(paramsSchema, tab.id, "").length;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          className={`display-studio-param-tab${activeParamTab === tab.id ? " is-active" : ""}`}
+                          title={
+                            tab.id === "advanced"
+                              ? "Nombres, booléens, objets et listes"
+                              : undefined
+                          }
+                          onClick={() => setParamTab(tab.id)}
+                        >
+                          {tab.label} <span>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <label className="display-studio-search display-studio-search--params">
                   <span aria-hidden="true">⌕</span>
                   <input

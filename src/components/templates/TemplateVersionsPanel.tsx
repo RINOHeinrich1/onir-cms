@@ -9,6 +9,9 @@ export type TemplateVersionSummary = {
   version: string;
   mode: string;
   trustLevel: string;
+  healthStatus: "unknown" | "ok" | "error";
+  lastErrorCode: string | null;
+  disabledAt: string | null;
   createdAt: string;
 };
 
@@ -44,6 +47,8 @@ export function TemplateVersionsPanel({
         modeLabel(version.mode),
         version.trustLevel,
         trustLabel(version.trustLevel),
+        version.healthStatus === "error" ? "en erreur" : "",
+        version.disabledAt !== null ? "désactivée" : "",
         formatDate(version.createdAt),
       ]
         .join(" ")
@@ -90,7 +95,19 @@ export function TemplateVersionsPanel({
                   >
                     <span className="version-item-head">
                       <strong>{version.version}</strong>
-                      {latest ? <span className="badge orange">Dernière importée</span> : null}
+                      <span className="template-badges">
+                        {latest ? <span className="badge orange">Dernière importée</span> : null}
+                        {version.disabledAt !== null ? (
+                          <span className="badge muted">Désactivée</span>
+                        ) : null}
+                        {version.healthStatus === "error" ? (
+                          <span className="badge danger">
+                            {version.lastErrorCode === "import_incomplete"
+                              ? "Import incomplet"
+                              : "En erreur"}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                     <span className="version-item-meta">
                       {formatDate(version.createdAt)} · {modeLabel(version.mode)} ·{" "}

@@ -103,73 +103,111 @@ export async function importOrganizationVisualTemplate(
     }
   }
 
-  const existing = await deps.templates.findByKeyForOrganization(organizationId, manifest.id);
-  const isNewTemplate = existing === null;
-  const template =
-    existing ??
-    (await deps.templates.createTemplate({
-      key: manifest.id,
-      name: manifest.name,
-      description: manifest.description,
-      author: manifest.publisher.id,
-      ownerOrganizationId: organizationId,
-      uploadedBy: actor.id,
+  let template: VisualTemplate | null = null;
+  let version: VisualTemplateVersion | null = null;
+  let createdTemplate = false;
+  const savedStorageKeys: string[] = [];
+  try {
+    const existing = await deps.templates.findByKeyForOrganization(organizationId, manifest.id);
+    const isNewTemplate = existing === null;
+    if (existing === null) {
+      template = await deps.templates.createTemplate({
+        key: manifest.id,
+        name: manifest.name,
+        description: manifest.description,
+        author: manifest.publisher.id,
+        ownerOrganizationId: organizationId,
+        uploadedBy: actor.id,
+        createdBy: actor.id,
+      });
+      createdTemplate = true;
+    } else {
+      template = existing;
+    }
+
+    if (template.ownerOrganizationId !== organizationId) {
+      throw new TemplateKeyReservedError(manifest.id);
+    }
+
+    const already = await deps.templates.findVersion(template.id, manifest.version);
+    if (already !== null) {
+      throw new ConflictError(`Version déjà installée : ${manifest.id}@${manifest.version}`);
+    }
+
+    version = await deps.templates.createVersion({
+      templateId: template.id,
+      version: manifest.version,
+      hostProtocol: manifest.compatibility.hostProtocol,
+      trustLevel: manifest.publisher.trustLevel,
+      mode: manifest.ui.mode,
+      manifest,
+      entry: manifest.ui.entry,
+      integrity: manifest.ui.integrity,
       createdBy: actor.id,
-    }));
-
-  if (template.ownerOrganizationId !== organizationId) {
-    throw new TemplateKeyReservedError(manifest.id);
-  }
-
-  const already = await deps.templates.findVersion(template.id, manifest.version);
-  if (already !== null) {
-    throw new ConflictError(`Version déjà installée : ${manifest.id}@${manifest.version}`);
-  }
-
-  const version = await deps.templates.createVersion({
-    templateId: template.id,
-    version: manifest.version,
-    hostProtocol: manifest.compatibility.hostProtocol,
-    trustLevel: manifest.publisher.trustLevel,
-    mode: manifest.ui.mode,
-    manifest,
-    entry: manifest.ui.entry,
-    integrity: manifest.ui.integrity,
-    createdBy: actor.id,
-  });
-
-  for (const [path, bytes] of files) {
-    const mime = mimeByExtension(path);
-    const storageKey = await deps.storage.save({
-      data: bytes,
-      contentType: mime,
-      organizationId,
     });
-    await deps.templates.addAsset({
-      versionId: version.id,
-      path,
-      storageKey,
-      sha256: deps.hasher.sha256Hex(bytes),
-      size: bytes.byteLength,
-      mime,
-    });
+
+    for (const [path, bytes] of files) {
+      const mime = mimeByExtension(path);
+      const storageKey = await deps.storage.save({
+        data: bytes,
+        contentType: mime,
+        organizationId,
+      });
+      savedStorageKeys.push(storageKey);
+      await deps.templates.addAsset({
+        versionId: version.id,
+        path,
+        storageKey,
+        sha256: deps.hasher.sha256Hex(bytes),
+        size: bytes.byteLength,
+        mime,
+      });
+    }
+
+    if (isNewTemplate) {
+      await deps.templates.install(organizationId, template.id, actor.id, "organization_upload");
+    }
+
+    await deps.audit
+      ?.record({
+        organizationId,
+        templateId: template.id,
+        actorId: actor.id,
+        event: "upload",
+        metadata: {
+          version: version.version,
+          ownerOrganizationId: organizationId,
+          isNewTemplate,
+        },
+      })
+      .catch(() => undefined);
+
+    return { template, version };
+  } catch (error) {
+    if (template !== null) {
+      if (version !== null) {
+        await deps.templates.deleteVersion(template.id, version.version).catch(() => undefined);
+      }
+      if (createdTemplate) {
+        await deps.templates.deleteTemplate(template.id).catch(() => undefined);
+      }
+    }
+    for (const key of savedStorageKeys) {
+      await deps.storage.remove(key).catch(() => undefined);
+    }
+    await deps.audit
+      ?.record({
+        organizationId,
+        templateId: template?.id ?? null,
+        actorId: actor.id,
+        event: "import_failed",
+        metadata: {
+          key: manifest.id,
+          version: manifest.version,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
+      .catch(() => undefined);
+    throw error;
   }
-
-  if (isNewTemplate) {
-    await deps.templates.install(organizationId, template.id, actor.id, "organization_upload");
-  }
-
-  await deps.audit?.record({
-    organizationId,
-    templateId: template.id,
-    actorId: actor.id,
-    event: "upload",
-    metadata: {
-      version: version.version,
-      ownerOrganizationId: organizationId,
-      isNewTemplate,
-    },
-  });
-
-  return { template, version };
 }

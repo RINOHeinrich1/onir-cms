@@ -5,6 +5,56 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.38.26](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.25...v0.38.26) (2026-11-21)
+
+
+### Features
+
+* **aperçu:** remplacer les paramètres dans l’URL par une session tokenisée courte
+
+
+### Documentation
+
+* **adr:** sessions d’aperçu éphémères et token court
+
+
+## [0.38.25](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.24...v0.38.25) (2026-11-21)
+
+
+### Documentation
+
+* **templates:** clés de schéma `object`/`array` valides à toute profondeur
+
+
+## [0.38.24](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.23...v0.38.24) (2026-11-21)
+
+
+### Features
+
+* **templates:** cycle de vie des versions, désactivation et désinstallation sécurisée
+* **liens:** masquer les onglets de paramètres vides
+
+
+### Bug Fixes
+
+* **templates:** détecter les imports incomplets et compenser les imports échoués
+* **stockage:** expliciter les erreurs de stockage indisponible
+
+
+### Documentation
+
+* **adr:** cycle de vie des versions de templates
+* **templates:** documenter les paramètres structurés `object` et `array`
+
+
+## [0.38.23](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.22...v0.38.23) (2026-11-20)
+
+
+### Documentation
+
+* **templates:** expliciter le défaut obligatoire des paramètres image
+
+
 ## [0.38.22](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.21...v0.38.22) (2026-11-20)
 
 

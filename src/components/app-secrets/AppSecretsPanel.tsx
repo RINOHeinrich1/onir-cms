@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type SecretKey = "SESSION_SECRET" | "LINK_TOKEN_KEY" | "AI_PROVIDER_KEY" | "WEBHOOK_SECRET_KEY";
@@ -300,10 +301,10 @@ export function AppSecretsPanel() {
             Impact : {impactText(replaceSecret)}. La valeur doit contenir 64 caractères
             hexadécimaux.
           </p>
-          <label className="field">
+          <label className="field" htmlFor="app-secret-value">
             Nouvelle valeur
-            <input
-              type="password"
+            <PasswordInput
+              id="app-secret-value"
               autoComplete="new-password"
               value={replaceValue}
               onChange={(event) => setReplaceValue(event.target.value)}

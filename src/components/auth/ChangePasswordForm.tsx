@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 
 type ChangeResponse = { ok?: boolean; error?: string };
@@ -50,20 +51,30 @@ export function ChangePasswordForm() {
     <form className="form" onSubmit={onSubmit} noValidate>
       {error !== null ? <p className="alert error">{error}</p> : null}
 
-      <label className="field">
+      <label className="field" htmlFor="current-password">
         Mot de passe actuel
-        <input type="password" name="currentPassword" autoComplete="current-password" required />
+        <PasswordInput
+          id="current-password"
+          name="currentPassword"
+          autoComplete="current-password"
+          required
+        />
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="new-password">
         Nouveau mot de passe
-        <input type="password" name="newPassword" autoComplete="new-password" required />
+        <PasswordInput id="new-password" name="newPassword" autoComplete="new-password" required />
         <span className="hint">8 caractères minimum.</span>
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="password-confirmation">
         Confirmation
-        <input type="password" name="confirmation" autoComplete="new-password" required />
+        <PasswordInput
+          id="password-confirmation"
+          name="confirmation"
+          autoComplete="new-password"
+          required
+        />
       </label>
 
       <button type="submit" className="btn" disabled={pending}>

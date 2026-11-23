@@ -76,6 +76,9 @@ function baseRepo(overrides: Partial<VisualTemplateRepository> = {}): VisualTemp
       throw new Error("non utilisé");
     },
     setDisabled: async () => null,
+    getVersionUsage: async () => ({ links: 0, bindings: 0, assets: 0 }),
+    setVersionDisabled: async () => null,
+    deleteVersion: async () => ({ deleted: false, assetKeys: [] }),
     deleteTemplate: async () => false,
     ...overrides,
   };

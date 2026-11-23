@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MemberDto } from "@/application/use-cases/organizations/manage-members";
 import { confirmDialog } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/Modal";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 
@@ -169,10 +170,10 @@ export function MembersTable({
                 onChange={(event) => setEmail(event.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field" htmlFor="member-password">
               Mot de passe (vide = utilisateur existant)
-              <input
-                type="password"
+              <PasswordInput
+                id="member-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />

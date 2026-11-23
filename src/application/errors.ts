@@ -126,6 +126,20 @@ export class StorageQuotaExceededError extends AppError {
   }
 }
 
+/** Le stockage des fichiers refuse l'écriture (espace insuffisant, S3 indisponible). */
+export class StorageUnavailableError extends AppError {
+  readonly cause: unknown;
+
+  constructor(
+    message = "Stockage des fichiers indisponible : espace insuffisant ou service de stockage en erreur. Réessayez après libération de l’espace.",
+    cause?: unknown,
+  ) {
+    super(message, 503, "STORAGE_UNAVAILABLE");
+    this.name = "StorageUnavailableError";
+    this.cause = cause;
+  }
+}
+
 /** Le template est encore utilisé par au moins un chatbot (ADR-0091 §6). */
 export class TemplateInUseError extends AppError {
   readonly usages: number;
@@ -139,6 +153,31 @@ export class TemplateInUseError extends AppError {
     );
     this.templateName = templateName;
     this.usages = usages;
+  }
+}
+
+/** Une version de template est encore référencée par un lien ou une donnée (ADR-0103). */
+export class TemplateVersionInUseError extends AppError {
+  readonly usage: { links: number; bindings: number; assets: number };
+
+  constructor(version: string, usage: { links: number; bindings: number; assets: number }) {
+    const details = [
+      usage.links > 0 ? `${usage.links} lien(s)` : null,
+      usage.bindings > 0 ? `${usage.bindings} configuration(s) de données` : null,
+    ].filter((entry): entry is string => entry !== null);
+    super(
+      `Impossible de désinstaller la version ${version} : ${details.join(" et ")} la référence(nt) encore.`,
+      409,
+      "TEMPLATE_VERSION_IN_USE",
+    );
+    this.usage = usage;
+  }
+}
+
+/** Une version ne remplit pas les conditions de désinstallation (ADR-0103). */
+export class TemplateVersionNotUninstallableError extends AppError {
+  constructor(message: string) {
+    super(message, 409, "TEMPLATE_VERSION_NOT_UNINSTALLABLE");
   }
 }
 

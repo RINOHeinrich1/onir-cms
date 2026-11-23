@@ -23,8 +23,14 @@
   var zIndex = script.getAttribute("data-onir-z-index") || "2147483000";
   var previewTemplate = script.getAttribute("data-onir-preview-template");
   var previewParams = script.getAttribute("data-onir-preview-params");
+  var previewToken = script.getAttribute("data-onir-preview-token");
+  var previewRevision = script.getAttribute("data-onir-preview-revision");
   var iframeSrc = origin + "/embed/" + encodeURIComponent(token);
-  if (previewTemplate || previewParams) {
+  if (previewToken) {
+    var previewQuery = ["preview=" + encodeURIComponent(previewToken)];
+    if (previewRevision) previewQuery.push("v=" + encodeURIComponent(previewRevision));
+    iframeSrc += "?" + previewQuery.join("&");
+  } else if (previewTemplate || previewParams) {
     var query = ["preview=1"];
     if (previewTemplate) query.push("template=" + encodeURIComponent(previewTemplate));
     if (previewParams) query.push("params=" + encodeURIComponent(previewParams));

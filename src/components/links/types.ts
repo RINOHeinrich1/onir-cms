@@ -31,6 +31,8 @@ export type VisualTemplateOption = {
     version: string;
     params: TemplateParamSchema[];
     widget: WidgetDisplay | null;
+    disabled: boolean;
+    healthStatus: "unknown" | "ok" | "error";
   }[];
 };
 
