@@ -173,6 +173,20 @@ export function pgStandaloneRepository(pool: Pool): StandaloneRepository {
       return toSettings(row);
     },
 
+    async setEnabled(input) {
+      const { rows } = await pool.query<SettingsRow>(
+        `INSERT INTO chatbot_standalone_settings (chat_link_id, organization_id, enabled)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (chat_link_id) DO UPDATE
+           SET enabled = EXCLUDED.enabled, updated_at = now()
+         RETURNING chat_link_id, organization_id, enabled, active_build_id, created_at, updated_at`,
+        [input.chatLinkId, input.organizationId, input.enabled],
+      );
+      const row = rows[0];
+      if (row === undefined) throw new Error("Échec de mise à jour des réglages standalone");
+      return toSettings(row);
+    },
+
     async createBuild(input: CreateStandaloneBuildInput) {
       return inTransaction(pool, async (client) => {
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [input.chatLinkId]);

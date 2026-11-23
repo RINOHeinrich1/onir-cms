@@ -81,6 +81,11 @@ export interface StandaloneRepository {
     chatLinkId: string;
     organizationId: string;
   }): Promise<StandaloneSettings>;
+  setEnabled(input: {
+    chatLinkId: string;
+    organizationId: string;
+    enabled: boolean;
+  }): Promise<StandaloneSettings>;
 
   createBuild(input: CreateStandaloneBuildInput): Promise<StandaloneBuild>;
   findBuild(id: string): Promise<StandaloneBuild | null>;
