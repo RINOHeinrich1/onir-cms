@@ -506,8 +506,8 @@ Il ne fait pas :
 
 #### Object storage actuel
 
-L’object storage existant peut être utilisé comme **origine privée** des builds,
-dans un préfixe dédié :
+L’object storage de **production** peut être utilisé comme **origine privée**
+des builds, dans un préfixe dédié :
 
 ```text
 standalone-builds/<chat_link_id>/<build_id>/
@@ -523,7 +523,12 @@ Règles :
 - sauvegarde et politique de rétention ;
 - purge des builds expirés ou remplacés.
 
-Si le stockage actuel est un SeaweedFS mono-instance, il reste un point de
+Dans l’infrastructure actuelle, il s’agit du SeaweedFS de **production**
+(`onir-cms-node-seaweedfs-1`). L’instance de préprod (`onir-seaweedfs-test`)
+est un environnement de test distinct et ne constitue pas la référence de
+capacité ou de disponibilité.
+
+Si le SeaweedFS de production reste mono-instance, il reste un point de
 défaillance et ne doit pas être exposé directement à Internet. Il peut servir
 d’origine en V1 avec cache edge et sauvegardes. Pour une disponibilité réelle,
 prévoir un stockage répliqué ou S3-compatible dédié.
