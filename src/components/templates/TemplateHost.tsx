@@ -73,6 +73,43 @@ type FallbackMenu = {
   showCollectionForm: boolean;
 };
 
+type StoredPreviewState = {
+  phase: "identity" | "otp" | "chat";
+  status: "en_cours" | "finalisee";
+  messages: TemplateMessage[];
+};
+
+function readPreviewState(key: string | undefined): StoredPreviewState | null {
+  if (key === undefined || typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredPreviewState>;
+    if (
+      (parsed.phase !== "identity" && parsed.phase !== "otp" && parsed.phase !== "chat") ||
+      (parsed.status !== "en_cours" && parsed.status !== "finalisee") ||
+      !Array.isArray(parsed.messages)
+    ) {
+      return null;
+    }
+    return {
+      phase: parsed.phase,
+      status: parsed.status,
+      messages: parsed.messages.filter(
+        (message): message is TemplateMessage =>
+          message !== null &&
+          typeof message === "object" &&
+          typeof message.id === "string" &&
+          typeof message.content === "string" &&
+          (message.role === "user" || message.role === "assistant") &&
+          typeof message.at === "string",
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
 const EDITOR_BLOCKED_ACTIONS = new Set<TemplateAction["action"]>([
   "submitIdentity",
   "requestOtp",
@@ -216,6 +253,7 @@ export function TemplateHost({
   selectedRegion = null,
   onRegionHover,
   onRegionSelect,
+  previewStorageKey,
 }: {
   token: string;
   template: TemplateSpec;
@@ -233,11 +271,22 @@ export function TemplateHost({
   selectedRegion?: string | null;
   onRegionHover?: (regionId: string | null) => void;
   onRegionSelect?: (regionId: string) => void;
+  /** Clé sessionStorage réservée à l’aperçu simulé. */
+  previewStorageKey?: string;
 }) {
+  const [previewInitialState] = useState<StoredPreviewState | null>(() =>
+    preview ? readPreviewState(previewStorageKey) : null,
+  );
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
-  const [messages, setMessages] = useState<TemplateMessage[]>(initialMessages);
-  const [status, setStatus] = useState<"en_cours" | "finalisee">(baseContext.state.status);
-  const [phase, setPhase] = useState<"identity" | "otp" | "chat">(baseContext.state.phase);
+  const [messages, setMessages] = useState<TemplateMessage[]>(
+    previewInitialState?.messages ?? initialMessages,
+  );
+  const [status, setStatus] = useState<"en_cours" | "finalisee">(
+    previewInitialState?.status ?? baseContext.state.status,
+  );
+  const [phase, setPhase] = useState<"identity" | "otp" | "chat">(
+    previewInitialState?.phase ?? baseContext.state.phase,
+  );
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fallbackMenu, setFallbackMenu] = useState<FallbackMenu | null>(null);
@@ -259,8 +308,9 @@ export function TemplateHost({
   const mountRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const elementRef = useRef<HTMLElement | null>(null);
+  const restoredMessages = previewInitialState?.messages ?? initialMessages;
   const lastAtRef = useRef<string | null>(
-    initialMessages.length === 0 ? null : (initialMessages[initialMessages.length - 1]?.at ?? null),
+    restoredMessages.length === 0 ? null : (restoredMessages.at(-1)?.at ?? null),
   );
   /** Messages optimistes en attente du message serveur correspondant. */
   const optimisticUserMessagesRef = useRef<Array<{ id: string; content: string }>>([]);
@@ -1028,6 +1078,18 @@ export function TemplateHost({
       }
     })();
   }, [baseContext.state.collectionForm, conversationId, phase, platform]);
+
+  useEffect(() => {
+    if (!preview || previewStorageKey === undefined) return;
+    try {
+      window.sessionStorage.setItem(
+        previewStorageKey,
+        JSON.stringify({ phase, status, messages } satisfies StoredPreviewState),
+      );
+    } catch {
+      // Stockage navigateur indisponible : l’aperçu reste fonctionnel.
+    }
+  }, [messages, phase, preview, previewStorageKey, status]);
 
   const liveContext = useMemo<LiveContext>(
     () => ({

@@ -77,6 +77,11 @@ export function TemplatePreviewEditor({
       onRegionHover={onRegionHover}
       onRegionSelect={onRegionSelect}
       selectedRegion={selectedRegion}
+      {...(hostProps.preview === true && previewToken !== null
+        ? {
+            previewStorageKey: `onir-preview:${previewToken}:${hostProps.baseContext.surface}`,
+          }
+        : {})}
     />
   );
 }
