@@ -167,6 +167,7 @@ export interface VisualTemplateRepository {
   ): Promise<VisualTemplateVersion | null>;
   deleteVersion(templateId: string, version: string): Promise<VisualTemplateVersionDeletion>;
   findAsset(versionId: string, path: string): Promise<VisualTemplateAsset | null>;
+  listAssets(versionId: string): Promise<VisualTemplateAsset[]>;
   createTemplate(input: CreateVisualTemplateInput): Promise<VisualTemplate>;
   createVersion(input: CreateVisualTemplateVersionInput): Promise<VisualTemplateVersion>;
   addAsset(input: CreateVisualTemplateAssetInput): Promise<VisualTemplateAsset>;

@@ -125,6 +125,7 @@ function repo(
       };
     },
     findAsset: async () => null,
+    listAssets: async () => [],
     createTemplate: async () => {
       throw new Error("non utilisé");
     },
