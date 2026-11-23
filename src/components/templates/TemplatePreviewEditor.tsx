@@ -12,12 +12,14 @@ type TemplateHostProps = ComponentProps<typeof TemplateHost>;
  */
 export function TemplatePreviewEditor({
   previewToken,
+  previewStorageKey,
   ...hostProps
 }: Omit<
   TemplateHostProps,
   "editorActive" | "selectedRegion" | "onRegionHover" | "onRegionSelect"
 > & {
   previewToken: string | null;
+  previewStorageKey?: string;
 }) {
   const [editorActive, setEditorActive] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
@@ -77,11 +79,7 @@ export function TemplatePreviewEditor({
       onRegionHover={onRegionHover}
       onRegionSelect={onRegionSelect}
       selectedRegion={selectedRegion}
-      {...(hostProps.preview === true && previewToken !== null
-        ? {
-            previewStorageKey: `onir-preview:${previewToken}:${hostProps.baseContext.surface}`,
-          }
-        : {})}
+      {...(previewStorageKey === undefined ? {} : { previewStorageKey })}
     />
   );
 }
