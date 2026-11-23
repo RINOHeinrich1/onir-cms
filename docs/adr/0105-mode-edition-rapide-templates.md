@@ -57,20 +57,25 @@ Le cœur ne peut donc pas savoir quelles variables afficher quand l’utilisateu
 clique sur le header, le hero ou le footer. Une détection heuristique par nom de
 paramètre ou par valeur serait ambiguë et fragile.
 
-### Cas concret
+### Cas concret et pilote retenu
 
-Le lien `912bffda-2445-4a76-bfc6-957984edfca4` utilise **Natural World 1.0.3** :
+Le pilote V1 est **Starter 1.6.16**, dont la source est disponible dans
+`template-kit/template` :
 
 - transport Web Component, shadow DOM `open` ;
-- 14 paramètres ;
-- textes déjà paramétrés (`hero.headline`, `footer.headline`, etc.) ;
-- images déjà paramétrées (`hero.image`, `visuals.impact_photo`, etc.) ;
-- sections déjà prévues (`sections.show_impact`, `sections.show_gallery`,
-  `sections.show_benefits`, `sections.show_testimonials`).
+- header, zone de bienvenue, conversation et composeur identifiables ;
+- paramètres de texte et de couleur déjà déclarés ;
+- couleurs partagées entre plusieurs zones (`primary_color`, `text_color`,
+  `surface_color`, etc.).
 
-Cependant, le DOM du template ne contient aucun marqueur de zone. Le curseur
-d’inspection est donc **faisable sur le modèle de données**, mais nécessite une
-instrumentation explicite du template.
+Starter ne contient pas de sections marketing masquables comme Natural World.
+Il permet donc de valider le curseur, le filtrage par zone et les paramètres
+partagés. Les sections masquées et les zones éditoriales seront validées avec
+Natural World dans un second temps.
+
+Natural World 1.0.3 reste le template cible pour la suite : il possède
+`hero.headline`, `hero.image`, `sections.show_impact`, etc., mais ne contient
+aucun marqueur de zone.
 
 ## Décision
 
@@ -133,8 +138,7 @@ valides et n’ont simplement pas accès au curseur.
       {
         "param": "appearance.color_ink",
         "regions": ["header", "hero", "footer"],
-        "category": "appearance",
-        "scope": "shared"
+        "category": "appearance"
       }
     ]
   }
@@ -145,8 +149,11 @@ Le manifeste devient la source de vérité pour :
 
 - les zones sélectionnables et leur hiérarchie ;
 - les paramètres rattachés à une ou plusieurs zones ;
-- la distinction entre paramètre local et paramètre partagé ;
 - les catégories d’affichage.
+
+Un paramètre est **local** s’il est rattaché à une seule zone, et **partagé**
+s’il est rattaché à plusieurs zones. Aucun champ `scope` n’est nécessaire en
+V1 : le statut est déduit de `bindings[].regions.length > 1`.
 
 Le manifeste ne contient **ni sélecteur CSS arbitraire, ni HTML, ni JavaScript**.
 
@@ -254,16 +261,23 @@ Fonctions UX :
 
 ### 7. Paramètres locaux et partagés
 
-Une couleur comme `appearance.color_ink` n’est pas réellement « dans le
-header » : elle est **globale** et affecte plusieurs zones.
+Une couleur comme `primary_color` n’est pas réellement « dans le header » : elle
+est **partagée** et affecte le header, la conversation et le composeur.
 
-- paramètres locaux : affichés dans la zone ;
-- paramètres partagés : affichés dans une section **Partagé** avec badge ;
-- un paramètre peut appartenir à plusieurs zones ;
-- une zone peut contenir plusieurs paramètres.
+- un paramètre présent dans une seule zone est **local** ;
+- un paramètre présent dans plusieurs zones est **partagé** ;
+- un paramètre partagé est affiché une seule fois, dans une section **Partagé**,
+  avec un badge du type `Partagé · 3 zones` ;
+- les paramètres locaux restent dans la zone.
 
-Sans cette distinction, l’utilisateur croira modifier uniquement le header alors
-qu’il change tout le site.
+La règle est donc simplement :
+
+```text
+regions.length === 1  → local
+regions.length  > 1  → partagé
+```
+
+Pas de champ `scope` à maintenir dans le manifeste pour la V1.
 
 ### 8. Sections masquées
 
@@ -383,15 +397,18 @@ Inutile : `visual_template_params` porte déjà les valeurs et la sélection est
 ### Phase 1 — V1 : curseur d’inspection
 
 1. Ajouter le type et la validation du bloc `editor` (`regions`, `bindings`).
-2. Ajouter les marqueurs `data-onir-region` dans Natural World et publier une
-   version 1.1.0.
+2. Instrumenter **Starter 1.6.16** avec `data-onir-region` et publier une
+   version 1.7.0.
 3. Ajouter le pont de sélection Web Component dans `TemplateHost`.
-4. Ajouter le pont de sélection iframe dans `iframe-frame.ts`.
+4. Ajouter le pont de sélection iframe dans `iframe-frame.ts` — **inclus en V1**.
 5. Ajouter l’état `selectedRegion` dans le studio.
 6. Filtrer l’inspecteur de droite par zone et restaurer tous les paramètres à
    la désactivation.
-7. Afficher les paramètres partagés et les zones masquées.
-8. Tester sur le lien de préproduction.
+7. Afficher les paramètres partagés.
+8. Mettre à jour la skill `onirtech-template-sdk` avec le contrat `editor` et
+   les marqueurs de zone.
+9. Tester sur la préproduction puis instrumenter Natural World pour les zones
+   éditoriales et les sections masquées.
 
 ### Phase 2 — V2 : édition directe
 
@@ -415,6 +432,7 @@ Inutile : `visual_template_params` porte déjà les valeurs et la sélection est
 - une zone masquée est accessible depuis la liste des zones masquées ;
 - une zone inconnue ou un paramètre non déclaré est ignoré ;
 - Web Component `open` et iframe instrumentée fonctionnent ;
+- Starter 1.7.0 permet de filtrer header, bienvenue, conversation et composeur ;
 - shadow DOM `closed` et template non instrumenté : curseur désactivé ;
 - aucune modification de template, de version ou de base de données ;
 - sauvegarde et rendu public inchangés.
@@ -424,6 +442,10 @@ Inutile : `visual_template_params` porte déjà les valeurs et la sélection est
 La V1 doit être livrée avant toute édition directe. Elle apporte déjà le gain
 principal — retrouver immédiatement les variables d’une zone — avec un risque
 faible et sans toucher au mécanisme de persistance.
+
+Starter est le bon pilote : sa source est dans le dépôt, il est le template par
+défaut et il contient des paramètres partagés. Natural World viendra ensuite
+pour valider les zones éditoriales et les sections masquées.
 
 Le curseur d’inspection n’est pas un simple filtre visuel : c’est un **modèle
 déclaratif de zones et de rattachements**, réutilisable ensuite pour l’édition
