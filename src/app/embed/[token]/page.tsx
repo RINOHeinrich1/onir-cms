@@ -8,7 +8,7 @@ import {
   toContractMessages,
 } from "@/application/use-cases/visual-templates/link-template";
 import { ChatbotUnavailable } from "@/components/chat/ChatbotUnavailable";
-import { TemplateHost } from "@/components/templates/TemplateHost";
+import { TemplatePreviewEditor } from "@/components/templates/TemplatePreviewEditor";
 import { WidgetReadySignal } from "@/components/templates/WidgetReadySignal";
 import { WidgetStandaloneRedirect } from "@/components/templates/WidgetStandaloneRedirect";
 import {
@@ -160,13 +160,14 @@ export default async function WidgetPage({ params, searchParams }: PageProps) {
         <style>{WIDGET_TRANSPARENT_STYLES}</style>
         <WidgetStandaloneRedirect token={token} />
         <WidgetReadySignal />
-        <TemplateHost
+        <TemplatePreviewEditor
           token={token}
           template={spec}
           baseContext={context}
           conversationId={null}
           initialMessages={[]}
           anonymous
+          previewToken={previewToken}
         />
       </main>
     );
@@ -199,12 +200,13 @@ export default async function WidgetPage({ params, searchParams }: PageProps) {
       <style>{WIDGET_TRANSPARENT_STYLES}</style>
       <WidgetStandaloneRedirect token={token} />
       <WidgetReadySignal />
-      <TemplateHost
+      <TemplatePreviewEditor
         token={token}
         template={spec}
         baseContext={context}
         conversationId={started.conversation.id}
         initialMessages={contract}
+        previewToken={previewToken}
       />
     </main>
   );

@@ -808,6 +808,7 @@ class StarterWidget extends HTMLElement {
     const button = el("button", {
       class: "launcher",
       type: "button",
+      "data-onir-region": "launcher",
       "aria-label": "Ouvrir la discussion",
       "aria-haspopup": "dialog",
       "aria-expanded": "false",
@@ -908,7 +909,7 @@ class StarterWidget extends HTMLElement {
     finishButton.addEventListener("click", () => this.#requestFinish());
     closeButton.addEventListener("click", () => this.#closePanel());
 
-    const header = el("header", { class: "head" }, [
+    const header = el("header", { class: "head", "data-onir-region": "header" }, [
       brandAvatar,
       el("div", { class: "head-copy" }, [
         brandName,
@@ -921,7 +922,7 @@ class StarterWidget extends HTMLElement {
     const welcomeMessage = el("span", {
       text: "Décrivez votre demande. Je vous réponds directement ici.",
     });
-    const intro = el("div", { class: "intro" }, [
+    const intro = el("div", { class: "intro", "data-onir-region": "welcome" }, [
       icon("spark", 17),
       el("div", {}, [welcomeTitle, welcomeMessage]),
     ]);
@@ -933,6 +934,7 @@ class StarterWidget extends HTMLElement {
       role: "log",
       "aria-live": "polite",
       "aria-label": "Conversation",
+      "data-onir-region": "conversation",
     }, [intro, list, typing, empty]);
     log.addEventListener("scroll", () => this.#onLogScroll(), { passive: true });
 
@@ -954,7 +956,7 @@ class StarterWidget extends HTMLElement {
       }
     });
     const hint = el("p", { class: "hint", text: "Entrée pour envoyer · Maj+Entrée pour un retour à la ligne" });
-    const composer = el("form", { class: "composer" }, [
+    const composer = el("form", { class: "composer", "data-onir-region": "composer" }, [
       el("div", { class: "composer-box" }, [input, send]),
       hint,
     ]);

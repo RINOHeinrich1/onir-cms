@@ -3,6 +3,7 @@ import type { ChatLinkListItem } from "@/application/use-cases/links/link-urls";
 import type { WithCreatorLabel } from "@/application/use-cases/shared/creator-labels";
 import type { ChatLink } from "@/domain/entities/chat";
 import type { Prospect } from "@/domain/entities/prospect";
+import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema } from "@/domain/template-params";
 import type { WidgetDisplay } from "@/domain/widget";
 
@@ -30,6 +31,8 @@ export type VisualTemplateOption = {
   versions: {
     version: string;
     params: TemplateParamSchema[];
+    editor?: TemplateEditorManifest;
+    shadowDom: "open" | "closed" | "none";
     widget: WidgetDisplay | null;
     disabled: boolean;
     healthStatus: "unknown" | "ok" | "error";

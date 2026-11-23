@@ -5,6 +5,7 @@
  * il ne connaît ni l'archive, ni la base, ni le stockage.
  */
 import { type TemplateDataContract, validateTemplateDataBlock } from "@/domain/data-contracts";
+import { type TemplateEditorManifest, validateTemplateEditorBlock } from "@/domain/template-editor";
 import { type TemplateParamSchema, validateTemplateParamSchema } from "@/domain/template-params";
 import {
   DEFAULT_WIDGET_DISPLAY,
@@ -100,6 +101,8 @@ export type TemplateManifest = {
   network: string[];
   /** Variables paramétrables déclarées (ADR-0023) ; [] si aucune. */
   params: TemplateParamSchema[];
+  /** Zones et bindings du mode d’inspection (ADR-0105). */
+  editor?: TemplateEditorManifest;
   /** Contrats de données déclarés (ADR-0026) ; [] si aucun. */
   dataContracts: TemplateDataContract[];
 };
@@ -371,6 +374,11 @@ export function validateTemplateManifest(
     for (const error of params.errors) add(error.field, error.message);
   }
 
+  const editor = validateTemplateEditorBlock(src.editor, params.ok ? params.value : []);
+  if (!editor.ok) {
+    for (const error of editor.errors) add(error.field, error.message);
+  }
+
   // ADR-0026 : la capacité `data` exige un bloc `data.contracts` non vide, et
   // réciproquement un bloc `data` sans capacité est un manifeste incohérent.
   let dataContracts: TemplateDataContract[] = [];
@@ -418,6 +426,7 @@ export function validateTemplateManifest(
       identificationModes,
       network: network as string[],
       params: params.ok ? params.value : [],
+      ...(editor.ok && editor.value !== undefined ? { editor: editor.value } : {}),
       dataContracts,
     },
   };

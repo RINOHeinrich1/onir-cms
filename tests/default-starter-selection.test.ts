@@ -17,6 +17,7 @@ const template = (id: string, key: string, versions: string[]): VisualTemplateOp
         default: "#000000",
       },
     ],
+    shadowDom: "open",
     widget: null,
     disabled: false,
     healthStatus: "unknown",

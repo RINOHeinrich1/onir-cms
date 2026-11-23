@@ -578,7 +578,7 @@ class StarterTemplate extends HTMLElement {
         ? el("img", { src: headerLogo, alt: "" })
         : el("span", { text: (ctx.brand.name || "A").slice(0, 1).toUpperCase() });
     const finalised = ctx.state.status === "finalisee";
-    const header = el("header", { class: "head" }, [
+    const header = el("header", { class: "head", "data-onir-region": "header" }, [
       el("div", { class: "avatar" }, [logo]),
       el("div", { class: "head-copy" }, [
         el("h1", { text: title }),
@@ -778,7 +778,7 @@ class StarterTemplate extends HTMLElement {
       "welcome_message",
       "Décrivez votre demande. Je vous réponds directement ici.",
     );
-    const intro = el("div", { class: "intro" }, [
+    const intro = el("div", { class: "intro", "data-onir-region": "welcome" }, [
       el("div", {}, [
         el("strong", { text: welcomeTitle }),
         el("span", { text: welcomeMessage }),
@@ -934,7 +934,7 @@ class StarterTemplate extends HTMLElement {
             ]),
           ),
         );
-    const composer = el("div", { class: "composer" }, [
+    const composer = el("div", { class: "composer", "data-onir-region": "composer" }, [
       attachBar,
       attachChips,
       el("div", { class: "composer-box" }, [
@@ -961,7 +961,7 @@ class StarterTemplate extends HTMLElement {
         : null;
     headerAction(header, finish);
 
-    const log = el("div", { class: "log", role: "log", "aria-live": "polite" }, [
+    const log = el("div", { class: "log", role: "log", "aria-live": "polite", "data-onir-region": "conversation" }, [
       intro,
       el("ul", { class: "messages" }, items),
       ctx.state.typing ? el("p", { class: "typing", text: "L’assistant écrit…" }) : null,

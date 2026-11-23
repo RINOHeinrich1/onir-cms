@@ -1,13 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLinkWithUrl } from "@/application/use-cases/links/link-urls";
 import { TemplateCover } from "@/components/templates/TemplateCover";
 import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
+import {
+  bindingsForRegion,
+  editorRegionChain,
+  isTemplateEditorBindingShared,
+} from "@/domain/template-editor";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
@@ -16,8 +21,10 @@ import { type ParamTab, paramsForTab, paramTabsForSchema } from "./param-tabs";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { VisualTemplateOption } from "./types";
 import {
+  editorForSelection,
   mergeParamsForSelection,
   paramsSchemaForSelection,
+  shadowDomForSelection,
   widgetDisplayForSelection,
 } from "./visual-template-selection";
 
@@ -29,7 +36,7 @@ function StudioIcon({
   name,
   size = 16,
 }: {
-  name: "back" | "expand" | "external" | "monitor" | "tablet" | "smartphone";
+  name: "back" | "expand" | "external" | "inspect" | "monitor" | "tablet" | "smartphone";
   size?: number;
 }) {
   const paths = {
@@ -58,6 +65,13 @@ function StudioIcon({
       <>
         <rect x="7" y="2" width="10" height="20" rx="2" />
         <path d="M11 18h2" />
+      </>
+    ),
+    inspect: (
+      <>
+        <path d="M12 3v3m0 12v3M3 12h3m12 0h3" />
+        <circle cx="12" cy="12" r="4" />
+        <path d="m8.5 15.5-2 2" />
       </>
     ),
   };
@@ -156,6 +170,14 @@ export function LinkDisplaySettings({
   const [fitZoom, setFitZoom] = useState(1);
   const [chatbotId, setChatbotId] = useState(link.id);
   const previewCanvasRef = useRef<HTMLDivElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const previewFocusRef = useRef<{
+    element: HTMLInputElement | HTMLTextAreaElement;
+    start: number | null;
+    end: number | null;
+  } | null>(null);
+  const [inspectMode, setInspectMode] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [savedDrafts, setSavedDrafts] = useState(() => JSON.stringify(initialDrafts(link)));
   const dirty = JSON.stringify(drafts) !== savedDrafts;
   useToastOnMessage(error);
@@ -196,6 +218,27 @@ export function LinkDisplaySettings({
   const paramTabs = useMemo(() => paramTabsForSchema(paramsSchema), [paramsSchema]);
   const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
   const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
+  const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
+  const selectedShadowDom = shadowDomForSelection(visualTemplates, draft.visualTemplate);
+  const editorAvailable = selectedEditor !== null && selectedShadowDom !== "closed";
+  const selectedRegionDefinition =
+    selectedEditor === null || selectedRegion === null
+      ? null
+      : (selectedEditor.regions.find((region) => region.id === selectedRegion) ?? null);
+  const selectedRegionChain =
+    selectedEditor === null || selectedRegion === null
+      ? []
+      : editorRegionChain(selectedEditor, selectedRegion);
+  const regionBindings =
+    selectedEditor === null || selectedRegion === null
+      ? []
+      : bindingsForRegion(selectedEditor, selectedRegion);
+  const localPaths = new Set(
+    regionBindings.filter((binding) => !isTemplateEditorBindingShared(binding)).map((b) => b.param),
+  );
+  const sharedBindings = regionBindings.filter(isTemplateEditorBindingShared);
+  const sharedPaths = new Set(sharedBindings.map((binding) => binding.param));
+  const sharedRegionCount = new Set(sharedBindings.flatMap((binding) => binding.regions)).size;
   const zoom = zoomMode === "fit" ? fitZoom : customZoom / 100;
 
   useEffect(() => {
@@ -206,6 +249,86 @@ export function LinkDisplaySettings({
   const previewTokenRef = useRef<string | null>(null);
   const [previewRevision, setPreviewRevision] = useState(0);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const postToPreview = useCallback((payload: Record<string, unknown>): void => {
+    const root = previewIframeRef.current?.contentWindow;
+    if (root === null || root === undefined) return;
+    const visit = (win: Window): void => {
+      win.postMessage(payload, window.location.origin);
+      for (let index = 0; index < win.frames.length; index += 1) {
+        try {
+          visit(win.frames[index] as Window);
+        } catch {
+          // Frame cross-origin : ignoré.
+        }
+      }
+    };
+    visit(root);
+  }, []);
+
+  const postEditorState = useCallback((): void => {
+    const token = previewTokenRef.current;
+    if (token === null) return;
+    postToPreview({
+      __onirEditor: 1,
+      token,
+      type: "set-active",
+      active: inspectMode,
+    });
+    postToPreview({
+      __onirEditor: 1,
+      token,
+      type: "highlight",
+      regionId: selectedRegion,
+    });
+  }, [inspectMode, postToPreview, selectedRegion]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as Record<string, unknown> | null;
+      if (data === null || typeof data !== "object" || data.__onirEditor !== 1) return;
+      if (typeof data.token !== "string" || data.token !== previewTokenRef.current) return;
+      if (data.type === "ready") {
+        postEditorState();
+        return;
+      }
+      if (data.type === "select" && typeof data.regionId === "string") {
+        setSelectedRegion(data.regionId);
+        setMobileTab("settings");
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [postEditorState]);
+
+  useEffect(() => {
+    postEditorState();
+  }, [postEditorState]);
+
+  useEffect(() => {
+    if (inspectMode) return;
+    setSelectedRegion(null);
+  }, [inspectMode]);
+
+  useEffect(() => {
+    void draft.visualTemplate;
+    void surface;
+    setInspectMode(false);
+    setSelectedRegion(null);
+  }, [draft.visualTemplate, surface]);
+
+  useEffect(() => {
+    if (!inspectMode) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setInspectMode(false);
+        setSelectedRegion(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [inspectMode]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -232,6 +355,19 @@ export function LinkDisplaySettings({
             return;
           }
           previewTokenRef.current = json.token;
+          const activeElement = document.activeElement;
+          if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+          ) {
+            if (activeElement.closest(".display-studio-inspector") !== null) {
+              previewFocusRef.current = {
+                element: activeElement,
+                start: activeElement.selectionStart,
+                end: activeElement.selectionEnd,
+              };
+            }
+          }
           setPreviewToken(json.token);
           setPreviewRevision((value) => value + 1);
           setPreviewError(null);
@@ -246,6 +382,27 @@ export function LinkDisplaySettings({
       controller.abort();
     };
   }, [draft.params, draft.visualTemplate, link.id, surface]);
+
+  const restorePreviewFocus = useCallback((): void => {
+    const saved = previewFocusRef.current;
+    if (saved === null) return;
+    previewFocusRef.current = null;
+    window.setTimeout(() => {
+      if (!saved.element.isConnected) return;
+      saved.element.focus({ preventScroll: true });
+      if (
+        typeof saved.element.setSelectionRange === "function" &&
+        saved.start !== null &&
+        saved.end !== null
+      ) {
+        try {
+          saved.element.setSelectionRange(saved.start, saved.end);
+        } catch {
+          // Certains types d’input (couleur, fichier…) ne supportent pas la sélection.
+        }
+      }
+    }, 250);
+  }, []);
 
   const previewSrc = useMemo(() => {
     if (previewToken === null) return "";
@@ -563,6 +720,29 @@ export function LinkDisplaySettings({
               </div>
             ) : null}
             <div className="display-studio-preview-tools">
+              {editorAvailable ? (
+                <button
+                  type="button"
+                  className={`display-studio-icon-button${inspectMode ? " is-active" : ""}`}
+                  title={
+                    inspectMode
+                      ? "Désactiver le curseur d’inspection (Échap)"
+                      : "Activer le curseur d’inspection"
+                  }
+                  aria-label={
+                    inspectMode
+                      ? "Désactiver le curseur d’inspection"
+                      : "Activer le curseur d’inspection"
+                  }
+                  aria-pressed={inspectMode}
+                  onClick={() => {
+                    setInspectMode((value) => !value);
+                    if (inspectMode) setSelectedRegion(null);
+                  }}
+                >
+                  <StudioIcon name="inspect" />
+                </button>
+              ) : null}
               <label className="display-studio-zoom">
                 <span>Zoom</span>
                 <select
@@ -639,7 +819,12 @@ export function LinkDisplaySettings({
                     <p className="hint">Préparation de l’aperçu…</p>
                   ) : (
                     <iframe
+                      ref={previewIframeRef}
                       key={`${surface}-${device}`}
+                      onLoad={() => {
+                        postEditorState();
+                        restorePreviewFocus();
+                      }}
                       title={`Aperçu ${surface === "page" ? "page" : "widget"}`}
                       src={previewSrc}
                     />
@@ -767,56 +952,98 @@ export function LinkDisplaySettings({
                 </div>
               </section>
 
-              <section className="display-studio-group">
-                <div className="display-studio-params-head">
-                  <h3>Paramètres</h3>
-                  <span className="badge muted">{filteredParams.length}</span>
-                </div>
-                {paramTabs.length === 0 ? null : (
-                  <div className="display-studio-param-tabs">
-                    {paramTabs.map((tab) => {
-                      const count = paramsForTab(paramsSchema, tab.id, "").length;
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          className={`display-studio-param-tab${activeParamTab === tab.id ? " is-active" : ""}`}
-                          title={
-                            tab.id === "advanced"
-                              ? "Nombres, booléens, objets et listes"
-                              : undefined
-                          }
-                          onClick={() => setParamTab(tab.id)}
-                        >
-                          {tab.label} <span>{count}</span>
-                        </button>
-                      );
-                    })}
+              {selectedRegionDefinition !== null && selectedEditor !== null ? (
+                <section className="display-studio-group">
+                  <div className="display-studio-params-head">
+                    <div>
+                      <span className="eyebrow">Zone inspectée</span>
+                      <h3>{selectedRegionDefinition.label}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      onClick={() => setSelectedRegion(null)}
+                    >
+                      Tous les paramètres
+                    </button>
                   </div>
-                )}
-                <label className="display-studio-search display-studio-search--params">
-                  <span aria-hidden="true">⌕</span>
-                  <input
-                    type="search"
-                    value={paramSearch}
-                    placeholder="Filtrer les paramètres…"
-                    onChange={(event) => setParamSearch(event.target.value)}
-                  />
-                </label>
-                {filteredParams.length === 0 ? (
                   <p className="hint">
-                    {paramsSchema.length === 0
-                      ? "Cette version ne déclare aucun paramètre personnalisable."
-                      : "Aucun paramètre ne correspond à ce filtre."}
+                    {selectedRegionChain.map((entry) => entry.label).join(" / ")}
                   </p>
-                ) : (
-                  <TemplateParamsFields
-                    schema={filteredParams}
-                    values={draft.params as TemplateParamValues}
-                    onChange={(params) => setDraft({ params })}
-                  />
-                )}
-              </section>
+                  {localPaths.size === 0 ? null : (
+                    <TemplateParamsFields
+                      schema={paramsSchema}
+                      values={draft.params as TemplateParamValues}
+                      visiblePaths={localPaths}
+                      legend="Paramètres de la zone"
+                      onChange={(params) => setDraft({ params })}
+                    />
+                  )}
+                  {sharedPaths.size === 0 ? null : (
+                    <TemplateParamsFields
+                      schema={paramsSchema}
+                      values={draft.params as TemplateParamValues}
+                      visiblePaths={sharedPaths}
+                      legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
+                      onChange={(params) => setDraft({ params })}
+                    />
+                  )}
+                  {localPaths.size === 0 && sharedPaths.size === 0 ? (
+                    <p className="hint">Aucun paramètre rattaché à cette zone.</p>
+                  ) : null}
+                </section>
+              ) : (
+                <section className="display-studio-group">
+                  <div className="display-studio-params-head">
+                    <h3>Paramètres</h3>
+                    <span className="badge muted">{filteredParams.length}</span>
+                  </div>
+                  {paramTabs.length === 0 ? null : (
+                    <div className="display-studio-param-tabs">
+                      {paramTabs.map((tab) => {
+                        const count = paramsForTab(paramsSchema, tab.id, "").length;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            className={`display-studio-param-tab${activeParamTab === tab.id ? " is-active" : ""}`}
+                            title={
+                              tab.id === "advanced"
+                                ? "Nombres, booléens, objets et listes"
+                                : undefined
+                            }
+                            onClick={() => setParamTab(tab.id)}
+                          >
+                            {tab.label} <span>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <label className="display-studio-search display-studio-search--params">
+                    <span aria-hidden="true">⌕</span>
+                    <input
+                      type="search"
+                      value={paramSearch}
+                      placeholder="Filtrer les paramètres…"
+                      onChange={(event) => setParamSearch(event.target.value)}
+                    />
+                  </label>
+                  {filteredParams.length === 0 ? (
+                    <p className="hint">
+                      {paramsSchema.length === 0
+                        ? "Cette version ne déclare aucun paramètre personnalisable."
+                        : "Aucun paramètre ne correspond à ce filtre."}
+                    </p>
+                  ) : (
+                    <TemplateParamsFields
+                      schema={filteredParams}
+                      values={draft.params as TemplateParamValues}
+                      onChange={(params) => setDraft({ params })}
+                    />
+                  )}
+                </section>
+              )}
             </fieldset>
 
             <div className="display-studio-actions">
