@@ -8,6 +8,7 @@ import {
 import { StorageUnavailableError } from "@/application/errors";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { MediaStorage, StoredFile } from "@/application/ports/media-storage";
+import type { StandaloneBuildStorage } from "@/application/ports/standalone-build-storage";
 import { attachmentExtension } from "@/domain/entities/attachment";
 import type { S3Config } from "@/lib/env";
 
@@ -172,6 +173,61 @@ export function s3AttachmentStorage(config: S3Config): AttachmentStorage {
 
     async remove(key): Promise<void> {
       if (!ATTACHMENT_KEY_PATTERN.test(key)) return;
+      try {
+        await client(config).send(
+          new DeleteObjectCommand({ Bucket: bucket, Key: objectKey(config, key) }),
+        );
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+      }
+    },
+  };
+}
+
+const STANDALONE_KEY_PATTERN =
+  /^standalone-builds\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/;
+
+/** Stockage objet dédié aux artefacts de build standalone (ADR-0106). */
+export function s3StandaloneBuildStorage(config: S3Config): StandaloneBuildStorage {
+  const bucket = config.bucket;
+  return {
+    async put({ key, data, contentType }): Promise<void> {
+      if (!STANDALONE_KEY_PATTERN.test(key)) {
+        throw new Error("Clé d'artefact standalone invalide");
+      }
+      try {
+        await client(config).send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: objectKey(config, key),
+            Body: data,
+            ContentType: contentType,
+            CacheControl: "public, max-age=31536000, immutable",
+          }),
+        );
+      } catch (error) {
+        throw new StorageUnavailableError(undefined, error);
+      }
+    },
+
+    async get(key): Promise<StoredFile | null> {
+      if (!STANDALONE_KEY_PATTERN.test(key)) return null;
+      try {
+        const response = await client(config).send(
+          new GetObjectCommand({ Bucket: bucket, Key: objectKey(config, key) }),
+        );
+        return {
+          data: await bodyBytes(response.Body),
+          contentType: response.ContentType ?? "application/octet-stream",
+        };
+      } catch (error) {
+        if (isMissing(error)) return null;
+        throw new StorageUnavailableError(undefined, error);
+      }
+    },
+
+    async remove(key): Promise<void> {
+      if (!STANDALONE_KEY_PATTERN.test(key)) return;
       try {
         await client(config).send(
           new DeleteObjectCommand({ Bucket: bucket, Key: objectKey(config, key) }),
