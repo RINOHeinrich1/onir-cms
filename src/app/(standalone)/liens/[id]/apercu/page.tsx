@@ -238,6 +238,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
           anonymous={surface === "widget" && link.type === "standard"}
           preview
           previewToken={previewToken}
+          previewStorageKey={`onir-preview:${link.id}:${surface}`}
         />
       )}
     </main>
