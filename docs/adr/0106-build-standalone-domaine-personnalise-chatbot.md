@@ -466,6 +466,202 @@ Hors périmètre V1 :
 - build temps réel à chaque sauvegarde ;
 - gestion DNS chez le registrar du client.
 
+### 15. Service standalone dédié et scalabilité
+
+#### Séparation en quatre plans
+
+Le serving des sites standalone ne doit pas être ajouté au serveur Next.js.
+
+```text
+Control plane  : ONIR-CMS (configuration, builds, domaines, activation)
+Build plane    : workers de construction (file d’attente, concurrence bornée)
+Storage plane  : object storage privé des artefacts immuables
+Data plane     : service edge dédié au serving public
+```
+
+Cette séparation évite qu’un pic de trafic public, un déploiement applicatif ou
+une reconstruction de site impacte le backoffice.
+
+#### Service dédié, pas un serveur par site
+
+Le service standalone est un **service unique multi-tenant** qui sert tous les
+sites. Il ne faut pas créer un serveur ou un processus par chatbot.
+
+Le service edge est responsable de :
+
+- résoudre `Host → chatbot → build actif` ;
+- servir les fichiers statiques ;
+- gérer le cache local ;
+- gérer TLS et SNI ;
+- appliquer les headers de sécurité ;
+- journaliser et limiter le débit ;
+- exposer des métriques par domaine et par build.
+
+Il ne fait pas :
+
+- de construction de site ;
+- de lookup base de données à chaque requête ;
+- de stockage définitif des artefacts ;
+- d’appel LLM ou de gestion de conversation.
+
+#### Object storage actuel
+
+L’object storage existant peut être utilisé comme **origine privée** des builds,
+dans un préfixe dédié :
+
+```text
+standalone-builds/<chat_link_id>/<build_id>/
+```
+
+Règles :
+
+- ne pas mélanger avec les médias utilisateurs ;
+- artefacts immuables ;
+- pas d’accès public direct ;
+- pas d’indexation du bucket ;
+- accès interne par l’edge uniquement ;
+- sauvegarde et politique de rétention ;
+- purge des builds expirés ou remplacés.
+
+Si le stockage actuel est un SeaweedFS mono-instance, il reste un point de
+défaillance et ne doit pas être exposé directement à Internet. Il peut servir
+d’origine en V1 avec cache edge et sauvegardes. Pour une disponibilité réelle,
+prévoir un stockage répliqué ou S3-compatible dédié.
+
+#### Cache edge
+
+Le modèle recommandé est :
+
+```text
+Build activé
+  → l’edge télécharge l’artefact
+  → l’edge le sert depuis son cache local
+  → l’object storage reste la source durable
+```
+
+Le cache local doit être :
+
+- adressé par `build_id` ;
+- invalidable par build ;
+- protégé contre les collisions de hostname ;
+- limité par des quotas ;
+- reconstructible automatiquement.
+
+Le proxy direct vers l’object storage à chaque requête est un repli, pas le
+mode nominal.
+
+#### Résolution Host → build
+
+L’edge doit maintenir un cache de routage :
+
+```text
+hostname → chat_link_id → active_build_id
+```
+
+Ce cache est alimenté par le control plane à l’activation d’un build ou d’un
+domaine. Il peut utiliser Redis/Valkey ou un cache mémoire avec invalidation
+par événement.
+
+La base de données ne doit pas être interrogée à chaque requête HTTP.
+
+#### Paliers de scalabilité
+
+| Palier | Architecture | Limite principale |
+|---|---|---|
+| V1 | 1 edge dédié + worker + object storage + cache local | point de défaillance unique |
+| V2 | 2+ edges stateless derrière load balancer + cache partagé | cohérence du cache et TLS |
+| V3 | CDN multi-région + edges régionaux + stockage répliqué | purge, coûts, observabilité |
+
+V1 est acceptable pour un pilote, à condition d’avoir :
+
+- sauvegarde des artefacts ;
+- procédure de reconstruction ;
+- health checks ;
+- supervision ;
+- possibilité de relancer l’edge sur un autre serveur.
+
+Le passage à V2 ne doit pas nécessiter de changer le format des builds ni les
+URLs publiques.
+
+#### Workers de build
+
+Les workers sont séparés du data plane :
+
+- file d’attente ;
+- concurrence bornée ;
+- isolation par conteneur ;
+- secrets absents du build ;
+- validation des assets ;
+- limite de taille ;
+- timeouts ;
+- reprise sur erreur ;
+- déduplication par `config_hash` quand le build est identique.
+
+Un build ne doit jamais bloquer une requête publique.
+
+#### TLS et ACME
+
+Deux familles de certificats :
+
+- wildcard plateforme pour `*.standalone.onir-cms.tech` ;
+- certificat dédié par domaine personnalisé.
+
+Recommandation :
+
+- wildcard plateforme via DNS-01 ;
+- domaine personnalisé via HTTP-01 après CNAME, ou DNS-01 si nécessaire ;
+- certificats et clés privées stockés de façon centralisée et chiffrée ;
+- renouvellement planifié avec jitter ;
+- file d’attente et verrou par domaine ;
+- backoff sur erreurs ACME ;
+- ACME staging pour les tests ;
+- alerte avant expiration.
+
+**Certbot** peut servir de bootstrap, mais pas de socle multi-tenant :
+
+- pas de file distribuée ;
+- pas de verrou par domaine ;
+- `certbot --nginx` modifie la configuration et recharge Nginx ;
+- risque de doubles demandes avec plusieurs nœuds.
+
+La cible est un gestionnaire ACME dédié (lego, Caddy/certmagic ou worker
+équivalent) qui publie les certificats vers un stockage partagé, puis l’edge
+charge les certificats via son mécanisme de mise à jour dynamique.
+
+Les quotas ACME (certificats par domaine, doublons, commandes, validations en
+attente) imposent une file d’attente et une politique de retry.
+
+#### Disponibilité et reprise
+
+- edge sans état applicatif, remplaçable ;
+- artefacts reconstructibles depuis le control plane ;
+- sauvegarde de l’object storage ;
+- cache local non source de vérité ;
+- bascule atomique du build actif ;
+- conservation du build précédent ;
+- purge des certificats et artefacts à la suppression du chatbot.
+
+#### Observabilité et quotas
+
+À prévoir par domaine et par build :
+
+- requêtes, cache hit/miss, bande passante ;
+- erreurs 4xx/5xx ;
+- latence TLS et TTFB ;
+- état du certificat ;
+- taille et date du build actif ;
+- erreurs de construction ;
+- quotas stockage/bande passante par organisation.
+
+#### Hors périmètre V1
+
+- serveur par chatbot ;
+- multi-région ;
+- CDN complet ;
+- réplication multi-site de l’object storage ;
+- certificats payants ou multi-CA ;
+- bascule automatique multi-fournisseurs.
+
 ## Alternatives écartées
 
 ### Laisser Next.js rendre la page derrière le domaine client
