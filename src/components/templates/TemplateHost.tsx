@@ -73,6 +73,57 @@ type FallbackMenu = {
   showCollectionForm: boolean;
 };
 
+const EDITOR_BLOCKED_ACTIONS = new Set<TemplateAction["action"]>([
+  "submitIdentity",
+  "requestOtp",
+  "verifyOtp",
+  "sendMessage",
+  "attachFile",
+  "removeAttachment",
+  "finish",
+  "selectFallback",
+  "openCollectionForm",
+  "submitCollection",
+  "openMedia",
+  "openWidget",
+  "closeWidget",
+  "request",
+]);
+
+function findInspectRegion(event: Event): string | null {
+  for (const node of event.composedPath()) {
+    if (!(node instanceof HTMLElement)) continue;
+    const region = node.dataset.onirRegion;
+    if (region !== undefined && region !== "") return region;
+  }
+  return null;
+}
+
+function inspectRoot(element: HTMLElement): ShadowRoot | HTMLElement | null {
+  return element.shadowRoot ?? element;
+}
+
+function applyInspectStyles(
+  root: ShadowRoot | HTMLElement,
+  hovered: string | null,
+  selected: string | null,
+): void {
+  for (const node of root.querySelectorAll<HTMLElement>("[data-onir-region]")) {
+    const region = node.dataset.onirRegion ?? "";
+    const active = region === selected;
+    const hover = region === hovered && !active;
+    node.style.outline = active ? "2px solid #f59e0b" : hover ? "2px solid #4f8cff" : "";
+    node.style.outlineOffset = active || hover ? "3px" : "";
+  }
+}
+
+function clearInspectStyles(root: ShadowRoot | HTMLElement): void {
+  for (const node of root.querySelectorAll<HTMLElement>("[data-onir-region]")) {
+    node.style.outline = "";
+    node.style.outlineOffset = "";
+  }
+}
+
 /** Les endpoints chat renvoient `createdAt` ; le contrat template attend `at`. */
 function withAt(message: TemplateMessage, allowAttachments: boolean): TemplateMessage {
   if (allowAttachments) return message;
@@ -161,6 +212,10 @@ export function TemplateHost({
   anonymous = false,
   platform = "/api/chat",
   preview = false,
+  editorActive = false,
+  selectedRegion = null,
+  onRegionHover,
+  onRegionSelect,
 }: {
   token: string;
   template: TemplateSpec;
@@ -173,6 +228,11 @@ export function TemplateHost({
   platform?: string;
   /** Mode aperçu : les actions sont simulées localement (aucun appel API). */
   preview?: boolean;
+  /** Mode inspection de zones (ADR-0105). */
+  editorActive?: boolean;
+  selectedRegion?: string | null;
+  onRegionHover?: (regionId: string | null) => void;
+  onRegionSelect?: (regionId: string) => void;
 }) {
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<TemplateMessage[]>(initialMessages);
@@ -189,6 +249,8 @@ export function TemplateHost({
     baseContext.state.collectionForm?.activeFicheKey ?? null,
   );
   const [transport, setTransport] = useState<"sse" | "polling">("sse");
+  const [elementMounted, setElementMounted] = useState(0);
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const surface = baseContext.surface;
 
   const conversationRef = useRef<string | null>(initialConversationId);
@@ -765,7 +827,7 @@ export function TemplateHost({
             `${platform}/messages?conversationId=${encodeURIComponent(activeConversationId)}`,
             { cache: "no-store" },
           ).catch(() => null);
-          if (refreshed !== null && refreshed.ok) {
+          if (refreshed?.ok) {
             const jsonMessages = (await refreshed.json().catch(() => null)) as {
               messages?: ApiChatMessage[];
             } | null;
@@ -970,6 +1032,7 @@ export function TemplateHost({
   const liveContext = useMemo<LiveContext>(
     () => ({
       ...baseContext,
+      ...(editorActive ? { editor: { active: true } } : {}),
       state: {
         phase,
         status,
@@ -1013,13 +1076,31 @@ export function TemplateHost({
       actions,
       loadData,
       template.capabilities,
+      editorActive,
     ],
   );
 
   const liveContextRef = useRef<LiveContext>(liveContext);
 
+  const postIframeEditorState = useCallback((): void => {
+    if (template.mode !== "iframe") return;
+    const target = iframeRef.current?.contentWindow;
+    if (target === null || target === undefined) return;
+    target.postMessage(
+      {
+        __onirtech: 1,
+        type: "editor",
+        command: "set-active",
+        active: editorActive,
+        selectedRegion,
+      },
+      "*",
+    );
+  }, [editorActive, selectedRegion, template.mode]);
+
   const dispatchAction = useCallback(
     (action: TemplateAction): void => {
+      if (editorActive && EDITOR_BLOCKED_ACTIONS.has(action.action)) return;
       switch (action.action) {
         case "ready":
           if (template.mode === "iframe") {
@@ -1033,6 +1114,18 @@ export function TemplateHost({
               { __onirtech: 1, type: "init", context },
               "*",
             );
+            if (editorActive) {
+              iframeRef.current?.contentWindow?.postMessage(
+                {
+                  __onirtech: 1,
+                  type: "editor",
+                  command: "set-active",
+                  active: true,
+                  selectedRegion,
+                },
+                "*",
+              );
+            }
           }
           break;
         case "submitIdentity":
@@ -1128,7 +1221,7 @@ export function TemplateHost({
           break;
       }
     },
-    [actions, emit, loadData, template.mode],
+    [actions, emit, editorActive, loadData, selectedRegion, template.mode],
   );
 
   // Notifie les abonnés + met à jour l'élément à chaque changement de contexte.
@@ -1140,6 +1233,52 @@ export function TemplateHost({
       (el as HTMLElement & { onirtechContext?: LiveContext }).onirtechContext = liveContext;
     }
   }, [liveContext, emit]);
+
+  // Inspection Web Component : outline de survol/sélection, sans modifier le template.
+  useEffect(() => {
+    if (!editorActive || elementMounted === 0 || template.mode !== "web-component") return;
+    const element = elementRef.current;
+    if (element === null) return;
+    const root = inspectRoot(element);
+    if (root === null) return;
+
+    const onPointerOver = (event: Event): void => {
+      const region = findInspectRegion(event);
+      setHoveredRegion(region);
+      onRegionHover?.(region);
+    };
+    const onClick = (event: Event): void => {
+      const region = findInspectRegion(event);
+      if (region === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setHoveredRegion(region);
+      onRegionSelect?.(region);
+    };
+
+    root.addEventListener("pointerover", onPointerOver, true);
+    root.addEventListener("click", onClick, true);
+    return () => {
+      root.removeEventListener("pointerover", onPointerOver, true);
+      root.removeEventListener("click", onClick, true);
+      clearInspectStyles(root);
+      setHoveredRegion(null);
+    };
+  }, [editorActive, elementMounted, onRegionHover, onRegionSelect, template.mode]);
+
+  useEffect(() => {
+    if (!editorActive || elementMounted === 0 || template.mode !== "web-component") return;
+    void liveContext;
+    const element = elementRef.current;
+    if (element === null) return;
+    const root = inspectRoot(element);
+    if (root === null) return;
+    applyInspectStyles(root, hoveredRegion, selectedRegion);
+  }, [editorActive, elementMounted, hoveredRegion, liveContext, selectedRegion, template.mode]);
+
+  useEffect(() => {
+    postIframeEditorState();
+  }, [postIframeEditorState]);
 
   // Transport Web Component : charge le bundle (SRI) et monte le Custom Element.
   useEffect(() => {
@@ -1156,6 +1295,7 @@ export function TemplateHost({
       mountRef.current?.setAttribute("data-onirtech-ready", "1");
       (el as HTMLElement & { onirtechContext?: LiveContext }).onirtechContext =
         liveContextRef.current;
+      setElementMounted((value) => value + 1);
     };
     if (customElements.get(elementName)) {
       attach();
@@ -1182,12 +1322,23 @@ export function TemplateHost({
       if (iframeRef.current === null || event.source !== iframeRef.current.contentWindow) return;
       const data = event.data as Record<string, unknown> | null;
       if (data === null || typeof data !== "object" || data.__onirtech !== 1) return;
+      if (data.type === "editor" && editorActive) {
+        const regionId = typeof data.regionId === "string" ? data.regionId : null;
+        if (data.event === "hover") {
+          setHoveredRegion(regionId);
+          onRegionHover?.(regionId);
+        } else if (data.event === "select" && regionId !== null) {
+          setHoveredRegion(regionId);
+          onRegionSelect?.(regionId);
+        }
+        return;
+      }
       const parsed = parseTemplateAction(data);
       if (parsed.ok) dispatchAction(parsed.value);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [template.mode, dispatchAction]);
+  }, [editorActive, onRegionHover, onRegionSelect, template.mode, dispatchAction]);
 
   useEffect(() => {
     if (template.mode !== "iframe") return;

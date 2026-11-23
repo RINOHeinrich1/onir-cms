@@ -47,6 +47,8 @@ export async function loadChatbotFormOptions(actor: Actor): Promise<ChatbotFormO
         versions: (await visualTemplateRepo.listVersions(item.id)).map((version) => ({
           version: version.version,
           params: version.manifest.params,
+          ...(version.manifest.editor === undefined ? {} : { editor: version.manifest.editor }),
+          shadowDom: version.manifest.ui.shadowDom,
           widget: version.manifest.ui.widget?.display ?? null,
           disabled: version.disabledAt !== null,
           healthStatus: version.healthStatus,

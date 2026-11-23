@@ -119,6 +119,12 @@
   color: var(--fg);
 }
 
+.display-studio-icon-button.is-active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
 .display-studio-zoom {
   display: inline-flex;
   align-items: center;

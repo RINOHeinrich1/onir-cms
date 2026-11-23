@@ -107,6 +107,74 @@ export function renderIframeFrame(input: IframeFrameInput): string {
       for (const callback of listeners.get(event) ?? []) callback(payload);
     }
 
+    let editorActive = false;
+    let editorHover = null;
+    let editorSelected = null;
+
+    function editorRoots() {
+      const roots = [document];
+      if (element !== null && element.shadowRoot !== null) roots.push(element.shadowRoot);
+      return roots;
+    }
+
+    function editorElements() {
+      const nodes = [];
+      for (const root of editorRoots()) {
+        for (const node of root.querySelectorAll("[data-onir-region]")) nodes.push(node);
+      }
+      return nodes;
+    }
+
+    function editorRegionFromEvent(event) {
+      for (const node of event.composedPath()) {
+        if (!(node instanceof HTMLElement)) continue;
+        const region = node.dataset.onirRegion;
+        if (region !== undefined && region !== "") return region;
+      }
+      return null;
+    }
+
+    function applyEditorStyles() {
+      for (const node of editorElements()) {
+        const region = node.dataset.onirRegion ?? "";
+        const selected = region === editorSelected;
+        const hover = region === editorHover && !selected;
+        node.style.outline = selected
+          ? "2px solid #f59e0b"
+          : hover
+            ? "2px solid #4f8cff"
+            : "";
+        node.style.outlineOffset = selected || hover ? "3px" : "";
+      }
+    }
+
+    function sendEditor(event, regionId) {
+      parent.postMessage(
+        { __onirtech: 1, type: "editor", event, regionId },
+        "*",
+      );
+    }
+
+    document.addEventListener("pointerover", (event) => {
+      if (!editorActive) return;
+      const region = editorRegionFromEvent(event);
+      if (region === editorHover) return;
+      editorHover = region;
+      applyEditorStyles();
+      sendEditor("hover", region);
+    }, true);
+
+    document.addEventListener("click", (event) => {
+      if (!editorActive) return;
+      const region = editorRegionFromEvent(event);
+      if (region === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      editorSelected = region;
+      applyEditorStyles();
+      sendEditor("select", region);
+    }, true);
+
     function makeContext(context) {
       return {
         ...context,
@@ -126,6 +194,7 @@ export function renderIframeFrame(input: IframeFrameInput): string {
       if (element !== null) element.onirtechContext = makeContext(currentContext);
       emitToListeners("state", currentContext.state);
       emitToListeners("resources", currentContext.resources);
+      applyEditorStyles();
     }
 
     function mount() {
@@ -164,6 +233,16 @@ export function renderIframeFrame(input: IframeFrameInput): string {
         applyContext();
         if (firstInit) {
           parent.postMessage({ __onirtech: 1, action: "ready" }, "*");
+        }
+        return;
+      }
+      if (message.type === "editor") {
+        if (message.command === "set-active") {
+          editorActive = message.active === true;
+          editorSelected =
+            typeof message.selectedRegion === "string" ? message.selectedRegion : null;
+          editorHover = null;
+          applyEditorStyles();
         }
         return;
       }

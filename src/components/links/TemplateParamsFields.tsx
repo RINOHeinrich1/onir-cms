@@ -14,6 +14,10 @@ type TemplateParamsFieldsProps = {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   onChange: (values: TemplateParamValues) => void;
+  /** Chemins visibles (mode inspection par zone, ADR-0105). */
+  visiblePaths?: ReadonlySet<string>;
+  /** Libellé du fieldset. */
+  legend?: string;
   /** Clés stockées qui ne sont plus déclarées par la version (ADR-0023). */
   orphans?: string[];
   onRemoveOrphan?: (key: string) => void;
@@ -42,10 +46,22 @@ function controlId(path: string): string {
  * Aucun libellé ni règle métier n'est codé ici : le cœur ne connaît que les
  * types du contrat.
  */
+function isPathVisible(path: string, visiblePaths: ReadonlySet<string> | undefined): boolean {
+  if (visiblePaths === undefined || visiblePaths.size === 0) return true;
+  for (const visible of visiblePaths) {
+    if (visible === path || visible.startsWith(`${path}.`) || visible.startsWith(`${path}[`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function TemplateParamsFields({
   schema,
   values,
   onChange,
+  visiblePaths,
+  legend = "Paramètres du template",
   orphans = [],
   onRemoveOrphan,
 }: TemplateParamsFieldsProps) {
@@ -57,7 +73,7 @@ export function TemplateParamsFields({
 
   return (
     <fieldset className="field">
-      <legend>Paramètres du template</legend>
+      <legend>{legend}</legend>
       {schema.length === 0 ? (
         <span className="hint">Cette version ne déclare aucun paramètre.</span>
       ) : null}
@@ -70,6 +86,7 @@ export function TemplateParamsFields({
             value={current === undefined ? cloneValue(param.default) : current}
             onChange={(next) => set(param.key, next)}
             path={param.key}
+            visiblePaths={visiblePaths}
           />
         );
       })}
@@ -106,12 +123,15 @@ function ParamField({
   value,
   onChange,
   path,
+  visiblePaths,
 }: {
   param: TemplateParamSchema;
   value: TemplateParamValue;
   onChange: (next: TemplateParamValue) => void;
   path: string;
+  visiblePaths: ReadonlySet<string> | undefined;
 }) {
+  if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
   return (
     <div className="param-field" data-param-path={path}>
@@ -134,6 +154,7 @@ function ParamField({
           onChange={onChange}
           path={path}
           label={param.label}
+          visiblePaths={visiblePaths}
         />
       )}
       {param.description === "" ? null : <span className="hint">{param.description}</span>}
@@ -156,12 +177,14 @@ function ParamValueEditor({
   onChange,
   path,
   label,
+  visiblePaths,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
   onChange: (next: TemplateParamValue) => void;
   path: string;
   label: string;
+  visiblePaths: ReadonlySet<string> | undefined;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
@@ -178,6 +201,7 @@ function ParamValueEditor({
             }
             onChange={(next) => onChange({ ...source, [property.key]: next })}
             path={`${path}.${property.key}`}
+            visiblePaths={visiblePaths}
           />
         ))}
       </div>
@@ -220,6 +244,7 @@ function ParamValueEditor({
               }}
               path={`${path}[${index}]`}
               label={`${label} ${index + 1}`}
+              visiblePaths={visiblePaths}
             />
           </div>
         ))}

@@ -6,6 +6,7 @@ import {
   type TemplateCapability,
   type TemplateIdentificationMode,
 } from "@/domain/entities/visual-template";
+import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { MessageBlock } from "@/domain/tool-blocks";
 
@@ -33,6 +34,8 @@ export type TemplateSpec = {
   identificationModes?: TemplateIdentificationMode[];
   /** Schéma des variables déclarées par la version (ADR-0023). */
   params: TemplateParamSchema[];
+  /** Zones et bindings du mode d’inspection (ADR-0105). */
+  editor?: TemplateEditorManifest;
   /** Contrats de données déclarés par la version (ADR-0026). */
   dataContracts: TemplateDataContract[];
 };
@@ -161,6 +164,8 @@ export type TemplateContextPayload = {
   locale: string;
   brand: { name: string; logoUrl: string | null };
   theme: Record<string, string>;
+  /** Mode d’inspection actif (ADR-0105), additif et optionnel. */
+  editor?: { active: boolean };
   capabilities: TemplateCapability[];
   /** Valeurs résolues (défauts ⊕ lien), objet gelé (ADR-0023). */
   params: TemplateParamValues;
@@ -481,6 +486,8 @@ export type BuildTemplateContextInput = {
   locale: string;
   brand: { name: string; logoUrl: string | null };
   theme: Record<string, string>;
+  /** Mode d’inspection actif (ADR-0105), additif et optionnel. */
+  editor?: { active: boolean };
   capabilities: TemplateCapability[];
   /** Valeurs brutes du lien ; résolues contre le schéma par le constructeur. */
   params?: TemplateParamValues;

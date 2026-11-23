@@ -1,5 +1,6 @@
 "use client";
 
+import type { TemplateEditorManifest } from "@/domain/template-editor";
 import {
   mergeTemplateParams,
   type TemplateParamSchema,
@@ -43,6 +44,28 @@ export function mergeParamsForSelection(
     paramsSchemaForSelection(templates, nextSelection),
     previousValues,
   ).values;
+}
+
+/** Zones/bindings de la version sélectionnée. */
+export function editorForSelection(
+  templates: VisualTemplateOption[],
+  selection: string,
+): TemplateEditorManifest | null {
+  const { id, version } = parseVisualTemplateSelection(selection);
+  if (id === null || version === null) return null;
+  const template = templates.find((item) => item.id === id);
+  return template?.versions.find((entry) => entry.version === version)?.editor ?? null;
+}
+
+/** Shadow DOM de la version sélectionnée (pour autoriser ou non l’inspection). */
+export function shadowDomForSelection(
+  templates: VisualTemplateOption[],
+  selection: string,
+): "open" | "closed" | "none" | null {
+  const { id, version } = parseVisualTemplateSelection(selection);
+  if (id === null || version === null) return null;
+  const template = templates.find((item) => item.id === id);
+  return template?.versions.find((entry) => entry.version === version)?.shadowDom ?? null;
 }
 
 export function defaultsForSchema(schema: TemplateParamSchema[]): TemplateParamValues {

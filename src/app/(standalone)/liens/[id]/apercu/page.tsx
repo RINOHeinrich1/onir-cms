@@ -9,7 +9,7 @@ import {
 } from "@/application/use-cases/visual-templates/link-template";
 import { LinkDisplaySettings } from "@/components/links/LinkDisplaySettings";
 import type { VisualTemplateOption } from "@/components/links/types";
-import { TemplateHost } from "@/components/templates/TemplateHost";
+import { TemplatePreviewEditor } from "@/components/templates/TemplatePreviewEditor";
 import {
   type ChatLinkChannel,
   type ChatLinkSurface,
@@ -75,6 +75,8 @@ async function loadVisualTemplateOptions(
       versions: (await repository.listVersions(item.id)).map((version) => ({
         version: version.version,
         params: version.manifest.params,
+        ...(version.manifest.editor === undefined ? {} : { editor: version.manifest.editor }),
+        shadowDom: version.manifest.ui.shadowDom,
         widget: version.manifest.ui.widget?.display ?? null,
         disabled: version.disabledAt !== null,
         healthStatus: version.healthStatus,
@@ -227,7 +229,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
           </p>
         </section>
       ) : (
-        <TemplateHost
+        <TemplatePreviewEditor
           token="apercu"
           template={spec}
           baseContext={context}
@@ -235,6 +237,7 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
           initialMessages={[]}
           anonymous={surface === "widget" && link.type === "standard"}
           preview
+          previewToken={previewToken}
         />
       )}
     </main>
