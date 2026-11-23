@@ -94,7 +94,15 @@ async function proxyChatApi(
   apiOrigin: string,
   hostname: string,
 ): Promise<void> {
-  const target = new URL(request.url ?? "/", apiOrigin);
+  const rawUrl = request.url ?? "/";
+  if (!rawUrl.startsWith("/api/") || rawUrl.startsWith("//")) {
+    throw new Error("Chemin API invalide");
+  }
+  const baseOrigin = new URL(apiOrigin);
+  const target = new URL(rawUrl, baseOrigin);
+  if (target.origin !== baseOrigin.origin) {
+    throw new Error("Origine API non autorisée");
+  }
   const headers = new Headers();
   for (const [name, value] of Object.entries(request.headers)) {
     if (value === undefined || name === "host" || name === "connection") continue;
