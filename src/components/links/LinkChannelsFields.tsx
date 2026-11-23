@@ -237,14 +237,24 @@ export function LinkChannelsFields({
               {selectableTemplates.flatMap((item) =>
                 item.versions
                   .filter((entry) => active !== "widget" || entry.widget !== null)
-                  .map((entry) => (
-                    <option
-                      key={`${item.id}@${entry.version}`}
-                      value={`${item.id}@${entry.version}`}
-                    >
-                      {item.name} ({entry.version})
-                    </option>
-                  )),
+                  .map((entry) => {
+                    const selection = `${item.id}@${entry.version}`;
+                    const unavailable = entry.disabled || entry.healthStatus === "error";
+                    return (
+                      <option
+                        key={selection}
+                        value={selection}
+                        disabled={unavailable && draft.visualTemplate !== selection}
+                      >
+                        {item.name} ({entry.version})
+                        {entry.disabled
+                          ? " · désactivée"
+                          : entry.healthStatus === "error"
+                            ? " · en erreur"
+                            : ""}
+                      </option>
+                    );
+                  }),
               )}
             </select>
             <span className="hint">

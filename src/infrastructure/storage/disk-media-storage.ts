@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { StorageUnavailableError } from "@/application/errors";
 import type { MediaStorage, StoredFile } from "@/application/ports/media-storage";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
@@ -45,7 +46,11 @@ export function diskMediaStorage(baseDir: string): MediaStorage {
         // Assets du catalogue plateforme (templates visuels) : format global.
         await mkdir(baseDir, { recursive: true });
         const key = `${uuid}.${extension}`;
-        await writeFile(path.join(baseDir, key), data);
+        try {
+          await writeFile(path.join(baseDir, key), data);
+        } catch (error) {
+          throw new StorageUnavailableError(undefined, error);
+        }
         return key;
       }
       if (!/^[0-9a-f-]{36}$/.test(organizationId)) {
@@ -54,7 +59,11 @@ export function diskMediaStorage(baseDir: string): MediaStorage {
       const directory = path.join(baseDir, "orgs", organizationId);
       await mkdir(directory, { recursive: true });
       const key = `orgs/${organizationId}/${uuid}.${extension}`;
-      await writeFile(path.join(baseDir, key), data);
+      try {
+        await writeFile(path.join(baseDir, key), data);
+      } catch (error) {
+        throw new StorageUnavailableError(undefined, error);
+      }
       return key;
     },
 

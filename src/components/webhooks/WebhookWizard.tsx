@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "@/components/ui/confirm";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { WebhookAuth, WebhookTrigger } from "@/domain/entities/webhook";
 import {
@@ -492,10 +493,10 @@ export function WebhookWizard({
     switch (auth.type) {
       case "bearer":
         return (
-          <label className="wh-field wh-span2">
+          <label className="wh-field wh-span2" htmlFor="webhook-bearer-token">
             Token Bearer
-            <input
-              type="password"
+            <PasswordInput
+              id="webhook-bearer-token"
               value={auth.token}
               placeholder={endpoint?.auth.type === "bearer" ? "Laisser vide pour conserver" : ""}
               onChange={(event) => setAuth({ ...auth, token: event.target.value })}
@@ -512,10 +513,10 @@ export function WebhookWizard({
                 onChange={(event) => setAuth({ ...auth, username: event.target.value })}
               />
             </label>
-            <label className="wh-field">
+            <label className="wh-field" htmlFor="webhook-basic-password">
               Mot de passe
-              <input
-                type="password"
+              <PasswordInput
+                id="webhook-basic-password"
                 value={auth.password}
                 placeholder={endpoint?.auth.type === "basic" ? "Laisser vide pour conserver" : ""}
                 onChange={(event) => setAuth({ ...auth, password: event.target.value })}
@@ -534,10 +535,10 @@ export function WebhookWizard({
                 onChange={(event) => setAuth({ ...auth, headerName: event.target.value })}
               />
             </label>
-            <label className="wh-field">
+            <label className="wh-field" htmlFor="webhook-api-key-header">
               Clé
-              <input
-                type="password"
+              <PasswordInput
+                id="webhook-api-key-header"
                 value={auth.key}
                 placeholder={
                   endpoint?.auth.type === "api_key_header" ? "Laisser vide pour conserver" : ""
@@ -558,10 +559,10 @@ export function WebhookWizard({
                 onChange={(event) => setAuth({ ...auth, paramName: event.target.value })}
               />
             </label>
-            <label className="wh-field">
+            <label className="wh-field" htmlFor="webhook-api-key-query">
               Clé
-              <input
-                type="password"
+              <PasswordInput
+                id="webhook-api-key-query"
                 value={auth.key}
                 placeholder={
                   endpoint?.auth.type === "api_key_query" ? "Laisser vide pour conserver" : ""
@@ -573,10 +574,10 @@ export function WebhookWizard({
         );
       case "hmac":
         return (
-          <label className="wh-field wh-span2">
+          <label className="wh-field wh-span2" htmlFor="webhook-hmac-secret">
             Secret HMAC
-            <input
-              type="password"
+            <PasswordInput
+              id="webhook-hmac-secret"
               value={auth.secret}
               placeholder={endpoint?.auth.type === "hmac" ? "Laisser vide pour conserver" : ""}
               onChange={(event) => setAuth({ ...auth, secret: event.target.value })}
@@ -602,10 +603,10 @@ export function WebhookWizard({
                 onChange={(event) => setAuth({ ...auth, clientId: event.target.value })}
               />
             </label>
-            <label className="wh-field">
+            <label className="wh-field" htmlFor="webhook-client-secret">
               Client secret
-              <input
-                type="password"
+              <PasswordInput
+                id="webhook-client-secret"
                 value={auth.clientSecret}
                 placeholder={
                   endpoint?.auth.type === "oauth2_client_credentials"

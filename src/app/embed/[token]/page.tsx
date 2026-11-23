@@ -17,12 +17,14 @@ import {
   parseVisualTemplateParams,
 } from "@/domain/entities/chat";
 import { hashLinkToken } from "@/domain/link-token";
+import { hashPreviewToken } from "@/domain/preview-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConversationRepository } from "@/infrastructure/db/conversation-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { pgOrganizationRepository } from "@/infrastructure/db/organization-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgPreviewSessionRepository } from "@/infrastructure/db/preview-session-repository";
 import { pgProspectRepository } from "@/infrastructure/db/prospect-repository";
 import { tryTemplateDataDependencies } from "@/infrastructure/db/template-data-runtime";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
@@ -80,11 +82,33 @@ export default async function WidgetPage({ params, searchParams }: PageProps) {
   if (!baseChannel.enabled && query.preview !== "1") {
     notFound();
   }
-  const previewTemplate = query.preview === "1" ? decodePreviewTemplate(query.template) : null;
+  const previewToken =
+    typeof query.preview === "string" && query.preview !== "1" ? query.preview : null;
+  const previewSession =
+    previewToken === null
+      ? null
+      : await pgPreviewSessionRepository(pool).findByTokenHash(hashPreviewToken(previewToken));
+  const sessionOverride =
+    previewSession !== null &&
+    previewSession.organizationId === link.organizationId &&
+    previewSession.linkId === link.id &&
+    previewSession.surface === "widget" &&
+    previewSession.templateId !== null &&
+    previewSession.templateVersion !== null
+      ? previewSession
+      : null;
+  const previewTemplate =
+    sessionOverride !== null
+      ? { id: sessionOverride.templateId, version: sessionOverride.templateVersion }
+      : query.preview === "1"
+        ? decodePreviewTemplate(query.template)
+        : null;
   const previewParams =
-    query.preview === "1" && typeof query.params === "string"
-      ? decodePreviewParams(query.params)
-      : undefined;
+    sessionOverride !== null
+      ? sessionOverride.params
+      : query.preview === "1" && typeof query.params === "string"
+        ? decodePreviewParams(query.params)
+        : undefined;
   const channel =
     previewTemplate === null
       ? baseChannel

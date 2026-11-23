@@ -16,11 +16,13 @@ import {
   channelsForLink,
   parseVisualTemplateParams,
 } from "@/domain/entities/chat";
+import { hashPreviewToken } from "@/domain/preview-token";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgChatbotConfigRepository } from "@/infrastructure/db/chatbot-config-repository";
 import { pgConfidentialiteRepository } from "@/infrastructure/db/confidentialite-repository";
 import { pgMediaRepository } from "@/infrastructure/db/media-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgPreviewSessionRepository } from "@/infrastructure/db/preview-session-repository";
 import { tryTemplateDataDependencies } from "@/infrastructure/db/template-data-runtime";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -74,6 +76,8 @@ async function loadVisualTemplateOptions(
         version: version.version,
         params: version.manifest.params,
         widget: version.manifest.ui.widget?.display ?? null,
+        disabled: version.disabledAt !== null,
+        healthStatus: version.healthStatus,
       })),
     })),
   );
@@ -128,7 +132,25 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
 
   const surface = requested ?? fallbackSurface;
   const baseChannel = channels[surface];
-  const templateOverride = decodeTemplateOverride(query.template);
+  const previewToken =
+    typeof query.preview === "string" && query.preview !== "1" ? query.preview : null;
+  const previewSession =
+    previewToken === null
+      ? null
+      : await pgPreviewSessionRepository(pool).findByTokenHash(hashPreviewToken(previewToken));
+  const sessionOverride =
+    previewSession !== null &&
+    previewSession.organizationId === organizationId &&
+    previewSession.linkId === link.id &&
+    previewSession.surface === surface &&
+    previewSession.templateId !== null &&
+    previewSession.templateVersion !== null
+      ? previewSession
+      : null;
+  const templateOverride =
+    sessionOverride === null
+      ? decodeTemplateOverride(query.template)
+      : { id: sessionOverride.templateId, version: sessionOverride.templateVersion };
   const selectedTemplate =
     templateOverride === null
       ? null
@@ -138,7 +160,11 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
             item.versions.some((version) => version.version === templateOverride.version),
         ) ?? null);
   const paramsOverride =
-    typeof query.params === "string" ? decodeParamsOverride(query.params) : undefined;
+    sessionOverride !== null
+      ? sessionOverride.params
+      : typeof query.params === "string"
+        ? decodeParamsOverride(query.params)
+        : undefined;
   const channel: ChatLinkChannel =
     selectedTemplate === null
       ? baseChannel

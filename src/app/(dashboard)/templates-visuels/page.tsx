@@ -52,6 +52,8 @@ export default async function VisualTemplatesPage() {
                   version: latest.version,
                   mode: latest.mode,
                   trustLevel: latest.trustLevel,
+                  healthStatus: latest.healthStatus,
+                  disabledAt: latest.disabledAt,
                 },
         };
       }),

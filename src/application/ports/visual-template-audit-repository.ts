@@ -5,7 +5,14 @@ export type VisualTemplateAuditEvent =
   | "platform_install"
   | "platform_uninstall"
   | "disable"
-  | "enable";
+  | "enable"
+  | "import_failed"
+  | "version_test_ok"
+  | "version_test_error"
+  | "version_disabled"
+  | "version_enabled"
+  | "version_rollback"
+  | "version_uninstalled";
 
 export type VisualTemplateAuditInput = {
   organizationId: string | null;

@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { TemplateVersionNotUninstallableError } from "@/application/errors";
 import type {
   CreateVisualTemplateAssetInput,
   CreateVisualTemplateInput,
@@ -14,6 +15,7 @@ import type {
   TemplateManifest,
   TemplateMode,
   TemplateTrustLevel,
+  TemplateVersionHealth,
 } from "@/domain/entities/visual-template";
 
 type TemplateRow = {
@@ -42,6 +44,14 @@ type VersionRow = {
   manifest: unknown;
   entry: string;
   integrity: string;
+  health_status: string;
+  last_checked_at: Date | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+  last_error_detail: unknown;
+  disabled_at: Date | null;
+  disabled_by: string | null;
+  disabled_reason: string | null;
   created_at: Date;
 };
 
@@ -66,7 +76,7 @@ type InstallationRow = {
 const TEMPLATE_COLUMNS =
   "id, key, name, description, author, owner_organization_id, uploaded_by, disabled_at, disabled_by, disabled_reason, created_by, created_at, updated_at";
 const VERSION_COLUMNS =
-  "id, template_id, version, host_protocol, trust_level, mode, manifest, entry, integrity, created_at";
+  "id, template_id, version, host_protocol, trust_level, mode, manifest, entry, integrity, health_status, last_checked_at, last_error_code, last_error_message, last_error_detail, disabled_at, disabled_by, disabled_reason, created_at";
 const ASSET_COLUMNS = "id, version_id, path, storage_key, sha256, size, mime";
 const INSTALLATION_COLUMNS = "organization_id, template_id, installed_by, installed_at, source";
 
@@ -99,6 +109,17 @@ function toVersion(row: VersionRow): VisualTemplateVersion {
     manifest: row.manifest as TemplateManifest,
     entry: row.entry,
     integrity: row.integrity,
+    healthStatus: row.health_status as TemplateVersionHealth,
+    lastCheckedAt: row.last_checked_at ? row.last_checked_at.toISOString() : null,
+    lastErrorCode: row.last_error_code,
+    lastErrorMessage: row.last_error_message,
+    lastErrorDetail:
+      row.last_error_detail !== null && typeof row.last_error_detail === "object"
+        ? (row.last_error_detail as Record<string, unknown>)
+        : null,
+    disabledAt: row.disabled_at ? row.disabled_at.toISOString() : null,
+    disabledBy: row.disabled_by,
+    disabledReason: row.disabled_reason,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -399,6 +420,115 @@ export function pgVisualTemplateRepository(pool: Pool): VisualTemplateRepository
       );
       const row = rows[0];
       return row ? toVersion(row) : null;
+    },
+
+    async getVersionUsage(templateId, version) {
+      const { rows } = await pool.query<{ links: number; bindings: number; assets: number }>(
+        `SELECT
+           (SELECT count(DISTINCT link_id)::int
+              FROM (
+                SELECT id AS link_id
+                  FROM chat_links
+                 WHERE visual_template_id = $1 AND visual_template_version = $2
+                UNION
+                SELECT c.link_id
+                  FROM chat_link_channels c
+                  JOIN chat_links l ON l.id = c.link_id
+                 WHERE c.visual_template_id = $1 AND c.visual_template_version = $2
+              ) usages) AS links,
+           (SELECT count(*)::int
+              FROM template_data_bindings b
+              JOIN visual_template_versions v ON v.id = b.template_version_id
+             WHERE v.template_id = $1 AND v.version = $2) AS bindings,
+           (SELECT count(*)::int
+              FROM visual_template_assets a
+              JOIN visual_template_versions v ON v.id = a.version_id
+             WHERE v.template_id = $1 AND v.version = $2) AS assets`,
+        [templateId, version],
+      );
+      return rows[0] ?? { links: 0, bindings: 0, assets: 0 };
+    },
+
+    async setVersionDisabled(templateId, version, disabled, actorId, reason) {
+      const { rows } = await pool.query<VersionRow>(
+        `UPDATE visual_template_versions
+            SET disabled_at = CASE WHEN $3 THEN now() ELSE NULL END,
+                disabled_by = CASE WHEN $3 THEN $4::uuid ELSE NULL END,
+                disabled_reason = CASE WHEN $3 THEN $5 ELSE NULL END
+          WHERE template_id = $1 AND version = $2
+          RETURNING ${VERSION_COLUMNS}`,
+        [templateId, version, disabled, actorId, reason],
+      );
+      const row = rows[0];
+      return row ? toVersion(row) : null;
+    },
+
+    async deleteVersion(templateId, version) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          "LOCK TABLE visual_template_versions, chat_links, chat_link_channels, template_data_bindings IN SHARE ROW EXCLUSIVE MODE",
+        );
+        const target = await client.query<{ id: string }>(
+          `SELECT id FROM visual_template_versions
+            WHERE template_id = $1 AND version = $2
+            FOR UPDATE`,
+          [templateId, version],
+        );
+        if (target.rows[0] === undefined) {
+          await client.query("ROLLBACK");
+          return { deleted: false, assetKeys: [] };
+        }
+
+        const usage = await client.query<{ links: number; bindings: number }>(
+          `SELECT
+             (SELECT count(DISTINCT link_id)::int
+                FROM (
+                  SELECT id AS link_id
+                    FROM chat_links
+                   WHERE visual_template_id = $1 AND visual_template_version = $2
+                  UNION
+                  SELECT c.link_id
+                    FROM chat_link_channels c
+                    JOIN chat_links l ON l.id = c.link_id
+                   WHERE c.visual_template_id = $1 AND c.visual_template_version = $2
+                ) usages) AS links,
+             (SELECT count(*)::int
+                FROM template_data_bindings b
+                JOIN visual_template_versions v ON v.id = b.template_version_id
+               WHERE v.template_id = $1 AND v.version = $2) AS bindings`,
+          [templateId, version],
+        );
+        const usageRow = usage.rows[0];
+        if (usageRow !== undefined && (usageRow.links > 0 || usageRow.bindings > 0)) {
+          throw new TemplateVersionNotUninstallableError(
+            `La version ${version} est devenue utilisée pendant l’opération.`,
+          );
+        }
+
+        const assets = await client.query<{ storage_key: string }>(
+          `SELECT a.storage_key
+             FROM visual_template_assets a
+             JOIN visual_template_versions v ON v.id = a.version_id
+            WHERE v.template_id = $1 AND v.version = $2`,
+          [templateId, version],
+        );
+        const result = await client.query(
+          "DELETE FROM visual_template_versions WHERE template_id = $1 AND version = $2",
+          [templateId, version],
+        );
+        await client.query("COMMIT");
+        return {
+          deleted: (result.rowCount ?? 0) > 0,
+          assetKeys: assets.rows.map((row) => row.storage_key),
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async findAsset(versionId, path): Promise<VisualTemplateAsset | null> {

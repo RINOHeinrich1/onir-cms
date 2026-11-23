@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { StorageUnavailableError } from "@/application/errors";
 import type { AttachmentStorage } from "@/application/ports/attachment-storage";
 import type { MediaStorage, StoredFile } from "@/application/ports/media-storage";
 import { attachmentExtension } from "@/domain/entities/attachment";
@@ -86,14 +87,18 @@ export function s3MediaStorage(config: S3Config): MediaStorage {
         organizationId === undefined
           ? `${uuid}.${extension}`
           : `orgs/${organizationId}/${uuid}.${extension}`;
-      await client(config).send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: objectKey(config, key),
-          Body: data,
-          ContentType: contentType,
-        }),
-      );
+      try {
+        await client(config).send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: objectKey(config, key),
+            Body: data,
+            ContentType: contentType,
+          }),
+        );
+      } catch (error) {
+        throw new StorageUnavailableError(undefined, error);
+      }
       return key;
     },
 
@@ -112,7 +117,7 @@ export function s3MediaStorage(config: S3Config): MediaStorage {
         };
       } catch (error) {
         if (isMissing(error)) return null;
-        throw error;
+        throw new StorageUnavailableError(undefined, error);
       }
     },
 
@@ -137,14 +142,18 @@ export function s3AttachmentStorage(config: S3Config): AttachmentStorage {
         throw new Error("Identifiant d'organisation invalide pour le stockage");
       }
       const key = `orgs/${organizationId}/${randomUUID()}.${attachmentExtension(mime)}`;
-      await client(config).send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: objectKey(config, key),
-          Body: data,
-          ContentType: mime,
-        }),
-      );
+      try {
+        await client(config).send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: objectKey(config, key),
+            Body: data,
+            ContentType: mime,
+          }),
+        );
+      } catch (error) {
+        throw new StorageUnavailableError(undefined, error);
+      }
       return key;
     },
 
@@ -157,7 +166,7 @@ export function s3AttachmentStorage(config: S3Config): AttachmentStorage {
         return { data: await bodyBytes(response.Body), contentType: "application/octet-stream" };
       } catch (error) {
         if (isMissing(error)) return null;
-        throw error;
+        throw new StorageUnavailableError(undefined, error);
       }
     },
 

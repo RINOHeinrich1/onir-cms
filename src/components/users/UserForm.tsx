@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import { ROLE_LABELS, ROLES, type Role } from "@/domain/entities/user";
 import type { UserDto } from "./types";
@@ -84,9 +85,9 @@ export function UserForm({ editing, canSetActif, onSaved, onCancel }: UserFormPr
         />
       </label>
 
-      <label className="field">
+      <label className="field" htmlFor="user-password">
         {editing === null ? "Mot de passe" : "Nouveau mot de passe (optionnel)"}
-        <input type="password" name="password" autoComplete="new-password" />
+        <PasswordInput id="user-password" name="password" autoComplete="new-password" />
         <span className="hint">8 caractères minimum ; rotation forcée à la connexion.</span>
       </label>
 

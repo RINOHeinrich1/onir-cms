@@ -124,6 +124,14 @@ function repo(): VisualTemplateRepository {
         manifest: input.manifest,
         entry: input.entry,
         integrity: input.integrity,
+        healthStatus: "unknown",
+        lastCheckedAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        lastErrorDetail: null,
+        disabledAt: null,
+        disabledBy: null,
+        disabledReason: null,
         createdAt: new Date(0).toISOString(),
       };
       versions.push(version);
@@ -135,6 +143,44 @@ function repo(): VisualTemplateRepository {
       return asset;
     },
     setDisabled: async () => null,
+    getVersionUsage: async (templateId, version) => {
+      const target = versions.find(
+        (item) => item.templateId === templateId && item.version === version,
+      );
+      return {
+        links: 0,
+        bindings: 0,
+        assets:
+          target === undefined ? 0 : assets.filter((item) => item.versionId === target.id).length,
+      };
+    },
+    setVersionDisabled: async (templateId, version, disabled, actorId, reason) => {
+      const target = versions.find(
+        (item) => item.templateId === templateId && item.version === version,
+      );
+      if (target === undefined) return null;
+      return {
+        ...target,
+        disabledAt: disabled ? new Date(0).toISOString() : null,
+        disabledBy: disabled ? actorId : null,
+        disabledReason: disabled ? reason : null,
+      };
+    },
+    deleteVersion: async (templateId, version) => {
+      const index = versions.findIndex(
+        (item) => item.templateId === templateId && item.version === version,
+      );
+      if (index < 0) return { deleted: false, assetKeys: [] };
+      const [removed] = versions.splice(index, 1);
+      if (removed === undefined) return { deleted: false, assetKeys: [] };
+      const assetKeys = assets
+        .filter((item) => item.versionId === removed.id)
+        .map((item) => item.storageKey);
+      for (let cursor = assets.length - 1; cursor >= 0; cursor -= 1) {
+        if (assets[cursor]?.versionId === removed.id) assets.splice(cursor, 1);
+      }
+      return { deleted: true, assetKeys };
+    },
     deleteTemplate: async (id) => {
       const index = templates.findIndex((item) => item.id === id);
       if (index < 0) return false;
@@ -201,6 +247,53 @@ describe("importVisualTemplate — US-TEMPLATE-001", () => {
       "index.js": "export const x = 2;", // ≠ ENTRY
     });
     await expect(importVisualTemplate(base.deps, ADMIN, { data })).rejects.toThrow(/intégrité/i);
+  });
+
+  it("compense un import interrompu sans laisser de version ni d'asset", async () => {
+    const base = deps();
+    let saved = 0;
+    const original = base.deps.storage;
+    base.deps.storage = {
+      ...original,
+      save: async (input) => {
+        saved += 1;
+        if (saved === 2) throw new Error("stockage indisponible");
+        return original.save(input);
+      },
+    };
+    const data = zip({
+      "onirtech.template.json": JSON.stringify(manifest()),
+      "index.js": ENTRY,
+      "style.css": "body{color:red}",
+    });
+
+    await expect(importVisualTemplate(base.deps, ADMIN, { data })).rejects.toThrow(
+      /stockage indisponible/i,
+    );
+    expect(await base.deps.templates.list()).toHaveLength(0);
+    expect(base.files()).toBe(0);
+  });
+
+  it("reste réussi si l'audit échoue après l'import", async () => {
+    const base = deps();
+    const data = zip({
+      "onirtech.template.json": JSON.stringify(manifest()),
+      "index.js": ENTRY,
+    });
+    const result = await importVisualTemplate(
+      {
+        ...base.deps,
+        audit: {
+          record: async () => {
+            throw new Error("audit indisponible");
+          },
+        },
+      },
+      ADMIN,
+      { data },
+    );
+    expect(result.version.version).toBe("1.0.0");
+    expect(base.files()).toBe(2);
   });
 
   it("refuse de réinstaller une version déjà publiée (immuable)", async () => {

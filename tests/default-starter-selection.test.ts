@@ -18,6 +18,8 @@ const template = (id: string, key: string, versions: string[]): VisualTemplateOp
       },
     ],
     widget: null,
+    disabled: false,
+    healthStatus: "unknown",
   })),
 });
 
@@ -33,5 +35,17 @@ describe("sélection manuelle par défaut", () => {
 
   it("reste sur Défaut si Starter n’est pas installé", () => {
     expect(defaultStarterSelection([template("tpl-other", "immersive", ["3.0.0"])])).toBeNull();
+  });
+
+  it("ignore les versions désactivées ou en erreur", () => {
+    const starter = template("tpl-starter", "starter", ["1.9.0", "1.10.0"]);
+    const versions = starter.versions;
+    if (versions[1] !== undefined) {
+      versions[1].disabled = true;
+    }
+    if (versions[0] !== undefined) {
+      versions[0].healthStatus = "error";
+    }
+    expect(defaultStarterSelection([starter])).toBeNull();
   });
 });

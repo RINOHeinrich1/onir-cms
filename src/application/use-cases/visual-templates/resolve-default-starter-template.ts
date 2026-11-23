@@ -38,11 +38,13 @@ export async function resolveDefaultStarterTemplate(
     };
   }
   const versions = await visualTemplates.listVersions(starter.id);
-  const latest = latestTemplateVersion(versions);
+  const latest = latestTemplateVersion(
+    versions.filter((version) => version.disabledAt == null && version.healthStatus !== "error"),
+  );
   if (latest === null) {
     return {
       template: null,
-      warnings: ["Template Starter sans version installée : template par défaut conservé."],
+      warnings: ["Template Starter sans version utilisable : template par défaut conservé."],
     };
   }
   const schema = latest.manifest.params;

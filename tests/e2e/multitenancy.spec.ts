@@ -41,7 +41,7 @@ test("super-admin : login et accès aux paramètres du compte", async ({ page, r
   await login(request);
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL ?? "");
-  await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD ?? "");
+  await page.locator('input[name="password"]').fill(ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL(/\/dashboard$/);
   await page.goto("/organisations");

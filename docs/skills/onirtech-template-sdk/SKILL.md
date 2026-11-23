@@ -38,6 +38,8 @@ le template est une interface UI-only.
     chemin relatif, jamais un champ omis.
 12. Une configuration structurée se déclare en `object` ou `array` : jamais dans
     un `string`/`text` contenant du JSON à parser.
+13. Toute clé de schéma, à **toute profondeur** (`params[]`, `properties[]`,
+    `items.properties[]`…), doit respecter `^[a-z][a-z0-9_]{1,40}$`.
 
 ## Modèle mental
 
@@ -253,6 +255,25 @@ de vraies valeurs JSON imbriquées dans `ctx.params` : ne faites pas
 Un paramètre structuré n'est pas un « JSON libre » : le schéma est fermé et les
 valeurs sont validées, normalisées et gelées par l'hôte.
 
+### Nommage récursif des clés
+
+La regex `^[a-z][a-z0-9_]{1,40}$` s'applique à **chaque `key` du schéma**, pas
+seulement aux paramètres de premier niveau : `properties[].key`,
+`items.properties[].key`, etc. La clé doit commencer par une lettre minuscule,
+faire 2 à 41 caractères et ne contenir que minuscules, chiffres et `_`.
+
+Lors d'une conversion d'un ancien JSON vers `object`/`array`, ne recopiez pas
+les clés du payload :
+
+- `startPage` → `start_page`
+- `pageId` → `page_id`
+- `imagePosition` → `image_position`
+- `nav-home` → `nav_home` **si c'est une clé de schéma**
+
+Les identifiants et URLs restent des **valeurs** : `{ "id": "nav-home" }` est
+valide. Le chemin d'erreur `params[29].properties[0].key` désigne un sous-schéma :
+corriger la clé déclarée, pas la valeur par défaut.
+
 ```json
 {
   "key": "apparence",
@@ -432,6 +453,7 @@ Contrôles de cohérence :
 | `resources.media` vide | capacité absente, média non rattaché au chatbot ou source Médias désactivée | déclarer `media`, rattacher les médias, activer la source |
 | Photos visibles en photothèque mais pas dans le chat | mode `on_demand` ou `mediaPending` faux | passer en `illustration` pour illustrer les réponses, ou rendre `resources.media` pour la galerie |
 | `ctx.params.x` est une chaîne JSON au lieu d'un objet | type `string`/`text` au lieu de `object`/`array` | déclarer le type structuré + `properties`/`items`, puis retirer `JSON.parse` |
+| `params[N].properties[...].key : clé en minuscules...` | clé `camelCase`/`kebab-case` recopiée du JSON, à n'importe quelle profondeur | renommer en `snake_case` (`startPage` → `start_page`) ; garder les identifiants comme valeurs |
 | `Invalid hook call` | deux copies de React | supprimer `node_modules`, réinstaller |
 | `validate` échoue (SRI) | bundle modifié après build | rebuild puis validate/pack |
 | `favicon.ico` 404 | harness sans favicon | ignorer |

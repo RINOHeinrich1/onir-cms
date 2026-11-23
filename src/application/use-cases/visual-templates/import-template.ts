@@ -85,66 +85,104 @@ export async function importVisualTemplate(
     }
   }
 
-  const existing = await deps.templates.findPlatformByKey(manifest.id);
-  const template =
-    existing ??
-    (await deps.templates.createTemplate({
-      key: manifest.id,
-      name: manifest.name,
-      description: manifest.description,
-      author: manifest.publisher.id,
-      ownerOrganizationId: null,
-      uploadedBy: null,
+  let template: VisualTemplate | null = null;
+  let version: VisualTemplateVersion | null = null;
+  let createdTemplate = false;
+  const savedStorageKeys: string[] = [];
+  try {
+    const existing = await deps.templates.findPlatformByKey(manifest.id);
+    if (existing === null) {
+      template = await deps.templates.createTemplate({
+        key: manifest.id,
+        name: manifest.name,
+        description: manifest.description,
+        author: manifest.publisher.id,
+        ownerOrganizationId: null,
+        uploadedBy: null,
+        createdBy: actor.id,
+      });
+      createdTemplate = true;
+    } else {
+      template = existing;
+    }
+
+    const already = await deps.templates.findVersion(template.id, manifest.version);
+    if (already !== null) {
+      throw new ConflictError(`Version déjà installée : ${manifest.id}@${manifest.version}`);
+    }
+
+    version = await deps.templates.createVersion({
+      templateId: template.id,
+      version: manifest.version,
+      hostProtocol: manifest.compatibility.hostProtocol,
+      trustLevel: manifest.publisher.trustLevel,
+      mode: manifest.ui.mode,
+      manifest,
+      entry: manifest.ui.entry,
+      integrity: manifest.ui.integrity,
       createdBy: actor.id,
-    }));
-
-  const already = await deps.templates.findVersion(template.id, manifest.version);
-  if (already !== null) {
-    throw new ConflictError(`Version déjà installée : ${manifest.id}@${manifest.version}`);
-  }
-
-  const version = await deps.templates.createVersion({
-    templateId: template.id,
-    version: manifest.version,
-    hostProtocol: manifest.compatibility.hostProtocol,
-    trustLevel: manifest.publisher.trustLevel,
-    mode: manifest.ui.mode,
-    manifest,
-    entry: manifest.ui.entry,
-    integrity: manifest.ui.integrity,
-    createdBy: actor.id,
-  });
-
-  for (const [path, bytes] of files) {
-    const mime = mimeByExtension(path);
-    const storageKey = await deps.storage.save({ data: bytes, contentType: mime });
-    await deps.templates.addAsset({
-      versionId: version.id,
-      path,
-      storageKey,
-      sha256: deps.hasher.sha256Hex(bytes),
-      size: bytes.byteLength,
-      mime,
     });
+
+    for (const [path, bytes] of files) {
+      const mime = mimeByExtension(path);
+      const storageKey = await deps.storage.save({ data: bytes, contentType: mime });
+      savedStorageKeys.push(storageKey);
+      await deps.templates.addAsset({
+        versionId: version.id,
+        path,
+        storageKey,
+        sha256: deps.hasher.sha256Hex(bytes),
+        size: bytes.byteLength,
+        mime,
+      });
+    }
+
+    // ADR-0091 §5 : seul un NOUVEAU template plateforme est préinstallé.
+    // Une nouvelle version ne doit jamais réinstaller un template désinstallé.
+    if (existing === null) {
+      await deps.templates.assignToAllOrganizations(template.id, "platform_default");
+    }
+
+    await deps.audit
+      ?.record({
+        organizationId: null,
+        templateId: template.id,
+        actorId: actor.id,
+        event: "upload",
+        metadata: {
+          version: version.version,
+          ownerOrganizationId: null,
+          isNewTemplate: existing === null,
+        },
+      })
+      .catch(() => undefined);
+
+    return { template, version };
+  } catch (error) {
+    if (template !== null) {
+      if (version !== null) {
+        await deps.templates.deleteVersion(template.id, version.version).catch(() => undefined);
+      }
+      if (createdTemplate) {
+        await deps.templates.deleteTemplate(template.id).catch(() => undefined);
+      }
+    }
+    for (const key of savedStorageKeys) {
+      await deps.storage.remove(key).catch(() => undefined);
+    }
+    await deps.audit
+      ?.record({
+        organizationId: null,
+        templateId: template?.id ?? null,
+        actorId: actor.id,
+        event: "import_failed",
+        metadata: {
+          key: manifest.id,
+          version: manifest.version,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
+      .catch(() => undefined);
+    throw error;
   }
-
-  // ADR-0091 §5 : seul un NOUVEAU template plateforme est préinstallé.
-  // Une nouvelle version ne doit jamais réinstaller un template désinstallé.
-  if (existing === null) {
-    await deps.templates.assignToAllOrganizations(template.id, "platform_default");
-  }
-
-  await deps.audit?.record({
-    organizationId: null,
-    templateId: template.id,
-    actorId: actor.id,
-    event: "upload",
-    metadata: {
-      version: version.version,
-      ownerOrganizationId: null,
-      isNewTemplate: existing === null,
-    },
-  });
-
-  return { template, version };
 }
