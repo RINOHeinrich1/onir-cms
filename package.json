@@ -20,6 +20,7 @@
     "build:standalone-runtime": "node scripts/build-standalone-runtime.mjs",
     "build:standalone": "tsx --env-file-if-exists=.env scripts/build-standalone.ts",
     "build:standalone-worker": "node scripts/build-standalone-worker.mjs",
+    "build:standalone-edge": "node scripts/build-standalone-edge.mjs",
     "build:db-cli": "node scripts/build-db-cli.mjs",
     "check:fast": "npm run typecheck && npm run lint && npm run build",
     "check:full": "npm run typecheck && npm run lint && npm test && npm run test:integration && npm run build",
