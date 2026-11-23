@@ -101,3 +101,4 @@ ADR qui remplace la précédente.
 | [0102](./0102-contexte-runtime-erreurs-fiche-webhooks-ia.md) | Contexte runtime des erreurs de fiche et webhooks pour les réponses IA | Accepté |
 | [0103](./0103-cycle-vie-versions-templates-test-desactivation.md) | Cycle de vie des versions de templates — test, erreur, désactivation, désinstallation sécurisée et retour arrière | Proposé |
 | [0104](./0104-sessions-apercu-token-court.md) | Sessions d’aperçu éphémères — token court à la place des paramètres dans l’URL | Proposé |
+| [0105](./0105-mode-edition-rapide-templates.md) | Mode d’édition rapide des templates visuels — curseur d’inspection et variables contextuelles | Proposé |
