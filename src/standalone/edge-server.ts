@@ -133,6 +133,8 @@ async function proxyChatApi(
       : {}),
   } satisfies RequestInit & { duplex?: "half" };
 
+  // Cible limitée à l'origine interne de l'API et chemin validé /api/.
+  // codeql[js/request-forgery]
   const upstream = await fetch(target, init);
   response.writeHead(upstream.status, Object.fromEntries(upstream.headers.entries()));
   if (upstream.body === null) {
