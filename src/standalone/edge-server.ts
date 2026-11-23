@@ -99,10 +99,13 @@ async function proxyChatApi(
     throw new Error("Chemin API invalide");
   }
   const baseOrigin = new URL(apiOrigin);
-  const target = new URL(rawUrl, baseOrigin);
-  if (target.origin !== baseOrigin.origin) {
+  const requested = new URL(rawUrl, baseOrigin);
+  if (requested.origin !== baseOrigin.origin) {
     throw new Error("Origine API non autorisée");
   }
+  const target = new URL(baseOrigin.origin);
+  target.pathname = requested.pathname;
+  target.search = requested.search;
   const headers = new Headers();
   for (const [name, value] of Object.entries(request.headers)) {
     if (value === undefined || name === "host" || name === "connection") continue;
@@ -133,8 +136,6 @@ async function proxyChatApi(
       : {}),
   } satisfies RequestInit & { duplex?: "half" };
 
-  // Cible limitée à l'origine interne de l'API et chemin validé /api/.
-  // codeql[js/request-forgery]
   const upstream = await fetch(target, init);
   response.writeHead(upstream.status, Object.fromEntries(upstream.headers.entries()));
   if (upstream.body === null) {
