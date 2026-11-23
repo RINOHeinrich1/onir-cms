@@ -506,8 +506,8 @@ Il ne fait pas :
 
 #### Object storage actuel
 
-L’object storage de **production** peut être utilisé comme **origine privée**
-des builds, dans un préfixe dédié :
+L’object storage retenu peut être utilisé comme **origine privée** des builds,
+dans un préfixe dédié :
 
 ```text
 standalone-builds/<chat_link_id>/<build_id>/
@@ -523,15 +523,14 @@ Règles :
 - sauvegarde et politique de rétention ;
 - purge des builds expirés ou remplacés.
 
-Dans l’infrastructure actuelle, il s’agit du SeaweedFS de **production**
-(`onir-cms-node-seaweedfs-1`). L’instance de préprod (`onir-seaweedfs-test`)
-est un environnement de test distinct et ne constitue pas la référence de
-capacité ou de disponibilité.
+L’object storage doit être traité comme une dépendance critique du data plane.
+Il n’est jamais exposé directement à Internet : seul l’edge y accède.
 
-Si le SeaweedFS de production reste mono-instance, il reste un point de
-défaillance et ne doit pas être exposé directement à Internet. Il peut servir
-d’origine en V1 avec cache edge et sauvegardes. Pour une disponibilité réelle,
-prévoir un stockage répliqué ou S3-compatible dédié.
+Le niveau de service attendu doit être choisi selon la criticité du déploiement :
+
+- V1 : sauvegardes, cache edge et procédure de restauration ;
+- disponibilité renforcée : stockage répliqué ou S3-compatible dédié ;
+- multi-région : réplication et stratégie de reprise adaptées.
 
 #### Cache edge
 
@@ -573,7 +572,7 @@ La base de données ne doit pas être interrogée à chaque requête HTTP.
 
 | Palier | Architecture | Limite principale |
 |---|---|---|
-| V1 | 1 edge dédié + worker + object storage + cache local | point de défaillance unique |
+| V1 | 1 edge dédié + worker + object storage + cache local | redondance à prévoir |
 | V2 | 2+ edges stateless derrière load balancer + cache partagé | cohérence du cache et TLS |
 | V3 | CDN multi-région + edges régionaux + stockage répliqué | purge, coûts, observabilité |
 
