@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+RUN npm run build:standalone-runtime && npm run build:standalone-worker-daemon
+
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY --from=build --chown=node:node /app/dist/standalone-runtime ./dist/standalone-runtime
+COPY --from=build --chown=node:node /app/dist/standalone-worker-daemon.mjs ./dist/standalone-worker-daemon.mjs
+USER node
+CMD ["node", "dist/standalone-worker-daemon.mjs"]

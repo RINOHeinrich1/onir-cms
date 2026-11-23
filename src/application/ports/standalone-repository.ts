@@ -88,6 +88,7 @@ export interface StandaloneRepository {
   }): Promise<StandaloneSettings>;
 
   createBuild(input: CreateStandaloneBuildInput): Promise<StandaloneBuild>;
+  claimNextBuild(): Promise<StandaloneBuild | null>;
   findBuild(id: string): Promise<StandaloneBuild | null>;
   listBuilds(chatLinkId: string): Promise<StandaloneBuild[]>;
   markBuildReady(input: {

@@ -217,6 +217,23 @@ export function pgStandaloneRepository(pool: Pool): StandaloneRepository {
       });
     },
 
+    async claimNextBuild() {
+      const { rows } = await pool.query<BuildRow>(
+        `UPDATE chatbot_standalone_builds
+            SET status = 'building'
+          WHERE id = (
+            SELECT id FROM chatbot_standalone_builds
+             WHERE status = 'queued'
+             ORDER BY created_at
+             FOR UPDATE SKIP LOCKED
+             LIMIT 1
+          )
+          RETURNING ${BUILD_COLUMNS}`,
+      );
+      const row = rows[0];
+      return row === undefined ? null : toBuild(row);
+    },
+
     async findBuild(id) {
       const { rows } = await pool.query<BuildRow>(
         `SELECT ${BUILD_COLUMNS} FROM chatbot_standalone_builds WHERE id = $1`,
