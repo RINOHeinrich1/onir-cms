@@ -1,4 +1,4 @@
-# 0105. Mode d’édition rapide des templates visuels — édition directe des textes, images et sections
+# 0105. Mode d’édition rapide des templates visuels — curseur d’inspection et variables contextuelles
 
 - **Statut** : Proposé
 - **Date** : 2026-11-23
@@ -14,12 +14,18 @@ une image dans la liste des paramètres du template, puis comprendre à quel
 élément visuel ce paramètre correspond. Cette navigation est jugée difficile,
 en particulier sur les templates éditoriaux riches.
 
-Le besoin exprimé est un **mode d’édition rapide directement sur le template
-central** permettant de :
+Le besoin cible est un mode d’édition rapide directement sur le template
+central. La présente décision décrit d’abord une **V1 volontairement limitée** :
 
-- modifier un texte à l’endroit où il est affiché ;
-- remplacer une image directement sur son emplacement ;
-- masquer ou réafficher une section du template.
+- un **curseur d’inspection** façon DevTools ;
+- un survol qui met en évidence une zone personnalisable ;
+- un clic qui sélectionne cette zone ;
+- un panneau de droite filtré sur les variables rattachées à cette zone ;
+- un retour à la liste complète des variables dès que le curseur est désactivé.
+
+La V1 **ne modifie pas directement le template** : les valeurs continuent d’être
+modifiées via les champs existants de l’inspecteur. L’édition directe des
+textes, images et sections est explicitement différée en V2.
 
 ### Structure actuelle
 
@@ -44,11 +50,12 @@ L’aperçu du studio est rendu dans une iframe, avec une session d’aperçu co
 Le contrat transmet le contexte du host vers le template, mais il n’existe
 aucun lien entre :
 
-- un nœud DOM du template ;
-- un chemin de paramètre (`hero.headline`, `hero.image`, `sections.show_impact`).
+- une zone DOM du template ;
+- un chemin de paramètre (`hero.headline`, `hero.image`, `appearance.color_ink`).
 
-Le cœur ne peut donc pas savoir quel texte affiché correspond à quel paramètre.
-Une détection heuristique par valeur ou par texte serait ambiguë et fragile.
+Le cœur ne peut donc pas savoir quelles variables afficher quand l’utilisateur
+clique sur le header, le hero ou le footer. Une détection heuristique par nom de
+paramètre ou par valeur serait ambiguë et fragile.
 
 ### Cas concret
 
@@ -61,17 +68,39 @@ Le lien `912bffda-2445-4a76-bfc6-957984edfca4` utilise **Natural World 1.0.3** :
 - sections déjà prévues (`sections.show_impact`, `sections.show_gallery`,
   `sections.show_benefits`, `sections.show_testimonials`).
 
-Cependant, le DOM du template ne contient aucun marqueur
-`data-onir-param` ou `data-onir-region`. Le mode rapide est donc **faisable sur
-le modèle de données**, mais nécessite une instrumentation explicite du
-template.
+Cependant, le DOM du template ne contient aucun marqueur de zone. Le curseur
+d’inspection est donc **faisable sur le modèle de données**, mais nécessite une
+instrumentation explicite du template.
 
 ## Décision
 
-### 1. Un contrat d’édition déclaratif, optionnel
+### 1. Périmètre de la V1
+
+La V1 livre uniquement l’inspection contextuelle :
+
+- activer/désactiver le curseur depuis la barre d’outils de l’aperçu ;
+- survoler une zone : outline de survol ;
+- cliquer sur une zone : zone sélectionnée, outline persistant ;
+- filtrer le panneau de droite sur les paramètres rattachés à cette zone ;
+- regrouper les paramètres par catégories (Contenu, Apparence, Actions) ;
+- distinguer les paramètres locaux et partagés ;
+- désactiver le curseur : la sélection est effacée et **tous les paramètres
+  redeviennent visibles** ;
+- modifier les valeurs via les contrôles existants, puis enregistrer comme
+  aujourd’hui.
+
+La V1 ne fait **pas** :
+
+- de `contenteditable` sur les textes du template ;
+- de mutation directe du DOM du template ;
+- de sélection d’image depuis le template ;
+- de masquage direct d’une section depuis le template ;
+- de mise à jour live de l’aperçu à chaque frappe.
+
+### 2. Un contrat d’édition déclaratif, optionnel
 
 Le manifeste accepte un bloc `editor` optionnel. Les versions existantes restent
-valides et n’ont simplement pas accès au mode rapide.
+valides et n’ont simplement pas accès au curseur.
 
 ```json
 {
@@ -79,183 +108,242 @@ valides et n’ont simplement pas accès au mode rapide.
     "version": 1,
     "regions": [
       {
-        "id": "hero",
-        "label": "Couverture",
-        "visibilityParam": "sections.show_hero"
+        "id": "header",
+        "label": "En-tête",
+        "parent": "page"
       },
       {
-        "id": "impact",
-        "label": "Impact",
-        "visibilityParam": "sections.show_impact"
+        "id": "hero",
+        "label": "Couverture",
+        "parent": "page",
+        "visibilityParam": "sections.show_hero"
+      }
+    ],
+    "bindings": [
+      {
+        "param": "header.brand_name",
+        "regions": ["header"],
+        "category": "content"
+      },
+      {
+        "param": "header.cta_label",
+        "regions": ["header"],
+        "category": "action"
+      },
+      {
+        "param": "appearance.color_ink",
+        "regions": ["header", "hero", "footer"],
+        "category": "appearance",
+        "scope": "shared"
       }
     ]
   }
 }
 ```
 
+Le manifeste devient la source de vérité pour :
+
+- les zones sélectionnables et leur hiérarchie ;
+- les paramètres rattachés à une ou plusieurs zones ;
+- la distinction entre paramètre local et paramètre partagé ;
+- les catégories d’affichage.
+
 Le manifeste ne contient **ni sélecteur CSS arbitraire, ni HTML, ni JavaScript**.
-Il déclare uniquement les régions éditables et, lorsqu’elles existent, leur
-paramètre de visibilité.
 
-### 2. Des marqueurs DOM stables
+### 3. Des marqueurs DOM stables
 
-Le template expose les cibles avec des attributs dédiés :
+En V1, le template doit exposer au minimum les zones cliquables :
 
 ```html
-<section data-onir-region="hero">
-  <h1 data-onir-param="hero.headline">Protéger la nature…</h1>
-  <img data-onir-param="hero.image" alt="" />
-</section>
+<header data-onir-region="header">
+  <span data-onir-param="header.brand_name">WILDLIFE WATCH</span>
+  <button data-onir-param="header.cta_label">Participer</button>
+</header>
 ```
 
-Pour les collections :
+Règles de sélection :
 
-```html
-<article data-onir-collection="benefits" data-onir-item="0">
-  <h3 data-onir-param="benefits.0.title">Préserver les habitats</h3>
-  <p data-onir-param="benefits.0.description">…</p>
-</article>
-```
+- clic sur `data-onir-region` : sélectionne la zone ;
+- clic sur un `data-onir-param` : sélectionne la zone parente et peut mettre en
+  évidence le champ correspondant ;
+- clic sur un enfant sans marqueur : remonte à la région la plus proche ;
+- clic hors zone : aucune sélection.
 
-Le host :
+`data-onir-param` est optionnel en V1 pour le filtrage par zone, mais devient
+obligatoire en V2 pour l’édition directe champ par champ.
 
-- recherche les cibles `data-onir-param` et `data-onir-region` ;
-- valide chaque chemin contre le schéma `params` de la version ;
-- déduit le contrôle depuis le type du paramètre ;
-- ignore tout chemin ou toute région non déclarés.
-
-Aucune correspondance n’est déduite du texte affiché.
-
-### 3. Un mode édition dans le contexte
+### 4. Un mode inspection dans le contexte
 
 Le contexte du template reçoit un bloc additif :
 
 ```ts
 editor?: {
   active: boolean;
-  hiddenRegions: string[];
 }
 ```
 
-Usages :
+En V1, ce bloc sert à :
 
-- désactiver les actions du template pendant l’édition ;
-- empêcher un clic sur un CTA de lancer une conversation ;
-- permettre au template de rendre les sections masquées en mode « ghost » afin
-  de pouvoir les réafficher.
+- désactiver les actions du template pendant l’inspection ;
+- empêcher qu’un clic sur un CTA lance une conversation ;
+- laisser le host gérer le survol et la sélection.
 
-Sans ce mode, une section masquée n’est plus rendue et devient impossible à
-réafficher depuis le template. Une liste « Sections masquées » dans l’inspecteur
-reste un repli acceptable pour les templates qui ne gèrent pas encore
-`ctx.editor`.
+Il ne sert pas encore à modifier le rendu pour l’édition directe.
 
-### 4. Le host porte le pont d’édition
+### 5. Le host porte la sélection
 
 `TemplateHost` est le seul composant à parler au DOM du template.
 
 - **Web Component shadow DOM `open`** : accès au `shadowRoot`, recherche des
-  marqueurs, ajout des contrôles d’édition.
-- **Web Component shadow DOM `closed`** : mode rapide désactivé, sauf contrat
-  d’édition dédié implémenté par le template.
-- **Iframe sandboxée** : le host ne peut pas accéder au DOM. Le pont d’édition
-  est ajouté dans `iframe-frame.ts`, qui tourne dans l’iframe contrôlée par la
-  plateforme.
+  zones, overlay de survol et de sélection.
+- **Web Component shadow DOM `closed`** : curseur désactivé, sauf API dédiée
+  implémentée par le template.
+- **Iframe sandboxée** : le host ne peut pas accéder au DOM. Le pont de
+  sélection est ajouté dans `iframe-frame.ts`, qui tourne dans l’iframe
+  contrôlée par la plateforme.
 
-Protocole logique :
+Protocole V1 :
 
 ```text
 Template / frame ──▶ aperçu ──▶ studio
-  edit:text        { path, value }
-  edit:image       { path }
-  edit:region      { regionId, hidden }
+  editor:hover     { regionId }
+  editor:select    { regionId, param? }
 
 studio ──▶ aperçu
-  params:update    { params }
+  editor:highlight { regionId | null }
 ```
 
-Le host valide systématiquement le chemin, le type, la valeur et la région
-avant de transmettre au studio.
+Aucun message `edit:text`, `edit:image` ou `edit:region` n’est nécessaire en V1.
 
-### 5. Les valeurs restent dans `visual_template_params`
+### 6. Inspecteur de droite contextuel
 
-Le mode rapide ne modifie jamais le template ni sa version. Il modifie la
-personnalisation du lien.
+Le panneau de droite conserve son fonctionnement actuel, avec un mode filtre :
 
-- Les changements sont conservés dans le brouillon du studio.
-- Le bouton **Enregistrer** existant persiste via `PATCH /api/links/[id]`.
-- La validation serveur existante reste la seule source de vérité.
-- Aucune nouvelle table n’est nécessaire pour le MVP.
+- **curseur désactivé** : tous les paramètres, comme aujourd’hui ;
+- **curseur activé, aucune sélection** : tous les paramètres, avec une aide
+  « Cliquez une zone du template » ;
+- **zone sélectionnée** : uniquement les paramètres rattachés à cette zone.
 
-Une évolution future pourra ajouter un historique d’édition ou des brouillons
-multi-utilisateurs, mais ce n’est pas requis pour le mode rapide.
-
-### 6. Masquer une section, pas la supprimer
-
-« Retirer une section » signifie **masquer** la section via un paramètre
-booléen déclaré :
+Présentation recommandée :
 
 ```text
-sections.show_impact = false
+En-tête
+Page / Header
+
+Contenu
+  Nom de la marque       [WILDLIFE WATCH]
+  Signature              [Ensemble pour le vivant]
+  Libellé du bouton      [Participer]
+
+Apparence
+  Couleur du texte       [#31482b]
+  Couleur de fond        [#f1f0df]
+
+Partagé
+  Couleur principale     [#31482b]  Partagé · 3 zones
 ```
 
-La section reste dans le template, son contenu est conservé et l’action est
-réversible.
+Fonctions UX :
 
-Une section sans paramètre de visibilité déclaré ne doit pas être supprimable
-en mode rapide.
+- breadcrumb de la zone ;
+- bouton « Tous les paramètres » pour quitter le filtre ;
+- badge **Partagé** et nombre de zones concernées ;
+- recherche conservée ;
+- bouton reset par paramètre ;
+- touche `Échap` pour désactiver le curseur et restaurer la liste complète.
 
-### 7. Édition des textes et des images
+### 7. Paramètres locaux et partagés
 
-- **Texte** : édition locale sur la cible, commit au blur ou après un délai
-  court ; aucun rechargement complet de l’aperçu à chaque frappe.
-- **Image** : clic sur l’image, sélection d’un asset via le flux existant
-  `/api/template-param-assets`, puis mise à jour du paramètre.
-- **Collections** : chemins indexés (`benefits.0.title`) dans un premier temps ;
-  une UX dédiée d’ajout/suppression/réorganisation d’éléments pourra suivre.
+Une couleur comme `appearance.color_ink` n’est pas réellement « dans le
+header » : elle est **globale** et affecte plusieurs zones.
 
-Les contenus dynamiques du chat, des fiches et des médias runtime ne sont pas
-éditables.
+- paramètres locaux : affichés dans la zone ;
+- paramètres partagés : affichés dans une section **Partagé** avec badge ;
+- un paramètre peut appartenir à plusieurs zones ;
+- une zone peut contenir plusieurs paramètres.
 
-### 8. Validation et sécurité
+Sans cette distinction, l’utilisateur croira modifier uniquement le header alors
+qu’il change tout le site.
 
-- Le manifeste `editor` est validé à l’import : chemins existants, types
-  compatibles, régions uniques, paramètres de visibilité booléens.
-- Le host n’accepte que des chemins déclarés dans le schéma de la version.
-- Aucun HTML arbitraire n’est injecté : le texte est appliqué avec
-  `textContent`.
-- Les images passent par les URL et assets contrôlés par la plateforme.
-- Le mode rapide nécessite la permission `links:update`.
-- Les messages du template sont validés ; aucun message ne peut écrire un
-  paramètre non déclaré.
-- L’iframe conserve son sandbox ; aucun passage à `allow-same-origin` n’est
-  nécessaire.
+### 8. Sections masquées
 
-### 9. Compatibilité et versionnement
+Le curseur ne peut pas cliquer une section qui n’est pas rendue. En V1 :
+
+- une liste « Zones masquées » est ajoutée dans l’inspecteur ;
+- sélectionner une zone masquée affiche ses variables, dont le booléen de
+  visibilité ;
+- la réactivation se fait via le contrôle booléen existant.
+
+Aucun rendu « ghost » n’est requis en V1.
+
+### 9. Valeurs, sauvegarde et sections
+
+Le curseur ne modifie jamais le template ni sa version. Il ne fait que filtrer
+l’inspecteur.
+
+- Les modifications restent dans le brouillon du studio.
+- Le bouton **Enregistrer** existant persiste via `PATCH /api/links/[id]`.
+- La validation serveur existante reste la seule source de vérité.
+- Aucune nouvelle table n’est nécessaire.
+- « Retirer une section » reste, en V1, l’action de mettre son booléen de
+  visibilité à `false` via le contrôle existant.
+
+### 10. Édition directe — V2
+
+L’édition directe est hors périmètre V1. Elle pourra ajouter :
+
+- `data-onir-param` sur chaque texte et image ;
+- édition locale des textes avec commit au blur ;
+- sélection d’image depuis le template ;
+- masquage direct d’une section ;
+- `ctx.editor.hiddenRegions` et rendu ghost ;
+- édition des collections ;
+- mise à jour live de l’aperçu sans rechargement complet.
+
+Ces éléments ne doivent pas être nécessaires pour livrer le curseur
+d’inspection.
+
+### 11. Validation et sécurité
+
+- Le manifeste `editor` est validé à l’import : zones uniques, chemins
+  existants, catégories connues, paramètres de visibilité booléens.
+- Un binding ne peut référencer qu’un paramètre déclaré dans le schéma.
+- Une zone ne peut être sélectionnée que si elle est déclarée.
+- Le host n’accepte que des `regionId` et paramètres connus.
+- Le mode inspection nécessite la permission `links:update`.
+- L’iframe conserve son sandbox ; aucun passage à `allow-same-origin`.
+- Aucun HTML arbitraire n’est manipulé en V1 puisque le template n’est pas
+  modifié directement.
+
+### 12. Compatibilité et versionnement
 
 - `editor` est **additif** au contrat `onirtech.template-host.v1`.
 - Les templates sans bloc `editor` restent valides et utilisent l’inspecteur
   classique.
-- Natural World 1.0.3 étant immuable, le mode rapide nécessite une nouvelle
-  version instrumentée, par exemple **1.1.0**.
+- Natural World 1.0.3 étant immuable, le curseur nécessite une nouvelle version
+  instrumentée, par exemple **1.1.0**.
 - Le lien reste sur 1.0.3 tant que la nouvelle version n’est pas sélectionnée.
 - Les paramètres existants sont conservés lors du changement de version.
 
 ## Alternatives écartées
 
-### Détection automatique des textes et images dans le DOM
+### Filtrer les paramètres avec une heuristique sur leur nom
 
-Correspondance par valeur, texte ou position : ambiguë, cassante dès qu’un
-texte est répété ou traduit. Refusée.
+`header.*` fonctionnerait pour quelques cas, mais échouerait sur les couleurs
+partagées, les collections et les libellés non préfixés. Refusée.
+
+### Détection automatique des zones dans le DOM
+
+Correspondance par texte, position ou structure : ambiguë et cassante. Refusée.
 
 ### Éditeur HTML libre superposé au template
 
-Permettrait de modifier n’importe quoi, mais créerait un contenu parallèle non
-relié aux paramètres et non reproductible dans le rendu public. Refusée.
+Créerait un contenu parallèle non relié aux paramètres et non reproductible dans
+le rendu public. Refusée.
 
-### Mutation directe du DOM sans mise à jour des paramètres
+### Mutation directe du DOM dès la V1
 
-Perte des modifications au prochain rendu du template, absence de persistance et
-impossibilité de publier. Refusée.
+Complexité inutile pour le besoin exprimé. Refusée pour la V1.
 
 ### Modifier la version de template existante
 
@@ -266,71 +354,77 @@ Contraire à l’immuabilité des versions (ADR-0019, ADR-0024). Refusée.
 Permettrait au host d’accéder au DOM, mais affaiblit fortement l’isolation des
 templates community. Refusée.
 
-### Ajouter une table d’édition dédiée dès le MVP
+### Ajouter une table d’édition dédiée
 
-Inutile : `visual_template_params` porte déjà les valeurs. Une table dédiée
-n’apporterait rien tant qu’il n’y a pas d’historique ou de collaboration.
+Inutile : `visual_template_params` porte déjà les valeurs et la sélection est un
+état d’interface non persistant.
 
 ## Conséquences
 
 ### Positives
 
-- édition directe guidée par le template, sans recherche dans les paramètres ;
-- conservations des versionnements et des validations existants ;
-- possibilité de masquer/réafficher les sections sans perte de contenu ;
-- aucune migration de base pour le MVP ;
-- compatibilité avec les templates existants ;
-- architecture identique pour Web Component et iframe.
+- résout le problème principal : retrouver les variables d’une zone ;
+- aucun changement du modèle de persistance ;
+- aucune migration de base ;
+- aucun risque de mutation DOM ou de perte de focus ;
+- compatible avec les templates existants ;
+- prépare proprement la V2 sans la bloquer.
 
 ### Négatives
 
-- les templates doivent être instrumentés et republiés ;
-- les templates tiers non instrumentés n’auront pas le mode rapide ;
+- les templates doivent déclarer leurs zones et rattachements ;
+- les templates tiers non instrumentés n’auront pas le curseur ;
 - le shadow DOM `closed` et les iframes imposent des restrictions ;
-- il faut concevoir une UX de réactivation des sections masquées ;
-- il faut éviter le rechargement de l’aperçu à chaque frappe ;
-- les collections demandent une convention de chemins indexés et une UX dédiée.
+- il faut gérer les paramètres partagés et les zones masquées ;
+- une nouvelle version de Natural World est nécessaire.
 
 ## Migration et mise en œuvre
 
-### Phase 1 — Pilote Natural World
+### Phase 1 — V1 : curseur d’inspection
 
-1. Ajouter le type et la validation du bloc `editor`.
-2. Ajouter les marqueurs `data-onir-param` et `data-onir-region` dans Natural
-   World et publier une version 1.1.0.
-3. Ajouter le pont d’édition Web Component dans `TemplateHost`.
-4. Ajouter le toggle « Édition rapide » dans le studio.
-5. Gérer texte, image et masquage de section.
-6. Persister via `visual_template_params` et `PATCH /api/links/[id]`.
-7. Tester sur le lien de préproduction.
+1. Ajouter le type et la validation du bloc `editor` (`regions`, `bindings`).
+2. Ajouter les marqueurs `data-onir-region` dans Natural World et publier une
+   version 1.1.0.
+3. Ajouter le pont de sélection Web Component dans `TemplateHost`.
+4. Ajouter le pont de sélection iframe dans `iframe-frame.ts`.
+5. Ajouter l’état `selectedRegion` dans le studio.
+6. Filtrer l’inspecteur de droite par zone et restaurer tous les paramètres à
+   la désactivation.
+7. Afficher les paramètres partagés et les zones masquées.
+8. Tester sur le lien de préproduction.
 
-### Phase 2 — Généralisation
+### Phase 2 — V2 : édition directe
 
-8. Ajouter le pont d’édition iframe.
-9. Ajouter `ctx.editor` avec sections masquées visibles en ghost.
-10. Ajouter l’édition des collections.
-11. Ajouter annulation/réinitialisation par champ.
-12. Documenter le contrat `editor` dans la norme des templates.
+9. Ajouter `data-onir-param` sur les textes et images.
+10. Ajouter le protocole `edit:text`, `edit:image` et `edit:region`.
+11. Ajouter l’édition locale des textes et le sélecteur d’image.
+12. Ajouter `ctx.editor.hiddenRegions` et le rendu ghost.
+13. Ajouter l’édition des collections.
+14. Ajouter la mise à jour live de l’aperçu et l’annulation par champ.
 
 ## Vérifications attendues
 
 - un template sans `editor` reste importable et fonctionnel ;
 - un template avec `editor` invalide est refusé à l’import ;
-- le mode rapide ne s’active que sur les cibles déclarées ;
-- le texte modifié est bien persisté dans le lien après sauvegarde ;
-- l’image sélectionnée est bien rendue après sauvegarde ;
-- une section masquée est retirée du rendu public ;
-- une section masquée peut être réaffichée ;
-- aucun clic d’édition ne déclenche une action de chat ;
-- un chemin inconnu ou une valeur invalide est rejeté ;
-- le rendu public reste identique après rechargement ;
-- le shadow DOM `closed` et les iframes non instrumentées n’exposent pas
-  d’édition directe ;
-- les tests E2E couvrent texte, image et section sur la préproduction.
+- activation du curseur : survol et sélection visibles ;
+- clic sur le header : seuls les paramètres du header sont affichés ;
+- les paramètres partagés sont identifiés comme tels ;
+- désactivation du curseur : tous les paramètres sont de nouveau affichés ;
+- `Échap` désactive le curseur et efface la sélection ;
+- un clic d’inspection ne déclenche aucune action de chat ;
+- une zone masquée est accessible depuis la liste des zones masquées ;
+- une zone inconnue ou un paramètre non déclaré est ignoré ;
+- Web Component `open` et iframe instrumentée fonctionnent ;
+- shadow DOM `closed` et template non instrumenté : curseur désactivé ;
+- aucune modification de template, de version ou de base de données ;
+- sauvegarde et rendu public inchangés.
 
 ## Recommandation
 
-Le mode rapide doit être un **éditeur guidé par le contrat du template**, pas un
-éditeur DOM générique. La première livraison doit cibler Natural World, seul
-template permettant de valider le modèle sans affaiblir la sécurité ni
-l’isolation des templates tiers.
+La V1 doit être livrée avant toute édition directe. Elle apporte déjà le gain
+principal — retrouver immédiatement les variables d’une zone — avec un risque
+faible et sans toucher au mécanisme de persistance.
+
+Le curseur d’inspection n’est pas un simple filtre visuel : c’est un **modèle
+déclaratif de zones et de rattachements**, réutilisable ensuite pour l’édition
+directe.
