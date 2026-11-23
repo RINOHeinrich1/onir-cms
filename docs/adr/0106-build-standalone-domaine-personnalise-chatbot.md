@@ -666,6 +666,44 @@ attente) imposent une file d’attente et une politique de retry.
 - certificats payants ou multi-CA ;
 - bascule automatique multi-fournisseurs.
 
+### 16. Compatibilité et non-régression
+
+Le mode standalone est **strictement opt-in**. Il ne doit rien changer au
+fonctionnement actuel tant qu'il n'est pas explicitement activé.
+
+Lorsque le standalone est désactivé :
+
+- `/l/<token>` continue d'utiliser le rendu actuel ;
+- le widget continue d'utiliser son canal actuel ;
+- les templates, paramètres, aperçus et conversations existants sont inchangés ;
+- aucun build n'est créé ;
+- aucun domaine n'est vérifié ;
+- aucun certificat n'est demandé ;
+- aucun trafic ne passe par l'edge standalone ;
+- aucune redirection automatique n'est ajoutée ;
+- les règles CORS existantes ne sont pas élargies ;
+- aucune donnée existante n'est migrée ou réécrite.
+
+Le contrôle se fait par un feature flag désactivé par défaut, activable au
+niveau chatbot ou organisation :
+
+```text
+standalone_enabled = false
+```
+
+Les migrations sont **additives** : nouvelles tables et colonnes optionnelles,
+sans backfill obligatoire. Les canaux existants restent la source de vérité du
+mode actuel.
+
+L'activation d'un build ou d'un domaine est toujours une action explicite. Le
+fallback `/l/<token>` reste disponible et permet de désactiver le standalone
+sans perdre la configuration.
+
+Le principal risque de régression est l'extraction du runtime public hors de
+`TemplateHost`. Elle doit être accompagnée de tests de parité page/widget/aperçu
+avant toute bascule. Le chemin actuel ne doit être remplacé qu'après validation
+de ces tests.
+
 ## Alternatives écartées
 
 ### Laisser Next.js rendre la page derrière le domaine client
