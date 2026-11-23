@@ -3,6 +3,12 @@
  * Aucun couplage framework, base ou stockage.
  */
 
+import type {
+  TemplateContextPayload,
+  TemplateMessage,
+  TemplateSpec,
+} from "@/domain/template-contract";
+
 export const STANDALONE_BUILD_STATUSES = [
   "queued",
   "building",
@@ -112,3 +118,15 @@ export function standaloneBuildArtifactPrefix(chatLinkId: string, buildId: strin
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
+
+/** Configuration runtime lue par le bundle public standalone. */
+export type StandaloneRuntimeConfig = {
+  version: 1;
+  chatApiBaseUrl: string;
+  token: string;
+  template: TemplateSpec;
+  context: TemplateContextPayload;
+  conversationId: string | null;
+  initialMessages: TemplateMessage[];
+  anonymous: boolean;
+};
