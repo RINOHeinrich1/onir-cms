@@ -1,0 +1,9 @@
+services:
+  standalone-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.standalone-worker
+    image: onir-cms-standalone-worker:local
+    restart: unless-stopped
+    env_file:
+      - .env.standalone

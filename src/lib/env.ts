@@ -320,3 +320,8 @@ export function defaultAdmin(): DefaultAdmin {
     password: required("DEFAULT_ADMIN_PASSWORD"),
   };
 }
+
+/** Cible CNAME attendue pour les domaines standalone. */
+export function standaloneEdgeHostname(): string {
+  return env("STANDALONE_EDGE_HOSTNAME") ?? "standalone.onir-cms.tech";
+}
