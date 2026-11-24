@@ -388,9 +388,13 @@ function scalarMatchesField(field: TemplateParamSchema, value: unknown): boolean
   return false;
 }
 
-function referencesHaveCycle(references: TemplateEditorReference[]): boolean {
+function containmentReferencesHaveCycle(references: TemplateEditorReference[]): boolean {
+  // Seules les relations de contenance explicites (cascade) forment un graphe
+  // structurel. Les références fonctionnelles (ex. block → action → block)
+  // peuvent légitimement être circulaires.
   const graph = new Map<string, Set<string>>();
   for (const reference of references) {
+    if (reference.onDelete !== "cascade") continue;
     const targets =
       reference.to === undefined ? Object.values(reference.targets ?? {}) : [reference.to];
     const edges = graph.get(reference.from) ?? new Set<string>();
@@ -632,7 +636,15 @@ function validateTemplateEditorV2(
         const id = text(raw.id);
         const label = text(raw.label);
         const itemProps = objectFieldsForParam(params, param);
-        if (!collectionParams.has(param)) add(`${basePath}.param`, "collection inconnue");
+        const node = findParamNode(params, param);
+        if (node === null) {
+          add(`${basePath}.param`, "paramètre inexistant");
+        } else if (
+          node.type !== "object" &&
+          !(node.type === "array" && node.items?.type === "object")
+        ) {
+          add(`${basePath}.param`, "objet ou collection d'objets attendu");
+        }
         if (!ID.test(id)) add(`${basePath}.id`, "id de groupe invalide");
         if (label === "") add(`${basePath}.label`, "libellé requis");
         const key = `${param}\u0000${id}`;
@@ -677,8 +689,13 @@ function validateTemplateEditorV2(
       add("editor.valueLabels", "objet valueLabels attendu");
     } else {
       for (const [param, rawFields] of Object.entries(input.valueLabels)) {
-        if (!collectionParams.has(param)) {
-          add(`editor.valueLabels.${param}`, "collection inconnue");
+        const node = findParamNode(params, param);
+        if (node === null) {
+          add(`editor.valueLabels.${param}`, "paramètre inexistant");
+          continue;
+        }
+        if (node.type !== "object" && !(node.type === "array" && node.items?.type === "object")) {
+          add(`editor.valueLabels.${param}`, "objet ou collection d'objets attendu");
           continue;
         }
         if (!isRecord(rawFields)) {
@@ -802,8 +819,8 @@ function validateTemplateEditorV2(
             : { onDelete: onDelete as "clear" | "cascade" | "restrict" }),
         });
       }
-      if (referencesHaveCycle(references)) {
-        add("editor.references", "cycle de références interdit");
+      if (containmentReferencesHaveCycle(references)) {
+        add("editor.references", "cycle de relations de contenance interdit");
       }
     }
   }
@@ -825,7 +842,9 @@ function validateTemplateEditorV2(
           if (!collectionParams.has(collection)) {
             add("editor.structure.regions.collection", "collection inconnue");
           }
-          const props = objectFieldsForParam(params, collection);
+          // Les champs structurels (header_id, footer_id…) appartiennent à la
+          // collection racine et référencent la collection des régions.
+          const rootProps = objectFieldsForParam(params, roots);
           const rawFields = rawRegions.fields;
           const structureFields: string[] = [];
           if (!Array.isArray(rawFields)) {
@@ -834,8 +853,21 @@ function validateTemplateEditorV2(
             const seen = new Set<string>();
             for (const [fieldIndex, entry] of rawFields.entries()) {
               const field = text(entry);
-              if (!props.some((property) => property.key === field)) {
-                add(`editor.structure.regions.fields[${fieldIndex}]`, "champ absent");
+              if (!rootProps.some((property) => property.key === field)) {
+                add(`editor.structure.regions.fields[${fieldIndex}]`, "champ absent de la racine");
+              }
+              const linked = references.some(
+                (reference) =>
+                  reference.from === roots &&
+                  reference.field === field &&
+                  (reference.to === collection ||
+                    Object.values(reference.targets ?? {}).includes(collection)),
+              );
+              if (!linked) {
+                add(
+                  `editor.structure.regions.fields[${fieldIndex}]`,
+                  "référence vers la collection des régions requise",
+                );
               }
               if (seen.has(field))
                 add(`editor.structure.regions.fields[${fieldIndex}]`, "champ dupliqué");
@@ -1025,6 +1057,134 @@ export function resolveDynamicRegionItem(
   const match = matches[0];
   if (match === undefined) return null;
   return { ...target, item: match.item, index: match.index };
+}
+
+/** Vérifie l'unicité des identifiants d'éléments avant persistance. */
+export function validateTemplateEditorCollectionValues(
+  editor: TemplateEditorManifest,
+  values: TemplateParamValues,
+): TemplateEditorError[] {
+  if (editor.version !== 2) return [];
+  const errors: TemplateEditorError[] = [];
+  for (const collection of editor.collections ?? []) {
+    const raw = values[collection.param];
+    if (raw === undefined) continue;
+    if (!Array.isArray(raw)) {
+      errors.push({
+        field: `values.${collection.param}`,
+        message: "collection attendue sous forme de tableau",
+      });
+      continue;
+    }
+    const seen = new Set<string>();
+    raw.forEach((entry, index) => {
+      if (!isRecord(entry)) {
+        errors.push({
+          field: `values.${collection.param}[${index}]`,
+          message: "élément de collection attendu sous forme d'objet",
+        });
+        return;
+      }
+      const id = entry[collection.itemKey];
+      if (typeof id !== "string" || id.trim() === "") {
+        errors.push({
+          field: `values.${collection.param}[${index}].${collection.itemKey}`,
+          message: "identifiant stable non vide requis",
+        });
+        return;
+      }
+      if (seen.has(id)) {
+        errors.push({
+          field: `values.${collection.param}[${index}].${collection.itemKey}`,
+          message: `identifiant dupliqué : ${id}`,
+        });
+      }
+      seen.add(id);
+    });
+  }
+  return errors;
+}
+
+/** Détecte les cycles réels de contenance déclarés par `structure.children`. */
+export function validateTemplateEditorStructureValues(
+  editor: TemplateEditorManifest,
+  values: TemplateParamValues,
+): TemplateEditorError[] {
+  if (editor.version !== 2 || editor.structure?.children === undefined) return [];
+  const children = editor.structure.children;
+  const rawPlacements = values[children.through];
+  if (rawPlacements === undefined) return [];
+  if (!Array.isArray(rawPlacements)) {
+    return [
+      {
+        field: `values.${children.through}`,
+        message: "collection de placements attendue sous forme de tableau",
+      },
+    ];
+  }
+  const errors: TemplateEditorError[] = [];
+  const rawChildren = values[children.collection];
+  const childIds = Array.isArray(rawChildren)
+    ? new Set(
+        rawChildren
+          .map((entry) => (isRecord(entry) ? entry[children.childKey] : undefined))
+          .filter((value): value is string => typeof value === "string" && value !== ""),
+      )
+    : new Set<string>();
+  const graph = new Map<string, Set<string>>();
+  rawPlacements.forEach((entry, index) => {
+    if (!isRecord(entry)) return;
+    const parentId = entry[children.parentKey];
+    const childId = entry[children.childKey];
+    if (typeof childId !== "string" || childId === "") {
+      errors.push({
+        field: `values.${children.through}[${index}].${children.childKey}`,
+        message: "childKey non vide requis",
+      });
+      return;
+    }
+    if (childIds.size > 0 && !childIds.has(childId)) {
+      errors.push({
+        field: `values.${children.through}[${index}].${children.childKey}`,
+        message: `enfant inexistant dans ${children.collection}`,
+      });
+    }
+    const parentKind =
+      children.parentKindKey === undefined ? undefined : entry[children.parentKindKey];
+    const sameCollectionKind =
+      typeof parentKind === "string" &&
+      (parentKind === children.collection ||
+        `${parentKind}s` === children.collection ||
+        `${children.collection}s` === parentKind);
+    if (children.parentKindKey !== undefined && !sameCollectionKind) return;
+    if (typeof parentId !== "string" || parentId === "") return;
+    const edges = graph.get(parentId) ?? new Set<string>();
+    edges.add(childId);
+    graph.set(parentId, edges);
+  });
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (node: string): boolean => {
+    if (visiting.has(node)) return true;
+    if (visited.has(node)) return false;
+    visiting.add(node);
+    for (const child of graph.get(node) ?? []) {
+      if (visit(child)) return true;
+    }
+    visiting.delete(node);
+    visited.add(node);
+    return false;
+  };
+  for (const node of graph.keys()) {
+    if (visit(node)) {
+      errors.push({
+        field: "editor.structure.children",
+        message: "cycle de contenance réel détecté entre composants",
+      });
+      break;
+    }
+  }
+  return errors;
 }
 
 /** Vrai si le paramètre est rattaché à plusieurs zones. */

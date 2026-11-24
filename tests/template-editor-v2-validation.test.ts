@@ -3,6 +3,7 @@ import {
   resolveDynamicRegionItem,
   type TemplateEditorManifestV2,
   validateTemplateEditorBlock,
+  validateTemplateEditorCollectionValues,
 } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 
@@ -35,7 +36,11 @@ const params: TemplateParamSchema[] = [
     { key: "font_size", label: "Taille", description: "", type: "number", default: 1 },
     { key: "visibility", label: "Visibilité", description: "", type: "string", default: "" },
   ]),
-  object("pages", [{ key: "title", label: "Titre", description: "", type: "string", default: "" }]),
+  object("pages", [
+    { key: "title", label: "Titre", description: "", type: "string", default: "" },
+    { key: "header_id", label: "En-tête", description: "", type: "string", default: "" },
+    { key: "footer_id", label: "Pied", description: "", type: "string", default: "" },
+  ]),
   object("regions", [
     { key: "header_id", label: "En-tête", description: "", type: "string", default: "" },
   ]),
@@ -102,11 +107,20 @@ describe("validation runtime V2", () => {
             collapsedByDefault: true,
             fields: ["font_size", "visibility"],
           },
+          {
+            param: "site_settings",
+            id: "chat",
+            label: "Chat",
+            fields: ["chat_mode", "chat_page_id"],
+          },
         ],
         valueLabels: {
           style_profiles: {
             font_size: { "-1": "Automatique" },
             visibility: { hidden: "Masqué" },
+          },
+          site_settings: {
+            chat_mode: { embedded: "Intégré" },
           },
         },
         references: [
@@ -125,6 +139,13 @@ describe("validation runtime V2", () => {
             discriminator: "parent_kind",
             targetKey: "id",
             onDelete: "cascade",
+          },
+          {
+            from: "pages",
+            field: "header_id",
+            to: "regions",
+            targetKey: "id",
+            onDelete: "clear",
           },
         ],
         structure: {
@@ -152,7 +173,7 @@ describe("validation runtime V2", () => {
     const value = result.value as TemplateEditorManifestV2;
     expect(value.groups?.[0]?.id).toBe("advanced");
     expect(value.valueLabels?.style_profiles?.font_size?.["-1"]).toBe("Automatique");
-    expect(value.references).toHaveLength(2);
+    expect(value.references).toHaveLength(3);
     expect(value.structure?.children?.slotKey).toBe("slot");
     expect(value.scopes).toHaveLength(2);
   });
@@ -185,8 +206,20 @@ describe("validation runtime V2", () => {
     const result = validateTemplateEditorBlock(
       valid({
         references: [
-          { from: "blocks", field: "style_id", to: "style_profiles", targetKey: "id" },
-          { from: "style_profiles", field: "font_size", to: "blocks", targetKey: "id" },
+          {
+            from: "blocks",
+            field: "style_id",
+            to: "style_profiles",
+            targetKey: "id",
+            onDelete: "cascade",
+          },
+          {
+            from: "style_profiles",
+            field: "font_size",
+            to: "blocks",
+            targetKey: "id",
+            onDelete: "cascade",
+          },
         ],
       }),
       params,
@@ -194,6 +227,19 @@ describe("validation runtime V2", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors.some((error) => error.message.includes("cycle"))).toBe(true);
+  });
+
+  it("accepte un cycle de références fonctionnelles non structurelles", () => {
+    const result = validateTemplateEditorBlock(
+      valid({
+        references: [
+          { from: "blocks", field: "style_id", to: "style_profiles", targetKey: "id" },
+          { from: "style_profiles", field: "font_size", to: "blocks", targetKey: "id" },
+        ],
+      }),
+      params,
+    );
+    expect(result.ok).toBe(true);
   });
 
   it("valide visibleWhen sur un objet simple", () => {
@@ -290,5 +336,32 @@ describe("résolution avec valeurs réelles", () => {
         ],
       }),
     ).toBeNull();
+  });
+});
+
+describe("unicité des identifiants de collection", () => {
+  it("refuse deux éléments avec le même identifiant", () => {
+    const result = validateTemplateEditorBlock(valid(), params);
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    const errors = validateTemplateEditorCollectionValues(result.value, {
+      blocks: [
+        { id: "hero", name: "Hero" },
+        { id: "hero", name: "Doublon" },
+      ],
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("dupliqué");
+  });
+
+  it("refuse un identifiant vide", () => {
+    const result = validateTemplateEditorBlock(valid(), params);
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    const errors = validateTemplateEditorCollectionValues(result.value, {
+      blocks: [{ id: "", name: "Sans identifiant" }],
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("identifiant stable");
   });
 });

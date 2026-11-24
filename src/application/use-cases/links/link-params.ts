@@ -1,6 +1,10 @@
 import { ValidationError } from "@/application/errors";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
 import {
+  validateTemplateEditorCollectionValues,
+  validateTemplateEditorStructureValues,
+} from "@/domain/template-editor";
+import {
   normalizeTemplateParamValuesStrict,
   type TemplateParamValues,
   validateTemplateParamValues,
@@ -45,6 +49,27 @@ export async function prepareLinkParams(
     throw new ValidationError(
       `Paramètres invalides : ${errors.map((error) => `${error.field} — ${error.message}`).join(" ; ")}`,
     );
+  }
+  if (version.manifest.editor !== undefined) {
+    const collectionErrors = validateTemplateEditorCollectionValues(
+      version.manifest.editor,
+      values,
+    );
+    if (collectionErrors.length > 0) {
+      throw new ValidationError(
+        `Identifiants de collection invalides : ${collectionErrors
+          .map((error) => `${error.field} — ${error.message}`)
+          .join(" ; ")}`,
+      );
+    }
+    const structureErrors = validateTemplateEditorStructureValues(version.manifest.editor, values);
+    if (structureErrors.length > 0) {
+      throw new ValidationError(
+        `Structure invalide : ${structureErrors
+          .map((error) => `${error.field} — ${error.message}`)
+          .join(" ; ")}`,
+      );
+    }
   }
   return values;
 }
