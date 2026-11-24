@@ -148,7 +148,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       const domain = await repo.findDomain(domainId);
       if (domain === null || domain.chatLinkId !== id)
         throw new ValidationError("Domaine introuvable");
-      await verifyStandaloneDomain(
+      const verified = await verifyStandaloneDomain(
         {
           domains: repo,
           dns: nodeStandaloneDnsResolver(),
@@ -157,6 +157,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         },
         { domainId },
       );
+      if (verified.sslStatus === "failed") {
+        await repo.setDomainSsl({ id: domainId, status: "pending", lastError: null });
+      }
     } else if (action === "delete-domain") {
       const domainId = stringField(body, "domainId");
       if (domainId === undefined) throw new ValidationError("Domaine manquant");
