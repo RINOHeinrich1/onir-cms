@@ -219,6 +219,8 @@ export function LinkDisplaySettings({
   const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
   const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
+  const selectedCollections =
+    selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
   const selectedShadowDom = shadowDomForSelection(visualTemplates, draft.visualTemplate);
   const editorAvailable = selectedEditor !== null && selectedShadowDom !== "closed";
   const selectedRegionDefinition =
@@ -976,6 +978,7 @@ export function LinkDisplaySettings({
                       values={draft.params as TemplateParamValues}
                       visiblePaths={localPaths}
                       legend="Paramètres de la zone"
+                      collections={selectedCollections}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -985,6 +988,7 @@ export function LinkDisplaySettings({
                       values={draft.params as TemplateParamValues}
                       visiblePaths={sharedPaths}
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
+                      collections={selectedCollections}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -1039,6 +1043,7 @@ export function LinkDisplaySettings({
                     <TemplateParamsFields
                       schema={filteredParams}
                       values={draft.params as TemplateParamValues}
+                      collections={selectedCollections}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}

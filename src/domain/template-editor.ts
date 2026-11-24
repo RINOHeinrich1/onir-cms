@@ -24,11 +24,101 @@ export type TemplateEditorBinding = {
   category: TemplateEditorCategory;
 };
 
-export type TemplateEditorManifest = {
+export type TemplateEditorManifestV1 = {
   version: 1;
   regions: TemplateEditorRegion[];
   bindings: TemplateEditorBinding[];
 };
+
+export type TemplateEditorCollection = {
+  param: string;
+  label: string;
+  itemKey: string;
+  itemLabel?: string;
+  itemKind?: string;
+  labelFallback?: string[];
+};
+
+export type TemplateEditorDynamicRegion = {
+  idPattern: string;
+  collection: string;
+  keyField: string;
+};
+
+export type TemplateEditorBindingV2 = TemplateEditorBinding & {
+  itemKey?: string;
+  itemId?: string;
+};
+
+export type TemplateEditorVisibleWhen = {
+  field: string;
+  equals?: string | number | boolean;
+  notEquals?: string | number | boolean;
+  in?: (string | number | boolean)[];
+  notIn?: (string | number | boolean)[];
+  truthy?: boolean;
+  falsy?: boolean;
+};
+
+export type TemplateEditorFieldRule = {
+  param: string;
+  field: string;
+  visibleWhen?: TemplateEditorVisibleWhen;
+};
+
+export type TemplateEditorGroup = {
+  param: string;
+  id: string;
+  label: string;
+  fields: string[];
+  collapsedByDefault?: boolean;
+};
+
+export type TemplateEditorReference = {
+  from: string;
+  field: string;
+  to?: string;
+  targets?: Record<string, string>;
+  discriminator?: string;
+  targetKey: string;
+  optional?: boolean;
+  onDelete?: "clear" | "cascade" | "restrict";
+};
+
+export type TemplateEditorStructure = {
+  roots: string;
+  regions?: { collection: string; fields: string[] };
+  children?: {
+    collection: string;
+    through: string;
+    parentKey: string;
+    parentKindKey?: string;
+    childKey: string;
+    orderKey?: string;
+    slotKey?: string;
+  };
+};
+
+export type TemplateEditorScope = {
+  param: string;
+  scope: "global" | "shared" | "page" | "local";
+};
+
+export type TemplateEditorManifestV2 = {
+  version: 2;
+  regions: TemplateEditorRegion[];
+  bindings: TemplateEditorBindingV2[];
+  collections?: TemplateEditorCollection[];
+  dynamicRegions?: TemplateEditorDynamicRegion[];
+  fields?: TemplateEditorFieldRule[];
+  groups?: TemplateEditorGroup[];
+  valueLabels?: Record<string, Record<string, Record<string, string>>>;
+  references?: TemplateEditorReference[];
+  structure?: TemplateEditorStructure;
+  scopes?: TemplateEditorScope[];
+};
+
+export type TemplateEditorManifest = TemplateEditorManifestV1 | TemplateEditorManifestV2;
 
 export type TemplateEditorError = { field: string; message: string };
 
@@ -85,13 +175,15 @@ export function validateTemplateEditorBlock(
     return { ok: false, errors: [{ field: "editor", message: "objet editor attendu" }] };
   }
 
+  if (input.version === 2) return validateTemplateEditorV2(input, params);
+
   const errors: TemplateEditorError[] = [];
   const add = (field: string, message: string): void => {
     errors.push({ field, message });
   };
 
   if (input.version !== EDITOR_VERSION) {
-    add("editor.version", `version doit valoir ${EDITOR_VERSION}`);
+    add("editor.version", `version doit valoir ${EDITOR_VERSION} ou 2`);
   }
 
   const rawRegions = input.regions;
@@ -217,6 +309,185 @@ export function validateTemplateEditorBlock(
       bindings,
     },
   };
+}
+
+function validateTemplateEditorV2(
+  input: Record<string, unknown>,
+  params: TemplateParamSchema[],
+): TemplateEditorValidation {
+  const base = validateTemplateEditorBlock({ ...input, version: 1 }, params);
+  if (!base.ok || base.value === undefined) return base;
+  const errors: TemplateEditorError[] = [];
+  const add = (field: string, message: string): void => {
+    errors.push({ field, message });
+  };
+
+  const collectionParams = new Set<string>();
+  const rawCollections = input.collections;
+  const collections: TemplateEditorCollection[] = [];
+  if (rawCollections !== undefined) {
+    if (!Array.isArray(rawCollections)) {
+      add("editor.collections", "liste collections attendue");
+    } else {
+      if (rawCollections.length > 64) add("editor.collections", "au plus 64 collections");
+      rawCollections.forEach((raw, index) => {
+        const basePath = `editor.collections[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet collection attendu");
+          return;
+        }
+        const param = text(raw.param);
+        const label = text(raw.label);
+        const itemKey = text(raw.itemKey);
+        const node = findParamNode(params, param);
+        if (node === null || node.type !== "array" || node.items?.type !== "object") {
+          add(`${basePath}.param`, "collection array d'objets attendue");
+        }
+        if (label === "") add(`${basePath}.label`, "libellé requis");
+        if (itemKey === "") add(`${basePath}.itemKey`, "itemKey requis");
+        const itemNode = node?.items;
+        const itemProps = itemNode?.type === "object" ? (itemNode.properties ?? []) : [];
+        if (itemKey !== "" && !itemProps.some((entry) => entry.key === itemKey)) {
+          add(`${basePath}.itemKey`, "itemKey absent de l'élément");
+        }
+        if (collectionParams.has(param)) add(`${basePath}.param`, "collection dupliquée");
+        collectionParams.add(param);
+        const itemLabel = raw.itemLabel === undefined ? undefined : text(raw.itemLabel);
+        if (
+          itemLabel !== undefined &&
+          itemLabel !== "" &&
+          !itemProps.some((p) => p.key === itemLabel)
+        ) {
+          add(`${basePath}.itemLabel`, "itemLabel absent de l'élément");
+        }
+        const itemKind = raw.itemKind === undefined ? undefined : text(raw.itemKind);
+        if (
+          itemKind !== undefined &&
+          itemKind !== "" &&
+          !itemProps.some((p) => p.key === itemKind)
+        ) {
+          add(`${basePath}.itemKind`, "itemKind absent de l'élément");
+        }
+        const fallback = Array.isArray(raw.labelFallback)
+          ? raw.labelFallback.filter((v): v is string => typeof v === "string")
+          : [];
+        for (const key of fallback) {
+          if (!itemProps.some((p) => p.key === key)) {
+            add(`${basePath}.labelFallback`, `champ fallback absent : ${key}`);
+          }
+        }
+        collections.push({
+          param,
+          label,
+          itemKey,
+          ...(itemLabel === undefined || itemLabel === "" ? {} : { itemLabel }),
+          ...(itemKind === undefined || itemKind === "" ? {} : { itemKind }),
+          ...(fallback.length === 0 ? {} : { labelFallback: fallback }),
+        });
+      });
+    }
+  }
+
+  const dynamicRegions: TemplateEditorDynamicRegion[] = [];
+  if (input.dynamicRegions !== undefined) {
+    if (!Array.isArray(input.dynamicRegions)) {
+      add("editor.dynamicRegions", "liste dynamicRegions attendue");
+    } else {
+      for (const [index, raw] of input.dynamicRegions.entries()) {
+        const basePath = `editor.dynamicRegions[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet dynamicRegion attendu");
+          continue;
+        }
+        const idPattern = text(raw.idPattern);
+        const collection = text(raw.collection);
+        const keyField = text(raw.keyField);
+        if (!/^[a-z][a-z0-9_-]*:\{[a-z][a-z0-9_]*\}$/.test(idPattern)) {
+          add(`${basePath}.idPattern`, "motif attendu : prefix:{key}");
+        }
+        if (!collectionParams.has(collection)) {
+          add(`${basePath}.collection`, "collection inconnue");
+        }
+        const collectionMeta = collections.find((entry) => entry.param === collection);
+        if (collectionMeta !== undefined && collectionMeta.itemKey !== keyField) {
+          add(`${basePath}.keyField`, "keyField doit correspondre à itemKey");
+        }
+        dynamicRegions.push({ idPattern, collection, keyField });
+      }
+    }
+  }
+
+  const fields: TemplateEditorFieldRule[] = [];
+  if (input.fields !== undefined) {
+    if (!Array.isArray(input.fields)) {
+      add("editor.fields", "liste fields attendue");
+    } else {
+      for (const [index, raw] of input.fields.entries()) {
+        const basePath = `editor.fields[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet field attendu");
+          continue;
+        }
+        const param = text(raw.param);
+        const field = text(raw.field);
+        if (!collectionParams.has(param)) add(`${basePath}.param`, "collection inconnue");
+        const itemNode = findParamNode(params, param)?.items;
+        const itemProps = itemNode?.type === "object" ? (itemNode.properties ?? []) : [];
+        if (field !== "" && !itemProps.some((p) => p.key === field)) {
+          add(`${basePath}.field`, "champ absent de l'élément");
+        }
+        const visibleWhen = raw.visibleWhen;
+        if (visibleWhen !== undefined) {
+          if (!isRecord(visibleWhen)) add(`${basePath}.visibleWhen`, "objet visibleWhen attendu");
+          else {
+            const conditionField = text(visibleWhen.field);
+            if (!itemProps.some((p) => p.key === conditionField)) {
+              add(`${basePath}.visibleWhen.field`, "champ de condition absent");
+            }
+            const operators = ["equals", "notEquals", "in", "notIn", "truthy", "falsy"];
+            if (!operators.some((op) => op in visibleWhen)) {
+              add(`${basePath}.visibleWhen`, "opérateur de condition requis");
+            }
+          }
+        }
+        fields.push({
+          param,
+          field,
+          ...(raw.visibleWhen === undefined
+            ? {}
+            : { visibleWhen: raw.visibleWhen as TemplateEditorVisibleWhen }),
+        });
+      }
+    }
+  }
+
+  return errors.length > 0
+    ? { ok: false, errors }
+    : {
+        ok: true,
+        value: {
+          ...base.value,
+          version: 2,
+          ...(collections.length === 0 ? {} : { collections }),
+          ...(dynamicRegions.length === 0 ? {} : { dynamicRegions }),
+          ...(fields.length === 0 ? {} : { fields }),
+          ...(input.groups === undefined ? {} : { groups: input.groups as TemplateEditorGroup[] }),
+          ...(input.valueLabels === undefined
+            ? {}
+            : {
+                valueLabels: input.valueLabels as NonNullable<
+                  TemplateEditorManifestV2["valueLabels"]
+                >,
+              }),
+          ...(input.references === undefined
+            ? {}
+            : { references: input.references as TemplateEditorReference[] }),
+          ...(input.structure === undefined
+            ? {}
+            : { structure: input.structure as TemplateEditorStructure }),
+          ...(input.scopes === undefined ? {} : { scopes: input.scopes as TemplateEditorScope[] }),
+        },
+      };
 }
 
 /** Vrai si le paramètre est rattaché à plusieurs zones. */

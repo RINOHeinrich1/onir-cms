@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
+import type { TemplateEditorCollection } from "@/domain/template-editor";
 import type {
   TemplateParamNode,
   TemplateParamScalar,
@@ -18,6 +19,8 @@ type TemplateParamsFieldsProps = {
   visiblePaths?: ReadonlySet<string>;
   /** Libellé du fieldset. */
   legend?: string;
+  /** Métadonnées de collections Editor V2. */
+  collections?: TemplateEditorCollection[] | undefined;
   /** Clés stockées qui ne sont plus déclarées par la version (ADR-0023). */
   orphans?: string[];
   onRemoveOrphan?: (key: string) => void;
@@ -41,19 +44,40 @@ function controlId(path: string): string {
   return `template-param-${path.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
-function itemSummary(value: TemplateParamValue, index: number, fallback: string): string {
+function itemSummary(
+  value: TemplateParamValue,
+  index: number,
+  fallback: string,
+  collection: TemplateEditorCollection | undefined,
+): string {
   if (isObject(value)) {
-    const candidate = [value.title, value.name, value.slug, value.id].find(
-      (entry) => typeof entry === "string" && entry.trim() !== "",
-    );
+    const keys = [
+      collection?.itemLabel,
+      ...(collection?.labelFallback ?? []),
+      "title",
+      "name",
+      "slug",
+      "id",
+    ].filter((key): key is string => key !== undefined && key !== "");
+    const candidate = keys
+      .map((key) => value[key])
+      .find((entry) => typeof entry === "string" && entry.trim() !== "");
     if (typeof candidate === "string") return candidate;
   }
   if (typeof value === "string" && value.trim() !== "") return value;
   return `${fallback} ${index + 1}`;
 }
 
-function itemKind(value: TemplateParamValue): string | null {
+function itemKind(
+  value: TemplateParamValue,
+  collection: TemplateEditorCollection | undefined,
+): string | null {
   if (!isObject(value)) return null;
+  const configured = collection?.itemKind;
+  if (configured !== undefined) {
+    const valueForKind = value[configured];
+    if (typeof valueForKind === "string" && valueForKind !== "") return valueForKind;
+  }
   return typeof value.kind === "string" && value.kind !== "" ? value.kind : null;
 }
 
@@ -84,6 +108,7 @@ export function TemplateParamsFields({
   onChange,
   visiblePaths,
   legend = "Paramètres du template",
+  collections,
   orphans = [],
   onRemoveOrphan,
 }: TemplateParamsFieldsProps) {
@@ -133,6 +158,7 @@ export function TemplateParamsFields({
             visiblePaths={visiblePaths}
             expandedPaths={expandedPaths}
             onToggle={toggle}
+            collections={collections}
           />
         );
       })}
@@ -172,6 +198,7 @@ function ParamField({
   visiblePaths,
   expandedPaths,
   onToggle,
+  collections,
 }: {
   param: TemplateParamSchema;
   value: TemplateParamValue;
@@ -180,6 +207,7 @@ function ParamField({
   visiblePaths: ReadonlySet<string> | undefined;
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
+  collections: TemplateEditorCollection[] | undefined;
 }) {
   if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
@@ -225,6 +253,7 @@ function ParamField({
           visiblePaths={visiblePaths}
           expandedPaths={expandedPaths}
           onToggle={onToggle}
+          collections={collections}
         />
       )}
       {param.description === "" ? null : <span className="hint">{param.description}</span>}
@@ -250,6 +279,7 @@ function ParamValueEditor({
   visiblePaths,
   expandedPaths,
   onToggle,
+  collections,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
@@ -259,6 +289,7 @@ function ParamValueEditor({
   visiblePaths: ReadonlySet<string> | undefined;
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
+  collections: TemplateEditorCollection[] | undefined;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
@@ -278,6 +309,7 @@ function ParamValueEditor({
             visiblePaths={visiblePaths}
             expandedPaths={expandedPaths}
             onToggle={onToggle}
+            collections={collections}
           />
         ))}
       </div>
@@ -292,12 +324,13 @@ function ParamValueEditor({
     }
     const minItems = node.minItems ?? 0;
     const maxItems = node.maxItems ?? 100;
+    const collection = collections?.find((entry) => entry.param === path);
     return (
       <div className="param-array">
         {items.map((entry, index) => {
           const itemPath = `${path}[${index}]`;
           const itemExpanded = expandedPaths.has(itemPath);
-          const kind = itemKind(entry);
+          const kind = itemKind(entry, collection);
           return (
             <div className="param-array-item" key={itemPath}>
               <div className="param-array-item-head">
@@ -313,7 +346,7 @@ function ParamValueEditor({
                   }}
                   onClick={() => onToggle(itemPath)}
                 >
-                  {itemExpanded ? "▾" : "▸"} {itemSummary(entry, index, label)}
+                  {itemExpanded ? "▾" : "▸"} {itemSummary(entry, index, label, collection)}
                   {kind === null ? null : <span className="badge muted">{kind}</span>}
                 </button>
                 <button
@@ -339,6 +372,7 @@ function ParamValueEditor({
                   visiblePaths={visiblePaths}
                   expandedPaths={expandedPaths}
                   onToggle={onToggle}
+                  collections={collections}
                 />
               ) : null}
             </div>
