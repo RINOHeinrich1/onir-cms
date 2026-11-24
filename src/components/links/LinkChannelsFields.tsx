@@ -10,6 +10,7 @@ import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { TemplateParamsFields } from "./TemplateParamsFields";
 import type { ConfidentialiteOption, VisualTemplateOption } from "./types";
 import {
+  editorForSelection,
   mergeParamsForSelection,
   paramsSchemaForSelection,
   parseVisualTemplateSelection,
@@ -54,6 +55,7 @@ export function LinkChannelsFields({
 }: Props) {
   const draft = value[active];
   const paramsSchema = paramsSchemaForSelection(visualTemplates, draft.visualTemplate);
+  const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
   const widgetDisplay = widgetDisplayForSelection(visualTemplates, draft.visualTemplate);
   const selectableTemplates =
     active === "widget"
@@ -293,6 +295,8 @@ export function LinkChannelsFields({
           <TemplateParamsFields
             schema={paramsSchema}
             values={draft.params}
+            collections={selectedEditor?.version === 2 ? selectedEditor.collections : undefined}
+            references={selectedEditor?.version === 2 ? selectedEditor.references : undefined}
             onChange={(params) => setDraft({ params })}
           />
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import type { TemplateEditorCollection } from "@/domain/template-editor";
+import type { TemplateEditorCollection, TemplateEditorReference } from "@/domain/template-editor";
 import type {
   TemplateParamNode,
   TemplateParamScalar,
@@ -22,6 +22,7 @@ type TemplateParamsFieldsProps = {
   legend?: string;
   /** Métadonnées de collections Editor V2. */
   collections?: TemplateEditorCollection[] | undefined;
+  references?: TemplateEditorReference[] | undefined;
   /** Élément ciblé par une région dynamique. */
   collectionFocus?: { param: string; keyField: string; itemId: string } | undefined;
   /** Clés stockées qui ne sont plus déclarées par la version (ADR-0023). */
@@ -112,6 +113,7 @@ export function TemplateParamsFields({
   visiblePaths,
   legend = "Paramètres du template",
   collections,
+  references,
   collectionFocus,
   orphans = [],
   onRemoveOrphan,
@@ -163,6 +165,8 @@ export function TemplateParamsFields({
             expandedPaths={expandedPaths}
             onToggle={toggle}
             collections={collections}
+            references={references}
+            values={values}
             collectionFocus={collectionFocus}
           />
         );
@@ -204,7 +208,10 @@ function ParamField({
   expandedPaths,
   onToggle,
   collections,
+  references,
+  values,
   collectionFocus,
+  record,
 }: {
   param: TemplateParamSchema;
   value: TemplateParamValue;
@@ -214,7 +221,10 @@ function ParamField({
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
+  references: TemplateEditorReference[] | undefined;
+  values: TemplateParamValues;
   collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
+  record?: Record<string, TemplateParamValue> | undefined;
 }) {
   if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
@@ -262,6 +272,9 @@ function ParamField({
           expandedPaths={expandedPaths}
           onToggle={onToggle}
           collections={collections}
+          references={references}
+          values={values}
+          record={record}
           collectionFocus={collectionFocus}
         />
       )}
@@ -279,6 +292,116 @@ function ParamField({
   );
 }
 
+type ReferenceTarget = {
+  collection: string;
+  targetKey: string;
+  optional: boolean;
+};
+
+function referenceForPath(
+  path: string,
+  references: TemplateEditorReference[] | undefined,
+): TemplateEditorReference | undefined {
+  if (references === undefined) return undefined;
+  const match = /^([a-z][a-z0-9_]*)\[\d+\]\.([a-z][a-z0-9_]*)$/.exec(path);
+  if (match === null) return undefined;
+  return references.find(
+    (reference) => reference.from === match[1] && reference.field === match[2],
+  );
+}
+
+function referenceTarget(
+  reference: TemplateEditorReference,
+  record: Record<string, TemplateParamValue> | undefined,
+): ReferenceTarget | null {
+  if (reference.to !== undefined) {
+    return {
+      collection: reference.to,
+      targetKey: reference.targetKey,
+      optional: reference.optional === true,
+    };
+  }
+  if (reference.targets === undefined) return null;
+  const discriminator =
+    reference.discriminator === undefined ? "" : String(record?.[reference.discriminator] ?? "");
+  const target = reference.targets[discriminator];
+  return target === undefined
+    ? null
+    : {
+        collection: target,
+        targetKey: reference.targetKey,
+        optional: reference.optional === true,
+      };
+}
+
+function referenceLabel(
+  value: TemplateParamValue,
+  collection: TemplateEditorCollection | undefined,
+): string {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return "";
+  const keys = [
+    collection?.itemLabel,
+    ...(collection?.labelFallback ?? []),
+    "title",
+    "name",
+    "label",
+    "slug",
+    "id",
+  ].filter((key): key is string => key !== undefined && key !== "");
+  for (const key of keys) {
+    const candidate = (value as Record<string, TemplateParamValue>)[key];
+    if (typeof candidate === "string" && candidate.trim() !== "") return candidate;
+  }
+  return "";
+}
+
+function ReferenceSelect({
+  reference,
+  value,
+  values,
+  collections,
+  record,
+  onChange,
+}: {
+  reference: TemplateEditorReference;
+  value: string;
+  values: TemplateParamValues;
+  collections: TemplateEditorCollection[] | undefined;
+  record: Record<string, TemplateParamValue> | undefined;
+  onChange: (next: TemplateParamValue) => void;
+}): ReactNode {
+  const target = referenceTarget(reference, record);
+  if (target === null) return null;
+  const raw = values[target.collection];
+  const items = Array.isArray(raw) ? raw.filter(isObject) : [];
+  const collection = collections?.find((entry) => entry.param === target.collection);
+  const options = items
+    .map((item) => {
+      const key = item[target.targetKey];
+      if (typeof key !== "string" || key === "") return null;
+      const label = referenceLabel(item, collection);
+      return { key, label: label === "" ? key : label };
+    })
+    .filter((option): option is { key: string; label: string } => option !== null);
+  if (options.length === 0 && !target.optional) return null;
+  const hasCurrent = options.some((option) => option.key === value);
+  const labelCounts = new Map<string, number>();
+  for (const option of options) {
+    labelCounts.set(option.label, (labelCounts.get(option.label) ?? 0) + 1);
+  }
+  return (
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      {target.optional || value === "" ? <option value="">Non défini</option> : null}
+      {!hasCurrent && value !== "" ? <option value={value}>Valeur actuelle</option> : null}
+      {options.map((option) => (
+        <option key={option.key} value={option.key}>
+          {labelCounts.get(option.label) === 1 ? option.label : `${option.label} · ${option.key}`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function ParamValueEditor({
   node,
   value,
@@ -289,8 +412,11 @@ function ParamValueEditor({
   expandedPaths,
   onToggle,
   collections,
+  references,
+  values,
   collectionFocus,
   hiddenKeys,
+  record,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
@@ -301,8 +427,11 @@ function ParamValueEditor({
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
+  references: TemplateEditorReference[] | undefined;
+  values: TemplateParamValues;
   collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
   hiddenKeys?: ReadonlySet<string> | undefined;
+  record?: Record<string, TemplateParamValue> | undefined;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
@@ -325,6 +454,9 @@ function ParamValueEditor({
               expandedPaths={expandedPaths}
               onToggle={onToggle}
               collections={collections}
+              references={references}
+              values={values}
+              record={source}
               collectionFocus={collectionFocus}
             />
           ))}
@@ -402,8 +534,11 @@ function ParamValueEditor({
                   expandedPaths={expandedPaths}
                   onToggle={onToggle}
                   collections={collections}
+                  references={references}
+                  values={values}
                   collectionFocus={collectionFocus}
                   hiddenKeys={collection === undefined ? undefined : new Set([collection.itemKey])}
+                  record={isObject(entry) ? entry : undefined}
                 />
               ) : null}
             </div>
@@ -426,6 +561,20 @@ function ParamValueEditor({
           </button>
         ) : null}
       </div>
+    );
+  }
+
+  const reference = referenceForPath(path, references);
+  if (reference !== undefined) {
+    return (
+      <ReferenceSelect
+        reference={reference}
+        value={typeof value === "string" ? value : ""}
+        values={values}
+        collections={collections}
+        record={record}
+        onChange={onChange}
+      />
     );
   }
 
