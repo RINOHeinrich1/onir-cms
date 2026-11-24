@@ -22,9 +22,11 @@ import {
 import { searchTemplateParamPaths } from "@/domain/template-param-search";
 import type { TemplateParamValue, TemplateParamValues } from "@/domain/template-params";
 import {
+  addCollectionChildItem,
   addCollectionItem,
   duplicateCollectionItem,
   removeCollectionItem,
+  type TemplateStructureOperationResult,
 } from "@/domain/template-structure-operations";
 import { latestTemplateVersion } from "@/domain/template-version";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
@@ -215,6 +217,7 @@ export function LinkDisplaySettings({
     widget: { stack: [cloneParams(initialDraftsRef.current.widget.params)], index: 0 },
   });
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [centralAddKind, setCentralAddKind] = useState("");
   const [surface, setSurface] = useState<ChatLinkSurface>(initialSurface);
   const [device, setDevice] = useState<DisplayDevice>("desktop");
   const [saving, setSaving] = useState(false);
@@ -338,6 +341,24 @@ export function LinkDisplaySettings({
         };
   const centralStructure =
     selectedEditor?.version === 2 ? selectedEditor.structure?.children : undefined;
+  const centralCollectionMeta =
+    selectedEditor?.version === 2 && dynamicRegionItem !== null
+      ? selectedEditor.collections?.find(
+          (collection) => collection.param === dynamicRegionItem.collection,
+        )
+      : undefined;
+  const centralItemKind =
+    dynamicRegionItem !== null && centralCollectionMeta?.itemKind !== undefined
+      ? dynamicRegionItem.item[centralCollectionMeta.itemKind]
+      : undefined;
+  const insertionRule =
+    selectedEditor?.version === 2 && typeof centralItemKind === "string"
+      ? selectedEditor.insertion?.find((rule) => rule.parentKind === centralItemKind)
+      : undefined;
+  const insertionKinds = insertionRule?.allowedKinds ?? [];
+  const selectedInsertionKind = insertionKinds.includes(centralAddKind)
+    ? centralAddKind
+    : (insertionKinds[0] ?? "");
   const centralEditAvailable =
     canEdit &&
     selectedEditor?.version === 2 &&
@@ -364,13 +385,29 @@ export function LinkDisplaySettings({
       toast.error("Aucun modèle d’élément disponible pour cette collection.");
       return;
     }
-    const result = addCollectionItem(
-      draft.params as TemplateParamValues,
-      selectedEditor,
-      dynamicRegionItem.collection,
-      base,
-      dynamicRegionItem.itemId,
-    );
+    let result: TemplateStructureOperationResult;
+    if (insertionRule !== undefined && selectedInsertionKind !== "") {
+      const defaults = insertionRule.defaults?.[selectedInsertionKind] ?? {};
+      const item = { ...base, ...defaults };
+      if (centralCollectionMeta?.itemKind !== undefined) {
+        item[centralCollectionMeta.itemKind] = selectedInsertionKind;
+      }
+      result = addCollectionChildItem(
+        draft.params as TemplateParamValues,
+        selectedEditor,
+        insertionRule,
+        dynamicRegionItem.itemId,
+        item,
+      );
+    } else {
+      result = addCollectionItem(
+        draft.params as TemplateParamValues,
+        selectedEditor,
+        dynamicRegionItem.collection,
+        base,
+        dynamicRegionItem.itemId,
+      );
+    }
     if (result.itemId === null) return;
     applyCentralParams(result.values);
     const prefix = selectedRegion?.slice(
@@ -1058,6 +1095,20 @@ export function LinkDisplaySettings({
                 aria-label="Éditer la zone sélectionnée"
               >
                 <strong>{dynamicRegionItem?.collectionLabel}</strong>
+                {insertionKinds.length === 0 ? null : (
+                  <select
+                    className="display-preview-editbar-select"
+                    value={selectedInsertionKind}
+                    aria-label="Type d’élément à ajouter"
+                    onChange={(event) => setCentralAddKind(event.target.value)}
+                  >
+                    {insertionKinds.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {kind}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button type="button" className="btn small" onClick={addCentralItem}>
                   Ajouter
                 </button>

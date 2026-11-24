@@ -333,6 +333,19 @@ export const puzzleV2Editor: TemplateEditorManifestV2 = {
       onDelete: "clear",
     },
   ],
+  insertion: [
+    {
+      parentKind: "menu",
+      childCollection: "blocks",
+      allowedKinds: ["menu_item", "link", "button"],
+      slot: "content",
+      defaults: {
+        menu_item: { title: "Nouvelle entrée" },
+        link: { title: "Nouveau lien" },
+        button: { title: "Nouveau bouton" },
+      },
+    },
+  ],
   structure: {
     roots: "pages",
     regions: {
@@ -385,6 +398,15 @@ export const puzzleV2Values = {
     { id: "footer_about", page_id: "about", slot: "footer", shared: true },
   ],
   blocks: [
+    {
+      id: "nav_main",
+      kind: "menu",
+      name: "",
+      title: "",
+      description: "",
+      style_id: "",
+      action_id: "",
+    },
     {
       id: "hero_main",
       kind: "hero",
