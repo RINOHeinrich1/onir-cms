@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
+import { strToU8, zipSync } from "fflate";
 import type { StandaloneBuildStorage } from "@/application/ports/standalone-build-storage";
 import type { StandaloneRepository } from "@/application/ports/standalone-repository";
 import { standaloneBuildArtifactPrefix } from "@/domain/standalone";
+import {
+  renderStandaloneDeploymentReadme,
+  renderStandaloneNginxExample,
+} from "@/domain/standalone-artifact";
 import {
   type AssembledStandaloneArtifact,
   type AssembleStandaloneArtifactInput,
@@ -54,6 +59,21 @@ export async function persistStandaloneArtifact(
       });
       written.push(key);
     }
+
+    const zipEntries: Record<string, Uint8Array> = {};
+    for (const file of artifact.files) {
+      zipEntries[file.path] = file.data;
+    }
+    zipEntries["README-DEPLOY.md"] = strToU8(renderStandaloneDeploymentReadme(input));
+    zipEntries["nginx.example.conf"] = strToU8(renderStandaloneNginxExample());
+    const archive = zipSync(zipEntries, { level: 6 });
+    const archiveKey = `${artifactKey}/site.zip`;
+    await deps.storage.put({
+      key: archiveKey,
+      data: archive,
+      contentType: "application/zip",
+    });
+    written.push(archiveKey);
 
     const artifactSha256 = artifactHash(artifact);
     await deps.builds.markBuildReady({

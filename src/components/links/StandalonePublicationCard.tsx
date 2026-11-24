@@ -230,6 +230,15 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                       #{build.buildNumber} · {new Date(build.createdAt).toLocaleString("fr-FR")}
                     </span>
                     <span className={badgeClass(build.status)}>{BUILD_LABELS[build.status]}</span>
+                    {build.status === "ready" || build.status === "active" ? (
+                      <a
+                        className="link"
+                        href={`/api/links/${chatLinkId}/standalone/builds/${build.id}/download`}
+                        download
+                      >
+                        Télécharger
+                      </a>
+                    ) : null}
                     {build.status === "ready" ? (
                       <button
                         type="button"
