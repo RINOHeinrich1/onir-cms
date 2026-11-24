@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type BuildStatus = "queued" | "building" | "ready" | "failed" | "active" | "superseded";
 type VerificationStatus = "pending" | "verifying" | "verified" | "failed";
@@ -93,27 +93,44 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
   const [error, setError] = useState<string | null>(null);
   const [hostname, setHostname] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    void fetch(`/api/links/${chatLinkId}/standalone`, { cache: "no-store" })
-      .then(async (response) => {
+  const refreshing = useRef(false);
+
+  const load = useCallback(
+    async (initial: boolean): Promise<void> => {
+      if (refreshing.current) return;
+      refreshing.current = true;
+      if (initial) setLoading(true);
+      try {
+        const response = await fetch(`/api/links/${chatLinkId}/standalone`, {
+          cache: "no-store",
+        });
         const json = (await response.json().catch(() => null)) as
           | (State & { error?: string })
           | null;
-        if (!response.ok || json === null) throw new Error(json?.error ?? "Chargement impossible");
-        if (!cancelled) setState(json);
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : "Chargement impossible");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [chatLinkId]);
+        if (!response.ok || json === null) {
+          throw new Error(json?.error ?? "Chargement impossible");
+        }
+        setState(json);
+        setError(null);
+      } catch (cause) {
+        if (initial) {
+          setError(cause instanceof Error ? cause.message : "Chargement impossible");
+        }
+      } finally {
+        refreshing.current = false;
+        if (initial) setLoading(false);
+      }
+    },
+    [chatLinkId],
+  );
+
+  useEffect(() => {
+    void load(true);
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void load(false);
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [load]);
 
   async function action(name: string, payload: Record<string, unknown> = {}): Promise<void> {
     setBusy(name);
