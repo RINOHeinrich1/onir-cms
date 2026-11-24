@@ -1,0 +1,17 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  overflow-x: clip;
+}
+
+#onir-standalone-root,
+#onir-standalone-root .template-host {
+  width: 100%;
+  min-height: 100dvh;
+}
