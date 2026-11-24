@@ -5,6 +5,14 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.42.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.41.0...v0.42.0) (2026-11-24)
+
+
+### Features
+
+* **editor:** Editor V2 collections et régions dynamiques ([#320](https://github.com/RINOHeinrich1/onir-cms/issues/320)) ([7f85fed](https://github.com/RINOHeinrich1/onir-cms/commit/7f85fed6051167066f50fe5b0adc7c61c5b569d9))
+* **ui:** replier les objets et collections de paramètres ([#318](https://github.com/RINOHeinrich1/onir-cms/issues/318)) ([e903e25](https://github.com/RINOHeinrich1/onir-cms/commit/e903e25026aca8dd445733c4d670828a7ba8fc33))
+
 ## [0.41.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.40.0...v0.41.0) (2026-11-24)
 
 
