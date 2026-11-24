@@ -104,3 +104,4 @@ ADR qui remplace la précédente.
 | [0105](./0105-mode-edition-rapide-templates.md) | Mode d’édition rapide des templates visuels — curseur d’inspection et variables contextuelles | Proposé |
 | [0106](./0106-build-standalone-domaine-personnalise-chatbot.md) | Build standalone et domaine personnalisé par chatbot | Proposé |
 | [0107](./0107-build-standalone-telechargeable.md) | Build standalone téléchargeable pour hébergement autonome | Proposé |
+| [0108](./0108-structured-template-editor-v2.md) | Structured Template Editor V2 — séparer les données du modèle d’édition | Proposé |
