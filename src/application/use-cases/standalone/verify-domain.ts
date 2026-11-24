@@ -11,6 +11,7 @@ export type VerifyStandaloneDomainDependencies = {
   dns: StandaloneDnsResolver;
   /** Cible CNAME attendue pour les domaines personnalisés. */
   edgeHostname?: string;
+  edgeIps?: string[];
 };
 
 export function standaloneVerificationRecord(hostname: string): string {
@@ -56,11 +57,20 @@ export async function verifyStandaloneDomain(
       }
 
       if (deps.edgeHostname !== undefined && deps.edgeHostname.trim() !== "") {
-        const targets = await deps.dns.resolveCname(domain.hostname);
+        const targets = await deps.dns.resolveCname(domain.hostname).catch(() => []);
         const expectedEdge = normalizeDnsTarget(deps.edgeHostname);
-        const matches = targets.map(normalizeDnsTarget).some((target) => target === expectedEdge);
-        if (!matches) {
-          throw new Error(`CNAME vers ${expectedEdge} absent`);
+        let routed = targets.map(normalizeDnsTarget).some((target) => target === expectedEdge);
+        if (!routed && (deps.edgeIps?.length ?? 0) > 0) {
+          const addresses = [
+            ...(await deps.dns.resolve4(domain.hostname).catch(() => [] as string[])),
+            ...(await deps.dns.resolve6(domain.hostname).catch(() => [] as string[])),
+          ].map(normalizeDnsTarget);
+          routed = addresses.some((address) => (deps.edgeIps ?? []).includes(address));
+        }
+        if (!routed) {
+          throw new Error(
+            `Routage DNS absent : CNAME vers ${expectedEdge} ou A/AAAA vers l'edge attendu`,
+          );
         }
       }
     }

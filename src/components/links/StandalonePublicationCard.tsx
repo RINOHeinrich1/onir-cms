@@ -286,16 +286,7 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                 ))}
               </div>
             )}
-            <form
-              style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (hostname.trim() === "") return;
-                void action("add-domain", { hostname: hostname.trim() }).then(() =>
-                  setHostname(""),
-                );
-              }}
-            >
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
               <input
                 className="input"
                 type="text"
@@ -306,12 +297,18 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
               />
               <button
                 className="btn ghost small"
-                type="submit"
+                type="button"
                 disabled={busy !== null || hostname.trim() === ""}
+                onClick={() => {
+                  if (hostname.trim() === "") return;
+                  void action("add-domain", { hostname: hostname.trim() }).then(() =>
+                    setHostname(""),
+                  );
+                }}
               >
                 Ajouter le domaine
               </button>
-            </form>
+            </div>
           </div>
         </>
       ) : null}

@@ -15,7 +15,7 @@ import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgStandaloneRepository } from "@/infrastructure/db/standalone-repository";
 import { nodeStandaloneDnsResolver } from "@/infrastructure/dns/node-dns-resolver";
-import { standaloneEdgeHostname } from "@/lib/env";
+import { standaloneEdgeHostname, standaloneEdgeIps } from "@/lib/env";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject, stringField } from "../../../_lib/http";
 import { requireRole } from "../../../_lib/require-user";
@@ -144,6 +144,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
           domains: repo,
           dns: nodeStandaloneDnsResolver(),
           edgeHostname: standaloneEdgeHostname(),
+          edgeIps: standaloneEdgeIps(),
         },
         { domainId },
       );

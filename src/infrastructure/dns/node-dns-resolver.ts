@@ -9,5 +9,11 @@ export function nodeStandaloneDnsResolver(): StandaloneDnsResolver {
     async resolveCname(name) {
       return dns.resolveCname(name);
     },
+    async resolve4(name) {
+      return dns.resolve4(name);
+    },
+    async resolve6(name) {
+      return dns.resolve6(name);
+    },
   };
 }

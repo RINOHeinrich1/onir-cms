@@ -104,6 +104,7 @@ export interface StandaloneRepository {
   }): Promise<StandaloneBuild>;
 
   listDomains(chatLinkId: string): Promise<StandaloneDomain[]>;
+  listPendingDomains(limit?: number): Promise<StandaloneDomain[]>;
   findDomain(id: string): Promise<StandaloneDomain | null>;
   findDomainByHostname(hostname: string): Promise<StandaloneDomain | null>;
   createDomain(input: CreateStandaloneDomainInput): Promise<StandaloneDomain>;
