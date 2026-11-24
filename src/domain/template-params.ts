@@ -59,11 +59,17 @@ export type TemplateParamError = { field: string; message: string };
 
 export const MAX_TEMPLATE_PARAMS = 64;
 export const MAX_TEMPLATE_PARAMS_JSON_BYTES = 64 * 1024;
+export const MAX_TEMPLATE_PARAM_VALUES_JSON_BYTES = 512 * 1024;
 export const MAX_TEMPLATE_PARAM_STRING = 2000;
 export const DEFAULT_TEMPLATE_PARAM_MAX_LENGTH = 200;
 export const MAX_TEMPLATE_PARAM_OPTIONS = 40;
 export const MAX_TEMPLATE_PARAM_DEPTH = 8;
-export const MAX_TEMPLATE_PARAM_NODES = 300;
+/** Budget du schéma déclaratif. */
+export const MAX_TEMPLATE_PARAM_SCHEMA_NODES = 300;
+/** Budget des valeurs structurées persistées (collections, placements…). */
+export const MAX_TEMPLATE_PARAM_VALUE_NODES = 20_000;
+/** @deprecated Utiliser MAX_TEMPLATE_PARAM_SCHEMA_NODES. */
+export const MAX_TEMPLATE_PARAM_NODES = MAX_TEMPLATE_PARAM_SCHEMA_NODES;
 export const MAX_TEMPLATE_PARAM_PROPERTIES = 50;
 export const MAX_TEMPLATE_PARAM_ITEMS = 100;
 
@@ -245,7 +251,7 @@ function normalizeJsonValue(
 ): TemplateParamValue | undefined {
   if (depth > MAX_TEMPLATE_PARAM_DEPTH) return undefined;
   counter.nodes += 1;
-  if (counter.nodes > MAX_TEMPLATE_PARAM_NODES) return undefined;
+  if (counter.nodes > MAX_TEMPLATE_PARAM_VALUE_NODES) return undefined;
   if (isScalar(value)) {
     if (typeof value === "string" && value.length > MAX_TEMPLATE_PARAM_STRING) return undefined;
     return value;
@@ -445,8 +451,11 @@ function parseItemNode(
     return null;
   }
   counter.nodes += 1;
-  if (counter.nodes > MAX_TEMPLATE_PARAM_NODES) {
-    errors.push({ field: base, message: `plus de ${MAX_TEMPLATE_PARAM_NODES} nœuds` });
+  if (counter.nodes > MAX_TEMPLATE_PARAM_SCHEMA_NODES) {
+    errors.push({
+      field: base,
+      message: `plus de ${MAX_TEMPLATE_PARAM_SCHEMA_NODES} nœuds de schéma`,
+    });
     return null;
   }
   if (!isRecord(raw)) {
@@ -478,8 +487,11 @@ function parseNode(
     return null;
   }
   counter.nodes += 1;
-  if (counter.nodes > MAX_TEMPLATE_PARAM_NODES) {
-    errors.push({ field: base, message: `plus de ${MAX_TEMPLATE_PARAM_NODES} nœuds` });
+  if (counter.nodes > MAX_TEMPLATE_PARAM_SCHEMA_NODES) {
+    errors.push({
+      field: base,
+      message: `plus de ${MAX_TEMPLATE_PARAM_SCHEMA_NODES} nœuds de schéma`,
+    });
     return null;
   }
   if (type === "object") {
@@ -682,12 +694,57 @@ export function normalizeTemplateParamValues(input: unknown): TemplateParamValue
   }
   const keys = Object.keys(out);
   let index = keys.length - 1;
-  while (index >= 0 && byteLength(JSON.stringify(out)) > MAX_TEMPLATE_PARAMS_JSON_BYTES) {
+  while (index >= 0 && byteLength(JSON.stringify(out)) > MAX_TEMPLATE_PARAM_VALUES_JSON_BYTES) {
     const key = keys[index];
     if (key !== undefined) delete out[key];
     index -= 1;
   }
   return out;
+}
+
+export type TemplateParamValuesResult =
+  | { ok: true; value: TemplateParamValues }
+  | { ok: false; errors: TemplateParamError[] };
+
+/**
+ * Normalise strictement les valeurs avant persistance.
+ * Refuse explicitement toute perte de donnée (clé invalide, valeur trop
+ * complexe ou dépassement de budget) au lieu de supprimer silencieusement.
+ */
+export function normalizeTemplateParamValuesStrict(input: unknown): TemplateParamValuesResult {
+  if (input === undefined || input === null) return { ok: true, value: {} };
+  if (!isRecord(input)) {
+    return {
+      ok: false,
+      errors: [{ field: "params", message: "objet de valeurs attendu" }],
+    };
+  }
+  const errors: TemplateParamError[] = [];
+  const out: TemplateParamValues = {};
+  const counter = { nodes: 0 };
+  for (const [key, value] of Object.entries(input)) {
+    if (key === "" || key.length > 64 || FORBIDDEN_KEYS.has(key)) {
+      errors.push({ field: key, message: "clé de paramètre invalide" });
+      continue;
+    }
+    const normalized = normalizeJsonValue(value, 0, counter);
+    if (normalized === undefined) {
+      errors.push({
+        field: key,
+        message: "valeur trop complexe ou invalide (budget de nœuds / profondeur / type)",
+      });
+      continue;
+    }
+    out[key] = normalized;
+  }
+  if (byteLength(JSON.stringify(out)) > MAX_TEMPLATE_PARAM_VALUES_JSON_BYTES) {
+    errors.push({
+      field: "params",
+      message: `valeurs dépassant ${MAX_TEMPLATE_PARAM_VALUES_JSON_BYTES} octets`,
+    });
+  }
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value: out };
 }
 
 export type TemplateParamMergeResult = {
