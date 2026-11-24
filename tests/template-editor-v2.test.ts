@@ -141,4 +141,73 @@ describe("régions dynamiques V2", () => {
     expect(bindingsForRegion(result.value, "block:hero_main")).toHaveLength(1);
     expect(bindingsForRegion(result.value, "block:card_one")).toHaveLength(0);
   });
+
+  it("refuse un binding d'élément sans région dynamique déclarée", () => {
+    const result = validateTemplateEditorBlock(
+      v2({
+        dynamicRegions: [],
+        bindings: [
+          {
+            param: "blocks",
+            itemKey: "id",
+            itemId: "hero_main",
+            regions: ["main"],
+            category: "content",
+          },
+        ],
+      }),
+      params,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((error) => error.field.includes("itemId"))).toBe(true);
+  });
+
+  it("accepte plusieurs bindings de la même collection pour des éléments distincts", () => {
+    const result = validateTemplateEditorBlock(
+      v2({
+        bindings: [
+          {
+            param: "blocks",
+            itemKey: "id",
+            itemId: "hero_main",
+            regions: ["block:hero_main"],
+            category: "content",
+          },
+          {
+            param: "blocks",
+            itemKey: "id",
+            itemId: "card_one",
+            regions: ["block:card_one"],
+            category: "content",
+          },
+        ],
+      }),
+      params,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    expect(bindingsForRegion(result.value, "block:hero_main")).toHaveLength(1);
+    expect(bindingsForRegion(result.value, "block:card_one")).toHaveLength(1);
+  });
+
+  it("ne retourne pas un binding dont l'itemId est faux", () => {
+    const result = validateTemplateEditorBlock(
+      v2({
+        bindings: [
+          {
+            param: "blocks",
+            itemKey: "id",
+            itemId: "hero_main",
+            regions: ["block:hero_main"],
+            category: "content",
+          },
+        ],
+      }),
+      params,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    expect(bindingsForRegion(result.value, "block:card_one")).toHaveLength(0);
+  });
 });

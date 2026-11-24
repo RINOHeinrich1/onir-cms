@@ -370,14 +370,16 @@ function ParamValueEditor({
                   {itemExpanded ? "▾" : "▸"} {itemSummary(entry, index, label, collection)}
                   {kind === null ? null : <span className="badge muted">{kind}</span>}
                 </button>
-                <button
-                  type="button"
-                  className="btn ghost small"
-                  disabled={items.length <= minItems}
-                  onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
-                >
-                  Supprimer
-                </button>
+                {focus === null ? (
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    disabled={items.length <= minItems}
+                    onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    Supprimer
+                  </button>
+                ) : null}
               </div>
               {itemExpanded ? (
                 <ParamValueEditor

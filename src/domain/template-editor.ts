@@ -174,9 +174,23 @@ function validParamPath(path: string): boolean {
 }
 
 /** Valide le bloc `editor` optionnel d’un manifeste. */
+function matchDynamicPattern(pattern: string, regionId: string): boolean {
+  const open = pattern.indexOf("{");
+  const close = pattern.indexOf("}", open + 1);
+  if (open < 0 || close < 0) return false;
+  const prefix = pattern.slice(0, open);
+  const suffix = pattern.slice(close + 1);
+  return (
+    regionId.startsWith(prefix) &&
+    regionId.endsWith(suffix) &&
+    regionId.length > prefix.length + suffix.length
+  );
+}
+
 export function validateTemplateEditorBlock(
   input: unknown,
   params: TemplateParamSchema[],
+  options: { dynamicPatterns?: string[]; allowDuplicateParams?: boolean } = {},
 ): TemplateEditorValidation {
   if (input === undefined) return { ok: true, value: undefined };
   if (!isRecord(input)) {
@@ -284,7 +298,9 @@ export function validateTemplateEditorBlock(
       const param = text(raw.param);
       if (!validParamPath(param)) add(`${base}.param`, "chemin de paramètre invalide");
       if (findParamNode(params, param) === null) add(`${base}.param`, "paramètre inexistant");
-      if (paramsSeen.has(param)) add(`${base}.param`, "binding dupliqué");
+      if (!options.allowDuplicateParams && paramsSeen.has(param)) {
+        add(`${base}.param`, "binding dupliqué");
+      }
       paramsSeen.add(param);
 
       const rawRegionsForBinding = raw.regions;
@@ -293,7 +309,12 @@ export function validateTemplateEditorBlock(
         : [];
       if (bindingRegions.length === 0) add(`${base}.regions`, "au moins une région");
       for (const regionId of bindingRegions) {
-        if (!regionIds.has(regionId)) add(`${base}.regions`, `région inconnue : ${regionId}`);
+        const dynamic = (options.dynamicPatterns ?? []).some((pattern) =>
+          matchDynamicPattern(pattern, regionId),
+        );
+        if (!regionIds.has(regionId) && !dynamic) {
+          add(`${base}.regions`, `région inconnue : ${regionId}`);
+        }
       }
 
       const category = text(raw.category);
@@ -323,7 +344,15 @@ function validateTemplateEditorV2(
   input: Record<string, unknown>,
   params: TemplateParamSchema[],
 ): TemplateEditorValidation {
-  const base = validateTemplateEditorBlock({ ...input, version: 1 }, params);
+  const rawDynamicPatterns = Array.isArray(input.dynamicRegions)
+    ? input.dynamicRegions
+        .map((raw) => (isRecord(raw) ? text(raw.idPattern) : ""))
+        .filter((pattern) => pattern !== "")
+    : [];
+  const base = validateTemplateEditorBlock({ ...input, version: 1 }, params, {
+    dynamicPatterns: rawDynamicPatterns,
+    allowDuplicateParams: true,
+  });
   if (!base.ok || base.value === undefined) return base;
   const errors: TemplateEditorError[] = [];
   const add = (field: string, message: string): void => {
@@ -475,8 +504,22 @@ function validateTemplateEditorV2(
     if (!isRecord(raw)) return binding;
     const itemKey = raw.itemKey === undefined ? undefined : text(raw.itemKey);
     const itemId = raw.itemId === undefined ? undefined : text(raw.itemId);
+    const collection = collections.find((entry) => entry.param === binding.param);
     if (itemKey !== undefined && itemKey !== "" && !collectionParams.has(binding.param)) {
       add(`editor.bindings[${index}].itemKey`, "binding d'élément sur une collection inconnue");
+    }
+    if (itemId !== undefined && itemId !== "") {
+      if (itemKey === undefined || itemKey === "") {
+        add(`editor.bindings[${index}].itemKey`, "itemKey requis avec itemId");
+      } else if (collection !== undefined && collection.itemKey !== itemKey) {
+        add(`editor.bindings[${index}].itemKey`, "itemKey doit correspondre à la collection");
+      }
+      const dynamic = dynamicRegions.some(
+        (entry) => entry.collection === binding.param && entry.keyField === itemKey,
+      );
+      if (!dynamic) {
+        add(`editor.bindings[${index}].itemId`, "région dynamique absente pour cet élément");
+      }
     }
     if (itemId !== undefined && itemId === "") {
       add(`editor.bindings[${index}].itemId`, "itemId vide");
@@ -557,12 +600,16 @@ export function bindingsForRegion(
 ): TemplateEditorBinding[] {
   const dynamic = resolveDynamicRegion(editor, regionId);
   return editor.bindings.filter((binding) => {
-    if (binding.regions.includes(regionId)) return true;
-    if (dynamic === null) return false;
     const v2 = binding as TemplateEditorBindingV2;
+    if (dynamic === null) return binding.regions.includes(regionId);
+    const sameItem =
+      v2.itemId === undefined ||
+      (v2.itemId === dynamic.itemId &&
+        (v2.itemKey === undefined || v2.itemKey === dynamic.keyField));
+    if (!sameItem) return false;
+    if (binding.regions.includes(regionId)) return true;
     return (
       v2.param === dynamic.collection &&
-      (v2.itemId === undefined || v2.itemId === dynamic.itemId) &&
       (v2.itemKey === undefined || v2.itemKey === dynamic.keyField)
     );
   });

@@ -1023,9 +1023,11 @@ export function LinkDisplaySettings({
                       Tous les paramètres
                     </button>
                   </div>
-                  <p className="hint">
-                    {selectedRegionChain.map((entry) => entry.label).join(" / ")}
-                  </p>
+                  {selectedRegionChain.length === 0 ? null : (
+                    <p className="hint">
+                      {selectedRegionChain.map((entry) => entry.label).join(" / ")}
+                    </p>
+                  )}
                   {localPaths.size === 0 ? null : (
                     <TemplateParamsFields
                       schema={paramsSchema}
