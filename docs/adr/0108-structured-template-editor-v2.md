@@ -1,6 +1,6 @@
 # 0108. Structured Template Editor V2 — séparer les données du modèle d’édition
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-24
 - **Référence** : ADR-0023, ADR-0040, ADR-0095, ADR-0105, ADR-0106, ADR-0107.
 - **Complète** : ADR-0105 (zones d’inspection).
@@ -175,6 +175,7 @@ Règles :
 - vérification de l’existence de l’élément dans la collection ;
 - aucune exécution de code arbitraire ;
 - pas de sélecteur CSS arbitraire dans le manifeste ;
+- deux régions dynamiques ne peuvent pas partager le même préfixe ;
 - le déplacement d’un élément ne change pas son identité.
 
 ### 5. Bindings ciblés
@@ -354,6 +355,9 @@ Règles :
 - les cibles sont validées à l’enregistrement ;
 - les suppressions suivent `onDelete` (`clear`, `cascade`, `restrict`) ;
 - aucun identifiant orphelin n’est introduit silencieusement ;
+- les références fonctionnelles peuvent être circulaires (`blocks → actions → blocks`) ;
+- seuls les cycles réels de contenance déclarés par `structure.children` sont interdits ;
+- `onDelete` ne définit pas la contenance : la contenance vient de la structure déclarée ;
 - le host effectue la validation et la mutation.
 
 ### 10. Arbre de structure déclaratif
@@ -385,6 +389,10 @@ Le manifeste déclare comment reconstruire l’arbre :
   }
 }
 ```
+
+Les champs listés dans `structure.regions.fields` appartiennent à la collection
+racine (`roots`) et référencent la collection des régions. Ils ne sont pas lus
+dans la collection des régions elle-même.
 
 Le moteur générique reconstruit :
 
@@ -488,6 +496,13 @@ Risque de sécurité et de maintenance. Refusée.
 ### Mutations côté template
 
 Le template ne doit pas écrire. Refusée.
+
+## Implémentation
+
+Le contrat est implémenté dans la branche `feat/editor-v2-collections`, mergée
+dans `main` via la PR #320. Les validateurs runtime couvrent les collections,
+régions dynamiques, groupes, `valueLabels`, références, structure, scopes et
+conditions de visibilité. La V1 reste inchangée.
 
 ## Conséquences
 
