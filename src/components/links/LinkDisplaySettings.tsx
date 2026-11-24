@@ -278,6 +278,7 @@ export function LinkDisplaySettings({
   const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
   const selectedCollections =
     selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
+  const selectedReferences = selectedEditor?.version === 2 ? selectedEditor.references : undefined;
   const searchPaths = useMemo(
     () =>
       searchTemplateParamPaths(
@@ -1261,6 +1262,7 @@ export function LinkDisplaySettings({
                       visiblePaths={localPaths}
                       legend="Paramètres de la zone"
                       collections={selectedCollections}
+                      references={selectedReferences}
                       collectionFocus={collectionFocus}
                       onChange={recordParams}
                     />
@@ -1272,6 +1274,7 @@ export function LinkDisplaySettings({
                       visiblePaths={sharedPaths}
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
                       collections={selectedCollections}
+                      references={selectedReferences}
                       collectionFocus={collectionFocus}
                       onChange={recordParams}
                     />
@@ -1332,6 +1335,7 @@ export function LinkDisplaySettings({
                       schema={filteredParams}
                       values={draft.params as TemplateParamValues}
                       collections={selectedCollections}
+                      references={selectedReferences}
                       collectionFocus={collectionFocus}
                       visiblePaths={visibleSearchPaths}
                       onChange={recordParams}
