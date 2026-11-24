@@ -506,7 +506,7 @@ export function LinksTable({
         return;
       }
       setSelectedIds((current) => current.filter((id) => id !== link.id));
-      toast.success("Chatbot supprimé.");
+      toast.success("Assistant IA supprimé.");
       await refresh();
     } catch {
       setError("Erreur réseau, veuillez réessayer");
@@ -519,7 +519,7 @@ export function LinksTable({
     setError(null);
     if (
       !(await confirmDialog(
-        `Supprimer ${ids.length} chatbot${ids.length > 1 ? "s" : ""} et toutes leurs conversations ? Cette action est irréversible.`,
+        `Supprimer ${ids.length} assistant(s) IA et toutes leurs conversations ? Cette action est irréversible.`,
         {
           title: "Supprimer la sélection",
           confirmLabel: "Supprimer",
@@ -552,18 +552,16 @@ export function LinksTable({
       await refresh();
 
       if (deleted === 0) {
-        setError("Aucun chatbot supprimé");
+        setError("Aucun assistant IA supprimé");
         return;
       }
       if ((json.missing ?? 0) > 0) {
         toast.warning(
-          `${deleted} chatbot${deleted > 1 ? "s" : ""} supprimé${deleted > 1 ? "s" : ""}, ${json.missing} introuvable${(json.missing ?? 0) > 1 ? "s" : ""}.`,
+          `${deleted} assistant(s) IA supprimé(s), ${json.missing} introuvable${(json.missing ?? 0) > 1 ? "s" : ""}.`,
         );
         return;
       }
-      toast.success(
-        `${deleted} chatbot${deleted > 1 ? "s" : ""} supprimé${deleted > 1 ? "s" : ""}.`,
-      );
+      toast.success(`${deleted} assistant(s) IA supprimé(s).`);
     } catch {
       setError("Erreur réseau, veuillez réessayer");
     } finally {
@@ -608,9 +606,9 @@ export function LinksTable({
 
       <section className="chatbots-hero" aria-labelledby="chatbots-title">
         <div className="chatbots-hero-copy">
-          <span className="chatbots-hero-eyebrow">Espace chatbots</span>
-          <h1 id="chatbots-title">Mes Chatbots</h1>
-          <p>Créez, gérez et personnalisez vos assistants intelligents.</p>
+          <span className="chatbots-hero-eyebrow">Espace assistants IA</span>
+          <h1 id="chatbots-title">Mes Assistants IA</h1>
+          <p>Créez, personnalisez, démarrez votre projet d’assistant IA.</p>
           <a className="btn chatbots-hero-cta" href="https://onir-cms.tech/articles/">
             Découvrir ONIR-CMS <span aria-hidden="true">→</span>
           </a>
@@ -626,8 +624,8 @@ export function LinksTable({
             setSelectedIds([]);
             setSelectedDraftIds([]);
           }}
-          placeholder="Rechercher un chatbot…"
-          label="Rechercher un chatbot"
+          placeholder="Rechercher un assistant IA…"
+          label="Rechercher un assistant IA"
         />
         <FilterMenu
           label="Filtres"
@@ -657,7 +655,7 @@ export function LinksTable({
         </button>
       </div>
 
-      <div className="chatbot-tabs" role="tablist" aria-label="Filtrer les chatbots">
+      <div className="chatbot-tabs" role="tablist" aria-label="Filtrer les assistants IA">
         {(
           [
             { id: "all", label: "Tous", count: allCount },
@@ -692,16 +690,13 @@ export function LinksTable({
             {selectableState === "all" ? "Tout désélectionner" : "Tout sélectionner"}
             <span className="connaissance-select-count">({selectableIds.length})</span>
           </RoundCheckbox>
-          <span className="hint">Sélectionnez les chatbots à supprimer.</span>
+          <span className="hint">Sélectionnez les assistants IA à supprimer.</span>
         </div>
       ) : null}
 
       {selectedIds.length > 0 ? (
         <div className="links-bulk-bar" role="status">
-          <strong>
-            {selectedIds.length} chatbot{selectedIds.length > 1 ? "s" : ""} sélectionné
-            {selectedIds.length > 1 ? "s" : ""}
-          </strong>
+          <strong>{selectedIds.length} assistant(s) IA sélectionné(s)</strong>
           <button
             type="button"
             className="btn danger small"
@@ -739,14 +734,14 @@ export function LinksTable({
           <span className="chatbot-new-icon" aria-hidden="true">
             +
           </span>
-          <strong>Créer un nouveau chatbot</strong>
+          <strong>Créer un nouvel assistant IA</strong>
         </button>
         {pagination.pageItems.map((link) => {
           const displaySettingsHref = displaySettingsHrefFor(link);
           const previewUrl = templatePreviewUrl(link);
           const widgetEnabled = channelsForLink(link).widget.enabled;
           const status = linkStatus(link, nowIso);
-          const label = link.label === "" ? "Chatbot sans nom" : link.label;
+          const label = link.label === "" ? "Assistant IA sans nom" : link.label;
           return (
             <article
               className={`chatbot-card chatbot-card--links${selectedIds.includes(link.id) ? " is-selected" : ""}`}
@@ -822,7 +817,7 @@ export function LinksTable({
                     ) : (
                       <>
                         <a href={link.url} target="_blank" rel="noopener noreferrer">
-                          Ouvrir le chatbot
+                          Ouvrir l’assistant IA
                         </a>
                         <button type="button" onClick={() => void doCopy(link)}>
                           Copier le lien
