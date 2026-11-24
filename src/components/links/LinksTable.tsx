@@ -856,6 +856,12 @@ export function LinksTable({
                     >
                       Voir les fiches associées
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/liens/${link.id}/deploiement-standalone`)}
+                    >
+                      Déploiement standalone
+                    </button>
                     <button type="button" onClick={() => router.push(`/liens/${link.id}/modifier`)}>
                       Modifier
                     </button>

@@ -43,7 +43,6 @@ import {
 import { type ChannelDrafts, channelApiPayload, LinkChannelsFields } from "./LinkChannelsFields";
 import { LinkDataBindingsField } from "./LinkDataBindingsField";
 import { type LinkQuotaDraft, LinkQuotaFields } from "./LinkQuotaFields";
-import { StandalonePublicationCard } from "./StandalonePublicationCard";
 import type {
   AiProviderOption,
   ChatLinkRow,
@@ -588,7 +587,6 @@ export function ChatbotEditForm({
               visualTemplates={visualTemplates}
               confidentialites={confidentialites}
             />
-            {channels.page.enabled ? <StandalonePublicationCard chatLinkId={link.id} /> : null}
             <UserStateField value={userStateEnabled} onChange={setUserStateEnabled} />
             <LinkDataBindingsField
               templateId={activeTemplate.id}

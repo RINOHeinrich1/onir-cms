@@ -9,6 +9,7 @@ import "@/styles/tokens.css";
 import "@/styles/motion.css";
 import "@/styles/components.css";
 import "@/styles/chat.css";
+import "@/styles/standalone.css";
 
 declare global {
   interface Window {

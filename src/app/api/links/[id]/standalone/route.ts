@@ -15,7 +15,7 @@ import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgStandaloneRepository } from "@/infrastructure/db/standalone-repository";
 import { nodeStandaloneDnsResolver } from "@/infrastructure/dns/node-dns-resolver";
-import { standaloneEdgeHostname } from "@/lib/env";
+import { standaloneEdgeHostname, standaloneEdgeIps } from "@/lib/env";
 import { errorResponse } from "../../../_lib/errors";
 import { readJsonObject, stringField } from "../../../_lib/http";
 import { requireRole } from "../../../_lib/require-user";
@@ -44,9 +44,14 @@ async function loadState(
   return { settings, builds, domains };
 }
 
-function publicState(state: Awaited<ReturnType<typeof loadState>>, edgeHostname: string) {
+function publicState(
+  state: Awaited<ReturnType<typeof loadState>>,
+  edgeHostname: string,
+  edgeIps: string[],
+) {
   return {
     settings: state.settings,
+    edgeIps,
     builds: state.builds,
     domains: state.domains.map((domain) => ({
       ...domain,
@@ -72,7 +77,11 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     const link = await pgChatLinkRepository(getPool()).findById(actor.organizationId, id);
     if (link === null) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
     return NextResponse.json(
-      publicState(await loadState(actor.organizationId, id), standaloneEdgeHostname()),
+      publicState(
+        await loadState(actor.organizationId, id),
+        standaloneEdgeHostname(),
+        standaloneEdgeIps(),
+      ),
     );
   } catch (error) {
     return errorResponse(error);
@@ -139,14 +148,18 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       const domain = await repo.findDomain(domainId);
       if (domain === null || domain.chatLinkId !== id)
         throw new ValidationError("Domaine introuvable");
-      await verifyStandaloneDomain(
+      const verified = await verifyStandaloneDomain(
         {
           domains: repo,
           dns: nodeStandaloneDnsResolver(),
           edgeHostname: standaloneEdgeHostname(),
+          edgeIps: standaloneEdgeIps(),
         },
         { domainId },
       );
+      if (verified.sslStatus === "failed") {
+        await repo.setDomainSsl({ id: domainId, status: "pending", lastError: null });
+      }
     } else if (action === "delete-domain") {
       const domainId = stringField(body, "domainId");
       if (domainId === undefined) throw new ValidationError("Domaine manquant");
@@ -166,7 +179,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     }
 
     return NextResponse.json(
-      publicState(await loadState(actor.organizationId, id), standaloneEdgeHostname()),
+      publicState(
+        await loadState(actor.organizationId, id),
+        standaloneEdgeHostname(),
+        standaloneEdgeIps(),
+      ),
     );
   } catch (error) {
     return errorResponse(error);

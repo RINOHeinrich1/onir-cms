@@ -1,3 +1,4 @@
+import { strFromU8, unzipSync } from "fflate";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StandaloneBuildStorage } from "@/application/ports/standalone-build-storage";
 import type { StandaloneRepository } from "@/application/ports/standalone-repository";
@@ -86,6 +87,11 @@ describe("persistance d'un build standalone", () => {
     expect(result.artifactSha256).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(objects.has(`${result.artifactKey}/index.html`)).toBe(true);
     expect(objects.has(`${result.artifactKey}/template/dist/index.js`)).toBe(true);
+    const archive = objects.get(`${result.artifactKey}/site.zip`);
+    expect(archive).toBeDefined();
+    const entries = unzipSync(archive ?? new Uint8Array());
+    expect(strFromU8(entries["index.html"] ?? new Uint8Array())).toContain("onir-standalone-root");
+    expect(strFromU8(entries["README-DEPLOY.md"] ?? new Uint8Array())).toContain("/api/chat");
     expect(markBuildReady).toHaveBeenCalledWith({
       id: buildId,
       artifactKey: result.artifactKey,

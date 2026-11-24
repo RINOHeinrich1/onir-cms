@@ -325,3 +325,11 @@ export function defaultAdmin(): DefaultAdmin {
 export function standaloneEdgeHostname(): string {
   return env("STANDALONE_EDGE_HOSTNAME") ?? "standalone.onir-cms.tech";
 }
+
+/** IP(s) publiques de l'edge pour la vérification des A/AAAA. */
+export function standaloneEdgeIps(): string[] {
+  return (env("STANDALONE_EDGE_IPS") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type BuildStatus = "queued" | "building" | "ready" | "failed" | "active" | "superseded";
 type VerificationStatus = "pending" | "verifying" | "verified" | "failed";
@@ -32,6 +32,7 @@ type State = {
   settings: { enabled: boolean; activeBuildId: string | null };
   builds: Build[];
   domains: Domain[];
+  edgeIps?: string[];
 };
 
 const BUILD_LABELS: Record<BuildStatus, string> = {
@@ -58,6 +59,24 @@ const SSL_LABELS: Record<SslStatus, string> = {
   expired: "SSL expiré",
 };
 
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="link"
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+    >
+      {copied ? "Copié" : `Copier ${label}`}
+    </button>
+  );
+}
+
 function badgeClass(value: string): string {
   if (value === "active" || value === "verified" || value === "ready") return "badge success";
   if (value === "failed" || value === "expired") return "badge danger";
@@ -74,27 +93,44 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
   const [error, setError] = useState<string | null>(null);
   const [hostname, setHostname] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    void fetch(`/api/links/${chatLinkId}/standalone`, { cache: "no-store" })
-      .then(async (response) => {
+  const refreshing = useRef(false);
+
+  const load = useCallback(
+    async (initial: boolean): Promise<void> => {
+      if (refreshing.current) return;
+      refreshing.current = true;
+      if (initial) setLoading(true);
+      try {
+        const response = await fetch(`/api/links/${chatLinkId}/standalone`, {
+          cache: "no-store",
+        });
         const json = (await response.json().catch(() => null)) as
           | (State & { error?: string })
           | null;
-        if (!response.ok || json === null) throw new Error(json?.error ?? "Chargement impossible");
-        if (!cancelled) setState(json);
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : "Chargement impossible");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [chatLinkId]);
+        if (!response.ok || json === null) {
+          throw new Error(json?.error ?? "Chargement impossible");
+        }
+        setState(json);
+        setError(null);
+      } catch (cause) {
+        if (initial) {
+          setError(cause instanceof Error ? cause.message : "Chargement impossible");
+        }
+      } finally {
+        refreshing.current = false;
+        if (initial) setLoading(false);
+      }
+    },
+    [chatLinkId],
+  );
+
+  useEffect(() => {
+    void load(true);
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void load(false);
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [load]);
 
   async function action(name: string, payload: Record<string, unknown> = {}): Promise<void> {
     setBusy(name);
@@ -194,6 +230,15 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                       #{build.buildNumber} · {new Date(build.createdAt).toLocaleString("fr-FR")}
                     </span>
                     <span className={badgeClass(build.status)}>{BUILD_LABELS[build.status]}</span>
+                    {build.status === "ready" || build.status === "active" ? (
+                      <a
+                        className="link"
+                        href={`/api/links/${chatLinkId}/standalone/builds/${build.id}/download`}
+                        download
+                      >
+                        Télécharger
+                      </a>
+                    ) : null}
                     {build.status === "ready" ? (
                       <button
                         type="button"
@@ -237,17 +282,86 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                       </span>
                     </div>
                     {domain.verificationRecord !== null && domain.verificationValue !== null ? (
-                      <p className="hint">
-                        TXT : <code>{domain.verificationRecord}</code> →{" "}
-                        <code>{domain.verificationValue}</code>
-                        {domain.cnameTarget === null ? null : (
-                          <>
-                            <br />
-                            CNAME : <code>{domain.hostname}</code> →{" "}
-                            <code>{domain.cnameTarget}</code>
-                          </>
-                        )}
-                      </p>
+                      <details
+                        open={domain.verificationStatus !== "verified"}
+                        style={{ marginTop: "0.75rem" }}
+                      >
+                        <summary className="link">Configuration DNS</summary>
+                        <p className="hint" style={{ marginTop: "0.5rem" }}>
+                          Le TXT prouve la propriété du domaine. Le A/CNAME route le domaine vers
+                          l’edge.
+                        </p>
+                        <div style={{ display: "grid", gap: "0.5rem" }}>
+                          <div>
+                            <strong>1. TXT de propriété</strong>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <code>{domain.verificationRecord}</code>
+                              <CopyButton label="le nom TXT" value={domain.verificationRecord} />
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <code>{domain.verificationValue}</code>
+                              <CopyButton label="la valeur TXT" value={domain.verificationValue} />
+                            </div>
+                          </div>
+                          <div>
+                            <strong>2. Routage du domaine</strong>
+                            {(state.edgeIps ?? []).length > 0 ? (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "0.5rem",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span>
+                                  A <code>@</code> → <code>{state.edgeIps?.[0]}</code>
+                                </span>
+                                <CopyButton label="l’IP" value={state.edgeIps?.[0] ?? ""} />
+                              </div>
+                            ) : null}
+                            {domain.cnameTarget === null ? null : (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "0.5rem",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span>
+                                  CNAME <code>@</code> → <code>{domain.cnameTarget}</code>
+                                </span>
+                                <CopyButton label="la cible CNAME" value={domain.cnameTarget} />
+                              </div>
+                            )}
+                          </div>
+                          <ul className="hint" style={{ margin: 0 }}>
+                            <li>
+                              {domain.verificationStatus === "verified" ? "✓" : "○"} TXT de
+                              propriété
+                            </li>
+                            <li>
+                              {domain.verificationStatus === "verified" ? "✓" : "○"} Routage A/CNAME
+                            </li>
+                            <li>{domain.sslStatus === "active" ? "✓" : "○"} Certificat SSL</li>
+                          </ul>
+                        </div>
+                      </details>
                     ) : null}
                     {domain.lastError === null ? null : (
                       <p className="alert error">{domain.lastError}</p>
@@ -286,16 +400,7 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                 ))}
               </div>
             )}
-            <form
-              style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (hostname.trim() === "") return;
-                void action("add-domain", { hostname: hostname.trim() }).then(() =>
-                  setHostname(""),
-                );
-              }}
-            >
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
               <input
                 className="input"
                 type="text"
@@ -306,12 +411,18 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
               />
               <button
                 className="btn ghost small"
-                type="submit"
+                type="button"
                 disabled={busy !== null || hostname.trim() === ""}
+                onClick={() => {
+                  if (hostname.trim() === "") return;
+                  void action("add-domain", { hostname: hostname.trim() }).then(() =>
+                    setHostname(""),
+                  );
+                }}
               >
                 Ajouter le domaine
               </button>
-            </form>
+            </div>
           </div>
         </>
       ) : null}

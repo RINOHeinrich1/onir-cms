@@ -107,3 +107,65 @@ export function renderStandaloneManifest(
 export function renderStandaloneManifestJson(input: StandaloneArtifactInput): string {
   return `${JSON.stringify(renderStandaloneManifest(input), null, 2)}\n`;
 }
+
+/** Notice d'hébergement incluse dans le ZIP téléchargeable. */
+export function renderStandaloneDeploymentReadme(input: { title?: string }): string {
+  const title = input.title ?? "Site standalone";
+  return `# ${title} — déploiement standalone
+
+Ce dossier contient le front statique du chatbot.
+
+## Serveur web
+
+Servez ce dossier à la racine du domaine :
+
+- \`index.html\`
+- \`runtime.js\`
+- \`runtime.css\`
+- \`config.json\`
+- \`build.json\`
+- \`template/\`
+
+## API de chat
+
+Le chat utilise \`/api/chat\` en same-origin. Votre serveur web doit proxyfier
+cette route vers ONIR-CMS. Sans ce proxy, la page s'affiche mais le chat ne
+fonctionne pas.
+
+Exemple Nginx : voir \`nginx.example.conf\`.
+
+## DNS et TLS
+
+Le domaine et le certificat TLS sont à votre charge. Le site doit être servi en
+HTTPS et la route \`/api/chat\` doit rester sur le même domaine.
+
+## Mise à jour
+
+Ce build est immuable. Pour mettre à jour le site, téléchargez un nouveau build
+depuis ONIR-CMS et remplacez les fichiers sur votre serveur.
+`;
+}
+
+export function renderStandaloneNginxExample(): string {
+  return `server {
+    listen 80;
+    server_name example.com;
+    root /var/www/onir-standalone;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/chat/ {
+        proxy_pass https://magic-panel.onir-cms.tech/api/chat/;
+        proxy_http_version 1.1;
+        proxy_set_header Host magic-panel.onir-cms.tech;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+    }
+}
+`;
+}

@@ -54,10 +54,16 @@ function repo(initial: StandaloneDomain = domain) {
   };
 }
 
-function dns(txt: string[][], cname: string[] = ["edge.standalone.test"]): StandaloneDnsResolver {
+function dns(
+  txt: string[][],
+  cname: string[] = ["edge.standalone.test"],
+  addresses: string[] = [],
+): StandaloneDnsResolver {
   return {
     resolveTxt: vi.fn(async () => txt),
     resolveCname: vi.fn(async () => cname),
+    resolve4: vi.fn(async () => addresses.filter((value) => !value.includes(":"))),
+    resolve6: vi.fn(async () => addresses.filter((value) => value.includes(":"))),
   };
 }
 
@@ -111,5 +117,21 @@ describe("vérification de domaine standalone", () => {
       ),
     ).rejects.toThrow("CNAME");
     expect(state.states.at(-1)?.verificationStatus).toBe("failed");
+  });
+});
+
+describe("vérification par A record", () => {
+  it("accepte une adresse A de l'edge", async () => {
+    const state = repo();
+    const result = await verifyStandaloneDomain(
+      {
+        domains: state.repo,
+        dns: dns([[standaloneVerificationValue("token-123")]], [], ["203.0.113.10"]),
+        edgeHostname: "edge.standalone.test",
+        edgeIps: ["203.0.113.10"],
+      },
+      { domainId: domain.id },
+    );
+    expect(result.verificationStatus).toBe("verified");
   });
 });

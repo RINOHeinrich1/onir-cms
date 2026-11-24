@@ -1,7 +1,7 @@
 import { getPool } from "@/infrastructure/db/pool";
 import { pgStandaloneRepository } from "@/infrastructure/db/standalone-repository";
 import { standaloneBuildStorage } from "@/infrastructure/storage";
-import { appUrl } from "@/lib/env";
+import { appUrl, env } from "@/lib/env";
 import { createStandaloneEdgeServer } from "@/standalone/edge-server";
 
 const port = Number(process.env.STANDALONE_EDGE_PORT ?? "8080");
@@ -13,7 +13,7 @@ const pool = getPool();
 const server = createStandaloneEdgeServer({
   mappings: pgStandaloneRepository(pool),
   storage: standaloneBuildStorage(),
-  apiOrigin: appUrl(),
+  apiOrigin: env("STANDALONE_API_ORIGIN") ?? appUrl(),
   logger: (message, detail) => {
     process.stdout.write(`${JSON.stringify({ message, ...detail })}\n`);
   },

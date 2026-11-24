@@ -326,6 +326,18 @@ export function pgStandaloneRepository(pool: Pool): StandaloneRepository {
       return rows.map(toDomain);
     },
 
+    async listPendingDomains(limit = 50) {
+      const { rows } = await pool.query<DomainRow>(
+        `SELECT ${DOMAIN_COLUMNS} FROM chatbot_domains
+          WHERE verification_status IN ('pending', 'verifying')
+             OR (verification_status = 'verified' AND ssl_status IN ('pending', 'issuing'))
+          ORDER BY created_at
+          LIMIT $1`,
+        [Math.min(Math.max(limit, 1), 100)],
+      );
+      return rows.map(toDomain);
+    },
+
     async findDomain(id) {
       const { rows } = await pool.query<DomainRow>(
         `SELECT ${DOMAIN_COLUMNS} FROM chatbot_domains WHERE id = $1`,
