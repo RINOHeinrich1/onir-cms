@@ -1,3 +1,4 @@
+import type { TemplateManifest } from "@/domain/entities/visual-template";
 import type { TemplateEditorManifestV2 } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 
@@ -444,3 +445,26 @@ export const puzzleV2Values = {
   },
   site_settings: { chat_mode: "embedded", chat_page_id: "home" },
 } satisfies TemplateParamValues;
+
+export const puzzleV2Manifest = {
+  schemaVersion: 1,
+  kind: "template",
+  id: "puzzle-reference",
+  name: "Puzzle Reference",
+  description: "Template de référence Editor V2 (structure type Puzzle).",
+  version: "1.1.0-beta",
+  publisher: { id: "onirtech", name: "ONIRTECH", trustLevel: "official" },
+  compatibility: { hostProtocol: "onirtech.template-host.v1" },
+  ui: {
+    mode: "web-component",
+    entry: "./dist/index.js",
+    element: "onirtech-template-puzzle-reference",
+    shadowDom: "open",
+    integrity: "sha256-CVAXSF9TvWP90tCkZLB7k+Qd6cAJ3EILri22Ld2PeMA=",
+  },
+  capabilities: ["messages", "theme"],
+  network: [],
+  params: puzzleV2Params,
+  editor: puzzleV2Editor,
+  dataContracts: [],
+} satisfies TemplateManifest;

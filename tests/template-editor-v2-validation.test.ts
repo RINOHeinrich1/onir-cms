@@ -202,7 +202,7 @@ describe("validation runtime V2", () => {
     expect(result.errors.some((error) => error.field.includes("references"))).toBe(true);
   });
 
-  it("refuse un cycle de références", () => {
+  it("n'interdit pas un cycle de collections sans cycle réel", () => {
     const result = validateTemplateEditorBlock(
       valid({
         references: [
@@ -224,9 +224,7 @@ describe("validation runtime V2", () => {
       }),
       params,
     );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.some((error) => error.message.includes("cycle"))).toBe(true);
+    expect(result.ok).toBe(true);
   });
 
   it("accepte un cycle de références fonctionnelles non structurelles", () => {

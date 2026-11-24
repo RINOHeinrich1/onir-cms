@@ -388,38 +388,6 @@ function scalarMatchesField(field: TemplateParamSchema, value: unknown): boolean
   return false;
 }
 
-function containmentReferencesHaveCycle(references: TemplateEditorReference[]): boolean {
-  // Seules les relations de contenance explicites (cascade) forment un graphe
-  // structurel. Les références fonctionnelles (ex. block → action → block)
-  // peuvent légitimement être circulaires.
-  const graph = new Map<string, Set<string>>();
-  for (const reference of references) {
-    if (reference.onDelete !== "cascade") continue;
-    const targets =
-      reference.to === undefined ? Object.values(reference.targets ?? {}) : [reference.to];
-    const edges = graph.get(reference.from) ?? new Set<string>();
-    for (const target of targets) edges.add(target);
-    graph.set(reference.from, edges);
-  }
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const visit = (collection: string): boolean => {
-    if (visiting.has(collection)) return true;
-    if (visited.has(collection)) return false;
-    visiting.add(collection);
-    for (const target of graph.get(collection) ?? []) {
-      if (visit(target)) return true;
-    }
-    visiting.delete(collection);
-    visited.add(collection);
-    return false;
-  };
-  for (const collection of graph.keys()) {
-    if (visit(collection)) return true;
-  }
-  return false;
-}
-
 function validateTemplateEditorV2(
   input: Record<string, unknown>,
   params: TemplateParamSchema[],
@@ -506,6 +474,7 @@ function validateTemplateEditorV2(
   }
 
   const dynamicRegions: TemplateEditorDynamicRegion[] = [];
+  const dynamicPrefixes = new Set<string>();
   if (input.dynamicRegions !== undefined) {
     if (!Array.isArray(input.dynamicRegions)) {
       add("editor.dynamicRegions", "liste dynamicRegions attendue");
@@ -521,6 +490,13 @@ function validateTemplateEditorV2(
         const keyField = text(raw.keyField);
         if (!/^[a-z][a-z0-9_-]*:\{[a-z][a-z0-9_]*\}$/.test(idPattern)) {
           add(`${basePath}.idPattern`, "motif attendu : prefix:{key}");
+        }
+        const prefix = idPattern.slice(0, idPattern.indexOf("{"));
+        if (prefix !== "") {
+          if (dynamicPrefixes.has(prefix)) {
+            add(`${basePath}.idPattern`, "préfixe de région dynamique ambigu");
+          }
+          dynamicPrefixes.add(prefix);
         }
         if (!collectionParams.has(collection)) {
           add(`${basePath}.collection`, "collection inconnue");
@@ -819,9 +795,6 @@ function validateTemplateEditorV2(
             : { onDelete: onDelete as "clear" | "cascade" | "restrict" }),
         });
       }
-      if (containmentReferencesHaveCycle(references)) {
-        add("editor.references", "cycle de relations de contenance interdit");
-      }
     }
   }
 
@@ -890,6 +863,18 @@ function validateTemplateEditorV2(
             add("editor.structure.children.collection", "collection inconnue");
           if (!collectionParams.has(through))
             add("editor.structure.children.through", "collection inconnue");
+          if (!collections.some((entry) => entry.param === collection)) {
+            add(
+              "editor.structure.children.collection",
+              "métadonnées de collection enfant requises",
+            );
+          }
+          if (!collections.some((entry) => entry.param === through)) {
+            add(
+              "editor.structure.children.through",
+              "métadonnées de collection de placements requises",
+            );
+          }
           const throughProps = objectFieldsForParam(params, through);
           const requiredFields = ["parentKey", "childKey"] as const;
           const optionalFields = ["parentKindKey", "orderKey", "slotKey"] as const;
@@ -1112,29 +1097,135 @@ export function validateTemplateEditorStructureValues(
 ): TemplateEditorError[] {
   if (editor.version !== 2 || editor.structure?.children === undefined) return [];
   const children = editor.structure.children;
-  const rawPlacements = values[children.through];
-  if (rawPlacements === undefined) return [];
-  if (!Array.isArray(rawPlacements)) {
-    return [
-      {
-        field: `values.${children.through}`,
-        message: "collection de placements attendue sous forme de tableau",
-      },
-    ];
-  }
   const errors: TemplateEditorError[] = [];
+  const collectionMeta = (param: string) =>
+    editor.collections?.find((collection) => collection.param === param);
+  const childMeta = collectionMeta(children.collection);
+  const throughMeta = collectionMeta(children.through);
+  if (childMeta === undefined) {
+    errors.push({
+      field: "editor.structure.children.collection",
+      message: "collection enfant sans métadonnées itemKey",
+    });
+  }
+  if (throughMeta === undefined) {
+    errors.push({
+      field: "editor.structure.children.through",
+      message: "collection de placements sans métadonnées itemKey",
+    });
+  }
+
   const rawChildren = values[children.collection];
-  const childIds = Array.isArray(rawChildren)
-    ? new Set(
-        rawChildren
-          .map((entry) => (isRecord(entry) ? entry[children.childKey] : undefined))
-          .filter((value): value is string => typeof value === "string" && value !== ""),
-      )
-    : new Set<string>();
+  const childIds = new Set<string>();
+  if (Array.isArray(rawChildren) && childMeta !== undefined) {
+    rawChildren.forEach((entry, index) => {
+      if (!isRecord(entry)) {
+        errors.push({
+          field: `values.${children.collection}[${index}]`,
+          message: "élément de collection attendu sous forme d'objet",
+        });
+        return;
+      }
+      const id = entry[childMeta.itemKey];
+      if (typeof id !== "string" || id === "") {
+        errors.push({
+          field: `values.${children.collection}[${index}].${childMeta.itemKey}`,
+          message: "identifiant stable non vide requis",
+        });
+        return;
+      }
+      if (childIds.has(id)) {
+        errors.push({
+          field: `values.${children.collection}[${index}].${childMeta.itemKey}`,
+          message: `identifiant dupliqué : ${id}`,
+        });
+      }
+      childIds.add(id);
+    });
+  } else if (rawChildren !== undefined) {
+    errors.push({
+      field: `values.${children.collection}`,
+      message: "collection enfant attendue sous forme de tableau",
+    });
+  }
+
+  const parentKinds = new Map<string, string>();
+  if (children.parentKindKey !== undefined) {
+    const reference = editor.references?.find(
+      (entry) =>
+        entry.from === children.through &&
+        entry.field === children.parentKey &&
+        entry.discriminator === children.parentKindKey,
+    );
+    const targets = reference?.targets;
+    if (targets === undefined || Object.keys(targets).length === 0) {
+      errors.push({
+        field: "editor.structure.children.parentKindKey",
+        message: "référence polymorphe déclarée requise pour résoudre parent_kind",
+      });
+    } else {
+      for (const [kind, collection] of Object.entries(targets)) parentKinds.set(kind, collection);
+    }
+  }
+
+  const rawPlacements = values[children.through];
+  if (rawPlacements === undefined) return errors;
+  if (!Array.isArray(rawPlacements)) {
+    errors.push({
+      field: `values.${children.through}`,
+      message: "collection de placements attendue sous forme de tableau",
+    });
+    return errors;
+  }
+  const placementIds = new Set<string>();
+  const placedChildren = new Set<string>();
   const graph = new Map<string, Set<string>>();
+  const parentExists = (collection: string, id: string): boolean => {
+    const meta = collectionMeta(collection);
+    if (meta === undefined) {
+      errors.push({
+        field: `editor.structure.children.parentKindKey`,
+        message: `collection parent sans métadonnées itemKey : ${collection}`,
+      });
+      return false;
+    }
+    const items = values[collection];
+    if (!Array.isArray(items)) {
+      errors.push({
+        field: `values.${collection}`,
+        message: "collection parent absente",
+      });
+      return false;
+    }
+    return items.some((entry) => isRecord(entry) && entry[meta.itemKey] === id);
+  };
+
   rawPlacements.forEach((entry, index) => {
-    if (!isRecord(entry)) return;
-    const parentId = entry[children.parentKey];
+    if (!isRecord(entry)) {
+      errors.push({
+        field: `values.${children.through}[${index}]`,
+        message: "placement attendu sous forme d'objet",
+      });
+      return;
+    }
+    if (throughMeta !== undefined) {
+      const placementId = entry[throughMeta.itemKey];
+      if (typeof placementId !== "string" || placementId === "") {
+        errors.push({
+          field: `values.${children.through}[${index}].${throughMeta.itemKey}`,
+          message: "identifiant de placement non vide requis",
+        });
+      } else {
+        if (placementIds.has(placementId)) {
+          errors.push({
+            field: `values.${children.through}[${index}].${throughMeta.itemKey}`,
+            message: `placement dupliqué : ${placementId}`,
+          });
+        }
+        placementIds.add(placementId);
+      }
+    }
+
     const childId = entry[children.childKey];
     if (typeof childId !== "string" || childId === "") {
       errors.push({
@@ -1143,25 +1234,53 @@ export function validateTemplateEditorStructureValues(
       });
       return;
     }
-    if (childIds.size > 0 && !childIds.has(childId)) {
+    if (!childIds.has(childId)) {
       errors.push({
         field: `values.${children.through}[${index}].${children.childKey}`,
         message: `enfant inexistant dans ${children.collection}`,
       });
     }
-    const parentKind =
-      children.parentKindKey === undefined ? undefined : entry[children.parentKindKey];
-    const sameCollectionKind =
-      typeof parentKind === "string" &&
-      (parentKind === children.collection ||
-        `${parentKind}s` === children.collection ||
-        `${children.collection}s` === parentKind);
-    if (children.parentKindKey !== undefined && !sameCollectionKind) return;
-    if (typeof parentId !== "string" || parentId === "") return;
-    const edges = graph.get(parentId) ?? new Set<string>();
-    edges.add(childId);
-    graph.set(parentId, edges);
+    if (placedChildren.has(childId)) {
+      errors.push({
+        field: `values.${children.through}[${index}].${children.childKey}`,
+        message: `enfant placé plusieurs fois : ${childId}`,
+      });
+    }
+    placedChildren.add(childId);
+
+    const parentId = entry[children.parentKey];
+    if (typeof parentId !== "string" || parentId === "") {
+      errors.push({
+        field: `values.${children.through}[${index}].${children.parentKey}`,
+        message: "parentKey non vide requis",
+      });
+      return;
+    }
+    let parentCollection = children.collection;
+    if (children.parentKindKey !== undefined) {
+      const parentKind = entry[children.parentKindKey];
+      if (typeof parentKind !== "string" || !parentKinds.has(parentKind)) {
+        errors.push({
+          field: `values.${children.through}[${index}].${children.parentKindKey}`,
+          message: "parent_kind non déclaré dans les références",
+        });
+        return;
+      }
+      parentCollection = parentKinds.get(parentKind) as string;
+    }
+    if (!parentExists(parentCollection, parentId)) {
+      errors.push({
+        field: `values.${children.through}[${index}].${children.parentKey}`,
+        message: `parent inexistant dans ${parentCollection}`,
+      });
+    }
+    if (parentCollection === children.collection) {
+      const edges = graph.get(parentId) ?? new Set<string>();
+      edges.add(childId);
+      graph.set(parentId, edges);
+    }
   });
+
   const visiting = new Set<string>();
   const visited = new Set<string>();
   const visit = (node: string): boolean => {
