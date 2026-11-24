@@ -13,8 +13,9 @@ import {
   editorRegionChain,
   isTemplateEditorBindingShared,
   resolveDynamicRegion,
+  resolveDynamicRegionItem,
   type TemplateEditorManifest,
-  type TemplateEditorResolvedRegion,
+  type TemplateEditorRegionItem,
 } from "@/domain/template-editor";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
@@ -37,25 +38,10 @@ type ChatbotOption = { id: string; label: string; type: "standard" | "specifique
 
 function dynamicRegionLabel(
   editor: TemplateEditorManifest,
-  values: TemplateParamValues,
-  target: TemplateEditorResolvedRegion,
+  target: TemplateEditorRegionItem,
 ): string {
   if (editor.version !== 2) return target.itemId;
   const collection = editor.collections?.find((entry) => entry.param === target.collection);
-  const raw = values[target.collection];
-  const item = Array.isArray(raw)
-    ? raw.find(
-        (entry) =>
-          entry !== null &&
-          typeof entry === "object" &&
-          !Array.isArray(entry) &&
-          (entry as Record<string, unknown>)[target.keyField] === target.itemId,
-      )
-    : undefined;
-  if (item === null || typeof item !== "object" || Array.isArray(item)) {
-    return `${target.collectionLabel} · ${target.itemId}`;
-  }
-  const record = item as Record<string, unknown>;
   const keys = [
     collection?.itemLabel,
     ...(collection?.labelFallback ?? []),
@@ -65,7 +51,7 @@ function dynamicRegionLabel(
     "id",
   ].filter((key): key is string => key !== undefined && key !== "");
   const summary = keys
-    .map((key) => record[key])
+    .map((key) => target.item[key])
     .find((value) => typeof value === "string" && value.trim() !== "");
   return `${target.collectionLabel} · ${typeof summary === "string" ? summary : target.itemId}`;
 }
@@ -265,32 +251,47 @@ export function LinkDisplaySettings({
     selectedEditor === null || selectedRegion === null
       ? null
       : resolveDynamicRegion(selectedEditor, selectedRegion);
+  const dynamicRegionItem =
+    selectedEditor === null || selectedRegion === null
+      ? null
+      : resolveDynamicRegionItem(
+          selectedEditor,
+          selectedRegion,
+          draft.params as TemplateParamValues,
+        );
+  const dynamicRegionMissing = dynamicRegion !== null && dynamicRegionItem === null;
   const selectedRegionDefinition =
     selectedEditor === null || selectedRegion === null || dynamicRegion !== null
       ? null
       : (selectedEditor.regions.find((region) => region.id === selectedRegion) ?? null);
   const selectedRegionLabel =
-    dynamicRegion !== null && selectedEditor !== null
-      ? dynamicRegionLabel(selectedEditor, draft.params as TemplateParamValues, dynamicRegion)
-      : (selectedRegionDefinition?.label ?? null);
+    dynamicRegionItem !== null && selectedEditor !== null
+      ? dynamicRegionLabel(selectedEditor, dynamicRegionItem)
+      : dynamicRegion !== null
+        ? `${dynamicRegion.collectionLabel} · ${dynamicRegion.itemId}`
+        : (selectedRegionDefinition?.label ?? null);
   const selectedRegionChain =
     selectedEditor === null || selectedRegion === null || dynamicRegion !== null
       ? []
       : editorRegionChain(selectedEditor, selectedRegion);
   const collectionFocus =
-    dynamicRegion === null
+    dynamicRegionItem === null
       ? undefined
       : {
-          param: dynamicRegion.collection,
-          keyField: dynamicRegion.keyField,
-          itemId: dynamicRegion.itemId,
+          param: dynamicRegionItem.collection,
+          keyField: dynamicRegionItem.keyField,
+          itemId: dynamicRegionItem.itemId,
         };
   const regionBindings =
     selectedEditor === null || selectedRegion === null
       ? []
       : bindingsForRegion(selectedEditor, selectedRegion);
   const localPaths = new Set(
-    regionBindings.filter((binding) => !isTemplateEditorBindingShared(binding)).map((b) => b.param),
+    dynamicRegionMissing
+      ? []
+      : regionBindings
+          .filter((binding) => !isTemplateEditorBindingShared(binding))
+          .map((b) => b.param),
   );
   const sharedBindings = regionBindings.filter(isTemplateEditorBindingShared);
   const sharedPaths = new Set(sharedBindings.map((binding) => binding.param));
@@ -1028,6 +1029,11 @@ export function LinkDisplaySettings({
                       {selectedRegionChain.map((entry) => entry.label).join(" / ")}
                     </p>
                   )}
+                  {dynamicRegionMissing ? (
+                    <p className="hint">
+                      Élément ciblé introuvable ou identifiant dupliqué dans cette collection.
+                    </p>
+                  ) : null}
                   {localPaths.size === 0 ? null : (
                     <TemplateParamsFields
                       schema={paramsSchema}

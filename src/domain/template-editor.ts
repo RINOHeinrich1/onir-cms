@@ -6,7 +6,12 @@
  * cette déclaration contre le schéma de paramètres de la version.
  */
 
-import type { TemplateParamNode, TemplateParamSchema } from "./template-params";
+import type {
+  TemplateParamNode,
+  TemplateParamSchema,
+  TemplateParamValue,
+  TemplateParamValues,
+} from "./template-params";
 
 export const TEMPLATE_EDITOR_CATEGORIES = ["content", "appearance", "action"] as const;
 export type TemplateEditorCategory = (typeof TEMPLATE_EDITOR_CATEGORIES)[number];
@@ -51,6 +56,11 @@ export type TemplateEditorResolvedRegion = {
   keyField: string;
   itemId: string;
   collectionLabel: string;
+};
+
+export type TemplateEditorRegionItem = TemplateEditorResolvedRegion & {
+  item: Record<string, TemplateParamValue>;
+  index: number;
 };
 
 export type TemplateEditorBindingV2 = TemplateEditorBinding & {
@@ -340,6 +350,72 @@ export function validateTemplateEditorBlock(
   };
 }
 
+const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function objectFieldsForParam(params: TemplateParamSchema[], param: string): TemplateParamSchema[] {
+  const node = findParamNode(params, param);
+  if (node === null) return [];
+  if (node.type === "object") return node.properties ?? [];
+  if (node.type === "array" && node.items?.type === "object") return node.items.properties ?? [];
+  return [];
+}
+
+function isScalarValue(value: unknown): value is string | number | boolean {
+  return (
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  );
+}
+
+function scalarMatchesField(field: TemplateParamSchema, value: unknown): boolean {
+  if (field.type === "number") return typeof value === "number" && Number.isFinite(value);
+  if (field.type === "boolean") return typeof value === "boolean";
+  if (field.type === "select") {
+    return (
+      typeof value === "string" && (field.options ?? []).some((option) => option.value === value)
+    );
+  }
+  if (
+    field.type === "string" ||
+    field.type === "text" ||
+    field.type === "color" ||
+    field.type === "url" ||
+    field.type === "image"
+  ) {
+    return typeof value === "string";
+  }
+  return false;
+}
+
+function referencesHaveCycle(references: TemplateEditorReference[]): boolean {
+  const graph = new Map<string, Set<string>>();
+  for (const reference of references) {
+    const targets =
+      reference.to === undefined ? Object.values(reference.targets ?? {}) : [reference.to];
+    const edges = graph.get(reference.from) ?? new Set<string>();
+    for (const target of targets) edges.add(target);
+    graph.set(reference.from, edges);
+  }
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (collection: string): boolean => {
+    if (visiting.has(collection)) return true;
+    if (visited.has(collection)) return false;
+    visiting.add(collection);
+    for (const target of graph.get(collection) ?? []) {
+      if (visit(target)) return true;
+    }
+    visiting.delete(collection);
+    visited.add(collection);
+    return false;
+  };
+  for (const collection of graph.keys()) {
+    if (visit(collection)) return true;
+  }
+  return false;
+}
+
 function validateTemplateEditorV2(
   input: Record<string, unknown>,
   params: TemplateParamSchema[],
@@ -467,33 +543,380 @@ function validateTemplateEditorV2(
         }
         const param = text(raw.param);
         const field = text(raw.field);
-        if (!collectionParams.has(param)) add(`${basePath}.param`, "collection inconnue");
-        const itemNode = findParamNode(params, param)?.items;
-        const itemProps = itemNode?.type === "object" ? (itemNode.properties ?? []) : [];
-        if (field !== "" && !itemProps.some((p) => p.key === field)) {
+        const node = findParamNode(params, param);
+        if (node === null) {
+          add(`${basePath}.param`, "paramètre inexistant");
+        } else if (
+          node.type !== "object" &&
+          !(node.type === "array" && node.items?.type === "object")
+        ) {
+          add(`${basePath}.param`, "objet ou collection d'objets attendu");
+        }
+        const itemProps = objectFieldsForParam(params, param);
+        const targetField = itemProps.find((entry) => entry.key === field);
+        if (field !== "" && targetField === undefined) {
           add(`${basePath}.field`, "champ absent de l'élément");
         }
         const visibleWhen = raw.visibleWhen;
+        let normalizedVisibleWhen: TemplateEditorVisibleWhen | undefined;
         if (visibleWhen !== undefined) {
-          if (!isRecord(visibleWhen)) add(`${basePath}.visibleWhen`, "objet visibleWhen attendu");
-          else {
+          if (!isRecord(visibleWhen)) {
+            add(`${basePath}.visibleWhen`, "objet visibleWhen attendu");
+          } else {
             const conditionField = text(visibleWhen.field);
-            if (!itemProps.some((p) => p.key === conditionField)) {
+            const conditionNode = itemProps.find((entry) => entry.key === conditionField);
+            if (conditionNode === undefined) {
               add(`${basePath}.visibleWhen.field`, "champ de condition absent");
             }
             const operators = ["equals", "notEquals", "in", "notIn", "truthy", "falsy"];
-            if (!operators.some((op) => op in visibleWhen)) {
-              add(`${basePath}.visibleWhen`, "opérateur de condition requis");
+            const present = operators.filter((operator) => operator in visibleWhen);
+            if (present.length !== 1) {
+              add(`${basePath}.visibleWhen`, "exactement un opérateur de condition requis");
+            } else {
+              const operator = present[0] as keyof TemplateEditorVisibleWhen;
+              const conditionValue = visibleWhen[operator];
+              if (operator === "equals" || operator === "notEquals") {
+                if (
+                  !isScalarValue(conditionValue) ||
+                  conditionNode === undefined ||
+                  !scalarMatchesField(conditionNode, conditionValue)
+                ) {
+                  add(`${basePath}.visibleWhen.${operator}`, "valeur incompatible avec le champ");
+                }
+              } else if (operator === "in" || operator === "notIn") {
+                if (
+                  !Array.isArray(conditionValue) ||
+                  conditionValue.length === 0 ||
+                  conditionValue.some((entry) => !isScalarValue(entry)) ||
+                  (conditionNode !== undefined &&
+                    conditionValue.some((entry) => !scalarMatchesField(conditionNode, entry)))
+                ) {
+                  add(`${basePath}.visibleWhen.${operator}`, "liste de valeurs compatible requise");
+                }
+              } else if (conditionValue !== true) {
+                add(`${basePath}.visibleWhen.${operator}`, "true attendu");
+              } else if (conditionNode !== undefined && conditionNode.type !== "boolean") {
+                add(`${basePath}.visibleWhen.${operator}`, "champ booléen attendu");
+              }
+              if (conditionNode !== undefined) {
+                normalizedVisibleWhen = {
+                  field: conditionField,
+                  [operator]: conditionValue,
+                } as TemplateEditorVisibleWhen;
+              }
             }
           }
         }
         fields.push({
           param,
           field,
-          ...(raw.visibleWhen === undefined
-            ? {}
-            : { visibleWhen: raw.visibleWhen as TemplateEditorVisibleWhen }),
+          ...(normalizedVisibleWhen === undefined ? {} : { visibleWhen: normalizedVisibleWhen }),
         });
+      }
+    }
+  }
+
+  const groups: TemplateEditorGroup[] = [];
+  if (input.groups !== undefined) {
+    if (!Array.isArray(input.groups)) {
+      add("editor.groups", "liste groups attendue");
+    } else {
+      const groupIds = new Set<string>();
+      for (const [index, raw] of input.groups.entries()) {
+        const basePath = `editor.groups[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet groupe attendu");
+          continue;
+        }
+        const param = text(raw.param);
+        const id = text(raw.id);
+        const label = text(raw.label);
+        const itemProps = objectFieldsForParam(params, param);
+        if (!collectionParams.has(param)) add(`${basePath}.param`, "collection inconnue");
+        if (!ID.test(id)) add(`${basePath}.id`, "id de groupe invalide");
+        if (label === "") add(`${basePath}.label`, "libellé requis");
+        const key = `${param}\u0000${id}`;
+        if (groupIds.has(key)) add(`${basePath}.id`, "groupe dupliqué pour cette collection");
+        groupIds.add(key);
+        const rawFields = raw.fields;
+        const groupFields: string[] = [];
+        if (!Array.isArray(rawFields) || rawFields.length === 0) {
+          add(`${basePath}.fields`, "liste de champs non vide attendue");
+        } else {
+          const seenFields = new Set<string>();
+          for (const [fieldIndex, entry] of rawFields.entries()) {
+            const field = text(entry);
+            if (field === "" || !itemProps.some((property) => property.key === field)) {
+              add(`${basePath}.fields[${fieldIndex}]`, "champ absent de l'élément");
+            }
+            if (seenFields.has(field)) {
+              add(`${basePath}.fields[${fieldIndex}]`, "champ dupliqué");
+            }
+            seenFields.add(field);
+            groupFields.push(field);
+          }
+        }
+        const collapsed = raw.collapsedByDefault;
+        if (collapsed !== undefined && typeof collapsed !== "boolean") {
+          add(`${basePath}.collapsedByDefault`, "booléen attendu");
+        }
+        groups.push({
+          param,
+          id,
+          label,
+          fields: groupFields,
+          ...(typeof collapsed === "boolean" ? { collapsedByDefault: collapsed } : {}),
+        });
+      }
+    }
+  }
+
+  const valueLabels: NonNullable<TemplateEditorManifestV2["valueLabels"]> = {};
+  if (input.valueLabels !== undefined) {
+    if (!isRecord(input.valueLabels)) {
+      add("editor.valueLabels", "objet valueLabels attendu");
+    } else {
+      for (const [param, rawFields] of Object.entries(input.valueLabels)) {
+        if (!collectionParams.has(param)) {
+          add(`editor.valueLabels.${param}`, "collection inconnue");
+          continue;
+        }
+        if (!isRecord(rawFields)) {
+          add(`editor.valueLabels.${param}`, "objet de champs attendu");
+          continue;
+        }
+        const itemProps = objectFieldsForParam(params, param);
+        const fieldsStore: Record<string, Record<string, string>> = {};
+        for (const [field, rawLabels] of Object.entries(rawFields)) {
+          if (!itemProps.some((property) => property.key === field)) {
+            add(`editor.valueLabels.${param}.${field}`, "champ absent de l'élément");
+            continue;
+          }
+          if (!isRecord(rawLabels)) {
+            add(`editor.valueLabels.${param}.${field}`, "objet de libellés attendu");
+            continue;
+          }
+          const labels: Record<string, string> = {};
+          for (const [value, rawLabel] of Object.entries(rawLabels)) {
+            if (FORBIDDEN_KEYS.has(value)) {
+              add(`editor.valueLabels.${param}.${field}`, "clé de valeur interdite");
+              continue;
+            }
+            const label = text(rawLabel);
+            if (label === "" || label.length > 80) {
+              add(`editor.valueLabels.${param}.${field}.${value}`, "libellé 1..80 caractères");
+              continue;
+            }
+            labels[value] = label;
+          }
+          fieldsStore[field] = labels;
+        }
+        valueLabels[param] = fieldsStore;
+      }
+    }
+  }
+
+  const references: TemplateEditorReference[] = [];
+  if (input.references !== undefined) {
+    if (!Array.isArray(input.references)) {
+      add("editor.references", "liste references attendue");
+    } else {
+      for (const [index, raw] of input.references.entries()) {
+        const basePath = `editor.references[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet référence attendu");
+          continue;
+        }
+        const from = text(raw.from);
+        const field = text(raw.field);
+        const targetKey = text(raw.targetKey);
+        const fromProps = objectFieldsForParam(params, from);
+        if (!collectionParams.has(from)) add(`${basePath}.from`, "collection inconnue");
+        if (field === "" || !fromProps.some((property) => property.key === field)) {
+          add(`${basePath}.field`, "champ absent de la collection source");
+        }
+        const rawTo = raw.to;
+        const rawTargets = raw.targets;
+        const targets: Record<string, string> = {};
+        if (rawTo !== undefined && rawTargets !== undefined) {
+          add(basePath, "to et targets sont exclusifs");
+        } else if (rawTo !== undefined) {
+          const to = text(rawTo);
+          if (!collectionParams.has(to)) add(`${basePath}.to`, "collection cible inconnue");
+          targets.target = to;
+        } else if (rawTargets !== undefined) {
+          if (!isRecord(rawTargets)) {
+            add(`${basePath}.targets`, "objet targets attendu");
+          } else {
+            for (const [kind, value] of Object.entries(rawTargets)) {
+              const target = text(value);
+              if (kind === "" || FORBIDDEN_KEYS.has(kind)) {
+                add(`${basePath}.targets`, "clé de discriminant invalide");
+                continue;
+              }
+              if (!collectionParams.has(target)) {
+                add(`${basePath}.targets.${kind}`, "collection cible inconnue");
+              }
+              targets[kind] = target;
+            }
+          }
+          const discriminator = text(raw.discriminator);
+          if (
+            discriminator === "" ||
+            !fromProps.some((property) => property.key === discriminator)
+          ) {
+            add(`${basePath}.discriminator`, "champ discriminant requis dans la collection source");
+          }
+        } else {
+          add(basePath, "to ou targets requis");
+        }
+        for (const [kind, target] of Object.entries(targets)) {
+          const targetProps = objectFieldsForParam(params, target);
+          if (targetKey === "" || !targetProps.some((property) => property.key === targetKey)) {
+            add(`${basePath}.targetKey`, `clé cible absente (${kind})`);
+          }
+        }
+        const optional = raw.optional;
+        if (optional !== undefined && typeof optional !== "boolean") {
+          add(`${basePath}.optional`, "booléen attendu");
+        }
+        const onDelete = raw.onDelete;
+        if (
+          onDelete !== undefined &&
+          onDelete !== "clear" &&
+          onDelete !== "cascade" &&
+          onDelete !== "restrict"
+        ) {
+          add(`${basePath}.onDelete`, "clear, cascade ou restrict attendu");
+        }
+        references.push({
+          from,
+          field,
+          ...(rawTo === undefined ? {} : { to: text(rawTo) }),
+          ...(rawTargets === undefined ? {} : { targets }),
+          ...(raw.discriminator === undefined ? {} : { discriminator: text(raw.discriminator) }),
+          targetKey,
+          ...(typeof optional === "boolean" ? { optional } : {}),
+          ...(onDelete === undefined
+            ? {}
+            : { onDelete: onDelete as "clear" | "cascade" | "restrict" }),
+        });
+      }
+      if (referencesHaveCycle(references)) {
+        add("editor.references", "cycle de références interdit");
+      }
+    }
+  }
+
+  let structure: TemplateEditorStructure | undefined;
+  if (input.structure !== undefined) {
+    if (!isRecord(input.structure)) {
+      add("editor.structure", "objet structure attendu");
+    } else {
+      const roots = text(input.structure.roots);
+      if (!collectionParams.has(roots)) add("editor.structure.roots", "collection inconnue");
+      let regionsStructure: TemplateEditorStructure["regions"];
+      const rawRegions = input.structure.regions;
+      if (rawRegions !== undefined) {
+        if (!isRecord(rawRegions)) {
+          add("editor.structure.regions", "objet regions attendu");
+        } else {
+          const collection = text(rawRegions.collection);
+          if (!collectionParams.has(collection)) {
+            add("editor.structure.regions.collection", "collection inconnue");
+          }
+          const props = objectFieldsForParam(params, collection);
+          const rawFields = rawRegions.fields;
+          const structureFields: string[] = [];
+          if (!Array.isArray(rawFields)) {
+            add("editor.structure.regions.fields", "liste de champs attendue");
+          } else {
+            const seen = new Set<string>();
+            for (const [fieldIndex, entry] of rawFields.entries()) {
+              const field = text(entry);
+              if (!props.some((property) => property.key === field)) {
+                add(`editor.structure.regions.fields[${fieldIndex}]`, "champ absent");
+              }
+              if (seen.has(field))
+                add(`editor.structure.regions.fields[${fieldIndex}]`, "champ dupliqué");
+              seen.add(field);
+              structureFields.push(field);
+            }
+          }
+          regionsStructure = { collection, fields: structureFields };
+        }
+      }
+      let children: TemplateEditorStructure["children"];
+      const rawChildren = input.structure.children;
+      if (rawChildren !== undefined) {
+        if (!isRecord(rawChildren)) {
+          add("editor.structure.children", "objet children attendu");
+        } else {
+          const collection = text(rawChildren.collection);
+          const through = text(rawChildren.through);
+          if (!collectionParams.has(collection))
+            add("editor.structure.children.collection", "collection inconnue");
+          if (!collectionParams.has(through))
+            add("editor.structure.children.through", "collection inconnue");
+          const throughProps = objectFieldsForParam(params, through);
+          const requiredFields = ["parentKey", "childKey"] as const;
+          const optionalFields = ["parentKindKey", "orderKey", "slotKey"] as const;
+          for (const key of requiredFields) {
+            const value = text(rawChildren[key]);
+            if (value === "" || !throughProps.some((property) => property.key === value)) {
+              add(`editor.structure.children.${key}`, "champ absent de la collection through");
+            }
+          }
+          for (const key of optionalFields) {
+            if (rawChildren[key] !== undefined) {
+              const value = text(rawChildren[key]);
+              if (!throughProps.some((property) => property.key === value)) {
+                add(`editor.structure.children.${key}`, "champ absent de la collection through");
+              }
+            }
+          }
+          children = {
+            collection,
+            through,
+            parentKey: text(rawChildren.parentKey),
+            childKey: text(rawChildren.childKey),
+            ...(rawChildren.parentKindKey === undefined
+              ? {}
+              : { parentKindKey: text(rawChildren.parentKindKey) }),
+            ...(rawChildren.orderKey === undefined ? {} : { orderKey: text(rawChildren.orderKey) }),
+            ...(rawChildren.slotKey === undefined ? {} : { slotKey: text(rawChildren.slotKey) }),
+          };
+        }
+      }
+      structure = {
+        roots,
+        ...(regionsStructure === undefined ? {} : { regions: regionsStructure }),
+        ...(children === undefined ? {} : { children }),
+      };
+    }
+  }
+
+  const scopes: TemplateEditorScope[] = [];
+  if (input.scopes !== undefined) {
+    if (!Array.isArray(input.scopes)) {
+      add("editor.scopes", "liste scopes attendue");
+    } else {
+      const seen = new Set<string>();
+      for (const [index, raw] of input.scopes.entries()) {
+        const basePath = `editor.scopes[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet scope attendu");
+          continue;
+        }
+        const param = text(raw.param);
+        if (findParamNode(params, param) === null) add(`${basePath}.param`, "paramètre inexistant");
+        if (seen.has(param)) add(`${basePath}.param`, "scope dupliqué");
+        seen.add(param);
+        const scope = text(raw.scope);
+        if (!["global", "shared", "page", "local"].includes(scope)) {
+          add(`${basePath}.scope`, "global, shared, page ou local attendu");
+        }
+        scopes.push({ param, scope: scope as TemplateEditorScope["scope"] });
       }
     }
   }
@@ -542,21 +965,11 @@ function validateTemplateEditorV2(
           ...(collections.length === 0 ? {} : { collections }),
           ...(dynamicRegions.length === 0 ? {} : { dynamicRegions }),
           ...(fields.length === 0 ? {} : { fields }),
-          ...(input.groups === undefined ? {} : { groups: input.groups as TemplateEditorGroup[] }),
-          ...(input.valueLabels === undefined
-            ? {}
-            : {
-                valueLabels: input.valueLabels as NonNullable<
-                  TemplateEditorManifestV2["valueLabels"]
-                >,
-              }),
-          ...(input.references === undefined
-            ? {}
-            : { references: input.references as TemplateEditorReference[] }),
-          ...(input.structure === undefined
-            ? {}
-            : { structure: input.structure as TemplateEditorStructure }),
-          ...(input.scopes === undefined ? {} : { scopes: input.scopes as TemplateEditorScope[] }),
+          ...(groups.length === 0 ? {} : { groups }),
+          ...(Object.keys(valueLabels).length === 0 ? {} : { valueLabels }),
+          ...(references.length === 0 ? {} : { references }),
+          ...(structure === undefined ? {} : { structure }),
+          ...(scopes.length === 0 ? {} : { scopes }),
         },
       };
 }
@@ -586,6 +999,32 @@ export function resolveDynamicRegion(
     };
   }
   return null;
+}
+
+/**
+ * Résout une région dynamique contre les valeurs réelles.
+ * Retourne `null` si la collection n'existe pas, si l'élément est absent
+ * ou si plusieurs éléments partagent le même identifiant stable.
+ */
+export function resolveDynamicRegionItem(
+  editor: TemplateEditorManifest,
+  regionId: string,
+  values: TemplateParamValues,
+): TemplateEditorRegionItem | null {
+  const target = resolveDynamicRegion(editor, regionId);
+  if (target === null) return null;
+  const raw = values[target.collection];
+  if (!Array.isArray(raw)) return null;
+  const matches: { item: Record<string, TemplateParamValue>; index: number }[] = [];
+  raw.forEach((entry, index) => {
+    if (!isRecord(entry)) return;
+    if (entry[target.keyField] !== target.itemId) return;
+    matches.push({ item: entry as Record<string, TemplateParamValue>, index });
+  });
+  if (matches.length !== 1) return null;
+  const match = matches[0];
+  if (match === undefined) return null;
+  return { ...target, item: match.item, index: match.index };
 }
 
 /** Vrai si le paramètre est rattaché à plusieurs zones. */
