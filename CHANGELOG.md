@@ -5,6 +5,16 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.40.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.39.0...v0.40.0) (2026-11-24)
+
+
+### Features
+
+* **standalone:** assembler les fichiers de build ([#312](https://github.com/RINOHeinrich1/onir-cms/issues/312)) ([75b0442](https://github.com/RINOHeinrich1/onir-cms/commit/75b0442905eecd434ee32001bd17ed3211f676be))
+* **standalone:** finaliser le déploiement standalone ([#314](https://github.com/RINOHeinrich1/onir-cms/issues/314)) ([f35aaa6](https://github.com/RINOHeinrich1/onir-cms/commit/f35aaa6d0a6bf9db90e4b7c2b4ef3d09319cdc63))
+* **standalone:** socle builds et domaines ([#309](https://github.com/RINOHeinrich1/onir-cms/issues/309)) ([8cdd162](https://github.com/RINOHeinrich1/onir-cms/commit/8cdd1621530a151e5bfe56859b4f890e07f467fa))
+* **standalone:** vérification DNS et cycle TLS des domaines ([#313](https://github.com/RINOHeinrich1/onir-cms/issues/313)) ([7f40e06](https://github.com/RINOHeinrich1/onir-cms/commit/7f40e06f93f8039f87154156abe27773ac79fbf5))
+
 ## [0.39.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.38.1...v0.39.0) (2026-11-23)
 
 
