@@ -1,0 +1,957 @@
+{
+  "schemaVersion": 1,
+  "kind": "template",
+  "id": "natural-world",
+  "name": "Natural World",
+  "description": "Une expérience nature immersive : page éditoriale, impact, témoignages et conversation ONIR-CMS intégrée.",
+  "version": "1.1.0",
+  "publisher": {
+    "id": "onirtech",
+    "name": "ONIRTECH",
+    "trustLevel": "official"
+  },
+  "compatibility": {
+    "hostProtocol": "onirtech.template-host.v1"
+  },
+  "ui": {
+    "mode": "web-component",
+    "entry": "./dist/index.js",
+    "element": "onirtech-template-natural-world",
+    "shadowDom": "open",
+    "integrity": "sha256-CVAXSF9TvWP90tCkZLB7k+Qd6cAJ3EILri22Ld2PeMA="
+  },
+  "capabilities": ["messages", "media", "theme"],
+  "network": [],
+  "params": [
+    {
+      "key": "appearance",
+      "label": "Palette et apparence",
+      "type": "object",
+      "default": {
+        "color_ink": "#31482b",
+        "color_deep": "#334f29",
+        "color_sage": "#7f9f6a",
+        "color_leaf": "#5e7945",
+        "color_cream": "#f1f0df",
+        "color_lime": "#dff69a",
+        "corner_radius": 15
+      },
+      "properties": [
+        {
+          "key": "color_ink",
+          "label": "Couleur des textes",
+          "type": "color",
+          "default": "#31482b"
+        },
+        {
+          "key": "color_deep",
+          "label": "Vert forêt",
+          "type": "color",
+          "default": "#334f29"
+        },
+        {
+          "key": "color_sage",
+          "label": "Vert sauge",
+          "type": "color",
+          "default": "#7f9f6a"
+        },
+        {
+          "key": "color_leaf",
+          "label": "Vert feuillage",
+          "type": "color",
+          "default": "#5e7945"
+        },
+        {
+          "key": "color_cream",
+          "label": "Fond crème",
+          "type": "color",
+          "default": "#f1f0df"
+        },
+        {
+          "key": "color_lime",
+          "label": "Accent citron",
+          "type": "color",
+          "default": "#dff69a"
+        },
+        {
+          "key": "corner_radius",
+          "label": "Arrondi des cartes",
+          "type": "number",
+          "default": 15,
+          "min": 0,
+          "max": 40
+        }
+      ]
+    },
+    {
+      "key": "header",
+      "label": "Marque et navigation",
+      "type": "object",
+      "default": {
+        "brand_name": "WILDLIFE WATCH",
+        "brand_note": "Ensemble pour le vivant",
+        "cta_label": "Participer"
+      },
+      "properties": [
+        {
+          "key": "brand_name",
+          "label": "Nom de la marque",
+          "type": "string",
+          "default": "WILDLIFE WATCH",
+          "maxLength": 80
+        },
+        {
+          "key": "brand_note",
+          "label": "Signature de marque",
+          "type": "string",
+          "default": "Ensemble pour le vivant",
+          "maxLength": 100
+        },
+        {
+          "key": "cta_label",
+          "label": "Libellé du bouton",
+          "type": "string",
+          "default": "Participer",
+          "maxLength": 60
+        }
+      ]
+    },
+    {
+      "key": "hero",
+      "label": "Couverture immersive",
+      "type": "object",
+      "default": {
+        "eyebrow": "LA NATURE NOUS RASSEMBLE",
+        "headline": "Protéger la nature, dessiner demain.",
+        "lead": "Chaque observation, chaque idée, chaque voix peut faire la différence.",
+        "cta_label": "Partager mon expérience",
+        "image": ""
+      },
+      "properties": [
+        {
+          "key": "eyebrow",
+          "label": "Surtitre",
+          "type": "string",
+          "default": "LA NATURE NOUS RASSEMBLE",
+          "maxLength": 90
+        },
+        {
+          "key": "headline",
+          "label": "Titre principal",
+          "type": "text",
+          "default": "Protéger la nature, dessiner demain.",
+          "maxLength": 240
+        },
+        {
+          "key": "lead",
+          "label": "Introduction",
+          "type": "text",
+          "default": "Chaque observation, chaque idée, chaque voix peut faire la différence.",
+          "maxLength": 400
+        },
+        {
+          "key": "cta_label",
+          "label": "Appel à action",
+          "type": "string",
+          "default": "Partager mon expérience",
+          "maxLength": 80
+        },
+        {
+          "key": "image",
+          "label": "Photo de couverture (facultatif)",
+          "type": "image",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "key": "mission",
+      "label": "Présentation de la mission",
+      "type": "object",
+      "default": {
+        "eyebrow": "NOTRE CONVICTION",
+        "title": "Chaque voix aide la planète à s’épanouir.",
+        "description": "À Wildlife Watch, nous croyons que la conservation avance lorsque les communautés s’impliquent, partagent et agissent ensemble."
+      },
+      "properties": [
+        {
+          "key": "eyebrow",
+          "label": "Surtitre",
+          "type": "string",
+          "default": "NOTRE CONVICTION",
+          "maxLength": 90
+        },
+        {
+          "key": "title",
+          "label": "Titre",
+          "type": "text",
+          "default": "Chaque voix aide la planète à s’épanouir.",
+          "maxLength": 200
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text",
+          "default": "À Wildlife Watch, nous croyons que la conservation avance lorsque les communautés s’impliquent, partagent et agissent ensemble.",
+          "maxLength": 800
+        }
+      ]
+    },
+    {
+      "key": "benefits",
+      "label": "Cartes des initiatives",
+      "type": "array",
+      "default": [
+        {
+          "title": "Préserver les habitats",
+          "description": "Soutenir les programmes de protection des espèces et des espaces naturels."
+        },
+        {
+          "title": "Renforcer les communautés",
+          "description": "Faire grandir les initiatives locales et les projets de conservation."
+        },
+        {
+          "title": "Multiplier les occasions d’agir",
+          "description": "Créer des possibilités d’éducation, de mobilisation et de sensibilisation."
+        }
+      ],
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "default": {
+          "title": "",
+          "description": ""
+        },
+        "properties": [
+          {
+            "key": "title",
+            "label": "Titre",
+            "type": "string",
+            "default": "Préserver les habitats",
+            "maxLength": 100
+          },
+          {
+            "key": "description",
+            "label": "Texte",
+            "type": "text",
+            "default": "Soutenir les programmes de protection des espèces et des espaces naturels.",
+            "maxLength": 360
+          }
+        ]
+      }
+    },
+    {
+      "key": "impact_intro",
+      "label": "Introduction de l’impact",
+      "type": "object",
+      "default": {
+        "eyebrow": "NOTRE IMPACT",
+        "title": "Un impact durable, construit ensemble.",
+        "description": "De petites actions, de grandes transformations."
+      },
+      "properties": [
+        {
+          "key": "eyebrow",
+          "label": "Surtitre",
+          "type": "string",
+          "default": "NOTRE IMPACT",
+          "maxLength": 80
+        },
+        {
+          "key": "title",
+          "label": "Titre",
+          "type": "text",
+          "default": "Un impact durable, construit ensemble.",
+          "maxLength": 180
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text",
+          "default": "De petites actions, de grandes transformations.",
+          "maxLength": 360
+        }
+      ]
+    },
+    {
+      "key": "metrics",
+      "label": "Chiffres clés",
+      "type": "array",
+      "default": [
+        {
+          "value": "250+",
+          "label": "hectares d’habitats restaurés grâce aux projets communautaires"
+        },
+        {
+          "value": "5 000",
+          "label": "arbres plantés pour soutenir la biodiversité"
+        },
+        {
+          "value": "90 %",
+          "label": "des participants se sentent plus proches de la nature"
+        }
+      ],
+      "minItems": 0,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "default": {
+          "value": "",
+          "label": ""
+        },
+        "properties": [
+          {
+            "key": "value",
+            "label": "Valeur",
+            "type": "string",
+            "default": "250+",
+            "maxLength": 50
+          },
+          {
+            "key": "label",
+            "label": "Signification",
+            "type": "text",
+            "default": "hectares d’habitats restaurés grâce aux projets communautaires",
+            "maxLength": 400
+          }
+        ]
+      }
+    },
+    {
+      "key": "testimonials",
+      "label": "Témoignages",
+      "type": "array",
+      "default": [
+        {
+          "name": "Leila, 24 ans",
+          "role": "Étudiante",
+          "image": "",
+          "quote": "Le programme m’a aidée à comprendre comment les petites actions font une vraie différence pour la faune locale."
+        },
+        {
+          "name": "CJ, 35 ans",
+          "role": "Paysagiste",
+          "image": "",
+          "quote": "J’ai aimé participer à un projet de restauration et voir directement l’impact de nos efforts."
+        },
+        {
+          "name": "Audra, 28 ans",
+          "role": "Enseignante",
+          "image": "",
+          "quote": "Les ateliers m’ont donné des solutions concrètes pour encourager la protection de la nature."
+        }
+      ],
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "default": {
+          "name": "",
+          "role": "",
+          "image": "",
+          "quote": ""
+        },
+        "properties": [
+          {
+            "key": "name",
+            "label": "Nom",
+            "type": "string",
+            "default": "Leila, 24 ans",
+            "maxLength": 120
+          },
+          {
+            "key": "role",
+            "label": "Fonction",
+            "type": "string",
+            "default": "Étudiante",
+            "maxLength": 100
+          },
+          {
+            "key": "image",
+            "label": "Photo du témoignage",
+            "type": "image",
+            "default": ""
+          },
+          {
+            "key": "quote",
+            "label": "Citation",
+            "type": "text",
+            "default": "Le programme m’a aidée à comprendre comment les petites actions font une vraie différence pour la faune locale.",
+            "maxLength": 650
+          }
+        ]
+      }
+    },
+    {
+      "key": "chat",
+      "label": "Conversation et identification",
+      "type": "object",
+      "default": {
+        "eyebrow": "VOTRE VOIX COMPTE",
+        "title": "Partagez votre expérience.",
+        "description": "Vos idées nous aident à améliorer les programmes de conservation, de biodiversité et d’éducation.",
+        "identity_title": "Faisons connaissance",
+        "identity_text": "Quelques informations pour commencer notre échange.",
+        "chat_title": "La conversation commence ici",
+        "chat_intro": "Bonjour ! Qu’aimeriez-vous partager ou découvrir sur nos actions ?",
+        "name_label": "Votre nom",
+        "email_label": "Votre adresse e-mail",
+        "start_label": "Commencer la discussion",
+        "input_placeholder": "Écrivez votre message sur la nature…",
+        "send_label": "Envoyer",
+        "finish_label": "Terminer la conversation"
+      },
+      "properties": [
+        {
+          "key": "eyebrow",
+          "label": "Surtitre",
+          "type": "string",
+          "default": "VOTRE VOIX COMPTE",
+          "maxLength": 80
+        },
+        {
+          "key": "title",
+          "label": "Titre de section",
+          "type": "text",
+          "default": "Partagez votre expérience.",
+          "maxLength": 150
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text",
+          "default": "Vos idées nous aident à améliorer les programmes de conservation, de biodiversité et d’éducation.",
+          "maxLength": 350
+        },
+        {
+          "key": "identity_title",
+          "label": "Titre identification",
+          "type": "string",
+          "default": "Faisons connaissance",
+          "maxLength": 90
+        },
+        {
+          "key": "identity_text",
+          "label": "Sous-titre identification",
+          "type": "text",
+          "default": "Quelques informations pour commencer notre échange.",
+          "maxLength": 180
+        },
+        {
+          "key": "chat_title",
+          "label": "Titre du chat",
+          "type": "string",
+          "default": "La conversation commence ici",
+          "maxLength": 90
+        },
+        {
+          "key": "chat_intro",
+          "label": "Message introductif",
+          "type": "text",
+          "default": "Bonjour ! Qu’aimeriez-vous partager ou découvrir sur nos actions ?",
+          "maxLength": 500
+        },
+        {
+          "key": "name_label",
+          "label": "Nom",
+          "type": "string",
+          "default": "Votre nom",
+          "maxLength": 70
+        },
+        {
+          "key": "email_label",
+          "label": "Adresse e-mail",
+          "type": "string",
+          "default": "Votre adresse e-mail",
+          "maxLength": 70
+        },
+        {
+          "key": "start_label",
+          "label": "Bouton démarrer",
+          "type": "string",
+          "default": "Commencer la discussion",
+          "maxLength": 90
+        },
+        {
+          "key": "input_placeholder",
+          "label": "Placeholder message",
+          "type": "string",
+          "default": "Écrivez votre message sur la nature…",
+          "maxLength": 120
+        },
+        {
+          "key": "send_label",
+          "label": "Bouton envoyer",
+          "type": "string",
+          "default": "Envoyer",
+          "maxLength": 70
+        },
+        {
+          "key": "finish_label",
+          "label": "Bouton terminer",
+          "type": "string",
+          "default": "Terminer la conversation",
+          "maxLength": 90
+        }
+      ]
+    },
+    {
+      "key": "footer",
+      "label": "Bannière finale et contact",
+      "type": "object",
+      "default": {
+        "headline": "Construisons un avenir meilleur pour la Terre et tous ses habitants.",
+        "tagline": "Votre voix soutient un avenir plus vert.",
+        "address": "123 Anywhere St. · Any City",
+        "email": "hello@reallygreatsite.com",
+        "copyright": "© Wildlife Watch — Un avenir vivant, ensemble."
+      },
+      "properties": [
+        {
+          "key": "headline",
+          "label": "Titre",
+          "type": "text",
+          "default": "Construisons un avenir meilleur pour la Terre et tous ses habitants.",
+          "maxLength": 240
+        },
+        {
+          "key": "tagline",
+          "label": "Signature",
+          "type": "text",
+          "default": "Votre voix soutient un avenir plus vert.",
+          "maxLength": 160
+        },
+        {
+          "key": "address",
+          "label": "Adresse",
+          "type": "string",
+          "default": "123 Anywhere St. · Any City",
+          "maxLength": 200
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "string",
+          "default": "hello@reallygreatsite.com",
+          "maxLength": 180
+        },
+        {
+          "key": "copyright",
+          "label": "Copyright",
+          "type": "string",
+          "default": "© Wildlife Watch — Un avenir vivant, ensemble.",
+          "maxLength": 220
+        }
+      ]
+    },
+    {
+      "key": "site_settings",
+      "label": "Réglages globaux du site",
+      "type": "object",
+      "default": {
+        "legal_heading": "Informations légales",
+        "legal_intro": "Retrouvez les documents d’information du site.",
+        "legal_back_label": "Retour au site",
+        "legal_footer_label": "Informations légales"
+      },
+      "properties": [
+        {
+          "key": "legal_heading",
+          "label": "Intitulé des informations légales",
+          "type": "string",
+          "default": "Informations légales",
+          "maxLength": 100
+        },
+        {
+          "key": "legal_intro",
+          "label": "Description des documents légaux",
+          "type": "text",
+          "default": "Retrouvez les documents d’information du site.",
+          "maxLength": 400
+        },
+        {
+          "key": "legal_back_label",
+          "label": "Libellé du retour au site",
+          "type": "string",
+          "default": "Retour au site",
+          "maxLength": 80
+        },
+        {
+          "key": "legal_footer_label",
+          "label": "Titre du bloc légal en pied de page",
+          "type": "string",
+          "default": "Informations légales",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "key": "legal_pages",
+      "label": "Pages légales globales",
+      "type": "array",
+      "default": [
+        {
+          "slug": "confidentialite",
+          "title": "Politique de confidentialité",
+          "introduction": "Document à rédiger et à faire valider avant publication.",
+          "published": false,
+          "sections": [
+            {
+              "heading": "Traitement des données",
+              "content": "Décrivez ici les catégories de données collectées, leurs finalités, les destinataires et les durées de conservation."
+            }
+          ]
+        },
+        {
+          "slug": "conditions-generales",
+          "title": "Conditions générales",
+          "introduction": "Document à adapter à votre activité et à faire valider avant publication.",
+          "published": false,
+          "sections": [
+            {
+              "heading": "Conditions du service",
+              "content": "Précisez ici les conditions d’utilisation ou de vente applicables à votre organisation."
+            }
+          ]
+        },
+        {
+          "slug": "mentions-legales",
+          "title": "Mentions légales",
+          "introduction": "Informations sur l’éditeur et l’hébergeur à renseigner avant publication.",
+          "published": false,
+          "sections": [
+            {
+              "heading": "Identification de l’éditeur",
+              "content": "Indiquez ici la dénomination, la forme juridique, les coordonnées et les autres mentions requises."
+            }
+          ]
+        },
+        {
+          "slug": "cookies",
+          "title": "Politique relative aux cookies",
+          "introduction": "Document à compléter en fonction des outils réellement utilisés sur le site.",
+          "published": false,
+          "sections": [
+            {
+              "heading": "Cookies et traceurs",
+              "content": "Précisez la nature des cookies, leur finalité, leur durée et les éventuels choix proposés aux visiteurs."
+            }
+          ]
+        }
+      ],
+      "minItems": 0,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "default": {
+          "slug": "confidentialite",
+          "title": "Politique de confidentialité",
+          "introduction": "Document à rédiger et à faire valider avant publication.",
+          "published": false,
+          "sections": [
+            {
+              "heading": "Traitement des données",
+              "content": "Décrivez ici les catégories de données collectées, leurs finalités, les destinataires et les durées de conservation."
+            }
+          ]
+        },
+        "properties": [
+          {
+            "key": "slug",
+            "label": "Identifiant de page (lettres minuscules et tirets)",
+            "type": "string",
+            "default": "",
+            "maxLength": 50
+          },
+          {
+            "key": "title",
+            "label": "Titre du document",
+            "type": "string",
+            "default": "",
+            "maxLength": 140
+          },
+          {
+            "key": "introduction",
+            "label": "Introduction",
+            "type": "text",
+            "default": "",
+            "maxLength": 1000
+          },
+          {
+            "key": "published",
+            "label": "Publier et afficher dans le pied de page",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "key": "sections",
+            "label": "Sections du document",
+            "type": "array",
+            "default": [
+              {
+                "heading": "Traitement des données",
+                "content": "Décrivez ici les catégories de données collectées, leurs finalités, les destinataires et les durées de conservation."
+              }
+            ],
+            "minItems": 0,
+            "maxItems": 24,
+            "items": {
+              "type": "object",
+              "default": {
+                "heading": "Traitement des données",
+                "content": "Décrivez ici les catégories de données collectées, leurs finalités, les destinataires et les durées de conservation."
+              },
+              "properties": [
+                {
+                  "key": "heading",
+                  "label": "Titre de section",
+                  "type": "string",
+                  "default": "",
+                  "maxLength": 200
+                },
+                {
+                  "key": "content",
+                  "label": "Contenu de section",
+                  "type": "text",
+                  "default": "",
+                  "maxLength": 2000
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "visuals",
+      "label": "Photographies des sections",
+      "type": "object",
+      "default": {
+        "impact_photo": "",
+        "final_photo": "",
+        "footer_photo": ""
+      },
+      "properties": [
+        {
+          "key": "impact_photo",
+          "label": "Photo de la section impact",
+          "type": "image",
+          "default": ""
+        },
+        {
+          "key": "final_photo",
+          "label": "Photo de la bannière finale",
+          "type": "image",
+          "default": ""
+        },
+        {
+          "key": "footer_photo",
+          "label": "Photo du pied de page",
+          "type": "image",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "key": "sections",
+      "label": "Sections facultatives",
+      "type": "object",
+      "default": {
+        "show_benefits": true,
+        "show_impact": true,
+        "show_testimonials": true,
+        "show_gallery": true
+      },
+      "properties": [
+        {
+          "key": "show_benefits",
+          "label": "Afficher initiatives",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "show_impact",
+          "label": "Afficher impact",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "show_testimonials",
+          "label": "Afficher témoignages",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "show_gallery",
+          "label": "Afficher galerie du chatbot",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    }
+  ],
+  "editor": {
+    "version": 1,
+    "regions": [
+      {
+        "id": "header",
+        "label": "En-tête"
+      },
+      {
+        "id": "hero",
+        "label": "Couverture"
+      },
+      {
+        "id": "mission",
+        "label": "Mission"
+      },
+      {
+        "id": "benefits",
+        "label": "Initiatives"
+      },
+      {
+        "id": "impact",
+        "label": "Impact"
+      },
+      {
+        "id": "testimonials",
+        "label": "Témoignages"
+      },
+      {
+        "id": "chat",
+        "label": "Conversation"
+      },
+      {
+        "id": "gallery",
+        "label": "Galerie"
+      },
+      {
+        "id": "final",
+        "label": "Bannière finale"
+      },
+      {
+        "id": "footer",
+        "label": "Pied de page"
+      },
+      {
+        "id": "legal",
+        "label": "Pages légales"
+      }
+    ],
+    "bindings": [
+      {
+        "param": "appearance",
+        "regions": [
+          "header",
+          "hero",
+          "mission",
+          "benefits",
+          "impact",
+          "testimonials",
+          "chat",
+          "gallery",
+          "final",
+          "footer",
+          "legal"
+        ],
+        "category": "appearance"
+      },
+      {
+        "param": "header",
+        "regions": ["header"],
+        "category": "content"
+      },
+      {
+        "param": "hero",
+        "regions": ["hero"],
+        "category": "content"
+      },
+      {
+        "param": "mission",
+        "regions": ["mission"],
+        "category": "content"
+      },
+      {
+        "param": "benefits",
+        "regions": ["benefits"],
+        "category": "content"
+      },
+      {
+        "param": "impact_intro",
+        "regions": ["impact"],
+        "category": "content"
+      },
+      {
+        "param": "metrics",
+        "regions": ["impact"],
+        "category": "content"
+      },
+      {
+        "param": "testimonials",
+        "regions": ["testimonials"],
+        "category": "content"
+      },
+      {
+        "param": "chat",
+        "regions": ["chat"],
+        "category": "content"
+      },
+      {
+        "param": "footer",
+        "regions": ["footer"],
+        "category": "content"
+      },
+      {
+        "param": "footer.headline",
+        "regions": ["final"],
+        "category": "content"
+      },
+      {
+        "param": "visuals.impact_photo",
+        "regions": ["impact"],
+        "category": "content"
+      },
+      {
+        "param": "visuals.final_photo",
+        "regions": ["final"],
+        "category": "content"
+      },
+      {
+        "param": "visuals.footer_photo",
+        "regions": ["footer"],
+        "category": "content"
+      },
+      {
+        "param": "sections.show_benefits",
+        "regions": ["benefits"],
+        "category": "action"
+      },
+      {
+        "param": "sections.show_impact",
+        "regions": ["impact"],
+        "category": "action"
+      },
+      {
+        "param": "sections.show_testimonials",
+        "regions": ["testimonials"],
+        "category": "action"
+      },
+      {
+        "param": "sections.show_gallery",
+        "regions": ["gallery"],
+        "category": "action"
+      },
+      {
+        "param": "site_settings",
+        "regions": ["legal"],
+        "category": "content"
+      },
+      {
+        "param": "legal_pages",
+        "regions": ["legal"],
+        "category": "content"
+      }
+    ]
+  }
+}

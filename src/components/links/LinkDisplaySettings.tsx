@@ -12,6 +12,10 @@ import {
   bindingsForRegion,
   editorRegionChain,
   isTemplateEditorBindingShared,
+  resolveDynamicRegion,
+  resolveDynamicRegionItem,
+  type TemplateEditorManifest,
+  type TemplateEditorRegionItem,
 } from "@/domain/template-editor";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
@@ -31,6 +35,26 @@ import {
 type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
 type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
+
+function dynamicRegionLabel(
+  editor: TemplateEditorManifest,
+  target: TemplateEditorRegionItem,
+): string {
+  if (editor.version !== 2) return target.itemId;
+  const collection = editor.collections?.find((entry) => entry.param === target.collection);
+  const keys = [
+    collection?.itemLabel,
+    ...(collection?.labelFallback ?? []),
+    "title",
+    "name",
+    "slug",
+    "id",
+  ].filter((key): key is string => key !== undefined && key !== "");
+  const summary = keys
+    .map((key) => target.item[key])
+    .find((value) => typeof value === "string" && value.trim() !== "");
+  return `${target.collectionLabel} · ${typeof summary === "string" ? summary : target.itemId}`;
+}
 
 function StudioIcon({
   name,
@@ -219,22 +243,55 @@ export function LinkDisplaySettings({
   const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
   const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
+  const selectedCollections =
+    selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
   const selectedShadowDom = shadowDomForSelection(visualTemplates, draft.visualTemplate);
   const editorAvailable = selectedEditor !== null && selectedShadowDom !== "closed";
-  const selectedRegionDefinition =
+  const dynamicRegion =
     selectedEditor === null || selectedRegion === null
       ? null
-      : (selectedEditor.regions.find((region) => region.id === selectedRegion) ?? null);
-  const selectedRegionChain =
+      : resolveDynamicRegion(selectedEditor, selectedRegion);
+  const dynamicRegionItem =
     selectedEditor === null || selectedRegion === null
+      ? null
+      : resolveDynamicRegionItem(
+          selectedEditor,
+          selectedRegion,
+          draft.params as TemplateParamValues,
+        );
+  const dynamicRegionMissing = dynamicRegion !== null && dynamicRegionItem === null;
+  const selectedRegionDefinition =
+    selectedEditor === null || selectedRegion === null || dynamicRegion !== null
+      ? null
+      : (selectedEditor.regions.find((region) => region.id === selectedRegion) ?? null);
+  const selectedRegionLabel =
+    dynamicRegionItem !== null && selectedEditor !== null
+      ? dynamicRegionLabel(selectedEditor, dynamicRegionItem)
+      : dynamicRegion !== null
+        ? `${dynamicRegion.collectionLabel} · ${dynamicRegion.itemId}`
+        : (selectedRegionDefinition?.label ?? null);
+  const selectedRegionChain =
+    selectedEditor === null || selectedRegion === null || dynamicRegion !== null
       ? []
       : editorRegionChain(selectedEditor, selectedRegion);
+  const collectionFocus =
+    dynamicRegionItem === null
+      ? undefined
+      : {
+          param: dynamicRegionItem.collection,
+          keyField: dynamicRegionItem.keyField,
+          itemId: dynamicRegionItem.itemId,
+        };
   const regionBindings =
     selectedEditor === null || selectedRegion === null
       ? []
       : bindingsForRegion(selectedEditor, selectedRegion);
   const localPaths = new Set(
-    regionBindings.filter((binding) => !isTemplateEditorBindingShared(binding)).map((b) => b.param),
+    dynamicRegionMissing
+      ? []
+      : regionBindings
+          .filter((binding) => !isTemplateEditorBindingShared(binding))
+          .map((b) => b.param),
   );
   const sharedBindings = regionBindings.filter(isTemplateEditorBindingShared);
   const sharedPaths = new Set(sharedBindings.map((binding) => binding.param));
@@ -952,12 +1009,12 @@ export function LinkDisplaySettings({
                 </div>
               </section>
 
-              {selectedRegionDefinition !== null && selectedEditor !== null ? (
+              {selectedRegionLabel !== null && selectedEditor !== null ? (
                 <section className="display-studio-group">
                   <div className="display-studio-params-head">
                     <div>
                       <span className="eyebrow">Zone inspectée</span>
-                      <h3>{selectedRegionDefinition.label}</h3>
+                      <h3>{selectedRegionLabel}</h3>
                     </div>
                     <button
                       type="button"
@@ -967,15 +1024,24 @@ export function LinkDisplaySettings({
                       Tous les paramètres
                     </button>
                   </div>
-                  <p className="hint">
-                    {selectedRegionChain.map((entry) => entry.label).join(" / ")}
-                  </p>
+                  {selectedRegionChain.length === 0 ? null : (
+                    <p className="hint">
+                      {selectedRegionChain.map((entry) => entry.label).join(" / ")}
+                    </p>
+                  )}
+                  {dynamicRegionMissing ? (
+                    <p className="hint">
+                      Élément ciblé introuvable ou identifiant dupliqué dans cette collection.
+                    </p>
+                  ) : null}
                   {localPaths.size === 0 ? null : (
                     <TemplateParamsFields
                       schema={paramsSchema}
                       values={draft.params as TemplateParamValues}
                       visiblePaths={localPaths}
                       legend="Paramètres de la zone"
+                      collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -985,6 +1051,8 @@ export function LinkDisplaySettings({
                       values={draft.params as TemplateParamValues}
                       visiblePaths={sharedPaths}
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
+                      collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -1039,6 +1107,8 @@ export function LinkDisplaySettings({
                     <TemplateParamsFields
                       schema={filteredParams}
                       values={draft.params as TemplateParamValues}
+                      collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}

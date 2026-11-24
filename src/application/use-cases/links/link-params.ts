@@ -1,7 +1,14 @@
 import { ValidationError } from "@/application/errors";
 import type { VisualTemplateRepository } from "@/application/ports/visual-template-repository";
-import { parseVisualTemplateParams } from "@/domain/entities/chat";
-import { type TemplateParamValues, validateTemplateParamValues } from "@/domain/template-params";
+import {
+  validateTemplateEditorCollectionValues,
+  validateTemplateEditorStructureValues,
+} from "@/domain/template-editor";
+import {
+  normalizeTemplateParamValuesStrict,
+  type TemplateParamValues,
+  validateTemplateParamValues,
+} from "@/domain/template-params";
 
 /**
  * Prépare les variables d'un lien avant persistance (ADR-0023).
@@ -20,9 +27,18 @@ export async function prepareLinkParams(
   visualTemplateVersion: string | null,
   raw: unknown,
 ): Promise<TemplateParamValues> {
-  const values = parseVisualTemplateParams(raw);
-  if (Object.keys(values).length === 0) return values;
   if (visualTemplateId === null || visualTemplateVersion === null) return {};
+
+  const normalized = normalizeTemplateParamValuesStrict(raw);
+  if (!normalized.ok) {
+    throw new ValidationError(
+      `Paramètres invalides : ${normalized.errors
+        .map((error) => `${error.field} — ${error.message}`)
+        .join(" ; ")}`,
+    );
+  }
+  const values = normalized.value;
+  if (Object.keys(values).length === 0) return values;
 
   const version = await visualTemplates.findVersion(visualTemplateId, visualTemplateVersion);
   if (version === null) {
@@ -33,6 +49,27 @@ export async function prepareLinkParams(
     throw new ValidationError(
       `Paramètres invalides : ${errors.map((error) => `${error.field} — ${error.message}`).join(" ; ")}`,
     );
+  }
+  if (version.manifest.editor !== undefined) {
+    const collectionErrors = validateTemplateEditorCollectionValues(
+      version.manifest.editor,
+      values,
+    );
+    if (collectionErrors.length > 0) {
+      throw new ValidationError(
+        `Identifiants de collection invalides : ${collectionErrors
+          .map((error) => `${error.field} — ${error.message}`)
+          .join(" ; ")}`,
+      );
+    }
+    const structureErrors = validateTemplateEditorStructureValues(version.manifest.editor, values);
+    if (structureErrors.length > 0) {
+      throw new ValidationError(
+        `Structure invalide : ${structureErrors
+          .map((error) => `${error.field} — ${error.message}`)
+          .join(" ; ")}`,
+      );
+    }
   }
   return values;
 }

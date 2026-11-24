@@ -4,6 +4,7 @@ import { buildTemplateContext } from "@/domain/template-contract";
 import {
   mergeTemplateParams,
   normalizeTemplateParamValues,
+  normalizeTemplateParamValuesStrict,
   orphanParamKeys,
   resolveTemplateParams,
   type TemplateParamSchema,
@@ -216,6 +217,29 @@ describe("normalizeTemplateParamValues", () => {
 
   it("identifie les clés non déclarées", () => {
     expect(orphanParamKeys(SCHEMA, { titre_de_livre: "x", ancien: "y" })).toEqual(["ancien"]);
+  });
+
+  it("sépare le budget du schéma et celui des valeurs", () => {
+    const large = {
+      a: Array.from({ length: 100 }, () => "a"),
+      b: Array.from({ length: 100 }, () => "b"),
+      c: Array.from({ length: 100 }, () => "c"),
+      d: Array.from({ length: 100 }, () => "d"),
+    };
+    const result = normalizeTemplateParamValuesStrict(large);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.b).toHaveLength(100);
+    expect(result.value.d).toHaveLength(100);
+  });
+
+  it("refuse explicitement une clé invalide au lieu de la supprimer", () => {
+    const result = normalizeTemplateParamValuesStrict(
+      JSON.parse('{"valide":"x","__proto__":"pollution"}') as unknown,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((error) => error.field === "__proto__")).toBe(true);
   });
 });
 
