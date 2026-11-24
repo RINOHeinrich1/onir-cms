@@ -565,7 +565,7 @@ function ParamValueEditor({
   }
 
   const reference = referenceForPath(path, references);
-  if (reference !== undefined) {
+  if (reference !== undefined && referenceTarget(reference, record) !== null) {
     return (
       <ReferenceSelect
         reference={reference}
