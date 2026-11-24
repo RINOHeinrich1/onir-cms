@@ -44,9 +44,14 @@ async function loadState(
   return { settings, builds, domains };
 }
 
-function publicState(state: Awaited<ReturnType<typeof loadState>>, edgeHostname: string) {
+function publicState(
+  state: Awaited<ReturnType<typeof loadState>>,
+  edgeHostname: string,
+  edgeIps: string[],
+) {
   return {
     settings: state.settings,
+    edgeIps,
     builds: state.builds,
     domains: state.domains.map((domain) => ({
       ...domain,
@@ -72,7 +77,11 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     const link = await pgChatLinkRepository(getPool()).findById(actor.organizationId, id);
     if (link === null) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
     return NextResponse.json(
-      publicState(await loadState(actor.organizationId, id), standaloneEdgeHostname()),
+      publicState(
+        await loadState(actor.organizationId, id),
+        standaloneEdgeHostname(),
+        standaloneEdgeIps(),
+      ),
     );
   } catch (error) {
     return errorResponse(error);
@@ -167,7 +176,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     }
 
     return NextResponse.json(
-      publicState(await loadState(actor.organizationId, id), standaloneEdgeHostname()),
+      publicState(
+        await loadState(actor.organizationId, id),
+        standaloneEdgeHostname(),
+        standaloneEdgeIps(),
+      ),
     );
   } catch (error) {
     return errorResponse(error);

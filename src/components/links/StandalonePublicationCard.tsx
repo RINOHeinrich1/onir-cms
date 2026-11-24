@@ -32,6 +32,7 @@ type State = {
   settings: { enabled: boolean; activeBuildId: string | null };
   builds: Build[];
   domains: Domain[];
+  edgeIps?: string[];
 };
 
 const BUILD_LABELS: Record<BuildStatus, string> = {
@@ -57,6 +58,24 @@ const SSL_LABELS: Record<SslStatus, string> = {
   failed: "SSL en erreur",
   expired: "SSL expiré",
 };
+
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="link"
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+    >
+      {copied ? "Copié" : `Copier ${label}`}
+    </button>
+  );
+}
 
 function badgeClass(value: string): string {
   if (value === "active" || value === "verified" || value === "ready") return "badge success";
@@ -237,17 +256,86 @@ export function StandalonePublicationCard({ chatLinkId }: { chatLinkId: string }
                       </span>
                     </div>
                     {domain.verificationRecord !== null && domain.verificationValue !== null ? (
-                      <p className="hint">
-                        TXT : <code>{domain.verificationRecord}</code> →{" "}
-                        <code>{domain.verificationValue}</code>
-                        {domain.cnameTarget === null ? null : (
-                          <>
-                            <br />
-                            CNAME : <code>{domain.hostname}</code> →{" "}
-                            <code>{domain.cnameTarget}</code>
-                          </>
-                        )}
-                      </p>
+                      <details
+                        open={domain.verificationStatus !== "verified"}
+                        style={{ marginTop: "0.75rem" }}
+                      >
+                        <summary className="link">Configuration DNS</summary>
+                        <p className="hint" style={{ marginTop: "0.5rem" }}>
+                          Le TXT prouve la propriété du domaine. Le A/CNAME route le domaine vers
+                          l’edge.
+                        </p>
+                        <div style={{ display: "grid", gap: "0.5rem" }}>
+                          <div>
+                            <strong>1. TXT de propriété</strong>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <code>{domain.verificationRecord}</code>
+                              <CopyButton label="le nom TXT" value={domain.verificationRecord} />
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <code>{domain.verificationValue}</code>
+                              <CopyButton label="la valeur TXT" value={domain.verificationValue} />
+                            </div>
+                          </div>
+                          <div>
+                            <strong>2. Routage du domaine</strong>
+                            {(state.edgeIps ?? []).length > 0 ? (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "0.5rem",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span>
+                                  A <code>@</code> → <code>{state.edgeIps?.[0]}</code>
+                                </span>
+                                <CopyButton label="l’IP" value={state.edgeIps?.[0] ?? ""} />
+                              </div>
+                            ) : null}
+                            {domain.cnameTarget === null ? null : (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "0.5rem",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span>
+                                  CNAME <code>@</code> → <code>{domain.cnameTarget}</code>
+                                </span>
+                                <CopyButton label="la cible CNAME" value={domain.cnameTarget} />
+                              </div>
+                            )}
+                          </div>
+                          <ul className="hint" style={{ margin: 0 }}>
+                            <li>
+                              {domain.verificationStatus === "verified" ? "✓" : "○"} TXT de
+                              propriété
+                            </li>
+                            <li>
+                              {domain.verificationStatus === "verified" ? "✓" : "○"} Routage A/CNAME
+                            </li>
+                            <li>{domain.sslStatus === "active" ? "✓" : "○"} Certificat SSL</li>
+                          </ul>
+                        </div>
+                      </details>
                     ) : null}
                     {domain.lastError === null ? null : (
                       <p className="alert error">{domain.lastError}</p>
