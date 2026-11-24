@@ -16,8 +16,16 @@ import {
   resolveDynamicRegionItem,
   type TemplateEditorManifest,
   type TemplateEditorRegionItem,
+  validateTemplateEditorCollectionValues,
+  validateTemplateEditorStructureValues,
 } from "@/domain/template-editor";
-import type { TemplateParamValues } from "@/domain/template-params";
+import { searchTemplateParamPaths } from "@/domain/template-param-search";
+import type { TemplateParamValue, TemplateParamValues } from "@/domain/template-params";
+import {
+  addCollectionItem,
+  duplicateCollectionItem,
+  removeCollectionItem,
+} from "@/domain/template-structure-operations";
 import { latestTemplateVersion } from "@/domain/template-version";
 import { WIDGET_POSITIONS, type WidgetPosition } from "@/domain/widget";
 import { type ChannelDraft, type ChannelDrafts, channelApiPayload } from "./LinkChannelsFields";
@@ -116,6 +124,21 @@ function StudioIcon({
   );
 }
 
+function cloneParams(values: TemplateParamValues): TemplateParamValues {
+  return JSON.parse(JSON.stringify(values)) as TemplateParamValues;
+}
+
+function defaultItemForCollection(
+  schema: ReturnType<typeof paramsSchemaForSelection>,
+  collection: string,
+): Record<string, TemplateParamValue> | null {
+  const node = schema.find((entry) => entry.key === collection);
+  if (node?.type !== "array" || node.items?.type !== "object") return null;
+  const value = node.items.default;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  return JSON.parse(JSON.stringify(value)) as Record<string, TemplateParamValue>;
+}
+
 function previewSize(device: DisplayDevice): { width: number; label: string } {
   if (device === "tablet") return { width: 834, label: "834 × 1112" };
   if (device === "mobile") return { width: 390, label: "390 × 844" };
@@ -180,7 +203,18 @@ export function LinkDisplaySettings({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [drafts, setDrafts] = useState<ChannelDrafts>(() => initialDrafts(link));
+  const initialDraftsRef = useRef<ChannelDrafts | null>(null);
+  if (initialDraftsRef.current === null) initialDraftsRef.current = initialDrafts(link);
+  const [drafts, setDrafts] = useState<ChannelDrafts>(
+    () => initialDraftsRef.current as ChannelDrafts,
+  );
+  const paramHistoryRef = useRef<
+    Record<ChatLinkSurface, { stack: TemplateParamValues[]; index: number }>
+  >({
+    page: { stack: [cloneParams(initialDraftsRef.current.page.params)], index: 0 },
+    widget: { stack: [cloneParams(initialDraftsRef.current.widget.params)], index: 0 },
+  });
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [surface, setSurface] = useState<ChatLinkSurface>(initialSurface);
   const [device, setDevice] = useState<DisplayDevice>("desktop");
   const [saving, setSaving] = useState(false);
@@ -241,10 +275,29 @@ export function LinkDisplaySettings({
   const selectedTemplate = visualTemplates.find((template) => template.id === selected.id) ?? null;
   const paramTabs = useMemo(() => paramTabsForSchema(paramsSchema), [paramsSchema]);
   const activeParamTab: ParamTab = paramTabs.some((tab) => tab.id === paramTab) ? paramTab : "all";
-  const filteredParams = paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const selectedEditor = editorForSelection(visualTemplates, draft.visualTemplate);
   const selectedCollections =
     selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
+  const searchPaths = useMemo(
+    () =>
+      searchTemplateParamPaths(
+        paramsSchema,
+        draft.params as TemplateParamValues,
+        selectedCollections,
+        paramSearch,
+      ),
+    [draft.params, paramSearch, paramsSchema, selectedCollections],
+  );
+  const searchActive = paramSearch.trim() !== "";
+  const searchEmpty = searchActive && (searchPaths?.size ?? 0) === 0;
+  const visibleSearchPaths = searchActive
+    ? searchPaths !== null && searchPaths.size > 0
+      ? searchPaths
+      : new Set<string>(["__no_param_search_result__"])
+    : undefined;
+  const filteredParams = searchActive
+    ? paramsSchema
+    : paramsForTab(paramsSchema, activeParamTab, paramSearch);
   const selectedShadowDom = shadowDomForSelection(visualTemplates, draft.visualTemplate);
   const editorAvailable = selectedEditor !== null && selectedShadowDom !== "closed";
   const dynamicRegion =
@@ -282,6 +335,82 @@ export function LinkDisplaySettings({
           keyField: dynamicRegionItem.keyField,
           itemId: dynamicRegionItem.itemId,
         };
+  const centralStructure =
+    selectedEditor?.version === 2 ? selectedEditor.structure?.children : undefined;
+  const centralEditAvailable =
+    canEdit &&
+    selectedEditor?.version === 2 &&
+    dynamicRegionItem !== null &&
+    (centralStructure === undefined ||
+      centralStructure.collection === dynamicRegionItem.collection);
+  const applyCentralParams = (next: TemplateParamValues): void => {
+    if (selectedEditor === null) return;
+    const errors = [
+      ...validateTemplateEditorCollectionValues(selectedEditor, next),
+      ...validateTemplateEditorStructureValues(selectedEditor, next),
+    ];
+    if (errors.length > 0) {
+      toast.error(errors.map((error) => error.message).join(" ; "));
+      return;
+    }
+    recordParams(next);
+  };
+
+  const addCentralItem = (): void => {
+    if (selectedEditor === null || dynamicRegionItem === null) return;
+    const base = defaultItemForCollection(paramsSchema, dynamicRegionItem.collection);
+    if (base === null) {
+      toast.error("Aucun modèle d’élément disponible pour cette collection.");
+      return;
+    }
+    const result = addCollectionItem(
+      draft.params as TemplateParamValues,
+      selectedEditor,
+      dynamicRegionItem.collection,
+      base,
+      dynamicRegionItem.itemId,
+    );
+    if (result.itemId === null) return;
+    applyCentralParams(result.values);
+    const prefix = selectedRegion?.slice(
+      0,
+      selectedRegion.length - dynamicRegionItem.itemId.length,
+    );
+    if (prefix !== undefined && prefix !== "") setSelectedRegion(`${prefix}${result.itemId}`);
+  };
+
+  const duplicateCentralItem = (): void => {
+    if (selectedEditor === null || dynamicRegionItem === null) return;
+    const result = duplicateCollectionItem(
+      draft.params as TemplateParamValues,
+      selectedEditor,
+      dynamicRegionItem.collection,
+      dynamicRegionItem.itemId,
+    );
+    if (result.itemId === null) return;
+    applyCentralParams(result.values);
+    const prefix = selectedRegion?.slice(
+      0,
+      selectedRegion.length - dynamicRegionItem.itemId.length,
+    );
+    if (prefix !== undefined && prefix !== "") setSelectedRegion(`${prefix}${result.itemId}`);
+  };
+
+  const removeCentralItem = async (): Promise<void> => {
+    if (selectedEditor === null || dynamicRegionItem === null) return;
+    const accepted = await confirmDialog(
+      "Supprimer cet élément et ses placements ? Cette action peut être annulée avant enregistrement.",
+    );
+    if (!accepted) return;
+    const next = removeCollectionItem(
+      draft.params as TemplateParamValues,
+      selectedEditor,
+      dynamicRegionItem.collection,
+      dynamicRegionItem.itemId,
+    );
+    setSelectedRegion(null);
+    applyCentralParams(next);
+  };
   const regionBindings =
     selectedEditor === null || selectedRegion === null
       ? []
@@ -490,6 +619,44 @@ export function LinkDisplaySettings({
     }));
   };
 
+  const recordParams = (next: TemplateParamValues): void => {
+    const history = paramHistoryRef.current[surface];
+    const stack = history.stack.slice(0, history.index + 1);
+    stack.push(cloneParams(next));
+    if (stack.length > 50) stack.shift();
+    paramHistoryRef.current[surface] = { stack, index: stack.length - 1 };
+    setDraft({ params: next });
+    setHistoryVersion((value) => value + 1);
+  };
+
+  const resetParamHistory = (next: TemplateParamValues): void => {
+    paramHistoryRef.current[surface] = { stack: [cloneParams(next)], index: 0 };
+    setHistoryVersion((value) => value + 1);
+  };
+
+  const undoParams = (): void => {
+    const history = paramHistoryRef.current[surface];
+    if (history.index <= 0) return;
+    const index = history.index - 1;
+    paramHistoryRef.current[surface] = { ...history, index };
+    setDraft({ params: cloneParams(history.stack[index] as TemplateParamValues) });
+    setHistoryVersion((value) => value + 1);
+  };
+
+  const redoParams = (): void => {
+    const history = paramHistoryRef.current[surface];
+    if (history.index >= history.stack.length - 1) return;
+    const index = history.index + 1;
+    paramHistoryRef.current[surface] = { ...history, index };
+    setDraft({ params: cloneParams(history.stack[index] as TemplateParamValues) });
+    setHistoryVersion((value) => value + 1);
+  };
+
+  const canUndo = paramHistoryRef.current[surface].index > 0;
+  const canRedo =
+    paramHistoryRef.current[surface].index < paramHistoryRef.current[surface].stack.length - 1;
+  void historyVersion;
+
   const toggleChannel = (channel: ChatLinkSurface, enabled: boolean): void => {
     setDrafts((current) => ({
       ...current,
@@ -499,9 +666,16 @@ export function LinkDisplaySettings({
 
   const changeTemplate = (next: string): void => {
     const display = widgetDisplayForSelection(visualTemplates, next);
+    const nextParams = mergeParamsForSelection(
+      visualTemplates,
+      draft.visualTemplate,
+      next,
+      draft.params,
+    );
+    resetParamHistory(nextParams);
     setDraft({
       visualTemplate: next,
-      params: mergeParamsForSelection(visualTemplates, draft.visualTemplate, next, draft.params),
+      params: nextParams,
       ...(display === null ? {} : { widgetPosition: display.defaultPosition }),
     });
   };
@@ -777,6 +951,30 @@ export function LinkDisplaySettings({
               </div>
             ) : null}
             <div className="display-studio-preview-tools">
+              {canEdit ? (
+                <>
+                  <button
+                    type="button"
+                    className="display-studio-icon-button"
+                    title="Annuler la dernière modification de paramètres"
+                    aria-label="Annuler"
+                    disabled={!canUndo}
+                    onClick={undoParams}
+                  >
+                    ↶
+                  </button>
+                  <button
+                    type="button"
+                    className="display-studio-icon-button"
+                    title="Rétablir la modification de paramètres"
+                    aria-label="Rétablir"
+                    disabled={!canRedo}
+                    onClick={redoParams}
+                  >
+                    ↷
+                  </button>
+                </>
+              ) : null}
               {editorAvailable ? (
                 <button
                   type="button"
@@ -852,6 +1050,28 @@ export function LinkDisplaySettings({
             className={`display-preview-canvas display-preview-canvas--${surface} display-preview-canvas--${device}`}
             data-widget-position={surface === "widget" ? draft.widgetPosition : undefined}
           >
+            {centralEditAvailable ? (
+              <div
+                className="display-preview-editbar"
+                role="toolbar"
+                aria-label="Éditer la zone sélectionnée"
+              >
+                <strong>{dynamicRegionItem?.collectionLabel}</strong>
+                <button type="button" className="btn small" onClick={addCentralItem}>
+                  Ajouter
+                </button>
+                <button type="button" className="btn ghost small" onClick={duplicateCentralItem}>
+                  Dupliquer
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  onClick={() => void removeCentralItem()}
+                >
+                  Supprimer
+                </button>
+              </div>
+            ) : null}
             <div className="display-preview-zoom" style={{ transform: `scale(${zoom})` }}>
               <div className="display-preview-device">
                 <div className="display-preview-chrome" aria-hidden="true">
@@ -1042,7 +1262,7 @@ export function LinkDisplaySettings({
                       legend="Paramètres de la zone"
                       collections={selectedCollections}
                       collectionFocus={collectionFocus}
-                      onChange={(params) => setDraft({ params })}
+                      onChange={recordParams}
                     />
                   )}
                   {sharedPaths.size === 0 ? null : (
@@ -1053,7 +1273,7 @@ export function LinkDisplaySettings({
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
                       collections={selectedCollections}
                       collectionFocus={collectionFocus}
-                      onChange={(params) => setDraft({ params })}
+                      onChange={recordParams}
                     />
                   )}
                   {localPaths.size === 0 && sharedPaths.size === 0 ? (
@@ -1064,7 +1284,9 @@ export function LinkDisplaySettings({
                 <section className="display-studio-group">
                   <div className="display-studio-params-head">
                     <h3>Paramètres</h3>
-                    <span className="badge muted">{filteredParams.length}</span>
+                    <span className="badge muted">
+                      {searchActive ? (searchPaths?.size ?? 0) : filteredParams.length}
+                    </span>
                   </div>
                   {paramTabs.length === 0 ? null : (
                     <div className="display-studio-param-tabs">
@@ -1093,15 +1315,17 @@ export function LinkDisplaySettings({
                     <input
                       type="search"
                       value={paramSearch}
-                      placeholder="Filtrer les paramètres…"
+                      placeholder="Rechercher un contenu ou un paramètre…"
                       onChange={(event) => setParamSearch(event.target.value)}
                     />
                   </label>
-                  {filteredParams.length === 0 ? (
+                  {searchEmpty || filteredParams.length === 0 ? (
                     <p className="hint">
                       {paramsSchema.length === 0
                         ? "Cette version ne déclare aucun paramètre personnalisable."
-                        : "Aucun paramètre ne correspond à ce filtre."}
+                        : searchEmpty
+                          ? "Aucun contenu ne correspond à cette recherche."
+                          : "Aucun paramètre ne correspond à ce filtre."}
                     </p>
                   ) : (
                     <TemplateParamsFields
@@ -1109,7 +1333,8 @@ export function LinkDisplaySettings({
                       values={draft.params as TemplateParamValues}
                       collections={selectedCollections}
                       collectionFocus={collectionFocus}
-                      onChange={(params) => setDraft({ params })}
+                      visiblePaths={visibleSearchPaths}
+                      onChange={recordParams}
                     />
                   )}
                 </section>
