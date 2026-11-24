@@ -152,6 +152,18 @@
   white-space: nowrap;
 }
 
+.display-preview-editbar-select {
+  max-width: 10rem;
+  height: 1.9rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.7rem;
+}
+
 .display-studio-icon-button.is-active {
   background: color-mix(in srgb, var(--accent) 18%, var(--surface));
   color: var(--accent);

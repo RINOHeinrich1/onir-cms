@@ -1,4 +1,8 @@
-import type { TemplateEditorManifest, TemplateEditorManifestV2 } from "@/domain/template-editor";
+import type {
+  TemplateEditorInsertionRule,
+  TemplateEditorManifest,
+  TemplateEditorManifestV2,
+} from "@/domain/template-editor";
 import type { TemplateParamValue, TemplateParamValues } from "@/domain/template-params";
 
 export type TemplateStructureOperationResult = {
@@ -130,4 +134,67 @@ export function removeCollectionItem(
     }
   }
   return next;
+}
+
+/** Ajoute un enfant typé sous un parent existant, via une règle d'insertion. */
+export function addCollectionChildItem(
+  values: TemplateParamValues,
+  editor: TemplateEditorManifest,
+  rule: TemplateEditorInsertionRule,
+  parentId: string,
+  item: RecordValue,
+): TemplateStructureOperationResult {
+  const v2 = editorV2(editor);
+  const children = v2?.structure?.children;
+  const meta = v2 === null ? undefined : collectionMeta(v2, rule.childCollection);
+  const throughMeta = v2 === null ? undefined : collectionMeta(v2, children?.through ?? "");
+  if (
+    v2 === null ||
+    children === undefined ||
+    children.collection !== rule.childCollection ||
+    meta === undefined ||
+    throughMeta === undefined
+  ) {
+    return { values, itemId: null };
+  }
+  const parentReference = v2.references?.find(
+    (reference) =>
+      reference.from === children.through &&
+      reference.field === children.parentKey &&
+      reference.targets !== undefined,
+  );
+  const parentKind = Object.entries(parentReference?.targets ?? {}).find(
+    ([, collection]) => collection === children.collection,
+  )?.[0];
+  if (parentKind === undefined) return { values, itemId: null };
+  const itemId = createTemplateItemId();
+  const items = collectionItems(values, rule.childCollection) ?? [];
+  const nextItem = { ...clone(item), [meta.itemKey]: itemId };
+  const placements = collectionItems(values, children.through) ?? [];
+  const siblings = placements.filter(
+    (placement) =>
+      placement[children.parentKey] === parentId &&
+      (children.parentKindKey === undefined || placement[children.parentKindKey] === parentKind),
+  );
+  const position =
+    siblings.reduce((max, placement) => {
+      const value = children.orderKey === undefined ? 0 : placement[children.orderKey];
+      return typeof value === "number" && value > max ? value : max;
+    }, -1) + 1;
+  const placement: RecordValue = {
+    [throughMeta.itemKey]: createTemplateItemId(),
+    [children.parentKey]: parentId,
+    [children.parentKindKey ?? "parent_kind"]: parentKind,
+    [children.childKey]: itemId,
+    [children.slotKey ?? "slot"]: rule.slot,
+    [children.orderKey ?? "position"]: position,
+  };
+  return {
+    values: {
+      ...values,
+      [rule.childCollection]: [...items, nextItem],
+      [children.through]: [...placements, placement],
+    },
+    itemId,
+  };
 }

@@ -117,6 +117,15 @@ export type TemplateEditorStructure = {
   };
 };
 
+export type TemplateEditorInsertionRule = {
+  parentKind: string;
+  childCollection: string;
+  allowedKinds: string[];
+  slot: string;
+  maxItems?: number;
+  defaults?: Record<string, Record<string, TemplateParamValue>>;
+};
+
 export type TemplateEditorScope = {
   param: string;
   scope: "global" | "shared" | "page" | "local";
@@ -133,6 +142,7 @@ export type TemplateEditorManifestV2 = {
   valueLabels?: Record<string, Record<string, Record<string, string>>>;
   references?: TemplateEditorReference[];
   structure?: TemplateEditorStructure;
+  insertion?: TemplateEditorInsertionRule[];
   scopes?: TemplateEditorScope[];
 };
 
@@ -938,6 +948,85 @@ function validateTemplateEditorV2(
     }
   }
 
+  const insertion: TemplateEditorInsertionRule[] = [];
+  if (input.insertion !== undefined) {
+    if (!Array.isArray(input.insertion)) {
+      add("editor.insertion", "liste insertion attendue");
+    } else {
+      const seenRules = new Set<string>();
+      for (const [index, raw] of input.insertion.entries()) {
+        const basePath = `editor.insertion[${index}]`;
+        if (!isRecord(raw)) {
+          add(basePath, "objet insertion attendu");
+          continue;
+        }
+        const parentKind = text(raw.parentKind);
+        const childCollection = text(raw.childCollection);
+        const slot = text(raw.slot);
+        if (parentKind === "") add(`${basePath}.parentKind`, "parentKind requis");
+        if (!collectionParams.has(childCollection)) {
+          add(`${basePath}.childCollection`, "collection enfant inconnue");
+        }
+        if (slot === "") add(`${basePath}.slot`, "slot requis");
+        const ruleKey = `${parentKind}\u0000${childCollection}`;
+        if (seenRules.has(ruleKey)) add(basePath, "règle d'insertion dupliquée");
+        seenRules.add(ruleKey);
+        const rawKinds = raw.allowedKinds;
+        const allowedKinds: string[] = [];
+        if (!Array.isArray(rawKinds) || rawKinds.length === 0) {
+          add(`${basePath}.allowedKinds`, "liste de types non vide attendue");
+        } else {
+          const seenKinds = new Set<string>();
+          for (const [kindIndex, entry] of rawKinds.entries()) {
+            const kind = text(entry);
+            if (kind === "") add(`${basePath}.allowedKinds[${kindIndex}]`, "type vide");
+            if (seenKinds.has(kind)) {
+              add(`${basePath}.allowedKinds[${kindIndex}]`, "type dupliqué");
+            }
+            seenKinds.add(kind);
+            allowedKinds.push(kind);
+          }
+        }
+        const maxItems = raw.maxItems;
+        if (
+          maxItems !== undefined &&
+          (typeof maxItems !== "number" || !Number.isInteger(maxItems) || maxItems < 1)
+        ) {
+          add(`${basePath}.maxItems`, "entier positif attendu");
+        }
+        const defaults: Record<string, Record<string, TemplateParamValue>> = {};
+        if (raw.defaults !== undefined) {
+          if (!isRecord(raw.defaults)) {
+            add(`${basePath}.defaults`, "objet defaults attendu");
+          } else {
+            for (const [kind, rawDefault] of Object.entries(raw.defaults)) {
+              if (!allowedKinds.includes(kind)) {
+                add(`${basePath}.defaults.${kind}`, "type absent de allowedKinds");
+                continue;
+              }
+              if (!isRecord(rawDefault)) {
+                add(`${basePath}.defaults.${kind}`, "objet de valeurs attendu");
+                continue;
+              }
+              defaults[kind] = JSON.parse(JSON.stringify(rawDefault)) as Record<
+                string,
+                TemplateParamValue
+              >;
+            }
+          }
+        }
+        insertion.push({
+          parentKind,
+          childCollection,
+          allowedKinds,
+          slot,
+          ...(typeof maxItems === "number" ? { maxItems } : {}),
+          ...(Object.keys(defaults).length === 0 ? {} : { defaults }),
+        });
+      }
+    }
+  }
+
   const rawBaseBindings = Array.isArray(input.bindings) ? input.bindings : [];
   const v2Bindings = base.value.bindings.map((binding, index) => {
     const raw = rawBaseBindings[index];
@@ -986,6 +1075,7 @@ function validateTemplateEditorV2(
           ...(Object.keys(valueLabels).length === 0 ? {} : { valueLabels }),
           ...(references.length === 0 ? {} : { references }),
           ...(structure === undefined ? {} : { structure }),
+          ...(insertion.length === 0 ? {} : { insertion }),
           ...(scopes.length === 0 ? {} : { scopes }),
         },
       };

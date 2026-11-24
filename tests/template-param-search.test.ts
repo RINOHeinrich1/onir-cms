@@ -9,7 +9,7 @@ describe("recherche des paramètres par contenu", () => {
   it("trouve un texte dans une collection imbriquée", () => {
     const paths = search("Formation informatique");
     expect(paths).not.toBeNull();
-    expect([...(paths ?? [])].some((path) => path.includes("blocks[1].title"))).toBe(true);
+    expect([...(paths ?? [])].some((path) => path.includes("blocks[2].title"))).toBe(true);
   });
 
   it("trouve un texte dans un objet simple", () => {

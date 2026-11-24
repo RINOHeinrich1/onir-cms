@@ -4,6 +4,7 @@ import {
   validateTemplateEditorStructureValues,
 } from "@/domain/template-editor";
 import {
+  addCollectionChildItem,
   addCollectionItem,
   duplicateCollectionItem,
   removeCollectionItem,
@@ -27,7 +28,7 @@ describe("opérations structurelles Editor V2", () => {
     };
     const result = addCollectionItem(source, puzzleV2Editor, "blocks", base, "card_one");
     expect(result.itemId).not.toBeNull();
-    expect(result.values.blocks).toHaveLength(4);
+    expect(result.values.blocks).toHaveLength(5);
     expect(result.values.placements).toHaveLength(3);
     expect(
       (result.values.blocks as Array<Record<string, unknown>>).some(
@@ -41,7 +42,7 @@ describe("opérations structurelles Editor V2", () => {
   it("duplique un composant avec une nouvelle identité et ses placements", () => {
     const result = duplicateCollectionItem(values(), puzzleV2Editor, "blocks", "card_one");
     expect(result.itemId).not.toBeNull();
-    expect(result.values.blocks).toHaveLength(4);
+    expect(result.values.blocks).toHaveLength(5);
     expect(
       (result.values.placements as Array<Record<string, unknown>>).some(
         (placement) => placement.child_id === result.itemId,
@@ -60,5 +61,27 @@ describe("opérations structurelles Editor V2", () => {
         (placement) => placement.child_id === "card_one",
       ),
     ).toBe(false);
+  });
+});
+
+describe("insertion typée", () => {
+  it("ajoute un menu_item sous le menu avec le bon placement", () => {
+    const rule = puzzleV2Editor.insertion?.[0];
+    expect(rule).toBeDefined();
+    if (rule === undefined) return;
+    const result = addCollectionChildItem(values(), puzzleV2Editor, rule, "nav_main", {
+      kind: "menu_item",
+      title: "Contact",
+    });
+    expect(result.itemId).not.toBeNull();
+    expect(
+      (result.values.placements as Array<Record<string, unknown>>).some(
+        (placement) =>
+          placement.child_id === result.itemId &&
+          placement.parent_id === "nav_main" &&
+          placement.slot === "content",
+      ),
+    ).toBe(true);
+    expect(validateTemplateEditorStructureValues(puzzleV2Editor, result.values)).toEqual([]);
   });
 });
