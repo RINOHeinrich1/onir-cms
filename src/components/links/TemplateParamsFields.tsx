@@ -9,6 +9,7 @@ import type {
   TemplateParamValue,
   TemplateParamValues,
 } from "@/domain/template-params";
+import { createTemplateItemId } from "@/domain/template-structure-operations";
 import { isCompleteColorInput, normalizeColorInput } from "./color-input";
 
 type TemplateParamsFieldsProps = {
@@ -16,7 +17,7 @@ type TemplateParamsFieldsProps = {
   values: TemplateParamValues;
   onChange: (values: TemplateParamValues) => void;
   /** Chemins visibles (mode inspection par zone, ADR-0105). */
-  visiblePaths?: ReadonlySet<string>;
+  visiblePaths?: ReadonlySet<string> | undefined;
   /** Libellé du fieldset. */
   legend?: string;
   /** Métadonnées de collections Editor V2. */
@@ -289,6 +290,7 @@ function ParamValueEditor({
   onToggle,
   collections,
   collectionFocus,
+  hiddenKeys,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
@@ -300,29 +302,32 @@ function ParamValueEditor({
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
   collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
+  hiddenKeys?: ReadonlySet<string> | undefined;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
     return (
       <div className="param-object">
-        {(node.properties ?? []).map((property) => (
-          <ParamField
-            key={property.key}
-            param={property}
-            value={
-              source[property.key] === undefined
-                ? cloneValue(property.default)
-                : (source[property.key] as TemplateParamValue)
-            }
-            onChange={(next) => onChange({ ...source, [property.key]: next })}
-            path={`${path}.${property.key}`}
-            visiblePaths={visiblePaths}
-            expandedPaths={expandedPaths}
-            onToggle={onToggle}
-            collections={collections}
-            collectionFocus={collectionFocus}
-          />
-        ))}
+        {(node.properties ?? [])
+          .filter((property) => hiddenKeys?.has(property.key) !== true)
+          .map((property) => (
+            <ParamField
+              key={property.key}
+              param={property}
+              value={
+                source[property.key] === undefined
+                  ? cloneValue(property.default)
+                  : (source[property.key] as TemplateParamValue)
+              }
+              onChange={(next) => onChange({ ...source, [property.key]: next })}
+              path={`${path}.${property.key}`}
+              visiblePaths={visiblePaths}
+              expandedPaths={expandedPaths}
+              onToggle={onToggle}
+              collections={collections}
+              collectionFocus={collectionFocus}
+            />
+          ))}
       </div>
     );
   }
@@ -340,8 +345,9 @@ function ParamValueEditor({
     const entries = items
       .map((entry, index) => ({ entry, index }))
       .filter(
-        ({ entry }) =>
-          focus === null || (isObject(entry) && entry[focus.keyField] === focus.itemId),
+        ({ entry, index }) =>
+          (focus === null || (isObject(entry) && entry[focus.keyField] === focus.itemId)) &&
+          isPathVisible(`${path}[${index}]`, visiblePaths),
       );
     return (
       <div className="param-array">
@@ -397,6 +403,7 @@ function ParamValueEditor({
                   onToggle={onToggle}
                   collections={collections}
                   collectionFocus={collectionFocus}
+                  hiddenKeys={collection === undefined ? undefined : new Set([collection.itemKey])}
                 />
               ) : null}
             </div>
@@ -407,7 +414,13 @@ function ParamValueEditor({
             type="button"
             className="btn ghost small"
             disabled={items.length >= maxItems}
-            onClick={() => onChange([...items, cloneValue(itemNode.default)])}
+            onClick={() => {
+              const next = cloneValue(itemNode.default);
+              if (collection !== undefined && isObject(next)) {
+                next[collection.itemKey] = createTemplateItemId();
+              }
+              onChange([...items, next]);
+            }}
           >
             Ajouter un élément
           </button>

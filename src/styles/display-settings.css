@@ -119,6 +119,39 @@
   color: var(--fg);
 }
 
+.display-studio-icon-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.display-preview-editbar {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: calc(100% - 1.8rem);
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--fg) 55%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.display-preview-editbar strong {
+  padding: 0 0.3rem;
+  color: var(--fg-muted);
+  font-size: 0.67rem;
+  white-space: nowrap;
+}
+
+.display-preview-editbar .btn {
+  white-space: nowrap;
+}
+
 .display-studio-icon-button.is-active {
   background: color-mix(in srgb, var(--accent) 18%, var(--surface));
   color: var(--accent);
@@ -484,6 +517,7 @@
 }
 
 .display-preview-canvas {
+  position: relative;
   display: grid;
   place-items: center;
   flex: 1;
