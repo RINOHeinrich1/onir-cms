@@ -41,6 +41,22 @@ function controlId(path: string): string {
   return `template-param-${path.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function itemSummary(value: TemplateParamValue, index: number, fallback: string): string {
+  if (isObject(value)) {
+    const candidate = [value.title, value.name, value.slug, value.id].find(
+      (entry) => typeof entry === "string" && entry.trim() !== "",
+    );
+    if (typeof candidate === "string") return candidate;
+  }
+  if (typeof value === "string" && value.trim() !== "") return value;
+  return `${fallback} ${index + 1}`;
+}
+
+function itemKind(value: TemplateParamValue): string | null {
+  if (!isObject(value)) return null;
+  return typeof value.kind === "string" && value.kind !== "" ? value.kind : null;
+}
+
 /**
  * Champs de paramétrage générés depuis le schéma du template (ADR-0023 / ADR-0095).
  * Aucun libellé ni règle métier n'est codé ici : le cœur ne connaît que les
@@ -71,7 +87,17 @@ export function TemplateParamsFields({
   orphans = [],
   onRemoveOrphan,
 }: TemplateParamsFieldsProps) {
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
+
   if (schema.length === 0 && orphans.length === 0) return null;
+  const toggle = (path: string): void => {
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
 
   const set = (key: string, value: TemplateParamValue): void => {
     onChange({ ...values, [key]: value });
@@ -79,7 +105,19 @@ export function TemplateParamsFields({
 
   return (
     <fieldset className="field">
-      <legend>{legend}</legend>
+      <legend>
+        {legend}
+        {expandedPaths.size === 0 ? null : (
+          <button
+            type="button"
+            className="btn ghost small"
+            style={{ marginLeft: "0.5rem" }}
+            onClick={() => setExpandedPaths(new Set())}
+          >
+            Tout replier
+          </button>
+        )}
+      </legend>
       {schema.length === 0 ? (
         <span className="hint">Cette version ne déclare aucun paramètre.</span>
       ) : null}
@@ -93,6 +131,8 @@ export function TemplateParamsFields({
             onChange={(next) => set(param.key, next)}
             path={param.key}
             visiblePaths={visiblePaths}
+            expandedPaths={expandedPaths}
+            onToggle={toggle}
           />
         );
       })}
@@ -130,18 +170,40 @@ function ParamField({
   onChange,
   path,
   visiblePaths,
+  expandedPaths,
+  onToggle,
 }: {
   param: TemplateParamSchema;
   value: TemplateParamValue;
   onChange: (next: TemplateParamValue) => void;
   path: string;
   visiblePaths: ReadonlySet<string> | undefined;
+  expandedPaths: ReadonlySet<string>;
+  onToggle: (path: string) => void;
 }) {
   if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
+  const isCollection = param.type === "object" || param.type === "array";
+  const expanded = expandedPaths.has(path);
   return (
     <div className="param-field" data-param-path={path}>
-      {param.type === "boolean" ? (
+      {isCollection ? (
+        <button
+          type="button"
+          className="param-label"
+          style={{
+            background: "transparent",
+            border: 0,
+            padding: 0,
+            textAlign: "left",
+            cursor: "pointer",
+          }}
+          onClick={() => onToggle(path)}
+        >
+          {expanded ? "▾" : "▸"} {param.label}
+          {param.type === "array" ? ` (${Array.isArray(value) ? value.length : 0})` : ""}
+        </button>
+      ) : param.type === "boolean" ? (
         <label className="check">
           <input
             type="checkbox"
@@ -153,7 +215,7 @@ function ParamField({
       ) : (
         <span className="param-label">{param.label}</span>
       )}
-      {param.type === "boolean" ? null : (
+      {param.type === "boolean" || (isCollection && !expanded) ? null : (
         <ParamValueEditor
           node={param}
           value={value}
@@ -161,10 +223,12 @@ function ParamField({
           path={path}
           label={param.label}
           visiblePaths={visiblePaths}
+          expandedPaths={expandedPaths}
+          onToggle={onToggle}
         />
       )}
       {param.description === "" ? null : <span className="hint">{param.description}</span>}
-      {isDefault ? null : (
+      {isDefault || isCollection ? null : (
         <button
           type="button"
           className="btn ghost small"
@@ -184,6 +248,8 @@ function ParamValueEditor({
   path,
   label,
   visiblePaths,
+  expandedPaths,
+  onToggle,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
@@ -191,6 +257,8 @@ function ParamValueEditor({
   path: string;
   label: string;
   visiblePaths: ReadonlySet<string> | undefined;
+  expandedPaths: ReadonlySet<string>;
+  onToggle: (path: string) => void;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
@@ -208,6 +276,8 @@ function ParamValueEditor({
             onChange={(next) => onChange({ ...source, [property.key]: next })}
             path={`${path}.${property.key}`}
             visiblePaths={visiblePaths}
+            expandedPaths={expandedPaths}
+            onToggle={onToggle}
           />
         ))}
       </div>
@@ -224,36 +294,56 @@ function ParamValueEditor({
     const maxItems = node.maxItems ?? 100;
     return (
       <div className="param-array">
-        {items.map((entry, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: tableau de configuration sans identifiant stable
-          <div className="param-array-item" key={`${path}[${index}]`}>
-            <div className="param-array-item-head">
-              <span className="param-label">
-                {label} {index + 1}
-              </span>
-              <button
-                type="button"
-                className="btn ghost small"
-                disabled={items.length <= minItems}
-                onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
-              >
-                Supprimer
-              </button>
+        {items.map((entry, index) => {
+          const itemPath = `${path}[${index}]`;
+          const itemExpanded = expandedPaths.has(itemPath);
+          const kind = itemKind(entry);
+          return (
+            <div className="param-array-item" key={itemPath}>
+              <div className="param-array-item-head">
+                <button
+                  type="button"
+                  className="param-label"
+                  style={{
+                    background: "transparent",
+                    border: 0,
+                    padding: 0,
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => onToggle(itemPath)}
+                >
+                  {itemExpanded ? "▾" : "▸"} {itemSummary(entry, index, label)}
+                  {kind === null ? null : <span className="badge muted">{kind}</span>}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small"
+                  disabled={items.length <= minItems}
+                  onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+                >
+                  Supprimer
+                </button>
+              </div>
+              {itemExpanded ? (
+                <ParamValueEditor
+                  node={itemNode}
+                  value={entry}
+                  onChange={(next) => {
+                    const copy = [...items];
+                    copy[index] = next;
+                    onChange(copy);
+                  }}
+                  path={itemPath}
+                  label={`${label} ${index + 1}`}
+                  visiblePaths={visiblePaths}
+                  expandedPaths={expandedPaths}
+                  onToggle={onToggle}
+                />
+              ) : null}
             </div>
-            <ParamValueEditor
-              node={itemNode}
-              value={entry}
-              onChange={(next) => {
-                const copy = [...items];
-                copy[index] = next;
-                onChange(copy);
-              }}
-              path={`${path}[${index}]`}
-              label={`${label} ${index + 1}`}
-              visiblePaths={visiblePaths}
-            />
-          </div>
-        ))}
+          );
+        })}
         <button
           type="button"
           className="btn ghost small"
