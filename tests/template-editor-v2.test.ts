@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { validateTemplateEditorBlock } from "@/domain/template-editor";
+import {
+  bindingsForRegion,
+  resolveDynamicRegion,
+  validateTemplateEditorBlock,
+} from "@/domain/template-editor";
 import type { TemplateParamSchema } from "@/domain/template-params";
 
 const itemSchema: TemplateParamSchema = {
@@ -107,5 +111,34 @@ describe("Editor Contract V2", () => {
     expect(result.ok).toBe(true);
     if (!result.ok || result.value === undefined) return;
     expect(result.value.version).toBe(1);
+  });
+});
+
+describe("régions dynamiques V2", () => {
+  it("résout block:hero_main vers l'élément stable", () => {
+    const result = validateTemplateEditorBlock(
+      v2({
+        bindings: [
+          {
+            param: "blocks",
+            itemKey: "id",
+            itemId: "hero_main",
+            regions: ["main"],
+            category: "content",
+          },
+        ],
+      }),
+      params,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === undefined) return;
+    const resolved = resolveDynamicRegion(result.value, "block:hero_main");
+    expect(resolved).toMatchObject({
+      collection: "blocks",
+      keyField: "id",
+      itemId: "hero_main",
+    });
+    expect(bindingsForRegion(result.value, "block:hero_main")).toHaveLength(1);
+    expect(bindingsForRegion(result.value, "block:card_one")).toHaveLength(0);
   });
 });

@@ -12,6 +12,9 @@ import {
   bindingsForRegion,
   editorRegionChain,
   isTemplateEditorBindingShared,
+  resolveDynamicRegion,
+  type TemplateEditorManifest,
+  type TemplateEditorResolvedRegion,
 } from "@/domain/template-editor";
 import type { TemplateParamValues } from "@/domain/template-params";
 import { latestTemplateVersion } from "@/domain/template-version";
@@ -31,6 +34,41 @@ import {
 type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
 type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
+
+function dynamicRegionLabel(
+  editor: TemplateEditorManifest,
+  values: TemplateParamValues,
+  target: TemplateEditorResolvedRegion,
+): string {
+  if (editor.version !== 2) return target.itemId;
+  const collection = editor.collections?.find((entry) => entry.param === target.collection);
+  const raw = values[target.collection];
+  const item = Array.isArray(raw)
+    ? raw.find(
+        (entry) =>
+          entry !== null &&
+          typeof entry === "object" &&
+          !Array.isArray(entry) &&
+          (entry as Record<string, unknown>)[target.keyField] === target.itemId,
+      )
+    : undefined;
+  if (item === null || typeof item !== "object" || Array.isArray(item)) {
+    return `${target.collectionLabel} · ${target.itemId}`;
+  }
+  const record = item as Record<string, unknown>;
+  const keys = [
+    collection?.itemLabel,
+    ...(collection?.labelFallback ?? []),
+    "title",
+    "name",
+    "slug",
+    "id",
+  ].filter((key): key is string => key !== undefined && key !== "");
+  const summary = keys
+    .map((key) => record[key])
+    .find((value) => typeof value === "string" && value.trim() !== "");
+  return `${target.collectionLabel} · ${typeof summary === "string" ? summary : target.itemId}`;
+}
 
 function StudioIcon({
   name,
@@ -223,14 +261,30 @@ export function LinkDisplaySettings({
     selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
   const selectedShadowDom = shadowDomForSelection(visualTemplates, draft.visualTemplate);
   const editorAvailable = selectedEditor !== null && selectedShadowDom !== "closed";
-  const selectedRegionDefinition =
+  const dynamicRegion =
     selectedEditor === null || selectedRegion === null
       ? null
+      : resolveDynamicRegion(selectedEditor, selectedRegion);
+  const selectedRegionDefinition =
+    selectedEditor === null || selectedRegion === null || dynamicRegion !== null
+      ? null
       : (selectedEditor.regions.find((region) => region.id === selectedRegion) ?? null);
+  const selectedRegionLabel =
+    dynamicRegion !== null && selectedEditor !== null
+      ? dynamicRegionLabel(selectedEditor, draft.params as TemplateParamValues, dynamicRegion)
+      : (selectedRegionDefinition?.label ?? null);
   const selectedRegionChain =
-    selectedEditor === null || selectedRegion === null
+    selectedEditor === null || selectedRegion === null || dynamicRegion !== null
       ? []
       : editorRegionChain(selectedEditor, selectedRegion);
+  const collectionFocus =
+    dynamicRegion === null
+      ? undefined
+      : {
+          param: dynamicRegion.collection,
+          keyField: dynamicRegion.keyField,
+          itemId: dynamicRegion.itemId,
+        };
   const regionBindings =
     selectedEditor === null || selectedRegion === null
       ? []
@@ -954,12 +1008,12 @@ export function LinkDisplaySettings({
                 </div>
               </section>
 
-              {selectedRegionDefinition !== null && selectedEditor !== null ? (
+              {selectedRegionLabel !== null && selectedEditor !== null ? (
                 <section className="display-studio-group">
                   <div className="display-studio-params-head">
                     <div>
                       <span className="eyebrow">Zone inspectée</span>
-                      <h3>{selectedRegionDefinition.label}</h3>
+                      <h3>{selectedRegionLabel}</h3>
                     </div>
                     <button
                       type="button"
@@ -979,6 +1033,7 @@ export function LinkDisplaySettings({
                       visiblePaths={localPaths}
                       legend="Paramètres de la zone"
                       collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -989,6 +1044,7 @@ export function LinkDisplaySettings({
                       visiblePaths={sharedPaths}
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
                       collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}
@@ -1044,6 +1100,7 @@ export function LinkDisplaySettings({
                       schema={filteredParams}
                       values={draft.params as TemplateParamValues}
                       collections={selectedCollections}
+                      collectionFocus={collectionFocus}
                       onChange={(params) => setDraft({ params })}
                     />
                   )}

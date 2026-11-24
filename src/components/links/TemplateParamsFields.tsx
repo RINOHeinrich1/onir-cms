@@ -21,6 +21,8 @@ type TemplateParamsFieldsProps = {
   legend?: string;
   /** Métadonnées de collections Editor V2. */
   collections?: TemplateEditorCollection[] | undefined;
+  /** Élément ciblé par une région dynamique. */
+  collectionFocus?: { param: string; keyField: string; itemId: string } | undefined;
   /** Clés stockées qui ne sont plus déclarées par la version (ADR-0023). */
   orphans?: string[];
   onRemoveOrphan?: (key: string) => void;
@@ -109,6 +111,7 @@ export function TemplateParamsFields({
   visiblePaths,
   legend = "Paramètres du template",
   collections,
+  collectionFocus,
   orphans = [],
   onRemoveOrphan,
 }: TemplateParamsFieldsProps) {
@@ -159,6 +162,7 @@ export function TemplateParamsFields({
             expandedPaths={expandedPaths}
             onToggle={toggle}
             collections={collections}
+            collectionFocus={collectionFocus}
           />
         );
       })}
@@ -199,6 +203,7 @@ function ParamField({
   expandedPaths,
   onToggle,
   collections,
+  collectionFocus,
 }: {
   param: TemplateParamSchema;
   value: TemplateParamValue;
@@ -208,11 +213,13 @@ function ParamField({
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
+  collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
 }) {
   if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
   const isCollection = param.type === "object" || param.type === "array";
-  const expanded = expandedPaths.has(path);
+  const focused = collectionFocus?.param === path;
+  const expanded = focused || expandedPaths.has(path);
   return (
     <div className="param-field" data-param-path={path}>
       {isCollection ? (
@@ -254,6 +261,7 @@ function ParamField({
           expandedPaths={expandedPaths}
           onToggle={onToggle}
           collections={collections}
+          collectionFocus={collectionFocus}
         />
       )}
       {param.description === "" ? null : <span className="hint">{param.description}</span>}
@@ -280,6 +288,7 @@ function ParamValueEditor({
   expandedPaths,
   onToggle,
   collections,
+  collectionFocus,
 }: {
   node: TemplateParamNode;
   value: TemplateParamValue;
@@ -290,6 +299,7 @@ function ParamValueEditor({
   expandedPaths: ReadonlySet<string>;
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
+  collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
@@ -310,6 +320,7 @@ function ParamValueEditor({
             expandedPaths={expandedPaths}
             onToggle={onToggle}
             collections={collections}
+            collectionFocus={collectionFocus}
           />
         ))}
       </div>
@@ -325,11 +336,21 @@ function ParamValueEditor({
     const minItems = node.minItems ?? 0;
     const maxItems = node.maxItems ?? 100;
     const collection = collections?.find((entry) => entry.param === path);
+    const focus = collectionFocus?.param === path ? collectionFocus : null;
+    const entries = items
+      .map((entry, index) => ({ entry, index }))
+      .filter(
+        ({ entry }) =>
+          focus === null || (isObject(entry) && entry[focus.keyField] === focus.itemId),
+      );
     return (
       <div className="param-array">
-        {items.map((entry, index) => {
+        {focus !== null && entries.length === 0 ? (
+          <span className="hint">Élément ciblé introuvable dans cette collection.</span>
+        ) : null}
+        {entries.map(({ entry, index }) => {
           const itemPath = `${path}[${index}]`;
-          const itemExpanded = expandedPaths.has(itemPath);
+          const itemExpanded = focus !== null || expandedPaths.has(itemPath);
           const kind = itemKind(entry, collection);
           return (
             <div className="param-array-item" key={itemPath}>
@@ -373,19 +394,22 @@ function ParamValueEditor({
                   expandedPaths={expandedPaths}
                   onToggle={onToggle}
                   collections={collections}
+                  collectionFocus={collectionFocus}
                 />
               ) : null}
             </div>
           );
         })}
-        <button
-          type="button"
-          className="btn ghost small"
-          disabled={items.length >= maxItems}
-          onClick={() => onChange([...items, cloneValue(itemNode.default)])}
-        >
-          Ajouter un élément
-        </button>
+        {focus === null ? (
+          <button
+            type="button"
+            className="btn ghost small"
+            disabled={items.length >= maxItems}
+            onClick={() => onChange([...items, cloneValue(itemNode.default)])}
+          >
+            Ajouter un élément
+          </button>
+        ) : null}
       </div>
     );
   }

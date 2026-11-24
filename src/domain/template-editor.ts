@@ -45,6 +45,14 @@ export type TemplateEditorDynamicRegion = {
   keyField: string;
 };
 
+export type TemplateEditorResolvedRegion = {
+  regionId: string;
+  collection: string;
+  keyField: string;
+  itemId: string;
+  collectionLabel: string;
+};
+
 export type TemplateEditorBindingV2 = TemplateEditorBinding & {
   itemKey?: string;
   itemId?: string;
@@ -461,6 +469,25 @@ function validateTemplateEditorV2(
     }
   }
 
+  const rawBaseBindings = Array.isArray(input.bindings) ? input.bindings : [];
+  const v2Bindings = base.value.bindings.map((binding, index) => {
+    const raw = rawBaseBindings[index];
+    if (!isRecord(raw)) return binding;
+    const itemKey = raw.itemKey === undefined ? undefined : text(raw.itemKey);
+    const itemId = raw.itemId === undefined ? undefined : text(raw.itemId);
+    if (itemKey !== undefined && itemKey !== "" && !collectionParams.has(binding.param)) {
+      add(`editor.bindings[${index}].itemKey`, "binding d'élément sur une collection inconnue");
+    }
+    if (itemId !== undefined && itemId === "") {
+      add(`editor.bindings[${index}].itemId`, "itemId vide");
+    }
+    return {
+      ...binding,
+      ...(itemKey === undefined || itemKey === "" ? {} : { itemKey }),
+      ...(itemId === undefined ? {} : { itemId }),
+    };
+  });
+
   return errors.length > 0
     ? { ok: false, errors }
     : {
@@ -468,6 +495,7 @@ function validateTemplateEditorV2(
         value: {
           ...base.value,
           version: 2,
+          bindings: v2Bindings,
           ...(collections.length === 0 ? {} : { collections }),
           ...(dynamicRegions.length === 0 ? {} : { dynamicRegions }),
           ...(fields.length === 0 ? {} : { fields }),
@@ -490,6 +518,33 @@ function validateTemplateEditorV2(
       };
 }
 
+/** Résout `block:hero_main` vers la collection et l’élément stable. */
+export function resolveDynamicRegion(
+  editor: TemplateEditorManifest,
+  regionId: string,
+): TemplateEditorResolvedRegion | null {
+  if (editor.version !== 2) return null;
+  for (const definition of editor.dynamicRegions ?? []) {
+    const open = definition.idPattern.indexOf("{");
+    const close = definition.idPattern.indexOf("}", open + 1);
+    if (open < 0 || close < 0) continue;
+    const prefix = definition.idPattern.slice(0, open);
+    const suffix = definition.idPattern.slice(close + 1);
+    if (!regionId.startsWith(prefix) || !regionId.endsWith(suffix)) continue;
+    const itemId = regionId.slice(prefix.length, regionId.length - suffix.length);
+    if (itemId === "") continue;
+    const collection = editor.collections?.find((entry) => entry.param === definition.collection);
+    return {
+      regionId,
+      collection: definition.collection,
+      keyField: definition.keyField,
+      itemId,
+      collectionLabel: collection?.label ?? definition.collection,
+    };
+  }
+  return null;
+}
+
 /** Vrai si le paramètre est rattaché à plusieurs zones. */
 export function isTemplateEditorBindingShared(binding: TemplateEditorBinding): boolean {
   return binding.regions.length > 1;
@@ -500,7 +555,17 @@ export function bindingsForRegion(
   editor: TemplateEditorManifest,
   regionId: string,
 ): TemplateEditorBinding[] {
-  return editor.bindings.filter((binding) => binding.regions.includes(regionId));
+  const dynamic = resolveDynamicRegion(editor, regionId);
+  return editor.bindings.filter((binding) => {
+    if (binding.regions.includes(regionId)) return true;
+    if (dynamic === null) return false;
+    const v2 = binding as TemplateEditorBindingV2;
+    return (
+      v2.param === dynamic.collection &&
+      (v2.itemId === undefined || v2.itemId === dynamic.itemId) &&
+      (v2.itemKey === undefined || v2.itemKey === dynamic.keyField)
+    );
+  });
 }
 
 /** Toutes les zones affectées par un binding, y compris les parents. */
