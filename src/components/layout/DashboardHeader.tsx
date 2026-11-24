@@ -169,7 +169,7 @@ type NavItem = {
 
 const ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Vue globale", action: "dashboard:view", icon: "dashboard" },
-  { href: "/liens", label: "Chatbots", action: "links:list", icon: "links" },
+  { href: "/liens", label: "Projet IA", action: "links:list", icon: "links" },
   { href: "/prospects", label: "Prospects", action: "prospects:list", icon: "prospects" },
   {
     href: "/conversations",

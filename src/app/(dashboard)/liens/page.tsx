@@ -18,7 +18,7 @@ import { getSessionContext } from "@/infrastructure/session/current-user";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Chatbots",
+  title: "Assistants IA",
 };
 
 /** US-LIENS-001 — génération et gestion des liens de prospection (admin/marketeur). */
