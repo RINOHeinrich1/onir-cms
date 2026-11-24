@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.41.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.40.0...v0.41.0) (2026-11-24)
+
+
+### Features
+
+* **ui:** renommer les chatbots en assistants IA ([#315](https://github.com/RINOHeinrich1/onir-cms/issues/315)) ([7080eef](https://github.com/RINOHeinrich1/onir-cms/commit/7080eefde4581e5d570b84bae4d3bf09172bc6ed))
+
 ## [0.40.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.39.0...v0.40.0) (2026-11-24)
 
 
