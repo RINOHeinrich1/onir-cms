@@ -762,6 +762,84 @@ export function LinkDisplaySettings({
     </div>
   );
 
+  const renderPreviewToolbar = (mobile = false) => (
+    <div className={`display-studio-toolbar${mobile ? " display-studio-toolbar--mobile" : ""}`}>
+      <span className="display-studio-surface-dot" data-surface={surface} />
+      <strong>{surface === "page" ? "Aperçu page" : "Aperçu widget"}</strong>
+      {surface === "page" ? (
+        <div className="display-device-switch" role="tablist" aria-label="Taille de l’aperçu">
+          {(["desktop", "tablet", "mobile"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              role="tab"
+              aria-selected={device === entry}
+              className={`display-device-button${device === entry ? " is-active" : ""}`}
+              title={entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"}
+              aria-label={
+                entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"
+              }
+              onClick={() => setDevice(entry)}
+            >
+              <StudioIcon
+                name={
+                  entry === "desktop" ? "monitor" : entry === "tablet" ? "tablet" : "smartphone"
+                }
+                size={15}
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {renderEditTools()}
+      <label className="display-studio-zoom">
+        <span>Zoom</span>
+        <select
+          value={zoomMode === "fit" ? "fit" : String(customZoom)}
+          onChange={(event) => {
+            if (event.target.value === "fit") {
+              setZoomMode("fit");
+              return;
+            }
+            setCustomZoom(Number(event.target.value));
+            setZoomMode("custom");
+          }}
+        >
+          <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
+          {[50, 75, 100, 125, 150].map((value) => (
+            <option key={value} value={value}>
+              {value}%
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="display-studio-icon-button"
+        title="Plein écran"
+        aria-label="Plein écran"
+        onClick={() => {
+          const node = previewCanvasRef.current;
+          if (node === null) return;
+          if (document.fullscreenElement !== null) void document.exitFullscreen();
+          else void node.requestFullscreen?.();
+        }}
+      >
+        <StudioIcon name="expand" />
+      </button>
+      <a
+        className="display-studio-icon-button"
+        href={previewSrc === "" ? "#" : previewSrc}
+        target="_blank"
+        rel="noreferrer"
+        title="Ouvrir l’aperçu dans un nouvel onglet"
+        aria-label="Ouvrir l’aperçu dans un nouvel onglet"
+      >
+        <StudioIcon name="external" />
+      </a>
+    </div>
+  );
+
   const toggleChannel = (channel: ChatLinkSurface, enabled: boolean): void => {
     setDrafts((current) => ({
       ...current,
@@ -902,13 +980,7 @@ export function LinkDisplaySettings({
         ))}
       </div>
 
-      {mobileTab === "models" ? null : (
-        <div className="display-studio-mobile-tools" role="toolbar" aria-label="Outils d’édition">
-          <span className="display-studio-surface-dot" data-surface={surface} />
-          <strong>{surface === "page" ? "Aperçu page" : "Aperçu widget"}</strong>
-          {renderEditTools()}
-        </div>
-      )}
+      {renderPreviewToolbar(true)}
 
       <div className="display-studio-grid" data-mobile-panel={mobileTab}>
         <aside className="display-studio-panel display-studio-gallery">
@@ -1029,87 +1101,7 @@ export function LinkDisplaySettings({
         </aside>
 
         <section className="display-studio-preview">
-          <div className="display-studio-toolbar">
-            <span className="display-studio-surface-dot" data-surface={surface} />
-            <strong>{surface === "page" ? "Aperçu page" : "Aperçu widget"}</strong>
-            {surface === "page" ? (
-              <div className="display-device-switch" role="tablist" aria-label="Taille de l’aperçu">
-                {(["desktop", "tablet", "mobile"] as const).map((entry) => (
-                  <button
-                    key={entry}
-                    type="button"
-                    role="tab"
-                    aria-selected={device === entry}
-                    className={`display-device-button${device === entry ? " is-active" : ""}`}
-                    title={
-                      entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"
-                    }
-                    aria-label={
-                      entry === "desktop" ? "Bureau" : entry === "tablet" ? "Tablette" : "Mobile"
-                    }
-                    onClick={() => setDevice(entry)}
-                  >
-                    <StudioIcon
-                      name={
-                        entry === "desktop"
-                          ? "monitor"
-                          : entry === "tablet"
-                            ? "tablet"
-                            : "smartphone"
-                      }
-                      size={15}
-                    />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            {renderEditTools()}
-            <label className="display-studio-zoom">
-              <span>Zoom</span>
-              <select
-                value={zoomMode === "fit" ? "fit" : String(customZoom)}
-                onChange={(event) => {
-                  if (event.target.value === "fit") {
-                    setZoomMode("fit");
-                    return;
-                  }
-                  setCustomZoom(Number(event.target.value));
-                  setZoomMode("custom");
-                }}
-              >
-                <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
-                {[50, 75, 100, 125, 150].map((value) => (
-                  <option key={value} value={value}>
-                    {value}%
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="display-studio-icon-button"
-              title="Plein écran"
-              aria-label="Plein écran"
-              onClick={() => {
-                const node = previewCanvasRef.current;
-                if (node === null) return;
-                if (document.fullscreenElement !== null) void document.exitFullscreen();
-                else void node.requestFullscreen?.();
-              }}
-            >
-              <StudioIcon name="expand" />
-            </button>
-            <a
-              className="display-studio-icon-button"
-              href={previewSrc === "" ? "#" : previewSrc}
-              target="_blank"
-              rel="noreferrer"
-              title="Ouvrir l’aperçu dans un nouvel onglet"
-              aria-label="Ouvrir l’aperçu dans un nouvel onglet"
-            >
-              <StudioIcon name="external" />
-            </a>
-          </div>
+          {renderPreviewToolbar()}
           <div
             ref={previewCanvasRef}
             className={`display-preview-canvas display-preview-canvas--${surface} display-preview-canvas--${device}`}
