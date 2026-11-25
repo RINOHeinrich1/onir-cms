@@ -5,6 +5,13 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.43.1](https://github.com/RINOHeinrich1/onir-cms/compare/v0.43.0...v0.43.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **display:** garder les outils d’édition visibles sur mobile ([cff4b9b](https://github.com/RINOHeinrich1/onir-cms/commit/cff4b9b0e1f34c5c47b2fff7df80e643eb0d276f))
+
 ## [0.43.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.42.0...v0.43.0) (2026-11-25)
 
 
