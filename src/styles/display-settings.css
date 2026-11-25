@@ -1083,3 +1083,36 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+
+.param-group {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.param-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.param-group-head strong {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.param-group-body {
+  display: grid;
+  gap: 0.65rem;
+  padding-left: 0.1rem;
+}

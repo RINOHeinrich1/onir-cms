@@ -1,7 +1,19 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import type { TemplateEditorCollection, TemplateEditorReference } from "@/domain/template-editor";
+import type {
+  TemplateEditorCollection,
+  TemplateEditorFieldRule,
+  TemplateEditorGroup,
+  TemplateEditorManifestV2,
+  TemplateEditorReference,
+} from "@/domain/template-editor";
+import {
+  fieldRuleFor,
+  groupsForParam,
+  isVisibleWhen,
+  valueLabelFor,
+} from "@/domain/template-editor-fields";
 import type {
   TemplateParamNode,
   TemplateParamScalar,
@@ -23,6 +35,9 @@ type TemplateParamsFieldsProps = {
   /** Métadonnées de collections Editor V2. */
   collections?: TemplateEditorCollection[] | undefined;
   references?: TemplateEditorReference[] | undefined;
+  groups?: TemplateEditorGroup[] | undefined;
+  fields?: TemplateEditorFieldRule[] | undefined;
+  valueLabels?: NonNullable<TemplateEditorManifestV2["valueLabels"]> | undefined;
   /** Élément ciblé par une région dynamique. */
   collectionFocus?: { param: string; keyField: string; itemId: string } | undefined;
   /** Clés stockées qui ne sont plus déclarées par la version (ADR-0023). */
@@ -114,6 +129,9 @@ export function TemplateParamsFields({
   legend = "Paramètres du template",
   collections,
   references,
+  groups,
+  fields,
+  valueLabels,
   collectionFocus,
   orphans = [],
   onRemoveOrphan,
@@ -166,6 +184,9 @@ export function TemplateParamsFields({
             onToggle={toggle}
             collections={collections}
             references={references}
+            groups={groups}
+            fields={fields}
+            valueLabels={valueLabels}
             values={values}
             collectionFocus={collectionFocus}
           />
@@ -209,6 +230,9 @@ function ParamField({
   onToggle,
   collections,
   references,
+  groups,
+  fields,
+  valueLabels,
   values,
   collectionFocus,
   record,
@@ -222,6 +246,9 @@ function ParamField({
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
   references: TemplateEditorReference[] | undefined;
+  groups: TemplateEditorGroup[] | undefined;
+  fields: TemplateEditorFieldRule[] | undefined;
+  valueLabels: NonNullable<TemplateEditorManifestV2["valueLabels"]> | undefined;
   values: TemplateParamValues;
   collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
   record?: Record<string, TemplateParamValue> | undefined;
@@ -231,6 +258,13 @@ function ParamField({
   const isCollection = param.type === "object" || param.type === "array";
   const focused = collectionFocus?.param === path;
   const expanded = focused || expandedPaths.has(path);
+  const metadataParam = path.includes("[")
+    ? path.slice(0, path.indexOf("["))
+    : path.includes(".")
+      ? path.slice(0, path.indexOf("."))
+      : path;
+  const label =
+    valueLabels === undefined ? null : valueLabelFor(valueLabels, metadataParam, param.key, value);
   return (
     <div className="param-field" data-param-path={path}>
       {isCollection ? (
@@ -273,12 +307,16 @@ function ParamField({
           onToggle={onToggle}
           collections={collections}
           references={references}
+          groups={groups}
+          fields={fields}
+          valueLabels={valueLabels}
           values={values}
           record={record}
           collectionFocus={collectionFocus}
         />
       )}
       {param.description === "" ? null : <span className="hint">{param.description}</span>}
+      {isCollection || label === null ? null : <span className="hint">{label}</span>}
       {isDefault || isCollection ? null : (
         <button
           type="button"
@@ -413,6 +451,9 @@ function ParamValueEditor({
   onToggle,
   collections,
   references,
+  groups,
+  fields,
+  valueLabels,
   values,
   collectionFocus,
   hiddenKeys,
@@ -428,6 +469,9 @@ function ParamValueEditor({
   onToggle: (path: string) => void;
   collections: TemplateEditorCollection[] | undefined;
   references: TemplateEditorReference[] | undefined;
+  groups: TemplateEditorGroup[] | undefined;
+  fields: TemplateEditorFieldRule[] | undefined;
+  valueLabels: NonNullable<TemplateEditorManifestV2["valueLabels"]> | undefined;
   values: TemplateParamValues;
   collectionFocus: { param: string; keyField: string; itemId: string } | undefined;
   hiddenKeys?: ReadonlySet<string> | undefined;
@@ -435,31 +479,70 @@ function ParamValueEditor({
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
+    const groupParam = path.includes(".") ? null : path;
+    const objectGroups = groupParam === null ? [] : groupsForParam(groups, groupParam);
+    const groupedFields = new Set(objectGroups.flatMap((group) => group.fields));
+    const fieldParam = groupParam ?? path;
+    const renderField = (property: TemplateParamSchema) => {
+      if (hiddenKeys?.has(property.key) === true) return null;
+      const rule = fieldRuleFor(fields, fieldParam, property.key);
+      if (rule !== undefined && !isVisibleWhen(rule.visibleWhen, source)) return null;
+      return (
+        <ParamField
+          key={property.key}
+          param={property}
+          value={
+            source[property.key] === undefined
+              ? cloneValue(property.default)
+              : (source[property.key] as TemplateParamValue)
+          }
+          onChange={(next) => onChange({ ...source, [property.key]: next })}
+          path={`${path}.${property.key}`}
+          visiblePaths={visiblePaths}
+          expandedPaths={expandedPaths}
+          onToggle={onToggle}
+          collections={collections}
+          references={references}
+          groups={groups}
+          fields={fields}
+          valueLabels={valueLabels}
+          values={values}
+          record={source}
+          collectionFocus={collectionFocus}
+        />
+      );
+    };
     return (
       <div className="param-object">
+        {objectGroups.map((group) => {
+          const groupPath = `@group:${groupParam}:${group.id}`;
+          const groupExpanded =
+            group.collapsedByDefault === true
+              ? expandedPaths.has(groupPath)
+              : !expandedPaths.has(groupPath);
+          const properties = (node.properties ?? []).filter((property) =>
+            group.fields.includes(property.key),
+          );
+          if (properties.length === 0) return null;
+          return (
+            <div className="param-group" key={groupPath}>
+              <button
+                type="button"
+                className="param-group-head"
+                onClick={() => onToggle(groupPath)}
+              >
+                <span>{groupExpanded ? "▾" : "▸"}</span>
+                <strong>{group.label}</strong>
+              </button>
+              {groupExpanded ? (
+                <div className="param-group-body">{properties.map(renderField)}</div>
+              ) : null}
+            </div>
+          );
+        })}
         {(node.properties ?? [])
-          .filter((property) => hiddenKeys?.has(property.key) !== true)
-          .map((property) => (
-            <ParamField
-              key={property.key}
-              param={property}
-              value={
-                source[property.key] === undefined
-                  ? cloneValue(property.default)
-                  : (source[property.key] as TemplateParamValue)
-              }
-              onChange={(next) => onChange({ ...source, [property.key]: next })}
-              path={`${path}.${property.key}`}
-              visiblePaths={visiblePaths}
-              expandedPaths={expandedPaths}
-              onToggle={onToggle}
-              collections={collections}
-              references={references}
-              values={values}
-              record={source}
-              collectionFocus={collectionFocus}
-            />
-          ))}
+          .filter((property) => !groupedFields.has(property.key))
+          .map(renderField)}
       </div>
     );
   }
@@ -535,6 +618,9 @@ function ParamValueEditor({
                   onToggle={onToggle}
                   collections={collections}
                   references={references}
+                  groups={groups}
+                  fields={fields}
+                  valueLabels={valueLabels}
                   values={values}
                   collectionFocus={collectionFocus}
                   hiddenKeys={collection === undefined ? undefined : new Set([collection.itemKey])}
