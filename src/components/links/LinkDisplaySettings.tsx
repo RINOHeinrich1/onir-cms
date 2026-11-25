@@ -617,6 +617,19 @@ export function LinkDisplaySettings({
     previewFocusRef.current = null;
     window.setTimeout(() => {
       if (!saved.element.isConnected) return;
+      const active = document.activeElement;
+      // Ne jamais réécrire une sélection si l'utilisateur a continué à taper
+      // pendant le rechargement de l'aperçu.
+      if (active === saved.element) {
+        if (
+          saved.element.selectionStart !== saved.start ||
+          saved.element.selectionEnd !== saved.end
+        ) {
+          return;
+        }
+      } else if (active !== document.body && active?.tagName !== "IFRAME") {
+        return;
+      }
       saved.element.focus({ preventScroll: true });
       if (
         typeof saved.element.setSelectionRange === "function" &&
