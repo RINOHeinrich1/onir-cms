@@ -251,6 +251,10 @@
   display: none;
 }
 
+.display-studio-mobile-tools {
+  display: none;
+}
+
 .display-studio-grid {
   display: grid;
   flex: 1;
@@ -973,11 +977,32 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.2rem;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.35rem;
     padding: 0.2rem;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--surface);
+  }
+
+  .display-studio-mobile-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.6rem;
+    margin-bottom: 0.55rem;
+    padding: 0.2rem 0.2rem 0.2rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    background: var(--surface-raised);
+  }
+
+  .display-studio-mobile-tools > strong {
+    margin-right: auto;
+    font-size: 0.72rem;
+  }
+
+  .display-studio-preview .display-studio-toolbar .display-studio-preview-tools {
+    display: none;
   }
 
   .display-studio-mobile-tab {

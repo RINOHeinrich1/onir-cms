@@ -712,6 +712,56 @@ export function LinkDisplaySettings({
     paramHistoryRef.current[surface].index < paramHistoryRef.current[surface].stack.length - 1;
   void historyVersion;
 
+  const renderEditTools = () => (
+    <div className="display-studio-preview-tools">
+      {canEdit ? (
+        <>
+          <button
+            type="button"
+            className="display-studio-icon-button"
+            title="Annuler la dernière modification de paramètres"
+            aria-label="Annuler"
+            disabled={!canUndo}
+            onClick={undoParams}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            className="display-studio-icon-button"
+            title="Rétablir la modification de paramètres"
+            aria-label="Rétablir"
+            disabled={!canRedo}
+            onClick={redoParams}
+          >
+            ↷
+          </button>
+        </>
+      ) : null}
+      {editorAvailable ? (
+        <button
+          type="button"
+          className={`display-studio-icon-button${inspectMode ? " is-active" : ""}`}
+          title={
+            inspectMode
+              ? "Désactiver le curseur d’inspection (Échap)"
+              : "Activer le curseur d’inspection"
+          }
+          aria-label={
+            inspectMode ? "Désactiver le curseur d’inspection" : "Activer le curseur d’inspection"
+          }
+          aria-pressed={inspectMode}
+          onClick={() => {
+            setInspectMode((value) => !value);
+            if (inspectMode) setSelectedRegion(null);
+          }}
+        >
+          <StudioIcon name="inspect" />
+        </button>
+      ) : null}
+    </div>
+  );
+
   const toggleChannel = (channel: ChatLinkSurface, enabled: boolean): void => {
     setDrafts((current) => ({
       ...current,
@@ -851,6 +901,14 @@ export function LinkDisplaySettings({
           </button>
         ))}
       </div>
+
+      {mobileTab === "models" ? null : (
+        <div className="display-studio-mobile-tools" role="toolbar" aria-label="Outils d’édition">
+          <span className="display-studio-surface-dot" data-surface={surface} />
+          <strong>{surface === "page" ? "Aperçu page" : "Aperçu widget"}</strong>
+          {renderEditTools()}
+        </div>
+      )}
 
       <div className="display-studio-grid" data-mobile-panel={mobileTab}>
         <aside className="display-studio-panel display-studio-gallery">
@@ -1005,100 +1063,52 @@ export function LinkDisplaySettings({
                 ))}
               </div>
             ) : null}
-            <div className="display-studio-preview-tools">
-              {canEdit ? (
-                <>
-                  <button
-                    type="button"
-                    className="display-studio-icon-button"
-                    title="Annuler la dernière modification de paramètres"
-                    aria-label="Annuler"
-                    disabled={!canUndo}
-                    onClick={undoParams}
-                  >
-                    ↶
-                  </button>
-                  <button
-                    type="button"
-                    className="display-studio-icon-button"
-                    title="Rétablir la modification de paramètres"
-                    aria-label="Rétablir"
-                    disabled={!canRedo}
-                    onClick={redoParams}
-                  >
-                    ↷
-                  </button>
-                </>
-              ) : null}
-              {editorAvailable ? (
-                <button
-                  type="button"
-                  className={`display-studio-icon-button${inspectMode ? " is-active" : ""}`}
-                  title={
-                    inspectMode
-                      ? "Désactiver le curseur d’inspection (Échap)"
-                      : "Activer le curseur d’inspection"
+            {renderEditTools()}
+            <label className="display-studio-zoom">
+              <span>Zoom</span>
+              <select
+                value={zoomMode === "fit" ? "fit" : String(customZoom)}
+                onChange={(event) => {
+                  if (event.target.value === "fit") {
+                    setZoomMode("fit");
+                    return;
                   }
-                  aria-label={
-                    inspectMode
-                      ? "Désactiver le curseur d’inspection"
-                      : "Activer le curseur d’inspection"
-                  }
-                  aria-pressed={inspectMode}
-                  onClick={() => {
-                    setInspectMode((value) => !value);
-                    if (inspectMode) setSelectedRegion(null);
-                  }}
-                >
-                  <StudioIcon name="inspect" />
-                </button>
-              ) : null}
-              <label className="display-studio-zoom">
-                <span>Zoom</span>
-                <select
-                  value={zoomMode === "fit" ? "fit" : String(customZoom)}
-                  onChange={(event) => {
-                    if (event.target.value === "fit") {
-                      setZoomMode("fit");
-                      return;
-                    }
-                    setCustomZoom(Number(event.target.value));
-                    setZoomMode("custom");
-                  }}
-                >
-                  <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
-                  {[50, 75, 100, 125, 150].map((value) => (
-                    <option key={value} value={value}>
-                      {value}%
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className="display-studio-icon-button"
-                title="Plein écran"
-                aria-label="Plein écran"
-                onClick={() => {
-                  const node = previewCanvasRef.current;
-                  if (node === null) return;
-                  if (document.fullscreenElement !== null) void document.exitFullscreen();
-                  else void node.requestFullscreen?.();
+                  setCustomZoom(Number(event.target.value));
+                  setZoomMode("custom");
                 }}
               >
-                <StudioIcon name="expand" />
-              </button>
-              <a
-                className="display-studio-icon-button"
-                href={previewSrc === "" ? "#" : previewSrc}
-                target="_blank"
-                rel="noreferrer"
-                title="Ouvrir l’aperçu dans un nouvel onglet"
-                aria-label="Ouvrir l’aperçu dans un nouvel onglet"
-              >
-                <StudioIcon name="external" />
-              </a>
-            </div>
+                <option value="fit">Ajuster · {Math.round(fitZoom * 100)}%</option>
+                {[50, 75, 100, 125, 150].map((value) => (
+                  <option key={value} value={value}>
+                    {value}%
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="display-studio-icon-button"
+              title="Plein écran"
+              aria-label="Plein écran"
+              onClick={() => {
+                const node = previewCanvasRef.current;
+                if (node === null) return;
+                if (document.fullscreenElement !== null) void document.exitFullscreen();
+                else void node.requestFullscreen?.();
+              }}
+            >
+              <StudioIcon name="expand" />
+            </button>
+            <a
+              className="display-studio-icon-button"
+              href={previewSrc === "" ? "#" : previewSrc}
+              target="_blank"
+              rel="noreferrer"
+              title="Ouvrir l’aperçu dans un nouvel onglet"
+              aria-label="Ouvrir l’aperçu dans un nouvel onglet"
+            >
+              <StudioIcon name="external" />
+            </a>
           </div>
           <div
             ref={previewCanvasRef}
