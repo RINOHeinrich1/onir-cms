@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type {
   TemplateEditorCollection,
   TemplateEditorFieldRule,
@@ -137,6 +137,30 @@ export function TemplateParamsFields({
   onRemoveOrphan,
 }: TemplateParamsFieldsProps) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
+  const focusedPath = useMemo(() => {
+    if (collectionFocus === undefined) return null;
+    const raw = values[collectionFocus.param];
+    if (!Array.isArray(raw)) return null;
+    const index = raw.findIndex(
+      (entry) =>
+        entry !== null &&
+        typeof entry === "object" &&
+        !Array.isArray(entry) &&
+        (entry as Record<string, TemplateParamValue>)[collectionFocus.keyField] ===
+          collectionFocus.itemId,
+    );
+    return index < 0 ? null : `${collectionFocus.param}[${index}]`;
+  }, [collectionFocus, values]);
+
+  useEffect(() => {
+    if (focusedPath === null) return;
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      next.add(collectionFocus?.param ?? "");
+      next.add(focusedPath);
+      return next;
+    });
+  }, [collectionFocus?.param, focusedPath]);
 
   if (schema.length === 0 && orphans.length === 0) return null;
   const toggle = (path: string): void => {
@@ -256,8 +280,7 @@ function ParamField({
   if (!isPathVisible(path, visiblePaths)) return null;
   const isDefault = isSameValue(value, param.default);
   const isCollection = param.type === "object" || param.type === "array";
-  const focused = collectionFocus?.param === path;
-  const expanded = focused || expandedPaths.has(path);
+  const expanded = expandedPaths.has(path);
   const metadataParam = path.includes("[")
     ? path.slice(0, path.indexOf("["))
     : path.includes(".")
@@ -571,7 +594,7 @@ function ParamValueEditor({
         ) : null}
         {entries.map(({ entry, index }) => {
           const itemPath = `${path}[${index}]`;
-          const itemExpanded = focus !== null || expandedPaths.has(itemPath);
+          const itemExpanded = expandedPaths.has(itemPath);
           const kind = itemKind(entry, collection);
           return (
             <div className="param-array-item" key={itemPath}>
