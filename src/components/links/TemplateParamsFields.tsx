@@ -502,7 +502,11 @@ function ParamValueEditor({
 }): ReactNode {
   if (node.type === "object") {
     const source = isObject(value) ? value : {};
-    const groupParam = path.includes(".") ? null : path;
+    const groupParam = path.includes(".")
+      ? null
+      : path.includes("[")
+        ? path.slice(0, path.indexOf("["))
+        : path;
     const objectGroups = groupParam === null ? [] : groupsForParam(groups, groupParam);
     const groupedFields = new Set(objectGroups.flatMap((group) => group.fields));
     const fieldParam = groupParam ?? path;
