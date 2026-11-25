@@ -5,6 +5,23 @@ Toutes les évolutions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 versionnement suit [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.43.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.42.0...v0.43.0) (2026-11-25)
+
+
+### Features
+
+* **editor:** insertions typées ([#325](https://github.com/RINOHeinrich1/onir-cms/issues/325)) ([6f996c3](https://github.com/RINOHeinrich1/onir-cms/commit/6f996c3c2c9d836c7b850fbf319ba8ef6f398a30))
+* **editor:** LOT A/B identifiants, recherche et édition directe ([#321](https://github.com/RINOHeinrich1/onir-cms/issues/321)) ([c16682a](https://github.com/RINOHeinrich1/onir-cms/commit/c16682ae1f080e4b06cf67245fda69f9349b3343))
+* **editor:** sélecteurs de références par libellé ([#323](https://github.com/RINOHeinrich1/onir-cms/issues/323)) ([57e2d10](https://github.com/RINOHeinrich1/onir-cms/commit/57e2d101ccafcfc495f6d053e405ef938ffbcb3b))
+* **sidebar:** groupes, libellés et champs conditionnels ([#326](https://github.com/RINOHeinrich1/onir-cms/issues/326)) ([ed8ed33](https://github.com/RINOHeinrich1/onir-cms/commit/ed8ed3366bf19ed477a7821d8659cb1ee5f200fc))
+
+
+### Bug Fixes
+
+* **editor:** conserver le champ brut sans cible de référence ([#324](https://github.com/RINOHeinrich1/onir-cms/issues/324)) ([0452690](https://github.com/RINOHeinrich1/onir-cms/commit/0452690460eb16ff41dd4d7a9eb3980681602da1))
+* **editor:** repli en inspection et curseur ([#327](https://github.com/RINOHeinrich1/onir-cms/issues/327)) ([6f10ea1](https://github.com/RINOHeinrich1/onir-cms/commit/6f10ea1fa065e6a39b17f5ba657a3ea83a5222c0))
+* **sidebar:** appliquer visibleWhen aux éléments de collection ([#328](https://github.com/RINOHeinrich1/onir-cms/issues/328)) ([c068790](https://github.com/RINOHeinrich1/onir-cms/commit/c068790f82d95aac77080845761dcc9c66513092))
+
 ## [0.42.0](https://github.com/RINOHeinrich1/onir-cms/compare/v0.41.0...v0.42.0) (2026-11-24)
 
 
