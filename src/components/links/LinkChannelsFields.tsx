@@ -297,6 +297,9 @@ export function LinkChannelsFields({
             values={draft.params}
             collections={selectedEditor?.version === 2 ? selectedEditor.collections : undefined}
             references={selectedEditor?.version === 2 ? selectedEditor.references : undefined}
+            groups={selectedEditor?.version === 2 ? selectedEditor.groups : undefined}
+            fields={selectedEditor?.version === 2 ? selectedEditor.fields : undefined}
+            valueLabels={selectedEditor?.version === 2 ? selectedEditor.valueLabels : undefined}
             onChange={(params) => setDraft({ params })}
           />
         </div>

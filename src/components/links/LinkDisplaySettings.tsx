@@ -282,6 +282,10 @@ export function LinkDisplaySettings({
   const selectedCollections =
     selectedEditor?.version === 2 ? selectedEditor.collections : undefined;
   const selectedReferences = selectedEditor?.version === 2 ? selectedEditor.references : undefined;
+  const selectedGroups = selectedEditor?.version === 2 ? selectedEditor.groups : undefined;
+  const selectedFieldRules = selectedEditor?.version === 2 ? selectedEditor.fields : undefined;
+  const selectedValueLabels =
+    selectedEditor?.version === 2 ? selectedEditor.valueLabels : undefined;
   const searchPaths = useMemo(
     () =>
       searchTemplateParamPaths(
@@ -1314,6 +1318,9 @@ export function LinkDisplaySettings({
                       legend="Paramètres de la zone"
                       collections={selectedCollections}
                       references={selectedReferences}
+                      groups={selectedGroups}
+                      fields={selectedFieldRules}
+                      valueLabels={selectedValueLabels}
                       collectionFocus={collectionFocus}
                       onChange={recordParams}
                     />
@@ -1326,6 +1333,9 @@ export function LinkDisplaySettings({
                       legend={`Partagé · ${sharedRegionCount} zone${sharedRegionCount > 1 ? "s" : ""}`}
                       collections={selectedCollections}
                       references={selectedReferences}
+                      groups={selectedGroups}
+                      fields={selectedFieldRules}
+                      valueLabels={selectedValueLabels}
                       collectionFocus={collectionFocus}
                       onChange={recordParams}
                     />
@@ -1387,6 +1397,9 @@ export function LinkDisplaySettings({
                       values={draft.params as TemplateParamValues}
                       collections={selectedCollections}
                       references={selectedReferences}
+                      groups={selectedGroups}
+                      fields={selectedFieldRules}
+                      valueLabels={selectedValueLabels}
                       collectionFocus={collectionFocus}
                       visiblePaths={visibleSearchPaths}
                       onChange={recordParams}
