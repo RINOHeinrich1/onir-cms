@@ -143,6 +143,7 @@ export function addCollectionChildItem(
   rule: TemplateEditorInsertionRule,
   parentId: string,
   item: RecordValue,
+  placementParentKind?: string,
 ): TemplateStructureOperationResult {
   const v2 = editorV2(editor);
   const children = v2?.structure?.children;
@@ -163,10 +164,14 @@ export function addCollectionChildItem(
       reference.field === children.parentKey &&
       reference.targets !== undefined,
   );
-  const parentKind = Object.entries(parentReference?.targets ?? {}).find(
-    ([, collection]) => collection === children.collection,
-  )?.[0];
-  if (parentKind === undefined) return { values, itemId: null };
+  const parentKind =
+    placementParentKind ??
+    Object.entries(parentReference?.targets ?? {}).find(
+      ([, collection]) => collection === children.collection,
+    )?.[0];
+  if (parentKind === undefined || parentReference?.targets?.[parentKind] === undefined) {
+    return { values, itemId: null };
+  }
   const itemId = createTemplateItemId();
   const items = collectionItems(values, rule.childCollection) ?? [];
   const nextItem = { ...clone(item), [meta.itemKey]: itemId };
