@@ -72,7 +72,7 @@ function observationHash(observation: Observation): string {
 
 function errorSignature(errors: string[]): string {
   return errors
-    .map((entry) => entry.split(" : ")[0] ?? entry)
+    .map((entry) => entry.trim().replace(/\s+/g, " "))
     .sort()
     .join("|");
 }
