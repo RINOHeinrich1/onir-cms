@@ -5,6 +5,7 @@ import { requireRole } from "@/app/api/_lib/require-user";
 import { startTemplateEditSession } from "@/application/use-cases/visual-templates/template-edit-session";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgTemplateEditAuditRepository } from "@/infrastructure/db/template-edit-audit-repository";
 import { pgTemplateEditSessionRepository } from "@/infrastructure/db/template-edit-session-repository";
 import { loadTemplateEditContext, paramsFrom, surfaceFrom } from "../context";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       {
         sessions: pgTemplateEditSessionRepository(pool),
         aiFactory: pgAiClientFactory(pool),
+        audit: pgTemplateEditAuditRepository(pool),
       },
       actor,
       { ...loaded, workingParams },

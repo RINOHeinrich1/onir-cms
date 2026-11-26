@@ -33,6 +33,8 @@ export function DisplayEditAssistantDrawer({
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef(context.onApply);
@@ -126,15 +128,38 @@ export function DisplayEditAssistantDrawer({
   };
 
   const save = async (): Promise<void> => {
-    if (saving) return;
+    if (saving || session === null) return;
     setSaving(true);
     setError(null);
     try {
       await context.onSave();
+      await fetch(`${base}/${session.id}/saved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ params: context.params, surface: context.surface }),
+      }).catch(() => undefined);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Enregistrement impossible");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyAudit = async (): Promise<void> => {
+    if (session === null || copying) return;
+    setCopying(true);
+    setError(null);
+    try {
+      const json = await readJson<{ sessionId: string; events: unknown[] }>(
+        await fetch(`${base}/${session.id}/audit`),
+      );
+      await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2_500);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Copie impossible");
+    } finally {
+      setCopying(false);
     }
   };
 
@@ -184,9 +209,19 @@ export function DisplayEditAssistantDrawer({
               {context.surface === "page" ? "Page" : "Widget"} ·{" "}
               {session.state.workingParams === undefined ? "" : "brouillon"}
             </span>
-            <button type="button" className="btn ghost small" onClick={() => void restart()}>
-              Nouvelle conversation
-            </button>
+            <div className="display-assistant-head-actions">
+              <button
+                type="button"
+                className="btn ghost small"
+                disabled={copying}
+                onClick={() => void copyAudit()}
+              >
+                {copied ? "Copié" : copying ? "Copie…" : "Copier l’audit"}
+              </button>
+              <button type="button" className="btn ghost small" onClick={() => void restart()}>
+                Nouvelle conversation
+              </button>
+            </div>
           </div>
           <div className="display-assistant-messages" ref={scrollRef}>
             {messages.map((message) => (

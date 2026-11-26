@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, ValidationError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
+import type { TemplateEditAuditRepository } from "@/application/ports/template-edit-audit-repository";
 import type { TemplateEditSessionRepository } from "@/application/ports/template-edit-session-repository";
 import { applyTemplateEditProposal } from "@/domain/template-edit-proposal";
 import {
@@ -34,7 +36,12 @@ export type TemplateEditSessionContext = {
 export type TemplateEditSessionDependencies = {
   sessions: TemplateEditSessionRepository;
   aiFactory: AiClientFactory;
+  audit: TemplateEditAuditRepository;
 };
+
+function hashValues(values: TemplateParamValues): string {
+  return createHash("sha256").update(JSON.stringify(values)).digest("hex");
+}
 
 function cleanMessage(value: unknown): string {
   const message = typeof value === "string" ? value.trim() : "";
@@ -59,8 +66,20 @@ export async function startTemplateEditSession(
     context.surface,
     actor.id,
   );
-  if (active !== null) return active;
-  return deps.sessions.create({
+  if (active !== null) {
+    await deps.audit.record({
+      organizationId,
+      linkId: context.linkId,
+      sessionId: active.id,
+      actorId: actor.id,
+      event: "session_resumed",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      metadata: { surface: context.surface },
+    });
+    return active;
+  }
+  const created = await deps.sessions.create({
     organizationId,
     linkId: context.linkId,
     createdBy: actor.id,
@@ -72,6 +91,18 @@ export async function startTemplateEditSession(
       selection: null,
     },
   });
+  await deps.audit.record({
+    organizationId,
+    linkId: context.linkId,
+    sessionId: created.id,
+    actorId: actor.id,
+    event: "session_started",
+    templateId: context.templateId,
+    templateVersion: context.templateVersion,
+    beforeHash: hashValues(context.workingParams),
+    metadata: { surface: context.surface },
+  });
+  return created;
 }
 
 export async function getTemplateEditSession(
@@ -121,10 +152,24 @@ export async function continueTemplateEditSession(
   const workingParams =
     body.params !== undefined ? (body.params as TemplateParamValues) : session.state.workingParams;
 
+  const userMessage = createTemplateEditMessage("user", message);
   let state: TemplateEditSessionState = appendTemplateEditMessage(
     { ...session.state, workingParams, selection },
-    createTemplateEditMessage("user", message),
+    userMessage,
   );
+  await deps.audit.record({
+    organizationId: organizationOf(actor),
+    linkId: context.linkId,
+    sessionId,
+    messageId: userMessage.id,
+    actorId: actor.id,
+    event: "user_message",
+    templateId: context.templateId,
+    templateVersion: context.templateVersion,
+    content: message,
+    beforeHash: hashValues(workingParams),
+    metadata: { selection, surface: context.surface },
+  });
 
   const resolved = resolveTemplateEditTarget({
     request: message,
@@ -145,13 +190,27 @@ export async function continueTemplateEditSession(
         });
 
   if (candidates.length === 0) {
+    const reply = createTemplateEditMessage(
+      "assistant",
+      "Je n’ai trouvé aucune cible éditable correspondant à cette demande. Précisez la page ou l’élément à modifier.",
+    );
     state = appendTemplateEditMessage(
       { ...state, pendingProposal: null, pendingCandidate: null },
-      createTemplateEditMessage(
-        "assistant",
-        "Je n’ai trouvé aucune cible éditable correspondant à cette demande. Précisez la page ou l’élément à modifier.",
-      ),
+      reply,
     );
+    await deps.audit.record({
+      organizationId: organizationOf(actor),
+      linkId: context.linkId,
+      sessionId,
+      messageId: reply.id,
+      actorId: actor.id,
+      event: "not_found",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      content: reply.content,
+      beforeHash: hashValues(workingParams),
+      metadata: { selection },
+    });
     const saved = await deps.sessions.save(organizationOf(actor), context.linkId, sessionId, state);
     if (saved === null) throw new NotFoundError("Session d’édition introuvable");
     return saved;
@@ -164,20 +223,51 @@ export async function continueTemplateEditSession(
   });
 
   if (decision.status === "ambiguous") {
+    const reply = createTemplateEditMessage("assistant", decision.question, {
+      candidates: decision.candidates,
+    });
     state = appendTemplateEditMessage(
       { ...state, pendingProposal: null, pendingCandidate: null },
-      createTemplateEditMessage("assistant", decision.question, {
-        candidates: decision.candidates,
-      }),
+      reply,
     );
+    await deps.audit.record({
+      organizationId: organizationOf(actor),
+      linkId: context.linkId,
+      sessionId,
+      messageId: reply.id,
+      actorId: actor.id,
+      event: "ambiguous",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      content: reply.content,
+      beforeHash: hashValues(workingParams),
+      metadata: {
+        selection,
+        candidates: decision.candidates.map(candidateId),
+      },
+    });
   } else if (decision.status === "not_found") {
+    const reply = createTemplateEditMessage(
+      "assistant",
+      "Je n’ai pas trouvé de cible fiable. Précisez la page ou l’élément.",
+    );
     state = appendTemplateEditMessage(
       { ...state, pendingProposal: null, pendingCandidate: null },
-      createTemplateEditMessage(
-        "assistant",
-        "Je n’ai pas trouvé de cible fiable. Précisez la page ou l’élément.",
-      ),
+      reply,
     );
+    await deps.audit.record({
+      organizationId: organizationOf(actor),
+      linkId: context.linkId,
+      sessionId,
+      messageId: reply.id,
+      actorId: actor.id,
+      event: "not_found",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      content: reply.content,
+      beforeHash: hashValues(workingParams),
+      metadata: { selection },
+    });
   } else {
     const candidate = decision.candidate;
     const generated = await generateTemplateEditProposal({ aiFactory: deps.aiFactory }, actor, {
@@ -188,21 +278,38 @@ export async function continueTemplateEditSession(
       schema: context.schema,
       values: workingParams,
     });
+    const reply = createTemplateEditMessage(
+      "assistant",
+      `J’ai trouvé « ${candidate.label} ». Voici la modification proposée.`,
+      {
+        proposal: generated.proposal,
+        candidate,
+      },
+    );
     state = appendTemplateEditMessage(
       {
         ...state,
         pendingProposal: generated.proposal,
         pendingCandidate: candidate,
       },
-      createTemplateEditMessage(
-        "assistant",
-        `J’ai trouvé « ${candidate.label} ». Voici la modification proposée.`,
-        {
-          proposal: generated.proposal,
-          candidate,
-        },
-      ),
+      reply,
     );
+    await deps.audit.record({
+      organizationId: organizationOf(actor),
+      linkId: context.linkId,
+      sessionId,
+      messageId: reply.id,
+      actorId: actor.id,
+      event: "proposal_created",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      candidateId: candidateId(candidate),
+      content: reply.content,
+      operations: generated.proposal.operations,
+      warnings: generated.warnings,
+      beforeHash: hashValues(workingParams),
+      metadata: { surface: context.surface, selection },
+    });
   }
 
   const saved = await deps.sessions.save(organizationOf(actor), context.linkId, sessionId, state);
@@ -234,6 +341,10 @@ export async function applyTemplateEditSessionProposal(
     );
   }
 
+  const appliedMessage = createTemplateEditMessage(
+    "assistant",
+    "C’est appliqué au brouillon. Enregistrez pour persister la modification.",
+  );
   const state = appendTemplateEditMessage(
     {
       ...session.state,
@@ -241,14 +352,48 @@ export async function applyTemplateEditSessionProposal(
       pendingProposal: null,
       pendingCandidate: null,
     },
-    createTemplateEditMessage(
-      "assistant",
-      "C’est appliqué au brouillon. Enregistrez pour persister la modification.",
-    ),
+    appliedMessage,
   );
+  await deps.audit.record({
+    organizationId: organizationOf(actor),
+    linkId: context.linkId,
+    sessionId,
+    messageId: appliedMessage.id,
+    actorId: actor.id,
+    event: "proposal_applied",
+    templateId: context.templateId,
+    templateVersion: context.templateVersion,
+    candidateId:
+      session.state.pendingCandidate === null ? null : candidateId(session.state.pendingCandidate),
+    content: appliedMessage.content,
+    operations: proposal.operations,
+    beforeHash: hashValues(session.state.workingParams),
+    afterHash: hashValues(result.values),
+    metadata: { surface: context.surface },
+  });
   const saved = await deps.sessions.save(organizationOf(actor), context.linkId, sessionId, state);
   if (saved === null) throw new NotFoundError("Session d’édition introuvable");
   return { session: saved, values: result.values };
+}
+
+export async function recordTemplateEditLinkSaved(
+  deps: TemplateEditSessionDependencies,
+  actor: Actor,
+  context: TemplateEditSessionContext,
+  sessionId: string,
+): Promise<void> {
+  assertCan(actor, "links:update");
+  await deps.audit.record({
+    organizationId: organizationOf(actor),
+    linkId: context.linkId,
+    sessionId,
+    actorId: actor.id,
+    event: "link_saved",
+    templateId: context.templateId,
+    templateVersion: context.templateVersion,
+    afterHash: hashValues(context.workingParams),
+    metadata: { surface: context.surface },
+  });
 }
 
 export { candidateId };
