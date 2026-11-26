@@ -386,6 +386,32 @@ export async function continueTemplateEditSession(
       history,
     });
 
+    for (const attempt of planned.attemptHistory) {
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: userMessage.id,
+        turnId,
+        actorId: actor.id,
+        event: "plan_attempt",
+        stage: "planning",
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        content: `Tentative ${attempt.attempt} — ${attempt.status}`,
+        rawResponse: attempt.rawPlan,
+        validationErrors: attempt.errors,
+        beforeHash: hashValues(workingParams),
+        metadata: {
+          attempt: attempt.attempt,
+          status: attempt.status,
+          attempts: planned.attempts,
+          surface: context.surface,
+          selection,
+        },
+      });
+    }
+
     if (planned.status === "noop") {
       const reply = createTemplateEditMessage("assistant", planned.message);
       state = appendTemplateEditMessage(

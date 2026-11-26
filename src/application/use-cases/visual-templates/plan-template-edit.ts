@@ -31,6 +31,13 @@ export type PlanTemplateEditInput = {
 
 export type PlanTemplateEditDependencies = { aiFactory: AiClientFactory };
 
+export type PlanAttemptRecord = {
+  attempt: number;
+  status: "success" | "error" | "clarification" | "noop";
+  errors: string[];
+  rawPlan: unknown;
+};
+
 export type PlanTemplateEditResult =
   | {
       status: "proposed";
@@ -39,6 +46,7 @@ export type PlanTemplateEditResult =
       warnings: string[];
       rawPlan: unknown;
       attempts: number;
+      attemptHistory: PlanAttemptRecord[];
     }
   | {
       status: "noop";
@@ -46,6 +54,7 @@ export type PlanTemplateEditResult =
       warnings: string[];
       rawPlan: unknown;
       attempts: number;
+      attemptHistory: PlanAttemptRecord[];
     }
   | {
       status: "clarification";
@@ -53,6 +62,7 @@ export type PlanTemplateEditResult =
       warnings: string[];
       rawPlan: unknown;
       attempts: number;
+      attemptHistory: PlanAttemptRecord[];
     }
   | {
       status: "rejected";
@@ -60,6 +70,7 @@ export type PlanTemplateEditResult =
       warnings: string[];
       rawPlan: unknown;
       attempts: number;
+      attemptHistory: PlanAttemptRecord[];
     };
 
 function text(value: unknown): string {
@@ -116,6 +127,7 @@ export async function planTemplateEdit(
   let previousPlan: unknown = null;
   let lastRaw: unknown = null;
   let lastWarnings: string[] = [];
+  const attemptHistory: PlanAttemptRecord[] = [];
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const attemptStarted = Date.now();
@@ -173,6 +185,12 @@ export async function planTemplateEdit(
         endedAt: new Date().toISOString(),
         durationMs: Date.now() - attemptStarted,
       });
+      attemptHistory.push({
+        attempt,
+        status: "error",
+        errors: previousErrors,
+        rawPlan: raw,
+      });
       previousPlan = raw;
       continue;
     }
@@ -186,6 +204,7 @@ export async function planTemplateEdit(
         warnings: plan.warnings ?? [],
         rawPlan: raw,
         attempts: attempt,
+        attemptHistory: [...attemptHistory, { attempt, status: "noop", errors: [], rawPlan: raw }],
       };
     }
     if (plan.steps.length === 0) {
@@ -197,6 +216,10 @@ export async function planTemplateEdit(
           warnings: plan.warnings ?? [],
           rawPlan: raw,
           attempts: attempt,
+          attemptHistory: [
+            ...attemptHistory,
+            { attempt, status: "clarification", errors: [], rawPlan: raw },
+          ],
         };
       }
       return {
@@ -205,6 +228,10 @@ export async function planTemplateEdit(
         warnings: [],
         rawPlan: raw,
         attempts: attempt,
+        attemptHistory: [
+          ...attemptHistory,
+          { attempt, status: "error", errors: ["plan vide sans clarification"], rawPlan: raw },
+        ],
       };
     }
 
@@ -247,6 +274,10 @@ export async function planTemplateEdit(
         warnings: execution.warnings,
         rawPlan: raw,
         attempts: attempt,
+        attemptHistory: [
+          ...attemptHistory,
+          { attempt, status: "success", errors: [], rawPlan: raw },
+        ],
       };
     }
 
@@ -260,5 +291,6 @@ export async function planTemplateEdit(
     warnings: lastWarnings,
     rawPlan: lastRaw,
     attempts: MAX_ATTEMPTS,
+    attemptHistory,
   };
 }

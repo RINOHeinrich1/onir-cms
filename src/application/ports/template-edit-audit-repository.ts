@@ -7,6 +7,7 @@ export type TemplateEditAuditEvent =
   | "target_candidates"
   | "clarification_required"
   | "noop"
+  | "plan_attempt"
   | "proposal_created"
   | "proposal_rejected"
   | "proposal_applied"
