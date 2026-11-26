@@ -71,3 +71,6 @@ export const chatbotBuilderLimiter = createRateLimiter({ limit: 30, windowMs: 60
 
 /** Import de connaissances par IA : 10 imports / minute. */
 export const knowledgeImportLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
+
+/** Édition assistée d'un template : 5 propositions / minute par utilisateur. */
+export const templateEditLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 1000 });

@@ -8,6 +8,8 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { useToast, useToastOnMessage } from "@/components/ui/ToastProvider";
 import type { ChatLinkSurface } from "@/domain/entities/chat";
 import { channelsForLink } from "@/domain/entities/chat";
+import type { TemplateEditProposal } from "@/domain/template-edit-proposal";
+import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import {
   bindingsForRegion,
   editorRegionChain,
@@ -46,6 +48,21 @@ type DisplayDevice = "desktop" | "tablet" | "mobile";
 type MobileTab = "models" | "preview" | "settings";
 type ChatbotOption = { id: string; label: string; type: "standard" | "specifique" };
 
+type AiEditResponse =
+  | {
+      status: "proposed";
+      candidate: TemplateEditCandidate;
+      proposal: TemplateEditProposal;
+      values: TemplateParamValues;
+      warnings: string[];
+    }
+  | {
+      status: "ambiguous";
+      question: string;
+      candidates: TemplateEditCandidate[];
+    }
+  | { status: "not_found"; message?: string };
+
 function dynamicRegionLabel(
   editor: TemplateEditorManifest,
   target: TemplateEditorRegionItem,
@@ -70,7 +87,15 @@ function StudioIcon({
   name,
   size = 16,
 }: {
-  name: "back" | "expand" | "external" | "inspect" | "monitor" | "tablet" | "smartphone";
+  name:
+    | "back"
+    | "expand"
+    | "external"
+    | "inspect"
+    | "monitor"
+    | "tablet"
+    | "smartphone"
+    | "sparkles";
   size?: number;
 }) {
   const paths = {
@@ -106,6 +131,13 @@ function StudioIcon({
         <path d="M12 3v3m0 12v3M3 12h3m12 0h3" />
         <circle cx="12" cy="12" r="4" />
         <path d="m8.5 15.5-2 2" />
+      </>
+    ),
+    sparkles: (
+      <>
+        <path d="m12 3 1.3 4.1L17 9l-3.7 1.9L12 15l-1.3-4.1L7 9l3.7-2.9L12 3Z" />
+        <path d="m5 14 .7 2.3L8 17l-2.3.7L5 20l-.7-2.3L2 17l2.3-.7L5 14Z" />
+        <path d="m19 3 .5 1.5L21 5l-1.5.5L19 7l-.5-1.5L17 5l1.5-.5L19 3Z" />
       </>
     ),
   };
@@ -222,6 +254,11 @@ export function LinkDisplaySettings({
   const [device, setDevice] = useState<DisplayDevice>("desktop");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<AiEditResponse | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("preview");
   const [gallerySearch, setGallerySearch] = useState("");
   const [paramTab, setParamTab] = useState<ParamTab>("all");
@@ -738,6 +775,22 @@ export function LinkDisplaySettings({
           </button>
         </>
       ) : null}
+      {canEdit ? (
+        <button
+          type="button"
+          className={`display-studio-icon-button${aiOpen ? " is-active" : ""}`}
+          title="Assistant IA"
+          aria-label="Assistant IA"
+          aria-pressed={aiOpen}
+          onClick={() => {
+            setAiOpen((value) => !value);
+            setAiResult(null);
+            setAiError(null);
+          }}
+        >
+          <StudioIcon name="sparkles" />
+        </button>
+      ) : null}
       {editorAvailable ? (
         <button
           type="button"
@@ -907,6 +960,133 @@ export function LinkDisplaySettings({
       setSaving(false);
     }
   };
+
+  const askAiEdit = async (candidateId?: string): Promise<void> => {
+    if (!canEdit || aiBusy) return;
+    const request = aiPrompt.trim();
+    if (request === "") {
+      setAiError("Décrivez la modification souhaitée.");
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const response = await fetch(`/api/links/${link.id}/ai-edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request,
+          params: draft.params,
+          ...(selectedRegion === null ? {} : { selection: { regionId: selectedRegion } }),
+          ...(candidateId === undefined ? {} : { candidateId }),
+        }),
+      });
+      const json = (await response.json()) as AiEditResponse & { error?: string };
+      if (!response.ok) {
+        setAiError(json.error ?? "Édition IA indisponible");
+        return;
+      }
+      setAiResult(json);
+    } catch {
+      setAiError("Erreur réseau, veuillez réessayer");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const applyAiProposal = (): void => {
+    if (aiResult?.status !== "proposed") return;
+    recordParams(aiResult.values);
+    setAiResult(null);
+    setAiOpen(false);
+    toast.success("Proposition appliquée au brouillon. Enregistrez pour confirmer.");
+  };
+
+  const renderAiPanel = () => (
+    <section className="display-ai-panel" aria-label="Assistant IA">
+      <div className="display-ai-panel-head">
+        <div>
+          <span className="eyebrow">Assistant IA</span>
+          <strong>Décrivez la modification</strong>
+        </div>
+        <button
+          type="button"
+          className="display-studio-icon-button"
+          title="Fermer l’assistant"
+          aria-label="Fermer l’assistant"
+          onClick={() => {
+            setAiOpen(false);
+            setAiResult(null);
+            setAiError(null);
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <textarea
+        className="display-ai-prompt"
+        rows={2}
+        value={aiPrompt}
+        placeholder="Ex. supprime la section nous connaître"
+        onChange={(event) => setAiPrompt(event.target.value)}
+      />
+      <div className="display-ai-actions">
+        <button
+          type="button"
+          className="btn small"
+          disabled={aiBusy || aiPrompt.trim() === ""}
+          onClick={() => void askAiEdit()}
+        >
+          {aiBusy ? "Analyse…" : "Proposer"}
+        </button>
+        {selectedRegion === null ? null : (
+          <span className="hint">Zone sélectionnée : {selectedRegion}</span>
+        )}
+      </div>
+      {aiError === null ? null : <p className="alert error">{aiError}</p>}
+      {aiResult?.status === "not_found" ? (
+        <p className="hint">{aiResult.message ?? "Aucune cible trouvée."}</p>
+      ) : null}
+      {aiResult?.status === "ambiguous" ? (
+        <div className="display-ai-result">
+          <p>{aiResult.question}</p>
+          <div className="display-ai-choices">
+            {aiResult.candidates.map((candidate) => (
+              <button
+                key={`${candidate.collection}:${candidate.itemId}`}
+                type="button"
+                className="btn ghost small"
+                onClick={() => void askAiEdit(`${candidate.collection}:${candidate.itemId}`)}
+              >
+                {candidate.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {aiResult?.status === "proposed" ? (
+        <div className="display-ai-result">
+          <p>
+            Cible : <strong>{aiResult.candidate.label}</strong>
+          </p>
+          {aiResult.warnings.map((warning) => (
+            <p key={warning} className="hint">
+              {warning}
+            </p>
+          ))}
+          <div className="display-ai-actions">
+            <button type="button" className="btn small" onClick={applyAiProposal}>
+              Appliquer au brouillon
+            </button>
+            <button type="button" className="btn ghost small" onClick={() => setAiResult(null)}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
 
   const changeSurface = (next: ChatLinkSurface): void => {
     setSurface(next);
@@ -1102,6 +1282,7 @@ export function LinkDisplaySettings({
 
         <section className="display-studio-preview">
           {renderPreviewToolbar()}
+          {aiOpen ? renderAiPanel() : null}
           <div
             ref={previewCanvasRef}
             className={`display-preview-canvas display-preview-canvas--${surface} display-preview-canvas--${device}`}
