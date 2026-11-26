@@ -255,7 +255,6 @@ export function AgentPocPanel({
     try {
       log({ title: "Observation initiale", detail: "Lecture de l’aperçu réel", status: "running" });
       const snapshot = await observe();
-      let lastObservationHash = observationHash(snapshot);
       setObservation(snapshot);
       log({
         title: "Observation initiale",
@@ -378,8 +377,10 @@ export function AgentPocPanel({
         const candidateObservation = applied.observation;
         const checked = await verify(goal, candidateObservation, budget);
         log({
-          title: `Vérification ${attempt}`,
-          detail: checked.satisfied ? checked.reason : checked.missing || checked.reason,
+          title: `Vérification ${attempt} — ${checked.satisfied ? "réussie" : "échouée"}`,
+          detail: checked.satisfied
+            ? checked.reason
+            : checked.missing || checked.reason || "Le candidat ne satisfait pas l’objectif.",
           status: checked.satisfied ? "success" : "warning",
         });
 
@@ -407,20 +408,19 @@ export function AgentPocPanel({
         const signature = errorSignature([reason]);
         sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
         lastErrorSignature = signature;
-        lastReason = reason;
+        lastReason = `${reason}\nCandidat rejeté (header) : ${candidateObservation.header}\nÉtat courant (header) : ${restored.observation.header}`;
         lastPlan = planned.planRaw;
         lastErrors = [reason];
+        const candidateHash = observationHash(candidateObservation);
         const restoredHash = observationHash(restored.observation);
-        if (attempt >= 2 && restoredHash === lastObservationHash) {
+        if (candidateHash === restoredHash) {
           log({
-            title: "Aucune progression",
-            detail: "L’observation est identique à la tentative précédente.",
-            status: "error",
+            title: "Candidat sans effet visible",
+            detail:
+              "Le candidat a été appliqué puis rejeté, mais le rendu observé est identique à l’état courant.",
+            status: "warning",
           });
-          setFinalStatus("Boucle sans progression");
-          return;
         }
-        lastObservationHash = restoredHash;
         if (sameErrorCount >= MAX_SAME_ERROR) {
           log({
             title: "Arrêt",
