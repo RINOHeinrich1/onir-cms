@@ -413,7 +413,7 @@ export async function continueTemplateEditSession(
     } else {
       const reply = createTemplateEditMessage(
         "assistant",
-        "Voici le plan de modification proposé.",
+        `J’ai préparé un plan de ${planned.proposal.operations.length} étape${planned.proposal.operations.length > 1 ? "s" : ""}. Vérifiez les détails avant d’appliquer.`,
         { proposal: planned.proposal },
       );
       state = appendTemplateEditMessage(

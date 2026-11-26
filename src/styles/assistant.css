@@ -543,3 +543,62 @@
   gap: 0.35rem;
   flex-wrap: wrap;
 }
+
+.display-assistant-proposal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.display-assistant-proposal-head .hint {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.display-assistant-plan-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.display-assistant-plan-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.display-assistant-step-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.display-assistant-step-details {
+  display: grid;
+  gap: 0.1rem;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.display-assistant-technical {
+  max-height: 14rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  font-size: 0.68rem;
+  white-space: pre-wrap;
+}

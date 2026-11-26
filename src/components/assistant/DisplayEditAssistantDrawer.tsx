@@ -6,6 +6,7 @@ import type { TemplateEditSession } from "@/domain/template-edit-session";
 import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import type { TemplateParamValues } from "@/domain/template-params";
 import type { DisplayAssistantContext } from "./DisplayAssistantProvider";
+import { PlanProposal } from "./PlanProposal";
 
 type SendResponse = { session: TemplateEditSession };
 type ApplyResponse = { session: TemplateEditSession; values: TemplateParamValues };
@@ -234,28 +235,13 @@ export function DisplayEditAssistantDrawer({
             ))}
             {session.state.pendingProposal === null ||
             lastProposalMessage?.proposal === undefined ? null : (
-              <div className="display-assistant-proposal">
-                <strong>Proposition</strong>
-                <p>{lastProposalMessage.candidate?.label ?? "Modification proposée"}</p>
-                {lastProposalMessage.proposal.warnings?.map((warning) => (
-                  <p key={warning} className="hint">
-                    {warning}
-                  </p>
-                ))}
-                <div className="display-assistant-actions">
-                  <button
-                    type="button"
-                    className="btn small"
-                    disabled={applying}
-                    onClick={() => void apply()}
-                  >
-                    {applying ? "Application…" : "Appliquer au brouillon"}
-                  </button>
-                  <button type="button" className="btn ghost small" onClick={() => setInput("")}>
-                    Annuler
-                  </button>
-                </div>
-              </div>
+              <PlanProposal
+                proposal={lastProposalMessage.proposal}
+                candidate={lastProposalMessage.candidate}
+                applying={applying}
+                onApply={() => void apply()}
+                onCancel={() => setInput("")}
+              />
             )}
             {messages.at(-1)?.candidates === undefined ? null : (
               <div className="display-assistant-choices">
