@@ -42,6 +42,17 @@ export type TemplateEditPlanFailure = {
 
 export type TemplateEditPlanExecution = TemplateEditPlanSuccess | TemplateEditPlanFailure;
 
+export type TemplateEditPlanStepEvent = {
+  stepId: string;
+  label: string;
+  status: "running" | "success" | "error";
+  summary?: string;
+  detail?: unknown;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+};
+
 const REF = /^\$ref:([a-z][a-z0-9-]*)$/i;
 
 function clone<T>(value: T): T {
@@ -140,6 +151,7 @@ export function executeTemplateEditPlan(input: {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   plan: TemplateEditPlan;
+  onStep?: (event: TemplateEditPlanStepEvent) => void;
 }): TemplateEditPlanExecution {
   let values = clone(input.values);
   const refs: Record<string, string> = {};
@@ -148,7 +160,27 @@ export function executeTemplateEditPlan(input: {
   const seen = new Set<string>();
 
   for (const step of input.plan.steps) {
+    const startedAt = Date.now();
+    const label = step.description ?? step.id;
+    input.onStep?.({
+      stepId: step.id,
+      label,
+      status: "running",
+      summary: step.operation.op,
+      startedAt: new Date(startedAt).toISOString(),
+      endedAt: new Date().toISOString(),
+      durationMs: 0,
+    });
     if (step.id === "" || seen.has(step.id)) {
+      input.onStep?.({
+        stepId: step.id,
+        label,
+        status: "error",
+        summary: "step id vide ou dupliqué",
+        startedAt: new Date(startedAt).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+      });
       return {
         ok: false,
         stepId: step.id || null,
@@ -168,10 +200,21 @@ export function executeTemplateEditPlan(input: {
         proposal: { operations: [operation] },
       });
       if (!result.ok) {
+        const errors = result.errors.map((error) => `${error.field} — ${error.message}`);
+        input.onStep?.({
+          stepId: step.id,
+          label,
+          status: "error",
+          summary: errors.join(" ; "),
+          detail: result.errors,
+          startedAt: new Date(startedAt).toISOString(),
+          endedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt,
+        });
         return {
           ok: false,
           stepId: step.id,
-          errors: result.errors.map((error) => `${error.field} — ${error.message}`),
+          errors,
           values,
           refs,
           proposal: { operations: resolvedOperations },
@@ -189,11 +232,31 @@ export function executeTemplateEditPlan(input: {
         refs[step.id] = itemId;
       }
       warnings.push(...result.warnings);
+      input.onStep?.({
+        stepId: step.id,
+        label,
+        status: "success",
+        summary: itemId === undefined ? operation.op : `${operation.op} → ${itemId}`,
+        detail: { operation, itemId: itemId ?? null },
+        startedAt: new Date(startedAt).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur d’exécution du plan";
+      input.onStep?.({
+        stepId: step.id,
+        label,
+        status: "error",
+        summary: message,
+        startedAt: new Date(startedAt).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+      });
       return {
         ok: false,
         stepId: step.id,
-        errors: [error instanceof Error ? error.message : "Erreur d’exécution du plan"],
+        errors: [message],
         values,
         refs,
         proposal: { operations: resolvedOperations },

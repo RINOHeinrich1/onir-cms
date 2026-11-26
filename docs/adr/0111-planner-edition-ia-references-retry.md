@@ -167,7 +167,7 @@ Aucun état partiellement appliqué n’est persisté dans le lien.
 
 ### 5. Retry borné
 
-Le planner est rappelé au maximum **2 fois** avec :
+Le planner est rappelé au maximum **10 fois au total** (1 tentative initiale + 9 retries) avec :
 
 - la demande ;
 - l’historique ;

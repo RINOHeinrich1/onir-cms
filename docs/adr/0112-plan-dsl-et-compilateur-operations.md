@@ -258,7 +258,7 @@ Le retry reçoit ces erreurs structurées, le plan précédent et les candidats.
 
 ### 6. Retry borné
 
-Le planner est relancé au maximum **2 fois**.
+Le planner est relancé au maximum **10 fois au total** (1 tentative initiale + 9 retries).
 
 Il reçoit :
 

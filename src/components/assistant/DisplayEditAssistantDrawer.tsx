@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { TemplateEditExecutionEvent } from "@/application/use-cases/visual-templates/template-edit-events";
 import { Modal } from "@/components/ui/Modal";
 import type { TemplateEditSession } from "@/domain/template-edit-session";
 import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import type { TemplateParamValues } from "@/domain/template-params";
 import type { DisplayAssistantContext } from "./DisplayAssistantProvider";
+import { ExecutionTimeline } from "./ExecutionTimeline";
 import { PlanProposal } from "./PlanProposal";
 
 type SendResponse = { session: TemplateEditSession };
@@ -37,6 +39,7 @@ export function DisplayEditAssistantDrawer({
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<TemplateEditExecutionEvent[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef(context.onApply);
   applyRef.current = context.onApply;
@@ -81,20 +84,56 @@ export function DisplayEditAssistantDrawer({
     if (session === null || busy || message.trim() === "") return;
     setBusy(true);
     setError(null);
+    setEvents([]);
     try {
-      const json = await readJson<SendResponse>(
-        await fetch(`${base}/${session.id}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message,
-            params: context.params,
-            selection: context.selectedRegion,
-            surface: context.surface,
-          }),
+      const response = await fetch(`${base}/${session.id}/messages/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          params: context.params,
+          selection: context.selectedRegion,
+          surface: context.surface,
         }),
-      );
-      setSession(json.session);
+      });
+      if (!response.ok || response.body === null) {
+        const json = (await response.json().catch(() => ({}))) as ErrorResponse;
+        throw new Error(json.error ?? "Flux d’édition indisponible");
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalSession: TemplateEditSession | null = null;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let split = buffer.indexOf("\n\n");
+        while (split >= 0) {
+          const block = buffer.slice(0, split);
+          buffer = buffer.slice(split + 2);
+          let eventName = "message";
+          let data = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) eventName = line.slice(6).trim();
+            if (line.startsWith("data:")) data += line.slice(5).trim();
+          }
+          if (data !== "") {
+            const parsed = JSON.parse(data) as unknown;
+            if (eventName === "step") {
+              setEvents((current) => [...current, parsed as TemplateEditExecutionEvent]);
+            } else if (eventName === "session") {
+              finalSession = parsed as TemplateEditSession;
+            } else if (eventName === "error") {
+              const err = parsed as ErrorResponse;
+              throw new Error(err.error ?? "Erreur d’édition");
+            }
+          }
+          split = buffer.indexOf("\n\n");
+        }
+      }
+      if (finalSession === null) throw new Error("Session finale absente");
+      setSession(finalSession);
       setInput("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Réponse indisponible");
@@ -178,6 +217,7 @@ export function DisplayEditAssistantDrawer({
         }),
       );
       setSession(json.session);
+      setEvents([]);
       setInput("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Réinitialisation impossible");
@@ -224,6 +264,7 @@ export function DisplayEditAssistantDrawer({
               </button>
             </div>
           </div>
+          <ExecutionTimeline events={events} />
           <div className="display-assistant-messages" ref={scrollRef}>
             {messages.map((message) => (
               <div key={message.id} className={`display-assistant-message ${message.role}`}>

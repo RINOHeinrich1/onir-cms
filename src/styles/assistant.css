@@ -602,3 +602,82 @@
   font-size: 0.68rem;
   white-space: pre-wrap;
 }
+
+.display-assistant-timeline {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 15rem;
+  margin: 0.6rem 0.9rem 0;
+  padding: 0.65rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+}
+
+.display-assistant-timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.display-assistant-timeline-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.display-assistant-timeline-list li {
+  display: grid;
+  grid-template-columns: 0.55rem 1fr;
+  gap: 0.35rem;
+  align-items: start;
+  font-size: 0.74rem;
+}
+
+.display-assistant-timeline-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: 0.25rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.display-assistant-timeline-list li.status-running .display-assistant-timeline-dot {
+  background: var(--accent);
+}
+
+.display-assistant-timeline-list li.status-success .display-assistant-timeline-dot {
+  background: var(--success, #2f9e44);
+}
+
+.display-assistant-timeline-list li.status-warning .display-assistant-timeline-dot {
+  background: var(--orange);
+}
+
+.display-assistant-timeline-list li.status-error .display-assistant-timeline-dot {
+  background: var(--danger, #c92a2a);
+}
+
+.display-assistant-timeline-list summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.display-assistant-timeline-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.display-assistant-timeline-meta {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.display-assistant-timeline-summary {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  white-space: pre-line;
+}

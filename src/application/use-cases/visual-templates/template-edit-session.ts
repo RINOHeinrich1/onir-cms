@@ -23,6 +23,7 @@ import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import { planTemplateEdit } from "./plan-template-edit";
 import { routeTemplateSkills } from "./route-template-skills";
+import { emitTemplateEditEvent, type TemplateEditEventSink } from "./template-edit-events";
 
 export type TemplateEditSessionContext = {
   linkId: string;
@@ -134,6 +135,7 @@ export async function continueTemplateEditSession(
   context: TemplateEditSessionContext,
   sessionId: string,
   input: unknown,
+  events?: TemplateEditEventSink,
 ): Promise<TemplateEditSession> {
   assertCan(actor, "links:update");
   assertCan(actor, "ai:read");
@@ -153,6 +155,15 @@ export async function continueTemplateEditSession(
     body.params !== undefined ? (body.params as TemplateParamValues) : session.state.workingParams;
 
   const turnId = crypto.randomUUID();
+  emitTemplateEditEvent(events, {
+    stage: "session",
+    status: "success",
+    title: "Session chargée",
+    summary: `${message.length} caractère(s) reçu(s)`,
+    startedAt: new Date().toISOString(),
+    endedAt: new Date().toISOString(),
+    durationMs: 0,
+  });
   const userMessage = createTemplateEditMessage("user", message);
   let state: TemplateEditSessionState = appendTemplateEditMessage(
     { ...session.state, workingParams, selection },
@@ -194,6 +205,21 @@ export async function continueTemplateEditSession(
     },
     40,
   );
+
+  emitTemplateEditEvent(events, {
+    stage: "targets",
+    status: "success",
+    title: "Cibles candidates",
+    summary: `${candidates.length} candidate(s)`,
+    detail: candidates.slice(0, 12).map((candidate) => ({
+      id: candidateId(candidate),
+      label: candidate.label,
+      score: candidate.score,
+    })),
+    startedAt: new Date().toISOString(),
+    endedAt: new Date().toISOString(),
+    durationMs: 0,
+  });
 
   await deps.audit.record({
     organizationId: organizationOf(actor),
@@ -254,7 +280,22 @@ export async function continueTemplateEditSession(
 
   let stage = "skill_loading";
   try {
+    emitTemplateEditEvent(events, {
+      stage: "skills_load",
+      status: "running",
+      title: "Chargement des skills",
+      startedAt: new Date().toISOString(),
+    });
     const loadedSkills = await deps.skillLoader.load(context.templateId, context.templateVersion);
+    emitTemplateEditEvent(events, {
+      stage: "skills_load",
+      status: "success",
+      title: "Skills chargés",
+      summary: `${loadedSkills.length} skill(s) installé(s)`,
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      durationMs: 0,
+    });
     stage = "skill_routing";
     const routed = await routeTemplateSkills({ aiFactory: deps.aiFactory }, actor, {
       request: message,
@@ -267,6 +308,20 @@ export async function continueTemplateEditSession(
       confidence: entry.confidence,
       reason: entry.reason,
     }));
+    emitTemplateEditEvent(events, {
+      stage: "skills",
+      status: "success",
+      title: "Routage des skills",
+      summary:
+        routed.skills.length === 0
+          ? "Aucun skill sélectionné"
+          : routed.skills.map((entry) => entry.skill.skill.id).join(", "),
+      detail: skillIds,
+      startedAt: new Date().toISOString(),
+      endedAt: new Date().toISOString(),
+      durationMs: 0,
+    });
+
     await deps.audit.record({
       organizationId: organizationOf(actor),
       linkId: context.linkId,

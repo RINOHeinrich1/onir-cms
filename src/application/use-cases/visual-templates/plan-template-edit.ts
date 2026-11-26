@@ -9,10 +9,11 @@ import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/te
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { TemplateAiSkillV1 } from "@/domain/template-skill";
+import { emitTemplateEditEvent, type TemplateEditEventSink } from "./template-edit-events";
 import type { TemplateEditHistoryMessage } from "./template-edit-history";
 import { buildTemplateEditPlanPrompt } from "./template-edit-plan-prompt";
 
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS = 10;
 
 export type PlanTemplateEditInput = {
   request: string;
@@ -23,6 +24,7 @@ export type PlanTemplateEditInput = {
   values: TemplateParamValues;
   skills: TemplateAiSkillV1[];
   history?: TemplateEditHistoryMessage[];
+  onEvent?: TemplateEditEventSink;
   providerId?: string;
   model?: string;
 };
@@ -116,6 +118,15 @@ export async function planTemplateEdit(
   let lastWarnings: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    const attemptStarted = Date.now();
+    emitTemplateEditEvent(input.onEvent, {
+      stage: "planning",
+      status: "running",
+      title: `Tentative de plan ${attempt}/${MAX_ATTEMPTS}`,
+      attempt,
+      maxAttempts: MAX_ATTEMPTS,
+      startedAt: new Date(attemptStarted).toISOString(),
+    });
     const prompt = buildTemplateEditPlanPrompt({
       request: input.request,
       page: input.page,
@@ -129,6 +140,17 @@ export async function planTemplateEdit(
     });
     const raw = await callStructuredAi(client, prompt);
     lastRaw = raw;
+    emitTemplateEditEvent(input.onEvent, {
+      stage: "planner_response",
+      status: "success",
+      title: "Plan brut reçu",
+      attempt,
+      maxAttempts: MAX_ATTEMPTS,
+      detail: raw,
+      startedAt: new Date(attemptStarted).toISOString(),
+      endedAt: new Date().toISOString(),
+      durationMs: Date.now() - attemptStarted,
+    });
     const compiled = compileTemplateEditPlan({
       plan: raw,
       editor: input.editor,
@@ -139,6 +161,18 @@ export async function planTemplateEdit(
       previousErrors = compiled.errors.map(
         (error) => `${error.code} ${error.path} : ${error.message}`,
       );
+      emitTemplateEditEvent(input.onEvent, {
+        stage: "compilation",
+        status: "error",
+        title: "Plan refusé par le compilateur",
+        summary: previousErrors.join(" ; "),
+        attempt,
+        maxAttempts: MAX_ATTEMPTS,
+        detail: compiled.errors,
+        startedAt: new Date(attemptStarted).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationMs: Date.now() - attemptStarted,
+      });
       previousPlan = raw;
       continue;
     }
@@ -179,8 +213,33 @@ export async function planTemplateEdit(
       schema: input.schema,
       values: input.values,
       plan,
+      onStep: (step) => {
+        emitTemplateEditEvent(input.onEvent, {
+          stage: "execution",
+          status: step.status,
+          title: step.label,
+          ...(step.summary === undefined ? {} : { summary: step.summary }),
+          attempt,
+          maxAttempts: MAX_ATTEMPTS,
+          detail: step.detail,
+          startedAt: new Date(step.startedAt).toISOString(),
+          endedAt: new Date(step.endedAt).toISOString(),
+          durationMs: step.durationMs,
+        });
+      },
     });
     if (execution.ok) {
+      emitTemplateEditEvent(input.onEvent, {
+        stage: "planning",
+        status: "success",
+        title: "Plan validé",
+        attempt,
+        maxAttempts: MAX_ATTEMPTS,
+        summary: `${execution.proposal.operations.length} opération(s) simulée(s)`,
+        startedAt: new Date(attemptStarted).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationMs: Date.now() - attemptStarted,
+      });
       return {
         status: "proposed",
         values: execution.values,
