@@ -7,6 +7,9 @@ import {
   type LinkTemplateDependencies,
   loadTemplateSpec,
 } from "@/application/use-cases/visual-templates/link-template";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
+import { DisplayAssistantProvider } from "@/components/assistant/DisplayAssistantProvider";
+import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { LinkDisplaySettings } from "@/components/links/LinkDisplaySettings";
 import type { VisualTemplateOption } from "@/components/links/types";
 import { TemplatePreviewEditor } from "@/components/templates/TemplatePreviewEditor";
@@ -120,15 +123,20 @@ export default async function ApercuLinkPage({ params, searchParams }: PageProps
 
   if (query.embed !== "1") {
     return (
-      <main className="display-studio-page">
-        <LinkDisplaySettings
-          link={link}
-          linkOptions={linkOptions}
-          visualTemplates={visualTemplates}
-          canEdit={canEdit}
-          initialSurface={requested ?? fallbackSurface}
-        />
-      </main>
+      <DisplayAssistantProvider>
+        <ChatbotBuilderProvider>
+          <main className="display-studio-page">
+            <LinkDisplaySettings
+              link={link}
+              linkOptions={linkOptions}
+              visualTemplates={visualTemplates}
+              canEdit={canEdit}
+              initialSurface={requested ?? fallbackSurface}
+            />
+          </main>
+          <AssistantWidget />
+        </ChatbotBuilderProvider>
+      </DisplayAssistantProvider>
     );
   }
 

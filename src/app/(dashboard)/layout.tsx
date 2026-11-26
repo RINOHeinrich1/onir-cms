@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AssistantWidget } from "@/components/assistant/AssistantWidget";
+import { DisplayAssistantProvider } from "@/components/assistant/DisplayAssistantProvider";
 import { ChatbotBuilderProvider } from "@/components/chatbot-builder/ChatbotBuilderProvider";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { RuntimeBanners } from "@/components/layout/RuntimeBanners";
@@ -42,25 +43,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <ChatbotBuilderProvider>
-      <div className="dash">
-        <DashboardHeader
-          key={`${context.actor.organizationId ?? "none"}:${context.role ?? "none"}`}
-          role={context.role ?? "lecteur"}
-          email={context.user.email}
-          organizations={list.map((organization) => ({
-            id: organization.id,
-            name: organization.name,
-          }))}
-          activeOrganizationId={context.actor.organizationId}
-          organizationName={context.organization?.name ?? null}
-          isSuperAdmin={context.actor.isSuperAdmin}
-          billingEnabled={BILLING_ENABLED}
-        />
-        <RuntimeBanners />
-        <main className="wrap dashboard-main">{children}</main>
-        <LegalFooter className="dashboard-legal" />
-        <AssistantWidget />
-      </div>
+      <DisplayAssistantProvider>
+        <div className="dash">
+          <DashboardHeader
+            key={`${context.actor.organizationId ?? "none"}:${context.role ?? "none"}`}
+            role={context.role ?? "lecteur"}
+            email={context.user.email}
+            organizations={list.map((organization) => ({
+              id: organization.id,
+              name: organization.name,
+            }))}
+            activeOrganizationId={context.actor.organizationId}
+            organizationName={context.organization?.name ?? null}
+            isSuperAdmin={context.actor.isSuperAdmin}
+            billingEnabled={BILLING_ENABLED}
+          />
+          <RuntimeBanners />
+          <main className="wrap dashboard-main">{children}</main>
+          <LegalFooter className="dashboard-legal" />
+          <AssistantWidget />
+        </div>
+      </DisplayAssistantProvider>
     </ChatbotBuilderProvider>
   );
 }

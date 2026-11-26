@@ -22,6 +22,8 @@ import {
   chooseAssistantPosition,
   clampAssistantPosition,
 } from "./assistant-avoidance";
+import { useDisplayAssistantContext } from "./DisplayAssistantProvider";
+import { DisplayEditAssistantDrawer } from "./DisplayEditAssistantDrawer";
 import { KnowledgeImportDialog } from "./KnowledgeImportDialog";
 
 type AssistantPanel = "home" | "create" | "knowledge";
@@ -214,6 +216,7 @@ function ArrowIcon() {
 /** Compagnon flottant disponible sur toutes les pages du dashboard. */
 export function AssistantWidget() {
   const { openBuilder, builderOpen } = useChatbotBuilder();
+  const displayContext = useDisplayAssistantContext();
   const [open, setOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [panel, setPanel] = useState<AssistantPanel>("home");
@@ -481,7 +484,9 @@ export function AssistantWidget() {
         </>
       )}
 
-      {open ? (
+      {open && displayContext !== null ? (
+        <DisplayEditAssistantDrawer context={displayContext} onClose={close} />
+      ) : open ? (
         <Modal
           title="Assistance IA"
           onClose={close}
