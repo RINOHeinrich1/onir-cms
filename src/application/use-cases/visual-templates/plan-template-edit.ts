@@ -25,6 +25,7 @@ export type PlanTemplateEditInput = {
   skills: TemplateAiSkillV1[];
   history?: TemplateEditHistoryMessage[];
   onEvent?: TemplateEditEventSink;
+  maxAttempts?: number;
   providerId?: string;
   model?: string;
 };
@@ -98,6 +99,7 @@ export async function planTemplateEdit(
   assertCan(actor, "links:update");
   assertCan(actor, "ai:read");
   const organizationId = organizationOf(actor);
+  const maxAttempts = Math.min(Math.max(input.maxAttempts ?? MAX_ATTEMPTS, 1), MAX_ATTEMPTS);
   const { provider, model } = resolveProviderInput(input);
   const target =
     provider !== null && model !== null
@@ -129,14 +131,14 @@ export async function planTemplateEdit(
   let lastWarnings: string[] = [];
   const attemptHistory: PlanAttemptRecord[] = [];
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const attemptStarted = Date.now();
     emitTemplateEditEvent(input.onEvent, {
       stage: "planning",
       status: "running",
-      title: `Tentative de plan ${attempt}/${MAX_ATTEMPTS}`,
+      title: `Tentative de plan ${attempt}/${maxAttempts}`,
       attempt,
-      maxAttempts: MAX_ATTEMPTS,
+      maxAttempts,
       startedAt: new Date(attemptStarted).toISOString(),
     });
     const prompt = buildTemplateEditPlanPrompt({
@@ -157,7 +159,7 @@ export async function planTemplateEdit(
       status: "success",
       title: "Plan brut reçu",
       attempt,
-      maxAttempts: MAX_ATTEMPTS,
+      maxAttempts,
       detail: raw,
       startedAt: new Date(attemptStarted).toISOString(),
       endedAt: new Date().toISOString(),
@@ -179,7 +181,7 @@ export async function planTemplateEdit(
         title: "Plan refusé par le compilateur",
         summary: previousErrors.join(" ; "),
         attempt,
-        maxAttempts: MAX_ATTEMPTS,
+        maxAttempts,
         detail: compiled.errors,
         startedAt: new Date(attemptStarted).toISOString(),
         endedAt: new Date().toISOString(),
@@ -261,7 +263,7 @@ export async function planTemplateEdit(
         status: "success",
         title: "Plan validé",
         attempt,
-        maxAttempts: MAX_ATTEMPTS,
+        maxAttempts,
         summary: `${execution.proposal.operations.length} opération(s) simulée(s)`,
         startedAt: new Date(attemptStarted).toISOString(),
         endedAt: new Date().toISOString(),
@@ -290,7 +292,7 @@ export async function planTemplateEdit(
     errors: previousErrors,
     warnings: lastWarnings,
     rawPlan: lastRaw,
-    attempts: MAX_ATTEMPTS,
+    attempts: maxAttempts,
     attemptHistory,
   };
 }

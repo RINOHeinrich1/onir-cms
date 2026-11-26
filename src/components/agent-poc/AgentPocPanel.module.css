@@ -1,0 +1,144 @@
+.shell {
+  display: grid;
+  grid-template-columns: 430px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--surface);
+  color: var(--fg);
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 100vh;
+  max-height: 100vh;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.header {
+  display: grid;
+  gap: 0.15rem;
+}
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.goal {
+  width: 100%;
+  resize: vertical;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.82rem;
+}
+.run {
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: var(--surface);
+  font-weight: 700;
+  cursor: pointer;
+}
+.run:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.status {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 0.78rem;
+}
+.logs {
+  display: grid;
+  gap: 0.35rem;
+}
+.log {
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.76rem;
+}
+.log summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.log p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.dot[data-status="success"] {
+  background: #2f9e44;
+}
+.dot[data-status="warning"] {
+  background: var(--orange);
+}
+.dot[data-status="error"] {
+  background: #c92a2a;
+}
+.dot[data-status="running"] {
+  background: var(--accent);
+}
+.snapshot {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+}
+.snapshot pre {
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 0.68rem;
+}
+.preview {
+  min-width: 0;
+  min-height: 100vh;
+  background: #ddd;
+}
+.preview > p {
+  padding: 1rem;
+}
+.preview iframe {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+  background: white;
+}
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .panel {
+    min-height: auto;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview,
+  .preview iframe {
+    min-height: 70vh;
+    height: 70vh;
+  }
+}
