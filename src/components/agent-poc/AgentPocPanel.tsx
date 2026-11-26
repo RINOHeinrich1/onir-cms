@@ -35,6 +35,40 @@ type LogEntry = {
   status: "running" | "success" | "warning" | "error";
 };
 
+type AgentBudget = {
+  aiCalls: number;
+  startedAt: number;
+};
+
+const MAX_ITERATIONS = 10;
+const MAX_AI_CALLS = 40;
+const MAX_DURATION_MS = 180_000;
+const PLAN_TIMEOUT_MS = 60_000;
+const VERIFY_TIMEOUT_MS = 30_000;
+const MAX_SAME_ERROR = 2;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function planHash(operations: unknown, values: unknown): string {
+  return JSON.stringify({ operations, values });
+}
+
+function observationHash(observation: Observation): string {
+  return `${observation.header}\n${observation.main}`;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -51,7 +85,8 @@ export function AgentPocPanel({
   label: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [params, setParams] = useState<TemplateParamValues>(initialParams);
+  const currentParamsRef = useRef<TemplateParamValues>(initialParams);
+  const currentTokenRef = useRef<string | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [goal, setGoal] = useState(
@@ -69,7 +104,7 @@ export function AgentPocPanel({
   const createPreview = async (
     nextParams: TemplateParamValues,
     token: string | null,
-  ): Promise<void> => {
+  ): Promise<string> => {
     const response = await fetch(`/api/links/${linkId}/preview-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -79,19 +114,25 @@ export function AgentPocPanel({
     const json = (await response.json()) as { token: string };
     setPreviewToken(json.token);
     setRevision((value) => value + 1);
+    return json.token;
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: l’aperçu initial est créé une seule fois
   useEffect(() => {
     let cancelled = false;
-    void createPreview(initialParams, null).catch((error: unknown) => {
-      if (!cancelled)
-        log({
-          title: "Aperçu",
-          detail: error instanceof Error ? error.message : "Erreur",
-          status: "error",
-        });
-    });
+    void createPreview(initialParams, null)
+      .then((token) => {
+        currentTokenRef.current = token;
+        currentParamsRef.current = initialParams;
+      })
+      .catch((error: unknown) => {
+        if (!cancelled)
+          log({
+            title: "Aperçu",
+            detail: error instanceof Error ? error.message : "Erreur",
+            status: "error",
+          });
+      });
     return () => {
       cancelled = true;
     };
@@ -130,30 +171,52 @@ export function AgentPocPanel({
     };
   };
 
-  const applyPreview = async (nextParams: TemplateParamValues): Promise<Observation> => {
-    setParams(nextParams);
-    await createPreview(nextParams, previewToken);
+  const applyPreview = async (
+    nextParams: TemplateParamValues,
+    token: string | null,
+  ): Promise<{ token: string; observation: Observation }> => {
+    const nextToken = await createPreview(nextParams, token);
     const observation = await observe();
     setObservation(observation);
-    return observation;
+    return { token: nextToken, observation };
   };
 
-  const plan = async (request: string, values: TemplateParamValues): Promise<PlanResponse> => {
-    const response = await fetch(`/api/links/${linkId}/agent-poc/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ request, params: values, surface }),
-    });
+  const plan = async (
+    request: string,
+    values: TemplateParamValues,
+    budget: AgentBudget,
+  ): Promise<PlanResponse> => {
+    if (budget.aiCalls + 2 > MAX_AI_CALLS) throw new Error("Budget d’appels IA dépassé");
+    budget.aiCalls += 2;
+    const response = await fetchWithTimeout(
+      `/api/links/${linkId}/agent-poc/plan`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request, params: values, surface }),
+      },
+      PLAN_TIMEOUT_MS,
+    );
     if (!response.ok) throw new Error("Le planner a échoué");
     return (await response.json()) as PlanResponse;
   };
 
-  const verify = async (target: string, snapshot: Observation): Promise<VerifyResponse> => {
-    const response = await fetch(`/api/links/${linkId}/agent-poc/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goal: target, observation: snapshot }),
-    });
+  const verify = async (
+    target: string,
+    snapshot: Observation,
+    budget: AgentBudget,
+  ): Promise<VerifyResponse> => {
+    if (budget.aiCalls + 1 > MAX_AI_CALLS) throw new Error("Budget d’appels IA dépassé");
+    budget.aiCalls += 1;
+    const response = await fetchWithTimeout(
+      `/api/links/${linkId}/agent-poc/verify`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: target, observation: snapshot }),
+      },
+      VERIFY_TIMEOUT_MS,
+    );
     if (!response.ok) throw new Error("La vérification a échoué");
     return (await response.json()) as VerifyResponse;
   };
@@ -163,11 +226,17 @@ export function AgentPocPanel({
     setRunning(true);
     setFinalStatus(null);
     setLogs([]);
-    let current = params;
+    const budget: AgentBudget = { aiCalls: 0, startedAt: Date.now() };
+    let currentParams = currentParamsRef.current;
+    let currentToken = currentTokenRef.current;
     let lastReason = "";
+    let sameErrorCount = 0;
+    const seenPlans = new Set<string>();
+
     try {
       log({ title: "Observation initiale", detail: "Lecture de l’aperçu réel", status: "running" });
-      let snapshot = await observe();
+      const snapshot = await observe();
+      let lastObservationHash = observationHash(snapshot);
       setObservation(snapshot);
       log({
         title: "Observation initiale",
@@ -175,11 +244,21 @@ export function AgentPocPanel({
         status: "success",
       });
 
-      for (let attempt = 1; attempt <= 10; attempt += 1) {
+      for (let attempt = 1; attempt <= MAX_ITERATIONS; attempt += 1) {
+        if (Date.now() - budget.startedAt > MAX_DURATION_MS) {
+          log({ title: "Budget", detail: "Durée maximale dépassée", status: "error" });
+          setFinalStatus("Budget de durée dépassé");
+          return;
+        }
         const request =
           lastReason === "" ? goal : `${goal}\n\nÉchec observé précédent : ${lastReason}`;
-        log({ title: `Tentative ${attempt}/10`, detail: "Planification", status: "running" });
-        const planned = await plan(request, current);
+        log({
+          title: `Tentative ${attempt}/${MAX_ITERATIONS}`,
+          detail: "Planification",
+          status: "running",
+        });
+        const planned = await plan(request, currentParams, budget);
+
         for (const history of planned.attemptHistory) {
           log({
             title: `Plan ${history.attempt}`,
@@ -187,6 +266,7 @@ export function AgentPocPanel({
             status: history.status === "error" ? "error" : "success",
           });
         }
+
         if (planned.status === "clarification") {
           log({
             title: "Clarification",
@@ -196,6 +276,7 @@ export function AgentPocPanel({
           setFinalStatus("Clarification requise");
           return;
         }
+
         if (planned.status === "rejected" || planned.status === "noop" || planned.values === null) {
           log({
             title: "Plan non applicable",
@@ -208,31 +289,97 @@ export function AgentPocPanel({
           );
           return;
         }
+
+        const hash = planHash(planned.proposal?.operations, planned.values);
+        if (seenPlans.has(hash)) {
+          log({
+            title: "Aucune progression",
+            detail: "Le planner a reproposé exactement le même plan.",
+            status: "error",
+          });
+          setFinalStatus("Boucle sans progression");
+          return;
+        }
+        seenPlans.add(hash);
+
         log({
           title: "Plan accepté",
-          detail: `${planned.proposal?.operations.length ?? 0} opération(s) — ${planned.skills.map((skill) => skill.id).join(", ")}`,
+          detail: `${planned.proposal?.operations.length ?? 0} opération(s) — ${planned.skills
+            .map((skill) => skill.id)
+            .join(", ")}`,
           status: "success",
         });
-        current = planned.values;
-        snapshot = await applyPreview(current);
-        log({
-          title: `Après application ${attempt}`,
-          detail: snapshot.header.slice(0, 500),
-          status: "success",
-        });
-        const checked = await verify(goal, snapshot);
+
+        let applied: { token: string; observation: Observation };
+        try {
+          applied = await applyPreview(planned.values, currentToken);
+        } catch (error) {
+          log({
+            title: "Rollback",
+            detail: "Impossible d’appliquer le candidat, restauration de l’état courant.",
+            status: "warning",
+          });
+          const restored = await applyPreview(currentParams, currentToken);
+          currentToken = restored.token;
+          currentTokenRef.current = currentToken;
+          lastReason = error instanceof Error ? error.message : "Application impossible";
+          continue;
+        }
+
+        const candidateObservation = applied.observation;
+        const checked = await verify(goal, candidateObservation, budget);
         log({
           title: `Vérification ${attempt}`,
           detail: checked.satisfied ? checked.reason : checked.missing || checked.reason,
           status: checked.satisfied ? "success" : "warning",
         });
+
         if (checked.satisfied) {
+          currentParams = planned.values;
+          currentToken = applied.token;
+          currentParamsRef.current = currentParams;
+          currentTokenRef.current = currentToken;
+          setObservation(candidateObservation);
           setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
           return;
         }
-        lastReason = checked.missing || checked.reason;
+
+        const restored = await applyPreview(currentParams, currentToken);
+        currentToken = restored.token;
+        currentTokenRef.current = currentToken;
+        setObservation(restored.observation);
+        log({
+          title: "Rollback",
+          detail: "Le candidat n’a pas satisfait la vérification. État courant restauré.",
+          status: "warning",
+        });
+
+        const reason = checked.missing || checked.reason;
+        if (reason === lastReason) sameErrorCount += 1;
+        else sameErrorCount = 0;
+        lastReason = reason;
+        const restoredHash = observationHash(restored.observation);
+        if (attempt >= 2 && restoredHash === lastObservationHash) {
+          log({
+            title: "Aucune progression",
+            detail: "L’observation est identique à la tentative précédente.",
+            status: "error",
+          });
+          setFinalStatus("Boucle sans progression");
+          return;
+        }
+        lastObservationHash = restoredHash;
+        if (sameErrorCount >= MAX_SAME_ERROR) {
+          log({
+            title: "Arrêt",
+            detail: "La même erreur a été observée deux fois.",
+            status: "error",
+          });
+          setFinalStatus("Boucle d’erreur détectée");
+          return;
+        }
       }
-      setFinalStatus("Objectif non atteint après 10 tentatives");
+      setFinalStatus("Objectif non atteint après le budget de tentatives");
     } catch (error) {
       log({
         title: "Erreur",
