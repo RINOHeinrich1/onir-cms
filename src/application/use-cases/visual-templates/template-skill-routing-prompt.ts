@@ -1,4 +1,8 @@
 import type { LoadedTemplateSkill } from "@/application/ports/template-skill-loader";
+import {
+  formatTemplateEditHistory,
+  type TemplateEditHistoryMessage,
+} from "./template-edit-history";
 
 function catalogEntry(skill: LoadedTemplateSkill): Record<string, unknown> {
   return {
@@ -15,6 +19,7 @@ function catalogEntry(skill: LoadedTemplateSkill): Record<string, unknown> {
 export function buildTemplateSkillRoutingPrompt(input: {
   request: string;
   skills: LoadedTemplateSkill[];
+  history?: TemplateEditHistoryMessage[];
 }): { system: string; user: string } {
   return {
     system: [
@@ -30,6 +35,8 @@ export function buildTemplateSkillRoutingPrompt(input: {
     ].join("\n"),
     user: [
       `Demande : ${input.request}`,
+      `Conversation précédente :
+${formatTemplateEditHistory(input.history ?? [])}`,
       `Skills disponibles : ${JSON.stringify(input.skills.map(catalogEntry))}`,
     ].join("\n\n"),
   };

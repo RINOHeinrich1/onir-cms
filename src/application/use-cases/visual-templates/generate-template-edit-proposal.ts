@@ -1,5 +1,5 @@
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { ValidationError } from "@/application/errors";
+import { TemplateEditGenerationError, ValidationError } from "@/application/errors";
 import type { AiClientFactory, ResolvedAiTarget } from "@/application/ports/ai-client-factory";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
 import {
@@ -11,6 +11,7 @@ import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/te
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { TemplateAiSkillV1 } from "@/domain/template-skill";
+import type { TemplateEditHistoryMessage } from "./template-edit-history";
 import { buildTemplateEditProposalPrompt } from "./template-edit-proposal-prompt";
 
 export type GenerateTemplateEditProposalInput = {
@@ -21,6 +22,7 @@ export type GenerateTemplateEditProposalInput = {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   skills: TemplateAiSkillV1[];
+  history?: TemplateEditHistoryMessage[];
   providerId?: string;
   model?: string;
 };
@@ -111,11 +113,15 @@ export async function generateTemplateEditProposal(
     schema: input.schema,
     values: input.values,
     skills: input.skills,
+    ...(input.history === undefined ? {} : { history: input.history }),
   });
   const json = await callStructuredAi(client, prompt);
   const proposal = parseProposal(json);
   if (proposal === null) {
-    throw new ValidationError("L’IA n’a pas proposé de modification exploitable.");
+    throw new TemplateEditGenerationError(
+      "L’IA n’a pas proposé de modification exploitable.",
+      json,
+    );
   }
 
   let applied: ReturnType<typeof applyTemplateEditProposal>;
@@ -127,11 +133,13 @@ export async function generateTemplateEditProposal(
       proposal,
     });
   } catch {
-    throw new ValidationError("La proposition de l’IA est mal formée.");
+    throw new TemplateEditGenerationError("La proposition de l’IA est mal formée.", json);
   }
   if (!applied.ok) {
-    throw new ValidationError(
+    throw new TemplateEditGenerationError(
       `Proposition refusée : ${applied.errors.map((error) => `${error.field} — ${error.message}`).join(" ; ")}`,
+      json,
+      applied.errors.map((error) => `${error.field} — ${error.message}`),
     );
   }
 

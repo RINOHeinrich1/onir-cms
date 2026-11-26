@@ -1,5 +1,9 @@
 import { templateEditCandidateKey } from "@/domain/template-edit-disambiguation";
 import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/template-edit-target";
+import {
+  formatTemplateEditHistory,
+  type TemplateEditHistoryMessage,
+} from "./template-edit-history";
 
 const MAX_CANDIDATES = 8;
 
@@ -15,6 +19,7 @@ export function buildTemplateEditRankingPrompt(input: {
   request: string;
   page: TemplateEditPageContext | null;
   candidates: TemplateEditCandidate[];
+  history?: TemplateEditHistoryMessage[];
 }): { system: string; user: string } {
   const candidates = input.candidates.slice(0, MAX_CANDIDATES);
   const list = candidates
@@ -48,6 +53,8 @@ export function buildTemplateEditRankingPrompt(input: {
     ].join("\n"),
     user: [
       `Demande utilisateur : ${input.request}`,
+      `Conversation précédente :
+${formatTemplateEditHistory(input.history ?? [])}`,
       `Page courante : ${page}`,
       "Candidats :",
       list,

@@ -4,7 +4,9 @@ export type TemplateEditAuditEvent =
   | "user_message"
   | "assistant_message"
   | "skill_routing"
+  | "target_candidates"
   | "proposal_created"
+  | "proposal_rejected"
   | "proposal_applied"
   | "link_saved"
   | "ambiguous"
@@ -16,8 +18,10 @@ export type TemplateEditAuditInput = {
   linkId: string;
   sessionId: string;
   messageId?: string | null;
+  turnId?: string | null;
   actorId: string | null;
   event: TemplateEditAuditEvent;
+  stage?: string | null;
   templateId?: string | null;
   templateVersion?: string | null;
   candidateId?: string | null;
@@ -26,6 +30,8 @@ export type TemplateEditAuditInput = {
   warnings?: string[];
   beforeHash?: string | null;
   afterHash?: string | null;
+  rawResponse?: unknown;
+  validationErrors?: string[] | null;
   metadata?: Record<string, unknown>;
 };
 

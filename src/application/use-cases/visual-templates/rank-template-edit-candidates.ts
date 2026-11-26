@@ -9,12 +9,14 @@ import {
   type TemplateEditRankingEntry,
 } from "@/domain/template-edit-disambiguation";
 import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/template-edit-target";
+import type { TemplateEditHistoryMessage } from "./template-edit-history";
 import { buildTemplateEditRankingPrompt } from "./template-edit-ranking-prompt";
 
 export type RankTemplateEditCandidatesInput = {
   request: string;
   page: TemplateEditPageContext | null;
   candidates: TemplateEditCandidate[];
+  history?: TemplateEditHistoryMessage[];
   providerId?: string;
   model?: string;
 };
@@ -111,6 +113,7 @@ export async function rankTemplateEditCandidates(
     request: input.request,
     page: input.page,
     candidates,
+    ...(input.history === undefined ? {} : { history: input.history }),
   });
   const json = await callStructuredAi(client, prompt);
   const selectedId = text(json.selectedId);

@@ -3,6 +3,7 @@ import { ValidationError } from "@/application/errors";
 import type { AiClientFactory, ResolvedAiTarget } from "@/application/ports/ai-client-factory";
 import type { LoadedTemplateSkill } from "@/application/ports/template-skill-loader";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
+import type { TemplateEditHistoryMessage } from "./template-edit-history";
 import { buildTemplateSkillRoutingPrompt } from "./template-skill-routing-prompt";
 
 const MAX_SKILLS = 3;
@@ -26,6 +27,7 @@ export type RouteTemplateSkillsDependencies = {
 export type RouteTemplateSkillsInput = {
   request: string;
   skills: LoadedTemplateSkill[];
+  history?: TemplateEditHistoryMessage[];
   providerId?: string;
   model?: string;
 };
@@ -113,6 +115,7 @@ export async function routeTemplateSkills(
   const prompt = buildTemplateSkillRoutingPrompt({
     request: input.request,
     skills: input.skills,
+    ...(input.history === undefined ? {} : { history: input.history }),
   });
   const json = await callStructuredAi(client, prompt);
   const allowed = new Set(input.skills.map((entry) => entry.skill.id));

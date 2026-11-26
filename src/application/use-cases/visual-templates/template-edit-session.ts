@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError, TemplateEditGenerationError, ValidationError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { TemplateEditAuditRepository } from "@/application/ports/template-edit-audit-repository";
 import type { TemplateEditSessionRepository } from "@/application/ports/template-edit-session-repository";
@@ -155,6 +155,7 @@ export async function continueTemplateEditSession(
   const workingParams =
     body.params !== undefined ? (body.params as TemplateParamValues) : session.state.workingParams;
 
+  const turnId = crypto.randomUUID();
   const userMessage = createTemplateEditMessage("user", message);
   let state: TemplateEditSessionState = appendTemplateEditMessage(
     { ...session.state, workingParams, selection },
@@ -165,8 +166,10 @@ export async function continueTemplateEditSession(
     linkId: context.linkId,
     sessionId,
     messageId: userMessage.id,
+    turnId,
     actorId: actor.id,
     event: "user_message",
+    stage: "user_input",
     templateId: context.templateId,
     templateVersion: context.templateVersion,
     content: message,
@@ -174,6 +177,9 @@ export async function continueTemplateEditSession(
     metadata: { selection, surface: context.surface },
   });
 
+  const history = state.messages
+    .slice(0, -1)
+    .map((entry) => ({ role: entry.role, content: entry.content }));
   const resolved = resolveTemplateEditTarget({
     request: message,
     currentPageId: null,
@@ -192,6 +198,34 @@ export async function continueTemplateEditSession(
           values: workingParams,
         });
 
+  await deps.audit.record({
+    organizationId: organizationOf(actor),
+    linkId: context.linkId,
+    sessionId,
+    messageId: userMessage.id,
+    turnId,
+    actorId: actor.id,
+    event: "target_candidates",
+    stage: "target_resolution",
+    templateId: context.templateId,
+    templateVersion: context.templateVersion,
+    content: message,
+    beforeHash: hashValues(workingParams),
+    metadata: {
+      surface: context.surface,
+      selection,
+      page: resolved.page,
+      candidates: candidates.map((candidate) => ({
+        id: candidateId(candidate),
+        label: candidate.label,
+        kind: candidate.itemKind ?? null,
+        scope: candidate.scope,
+        score: candidate.score,
+        reasons: candidate.reasons,
+      })),
+    },
+  });
+
   if (candidates.length === 0) {
     const reply = createTemplateEditMessage(
       "assistant",
@@ -206,8 +240,10 @@ export async function continueTemplateEditSession(
       linkId: context.linkId,
       sessionId,
       messageId: reply.id,
+      turnId,
       actorId: actor.id,
       event: "not_found",
+      stage: "target_resolution",
       templateId: context.templateId,
       templateVersion: context.templateVersion,
       content: reply.content,
@@ -219,11 +255,14 @@ export async function continueTemplateEditSession(
     return saved;
   }
 
+  let stage = "skill_loading";
   try {
     const loadedSkills = await deps.skillLoader.load(context.templateId, context.templateVersion);
+    stage = "skill_routing";
     const routed = await routeTemplateSkills({ aiFactory: deps.aiFactory }, actor, {
       request: message,
       skills: loadedSkills,
+      history,
     });
     const skillIds = routed.skills.map((entry) => ({
       id: entry.skill.skill.id,
@@ -236,8 +275,10 @@ export async function continueTemplateEditSession(
       linkId: context.linkId,
       sessionId,
       messageId: userMessage.id,
+      turnId,
       actorId: actor.id,
       event: "skill_routing",
+      stage,
       templateId: context.templateId,
       templateVersion: context.templateVersion,
       content: message,
@@ -266,10 +307,12 @@ export async function continueTemplateEditSession(
       return saved;
     }
     const selectedSkills = routed.skills.map((entry) => entry.skill.skill);
+    stage = "target_ranking";
     const decision = await rankTemplateEditCandidates({ aiFactory: deps.aiFactory }, actor, {
       request: message,
       page: resolved.page,
       candidates,
+      history,
     });
 
     if (decision.status === "ambiguous") {
@@ -285,8 +328,10 @@ export async function continueTemplateEditSession(
         linkId: context.linkId,
         sessionId,
         messageId: reply.id,
+        turnId,
         actorId: actor.id,
         event: "ambiguous",
+        stage: "target_ranking",
         templateId: context.templateId,
         templateVersion: context.templateVersion,
         content: reply.content,
@@ -310,8 +355,10 @@ export async function continueTemplateEditSession(
         linkId: context.linkId,
         sessionId,
         messageId: reply.id,
+        turnId,
         actorId: actor.id,
         event: "not_found",
+        stage: "target_ranking",
         templateId: context.templateId,
         templateVersion: context.templateVersion,
         content: reply.content,
@@ -319,6 +366,7 @@ export async function continueTemplateEditSession(
         metadata: { selection },
       });
     } else {
+      stage = "proposal_generation";
       const candidate = decision.candidate;
       const generated = await generateTemplateEditProposal({ aiFactory: deps.aiFactory }, actor, {
         request: message,
@@ -328,6 +376,7 @@ export async function continueTemplateEditSession(
         schema: context.schema,
         values: workingParams,
         skills: selectedSkills,
+        history,
       });
       const reply = createTemplateEditMessage(
         "assistant",
@@ -350,8 +399,10 @@ export async function continueTemplateEditSession(
         linkId: context.linkId,
         sessionId,
         messageId: reply.id,
+        turnId,
         actorId: actor.id,
         event: "proposal_created",
+        stage,
         templateId: context.templateId,
         templateVersion: context.templateVersion,
         candidateId: candidateId(candidate),
@@ -373,17 +424,26 @@ export async function continueTemplateEditSession(
       { ...state, pendingProposal: null, pendingCandidate: null },
       reply,
     );
+    const isGenerationError = error instanceof TemplateEditGenerationError;
     await deps.audit.record({
       organizationId: organizationOf(actor),
       linkId: context.linkId,
       sessionId,
       messageId: reply.id,
+      turnId,
       actorId: actor.id,
-      event: "error",
+      event: isGenerationError ? "proposal_rejected" : "error",
+      stage,
       templateId: context.templateId,
       templateVersion: context.templateVersion,
       content: reply.content,
       beforeHash: hashValues(workingParams),
+      ...(isGenerationError
+        ? {
+            rawResponse: error.rawResponse,
+            validationErrors: error.validationErrors,
+          }
+        : {}),
       metadata: {
         error: detail,
         errorName: error instanceof Error ? error.name : "unknown",

@@ -6,6 +6,10 @@ import type {
   TemplateParamValues,
 } from "@/domain/template-params";
 import type { TemplateAiSkillV1 } from "@/domain/template-skill";
+import {
+  formatTemplateEditHistory,
+  type TemplateEditHistoryMessage,
+} from "./template-edit-history";
 
 function isRecord(value: unknown): value is Record<string, TemplateParamValue> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -74,6 +78,7 @@ export function buildTemplateEditProposalPrompt(input: {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   skills: TemplateAiSkillV1[];
+  history?: TemplateEditHistoryMessage[];
 }): { system: string; user: string } {
   const candidate = input.candidate;
   const collection =
@@ -123,6 +128,8 @@ export function buildTemplateEditProposalPrompt(input: {
     ].join("\n"),
     user: [
       `Demande : ${input.request}`,
+      `Conversation précédente :
+${formatTemplateEditHistory(input.history ?? [])}`,
       `Page courante : ${input.page === null ? "aucune" : `${input.page.label} (${input.page.pageId})`}`,
       `Cible : ${JSON.stringify(target)}`,
       `Champ courant : ${JSON.stringify(item)}`,

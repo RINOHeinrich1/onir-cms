@@ -21,6 +21,19 @@ export class ValidationError extends AppError {
   }
 }
 
+/** Échec de génération d’une proposition IA, avec la réponse brute pour l’audit. */
+export class TemplateEditGenerationError extends ValidationError {
+  readonly rawResponse: unknown;
+  readonly validationErrors: string[];
+
+  constructor(message: string, rawResponse: unknown, validationErrors: string[] = []) {
+    super(message);
+    this.name = "TemplateEditGenerationError";
+    this.rawResponse = rawResponse;
+    this.validationErrors = validationErrors;
+  }
+}
+
 export class UnauthorizedError extends AppError {
   constructor(message = "Authentification requise") {
     super(message, 401);
