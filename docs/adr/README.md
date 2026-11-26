@@ -106,3 +106,4 @@ ADR qui remplace la précédente.
 | [0107](./0107-build-standalone-telechargeable.md) | Build standalone téléchargeable pour hébergement autonome | Proposé |
 | [0108](./0108-structured-template-editor-v2.md) | Structured Template Editor V2 — séparer les données du modèle d’édition | Proposé |
 | [0109](./0109-edition-template-assistee-ia-resolution-cible.md) | Édition assistée des templates par IA — résolution de cible sans curseur | Proposé |
+| [0110](./0110-template-skills-installes-avec-version.md) | Skills de template installés avec la version du template | Proposé |
