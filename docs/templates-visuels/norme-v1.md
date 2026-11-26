@@ -687,3 +687,109 @@ Un paramètre lié à une seule zone est **local** ; lié à plusieurs zones, il
 
 Une modification de `editor` ou des marqueurs DOM impose une nouvelle version
 du template. Les versions existantes sans `editor` restent valides.
+
+---
+
+## 15. Skills IA du template (ADR-0110)
+
+Un template peut embarquer des **skills IA** qui apprennent à l’assistant comment
+l’utiliser : compositions, vocabulaire métier, sémantique de style, contraintes.
+Les skills ne sont pas un prompt global ONIR-CMS et ne peuvent pas être fournis
+par une URL externe.
+
+### 15.1 Déclaration
+
+Les skills sont des fichiers `skills/*.json` de l’archive, déclarés dans le
+manifeste :
+
+```json
+{
+  "aiSkills": [
+    {
+      "id": "puzzle-style-button",
+      "format": "onirtech.ai-skill.v1",
+      "path": "skills/puzzle-style-button.skill.json",
+      "integrity": "sha256-..."
+    }
+  ]
+}
+```
+
+- `aiSkills` est optionnel.
+- Une version de template porte son propre jeu de skills.
+- Une version publiée est immuable : modifier un skill exige une nouvelle version.
+- L’import échoue si un skill déclaré est absent, trop volumineux, invalide ou si
+  son SRI ne correspond pas.
+
+### 15.2 Format minimal
+
+```json
+{
+  "schemaVersion": 1,
+  "format": "onirtech.ai-skill.v1",
+  "id": "puzzle-style-button",
+  "title": "Style du bouton",
+  "description": "Modifier le fond d’un bouton.",
+  "version": "1.0.0",
+  "priority": 10,
+  "always": false,
+  "intents": [
+    {
+      "id": "change-button-background",
+      "description": "Changer le fond d’un bouton",
+      "keywords": ["bouton", "fond", "couleur"],
+      "examples": ["change le fond du bouton discuter"]
+    }
+  ],
+  "instructions": [
+    "Créer une copie locale du style si le style est partagé.",
+    "Ne jamais inventer d’identifiant."
+  ],
+  "context": {
+    "include": ["references", "structure"],
+    "maxCandidates": 8
+  },
+  "operations": {
+    "allowed": ["insert", "set", "insertChild"],
+    "constraints": ["pas d’ID inventé", "pas de modification directe d’un style partagé"]
+  },
+  "examples": [
+    {
+      "request": "change le fond du bouton discuter",
+      "notes": "Créer un style local puis le rattacher au bouton."
+    }
+  ]
+}
+```
+
+### 15.3 Limites
+
+- 16 skills maximum par version ;
+- 64 Ko maximum par skill ;
+- 256 Ko maximum pour l’ensemble ;
+- 8 intentions et 8 exemples maximum par intention ;
+- instructions textuelles uniquement ;
+- aucun code exécutable, aucune URL externe, aucun accès fichier.
+
+### 15.4 Frontière de responsabilité
+
+Le **template** porte :
+
+- intentions ;
+- exemples ;
+- instructions de composition ;
+- vocabulaire métier ;
+- sémantique de style ;
+- contraintes.
+
+**ONIR-CMS** conserve :
+
+- validation du manifeste et des skills ;
+- intégrité des références ;
+- vocabulaire d’opérations ;
+- validation et application atomique ;
+- sélection des skills ;
+- audit et permissions.
+
+Un skill ne peut jamais fournir d’identifiant, contourner le schéma, appeler un
+service externe ou exécuter du code.

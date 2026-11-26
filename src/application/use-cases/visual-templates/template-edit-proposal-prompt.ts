@@ -5,6 +5,7 @@ import type {
   TemplateParamValue,
   TemplateParamValues,
 } from "@/domain/template-params";
+import type { TemplateAiSkillV1 } from "@/domain/template-skill";
 
 function isRecord(value: unknown): value is Record<string, TemplateParamValue> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -72,6 +73,7 @@ export function buildTemplateEditProposalPrompt(input: {
   editor: TemplateEditorManifest;
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
+  skills: TemplateAiSkillV1[];
 }): { system: string; user: string } {
   const candidate = input.candidate;
   const collection =
@@ -128,6 +130,18 @@ export function buildTemplateEditProposalPrompt(input: {
       `Schéma de collection : ${JSON.stringify(collectionSchema ?? null)}`,
       `Règles d’insertion : ${JSON.stringify(rules)}`,
       `Références de style : ${JSON.stringify(styles)}`,
+      `Skills du template : ${(() => {
+        const serialized = JSON.stringify(
+          input.skills.map((skill) => ({
+            id: skill.id,
+            version: skill.version,
+            instructions: skill.instructions,
+            examples: skill.examples,
+            constraints: skill.operations.constraints,
+          })),
+        );
+        return serialized.length > 12_000 ? `${serialized.slice(0, 12_000)}…` : serialized;
+      })()}`,
     ].join("\n\n"),
   };
 }

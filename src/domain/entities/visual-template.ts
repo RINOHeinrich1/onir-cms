@@ -7,6 +7,7 @@
 import { type TemplateDataContract, validateTemplateDataBlock } from "@/domain/data-contracts";
 import { type TemplateEditorManifest, validateTemplateEditorBlock } from "@/domain/template-editor";
 import { type TemplateParamSchema, validateTemplateParamSchema } from "@/domain/template-params";
+import { type TemplateAiSkillRef, validateTemplateAiSkillRefs } from "@/domain/template-skill";
 import {
   DEFAULT_WIDGET_DISPLAY,
   WIDGET_POSITIONS,
@@ -105,6 +106,8 @@ export type TemplateManifest = {
   editor?: TemplateEditorManifest;
   /** Contrats de données déclarés (ADR-0026) ; [] si aucun. */
   dataContracts: TemplateDataContract[];
+  /** Skills IA installés avec la version (ADR-0110). */
+  aiSkills?: TemplateAiSkillRef[];
 };
 
 export type ManifestValidationError = { field: string; message: string };
@@ -369,6 +372,11 @@ export function validateTemplateManifest(
     add("network", "network doit être une liste de domaines (vide par défaut)");
   }
 
+  const aiSkills = validateTemplateAiSkillRefs(src.aiSkills);
+  if (!aiSkills.ok) {
+    for (const error of aiSkills.errors) add(error.field, error.message);
+  }
+
   const params = validateTemplateParamSchema(src.params);
   if (!params.ok) {
     for (const error of params.errors) add(error.field, error.message);
@@ -428,6 +436,7 @@ export function validateTemplateManifest(
       params: params.ok ? params.value : [],
       ...(editor.ok && editor.value !== undefined ? { editor: editor.value } : {}),
       dataContracts,
+      ...(aiSkills.ok && aiSkills.value.length > 0 ? { aiSkills: aiSkills.value } : {}),
     },
   };
 }

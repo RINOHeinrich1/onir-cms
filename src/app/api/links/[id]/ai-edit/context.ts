@@ -11,12 +11,23 @@ import {
   type TemplateParamValues,
   validateTemplateParamValues,
 } from "@/domain/template-params";
+import { nodeTemplateHasher } from "@/infrastructure/crypto/sha256";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
+import { mediaStorage } from "@/infrastructure/storage";
+import { createTemplateSkillLoader } from "@/infrastructure/visual-templates/template-skill-loader";
 
 export type LoadedTemplateEditContext = TemplateEditSessionContext & {
   organizationId: string;
 };
+
+export function templateSkillLoaderFor(pool: Pool) {
+  return createTemplateSkillLoader({
+    templates: pgVisualTemplateRepository(pool),
+    storage: mediaStorage(),
+    hasher: nodeTemplateHasher(),
+  });
+}
 
 export function surfaceFrom(value: unknown): "page" | "widget" {
   return value === "widget" ? "widget" : "page";

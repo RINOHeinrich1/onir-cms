@@ -3,6 +3,7 @@ export type TemplateEditAuditEvent =
   | "session_resumed"
   | "user_message"
   | "assistant_message"
+  | "skill_routing"
   | "proposal_created"
   | "proposal_applied"
   | "link_saved"

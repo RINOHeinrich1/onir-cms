@@ -178,6 +178,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         editor: version.manifest.editor ?? { version: 1, regions: [], bindings: [] },
         schema: version.manifest.params,
         values,
+        skills: [],
         ...(text(body.providerId) === "" ? {} : { providerId: text(body.providerId) }),
         ...(text(body.model) === "" ? {} : { model: text(body.model) }),
       },

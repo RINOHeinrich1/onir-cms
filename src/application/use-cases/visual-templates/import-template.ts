@@ -9,6 +9,7 @@ import type {
   VisualTemplateVersion,
 } from "@/application/ports/visual-template-repository";
 import { mimeByExtension, validateTemplateManifest } from "@/domain/entities/visual-template";
+import { validateTemplateSkillsArchive } from "./validate-template-skills";
 
 const MANIFEST_FILE = "onirtech.template.json";
 
@@ -84,6 +85,8 @@ export async function importVisualTemplate(
       throw new ValidationError("Intégrité SRI de l'entrée widget invalide (ui.widget.integrity)");
     }
   }
+
+  validateTemplateSkillsArchive(files, manifest, deps.hasher);
 
   let template: VisualTemplate | null = null;
   let version: VisualTemplateVersion | null = null;

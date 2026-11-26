@@ -104,7 +104,6 @@ version du template.
     {
       "id": "create-page-menu",
       "description": "Créer une page et l’ajouter au menu",
-      "keywords": ["page", "menu", "section", "services"],
       "examples": [
         "branche service à une nouvelle page de service",
         "ajoute une page services au menu"
@@ -170,22 +169,84 @@ Le core reste responsable de :
 - l’audit ;
 - les quotas et permissions.
 
-### 6. Sélection des skills
+### 6. Sélection des skills par routage IA contraint
 
-Le core sélectionne les skills, pas le modèle.
+La sélection lexicale par mots-clés est **rejetée**. Elle produit des faux
+positifs, rate les synonymes et transforme un mot courant en décision
+structurelle.
 
-Pour une demande :
+Le core expose un **catalogue compact** des skills de la version :
 
-1. le core indexe les `intents`, `keywords` et `examples` des skills installés ;
-2. il fait un rapprochement lexical puis sémantique ;
-3. il retient au maximum 2 ou 3 skills ;
-4. il ajoute leurs instructions au prompt générique ;
-5. il transmet au modèle uniquement les skills retenus.
+```json
+{
+  "skills": [
+    {
+      "id": "puzzle-page-menu",
+      "title": "Créer une page et son entrée de menu",
+      "description": "Compose une page de contenu et son entrée de menu.",
+      "intents": ["Créer une page", "Ajouter une entrée au menu"],
+      "examples": ["branche service à une nouvelle page"]
+    }
+  ]
+}
+```
 
-Un skill `always: true` peut être ajouté systématiquement, par exemple pour les
-règles de style du template.
+Le catalogue ne contient pas les instructions complètes.  
+Un **routeur IA** reçoit la demande et ce catalogue, puis retourne uniquement
+des identifiants existants :
 
-Si aucun skill ne correspond, le prompt générique reste utilisé.
+```json
+{
+  "skills": [
+    {
+      "id": "puzzle-page-menu",
+      "confidence": 0.86,
+      "reason": "L’utilisateur demande une nouvelle page et une entrée de menu."
+    }
+  ],
+  "clarification": null
+}
+```
+
+Le core :
+
+1. valide que chaque ID existe dans le catalogue ;
+2. plafonne à 3 skills ;
+3. rejette les IDs inventés ;
+4. accepte une clarification si le routeur en propose une ;
+5. charge ensuite le détail des skills retenus ;
+6. transmet ces détails au planificateur d’édition.
+
+Le modèle ne choisit donc pas librement : il **propose** une sélection dans un
+catalogue fermé, et le core décide de l’accepter, de demander une précision ou
+de retomber sur le prompt générique.
+
+Le routage peut utiliser :
+
+- le tool calling natif du fournisseur ;
+- ou un appel structuré JSON de secours.
+
+Dans les deux cas, le résultat est validé par le core. Le routeur ne reçoit que
+le catalogue compact, pas les instructions complètes. Avec la limite de 16
+skills, le catalogue complet est envoyé : aucun préfiltre lexical n’est
+nécessaire.
+
+Un skill `always: true` est exceptionnel. Il ne doit servir qu’à des règles
+globales du template, jamais à contourner le routage.
+
+Si le routeur ne sélectionne aucun skill, le prompt générique reste utilisé.
+
+### 6.1 Pourquoi pas de sélection lexicale
+
+Exemples de défaillances :
+
+- « rends le bouton plus chaleureux » sans le mot « fond » ;
+- « enlève le menu Services » avec une formulation inattendue ;
+- une demande où « page » désigne le contexte et non la cible ;
+- deux skills qui partagent les mêmes mots-clés.
+
+Les mots-clés peuvent rester des aides de documentation ou de télémétrie, mais
+**ne doivent jamais être le critère de sélection**.
 
 ### 7. Injection dans le prompt
 
@@ -205,18 +266,23 @@ bornées** :
 
 - taille maximale ;
 - nombre maximal ;
-- ordre déterministe ;
+- ordre stable des skills retenus ;
 - priorité inférieure aux règles de sécurité et de validation.
 
 ### 8. Traçabilité
 
 La session et l’audit enregistrent :
 
-- `skillIds` ;
-- `skillVersions` ;
-- `skillDigests` ;
-- `skillSelectionReason` ;
-- `promptVersion` du core.
+- le catalogue candidat (`skillIds` disponibles) ;
+- les `skillIds` retenus ;
+- les `skillVersions` et `skillDigests` ;
+- la décision du routeur :
+  - IDs proposés ;
+  - confiance ;
+  - raison ;
+  - clarification éventuelle ;
+- le modèle/provider du routeur ;
+- `promptVersion` du core et version du prompt de routage.
 
 Ainsi, une proposition peut être reliée à la version exacte :
 
@@ -317,9 +383,15 @@ Refusé : couplage au core et conflits entre templates.
 
 Refusé : surface d’attaque et perte du contrôle de validation.
 
+### Sélection lexicale par mots-clés
+
+Refusée : faux positifs, synonymes manqués, comportement instable et couplage
+artificiel à des mots isolés.
+
 ### Laisser le modèle choisir librement ses skills
 
-Refusé : sélection non déterministe et non auditable.
+Refusé sous cette forme : le modèle ne peut choisir que dans un catalogue fermé
+et le core valide, plafonne et audite la sélection.
 
 ## Plan d’implémentation
 
@@ -329,7 +401,7 @@ Refusé : sélection non déterministe et non auditable.
 | B | Validation des fichiers de skills dans l’import |
 | C | Stockage des skills comme assets de version |
 | D | Loader + cache par version |
-| E | Sélection des skills et injection dans le prompt |
+| E | Catalogue compact + routage IA borné des skills + injection dans le prompt |
 | F | Enregistrement `skillIds` / `skillVersions` dans session + audit |
 | G | Skills Puzzle initiaux |
 | H | Tests de sécurité, de versionnement et de non-régression |
@@ -340,7 +412,7 @@ Refusé : sélection non déterministe et non auditable.
 - Un skill absent ou invalide bloque l’installation.
 - Un skill ne peut pas fournir d’ID ni contourner le manifeste.
 - Les skills sont chargés depuis la version installée, jamais depuis une URL externe.
-- Une session enregistre les skills utilisés.
+- Une session enregistre les skills utilisés et la décision de routage.
 - Une proposition est reproductible à partir de `templateVersion + skillVersion + promptVersion`.
 - La désactivation ou le rollback d’une version change les skills chargés.
 - Les tests de sécurité vérifient l’absence d’exécution de code et d’accès réseau.
@@ -351,7 +423,7 @@ Refusé : sélection non déterministe et non auditable.
    **Recommandation : fichiers séparés**, plus lisibles et versionnables.
 2. Version du skill indépendante ou alignée sur la version du template ?  
    **Recommandation : version indépendante mais immuable dans la version du template.**
-3. Sélection lexicale seule ou lexicale + sémantique ?  
-   **Recommandation : lexicale d’abord, sémantique en second, plafonnée.**
+3. Sélection lexicale ou routage IA contraint ?  
+   **Recommandation : routage IA contraint dans un catalogue fermé, avec validation par le core.**
 4. Fallback si un skill est indisponible au runtime ?  
    **Recommandation : erreur auditée + prompt générique, jamais de silence.**

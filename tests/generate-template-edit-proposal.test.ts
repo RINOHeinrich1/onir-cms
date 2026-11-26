@@ -58,6 +58,7 @@ describe("génération d'une proposition d'édition", () => {
         editor: puzzleV2Editor,
         schema: puzzleV2Params,
         values: puzzleV2Values,
+        skills: [],
       },
     );
 
@@ -91,6 +92,7 @@ describe("génération d'une proposition d'édition", () => {
           editor: puzzleV2Editor,
           schema: puzzleV2Params,
           values: puzzleV2Values,
+          skills: [],
         },
       ),
     ).rejects.toThrow("exploitable");

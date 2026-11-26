@@ -162,6 +162,54 @@ describe("validateTemplateManifest — norme v1", () => {
     }
   });
 
+  it("accepte des skills déclarés avec intégrité SRI", () => {
+    const result = validateTemplateManifest(
+      manifest({
+        aiSkills: [
+          {
+            id: "puzzle-style-button",
+            format: "onirtech.ai-skill.v1",
+            path: "skills/puzzle-style-button.skill.json",
+            integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.aiSkills).toHaveLength(1);
+  });
+
+  it("refuse un chemin de skill hors skills/", () => {
+    const result = validateTemplateManifest(
+      manifest({
+        aiSkills: [
+          {
+            id: "bad",
+            format: "onirtech.ai-skill.v1",
+            path: "assets/bad.json",
+            integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((error) => error.field === "aiSkills[0].path")).toBe(true);
+    }
+  });
+
+  it("refuse deux skills avec le même id", () => {
+    const skill = {
+      id: "dup",
+      format: "onirtech.ai-skill.v1",
+      path: "skills/dup.json",
+      integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    };
+    const result = validateTemplateManifest(manifest({ aiSkills: [skill, skill] }));
+    expect(result.ok).toBe(false);
+  });
+
   it("refuse une intégrité non SRI", () => {
     const ui = { ...(manifest().ui as Record<string, unknown>), integrity: "deadbeef" };
     expect(validateTemplateManifest(manifest({ ui })).ok).toBe(false);

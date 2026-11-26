@@ -6,6 +6,7 @@ import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgTemplateEditAuditRepository } from "@/infrastructure/db/template-edit-audit-repository";
 import { pgTemplateEditSessionRepository } from "@/infrastructure/db/template-edit-session-repository";
+import { templateSkillLoaderFor } from "../../../context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +23,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
       sessions: pgTemplateEditSessionRepository(pool),
       aiFactory: pgAiClientFactory(pool),
       audit: pgTemplateEditAuditRepository(pool),
+      skillLoader: templateSkillLoaderFor(pool),
     };
     await getTemplateEditSession(deps, actor, id, sessionId);
     const events = await deps.audit.listBySession(actor.organizationId ?? "", id, sessionId);

@@ -10,6 +10,7 @@ import {
 import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
+import type { TemplateAiSkillV1 } from "@/domain/template-skill";
 import { buildTemplateEditProposalPrompt } from "./template-edit-proposal-prompt";
 
 export type GenerateTemplateEditProposalInput = {
@@ -19,6 +20,7 @@ export type GenerateTemplateEditProposalInput = {
   editor: TemplateEditorManifest;
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
+  skills: TemplateAiSkillV1[];
   providerId?: string;
   model?: string;
 };
@@ -108,6 +110,7 @@ export async function generateTemplateEditProposal(
     editor: input.editor,
     schema: input.schema,
     values: input.values,
+    skills: input.skills,
   });
   const json = await callStructuredAi(client, prompt);
   const proposal = parseProposal(json);

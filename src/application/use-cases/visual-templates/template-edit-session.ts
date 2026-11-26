@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
 import type { TemplateEditAuditRepository } from "@/application/ports/template-edit-audit-repository";
 import type { TemplateEditSessionRepository } from "@/application/ports/template-edit-session-repository";
+import type { TemplateSkillLoader } from "@/application/ports/template-skill-loader";
 import { applyTemplateEditProposal } from "@/domain/template-edit-proposal";
 import {
   listTemplateEditCandidates,
@@ -22,6 +23,7 @@ import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import { generateTemplateEditProposal } from "./generate-template-edit-proposal";
 import { rankTemplateEditCandidates } from "./rank-template-edit-candidates";
+import { routeTemplateSkills } from "./route-template-skills";
 
 export type TemplateEditSessionContext = {
   linkId: string;
@@ -37,6 +39,7 @@ export type TemplateEditSessionDependencies = {
   sessions: TemplateEditSessionRepository;
   aiFactory: AiClientFactory;
   audit: TemplateEditAuditRepository;
+  skillLoader: TemplateSkillLoader;
 };
 
 function hashValues(values: TemplateParamValues): string {
@@ -217,6 +220,52 @@ export async function continueTemplateEditSession(
   }
 
   try {
+    const loadedSkills = await deps.skillLoader.load(context.templateId, context.templateVersion);
+    const routed = await routeTemplateSkills({ aiFactory: deps.aiFactory }, actor, {
+      request: message,
+      skills: loadedSkills,
+    });
+    const skillIds = routed.skills.map((entry) => ({
+      id: entry.skill.skill.id,
+      version: entry.skill.skill.version,
+      confidence: entry.confidence,
+      reason: entry.reason,
+    }));
+    await deps.audit.record({
+      organizationId: organizationOf(actor),
+      linkId: context.linkId,
+      sessionId,
+      messageId: userMessage.id,
+      actorId: actor.id,
+      event: "skill_routing",
+      templateId: context.templateId,
+      templateVersion: context.templateVersion,
+      content: message,
+      beforeHash: hashValues(workingParams),
+      metadata: {
+        surface: context.surface,
+        selection,
+        candidates: routed.candidates,
+        selected: skillIds,
+        clarification: routed.clarification,
+      },
+    });
+    if (routed.clarification !== null && routed.skills.length === 0) {
+      const clarification = createTemplateEditMessage("assistant", routed.clarification);
+      state = appendTemplateEditMessage(
+        { ...state, pendingProposal: null, pendingCandidate: null },
+        clarification,
+      );
+      const saved = await deps.sessions.save(
+        organizationOf(actor),
+        context.linkId,
+        sessionId,
+        state,
+      );
+      if (saved === null) throw new NotFoundError("Session d’édition introuvable");
+      return saved;
+    }
+    const selectedSkills = routed.skills.map((entry) => entry.skill.skill);
     const decision = await rankTemplateEditCandidates({ aiFactory: deps.aiFactory }, actor, {
       request: message,
       page: resolved.page,
@@ -278,6 +327,7 @@ export async function continueTemplateEditSession(
         editor: context.editor,
         schema: context.schema,
         values: workingParams,
+        skills: selectedSkills,
       });
       const reply = createTemplateEditMessage(
         "assistant",

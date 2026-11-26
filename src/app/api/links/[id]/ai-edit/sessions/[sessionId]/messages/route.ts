@@ -7,7 +7,12 @@ import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgTemplateEditAuditRepository } from "@/infrastructure/db/template-edit-audit-repository";
 import { pgTemplateEditSessionRepository } from "@/infrastructure/db/template-edit-session-repository";
-import { loadTemplateEditContext, paramsFrom, surfaceFrom } from "../../../context";
+import {
+  loadTemplateEditContext,
+  paramsFrom,
+  surfaceFrom,
+  templateSkillLoaderFor,
+} from "../../../context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +35,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         sessions: pgTemplateEditSessionRepository(pool),
         aiFactory: pgAiClientFactory(pool),
         audit: pgTemplateEditAuditRepository(pool),
+        skillLoader: templateSkillLoaderFor(pool),
       },
       actor,
       { ...loaded, workingParams },
