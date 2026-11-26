@@ -107,3 +107,4 @@ ADR qui remplace la précédente.
 | [0108](./0108-structured-template-editor-v2.md) | Structured Template Editor V2 — séparer les données du modèle d’édition | Proposé |
 | [0109](./0109-edition-template-assistee-ia-resolution-cible.md) | Édition assistée des templates par IA — résolution de cible sans curseur | Proposé |
 | [0110](./0110-template-skills-installes-avec-version.md) | Skills de template installés avec la version du template | Proposé |
+| [0111](./0111-planner-edition-ia-references-retry.md) | Planner d’édition IA, références symboliques et retry borné | Proposé |

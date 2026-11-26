@@ -452,6 +452,45 @@ export function listTemplateEditCandidates(
   return sortCandidates(candidates).slice(0, candidateLimit(input.limit));
 }
 
+export function collectTemplateEditCandidates(
+  input: ResolveTemplateEditTargetInput,
+  limit = 40,
+): TemplateEditCandidate[] {
+  const index = buildIndex(input.editor, input.values);
+  const page = resolvePageContext(input.request, index.pages, input.currentPageId);
+  const selected =
+    input.selection === null || input.selection === undefined
+      ? null
+      : findSelectedItem(input.editor, input.values, input.selection.regionId, index);
+  const terms = contentWords(input.request);
+  const candidates: TemplateEditCandidate[] = [];
+  const seen = new Set<string>();
+  if (selected !== null) {
+    const candidate = toCandidate(selected, 1, ["sélection"]);
+    candidates.push(candidate);
+    seen.add(`${candidate.collection}:${candidate.itemId}`);
+  }
+  const pool = [
+    ...index.pages,
+    ...index.items.filter((item) => item.target.kind === "collectionItem"),
+  ];
+  for (const item of pool) {
+    if (
+      page !== null &&
+      item.target.scope.kind === "page" &&
+      item.target.scope.pageId !== page.pageId
+    ) {
+      continue;
+    }
+    const key = `${item.target.collection}:${item.target.itemId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const scored = scoreItem(item, input.request, terms, page, { ...detectHints(input.request) });
+    candidates.push(toCandidate(item, scored.score, scored.reasons));
+  }
+  return sortCandidates(candidates).slice(0, Math.min(Math.max(limit, 1), 60));
+}
+
 export function resolveTemplateEditTarget(
   input: ResolveTemplateEditTargetInput,
 ): ResolveTemplateEditTargetResult {

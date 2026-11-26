@@ -7,7 +7,7 @@ import type { TemplateEditSessionRepository } from "@/application/ports/template
 import type { TemplateSkillLoader } from "@/application/ports/template-skill-loader";
 import { applyTemplateEditProposal } from "@/domain/template-edit-proposal";
 import {
-  listTemplateEditCandidates,
+  collectTemplateEditCandidates,
   resolveTemplateEditTarget,
 } from "@/domain/template-edit-resolver";
 import {
@@ -21,8 +21,7 @@ import {
 import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
-import { generateTemplateEditProposal } from "./generate-template-edit-proposal";
-import { rankTemplateEditCandidates } from "./rank-template-edit-candidates";
+import { planTemplateEdit } from "./plan-template-edit";
 import { routeTemplateSkills } from "./route-template-skills";
 
 export type TemplateEditSessionContext = {
@@ -180,23 +179,23 @@ export async function continueTemplateEditSession(
   const history = state.messages
     .slice(0, -1)
     .map((entry) => ({ role: entry.role, content: entry.content }));
-  const resolved = resolveTemplateEditTarget({
+  const pageResolution = resolveTemplateEditTarget({
     request: message,
     currentPageId: null,
     selection: selection === null ? null : { regionId: selection },
     editor: context.editor,
     values: workingParams,
   });
-  const candidates =
-    resolved.candidates.length > 0
-      ? resolved.candidates
-      : listTemplateEditCandidates({
-          request: message,
-          currentPageId: null,
-          selection: selection === null ? null : { regionId: selection },
-          editor: context.editor,
-          values: workingParams,
-        });
+  const candidates = collectTemplateEditCandidates(
+    {
+      request: message,
+      currentPageId: null,
+      selection: selection === null ? null : { regionId: selection },
+      editor: context.editor,
+      values: workingParams,
+    },
+    40,
+  );
 
   await deps.audit.record({
     organizationId: organizationOf(actor),
@@ -214,7 +213,7 @@ export async function continueTemplateEditSession(
     metadata: {
       surface: context.surface,
       selection,
-      page: resolved.page,
+      page: pageResolution.page,
       candidates: candidates.map((candidate) => ({
         id: candidateId(candidate),
         label: candidate.label,
@@ -297,6 +296,21 @@ export async function continueTemplateEditSession(
         { ...state, pendingProposal: null, pendingCandidate: null },
         clarification,
       );
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: clarification.id,
+        turnId,
+        actorId: actor.id,
+        event: "clarification_required",
+        stage: "skill_routing",
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        content: clarification.content,
+        beforeHash: hashValues(workingParams),
+        metadata: { selection, surface: context.surface },
+      });
       const saved = await deps.sessions.save(
         organizationOf(actor),
         context.linkId,
@@ -307,18 +321,20 @@ export async function continueTemplateEditSession(
       return saved;
     }
     const selectedSkills = routed.skills.map((entry) => entry.skill.skill);
-    stage = "target_ranking";
-    const decision = await rankTemplateEditCandidates({ aiFactory: deps.aiFactory }, actor, {
+    stage = "planning";
+    const planned = await planTemplateEdit({ aiFactory: deps.aiFactory }, actor, {
       request: message,
-      page: resolved.page,
+      page: pageResolution.page,
       candidates,
+      editor: context.editor,
+      schema: context.schema,
+      values: workingParams,
+      skills: selectedSkills,
       history,
     });
 
-    if (decision.status === "ambiguous") {
-      const reply = createTemplateEditMessage("assistant", decision.question, {
-        candidates: decision.candidates,
-      });
+    if (planned.status === "clarification") {
+      const reply = createTemplateEditMessage("assistant", planned.message);
       state = appendTemplateEditMessage(
         { ...state, pendingProposal: null, pendingCandidate: null },
         reply,
@@ -330,21 +346,20 @@ export async function continueTemplateEditSession(
         messageId: reply.id,
         turnId,
         actorId: actor.id,
-        event: "ambiguous",
-        stage: "target_ranking",
+        event: "clarification_required",
+        stage,
         templateId: context.templateId,
         templateVersion: context.templateVersion,
         content: reply.content,
         beforeHash: hashValues(workingParams),
-        metadata: {
-          selection,
-          candidates: decision.candidates.map(candidateId),
-        },
+        warnings: planned.warnings,
+        rawResponse: planned.rawPlan,
+        metadata: { selection, surface: context.surface, attempts: planned.attempts },
       });
-    } else if (decision.status === "not_found") {
+    } else if (planned.status === "rejected") {
       const reply = createTemplateEditMessage(
         "assistant",
-        "Je n’ai pas trouvé de cible fiable. Précisez la page ou l’élément.",
+        `Je n’ai pas pu produire de plan valide. ${planned.errors.join(" ; ")}`,
       );
       state = appendTemplateEditMessage(
         { ...state, pendingProposal: null, pendingCandidate: null },
@@ -357,41 +372,25 @@ export async function continueTemplateEditSession(
         messageId: reply.id,
         turnId,
         actorId: actor.id,
-        event: "not_found",
-        stage: "target_ranking",
+        event: "proposal_rejected",
+        stage,
         templateId: context.templateId,
         templateVersion: context.templateVersion,
         content: reply.content,
         beforeHash: hashValues(workingParams),
-        metadata: { selection },
+        warnings: planned.warnings,
+        rawResponse: planned.rawPlan,
+        validationErrors: planned.errors,
+        metadata: { selection, surface: context.surface, attempts: planned.attempts },
       });
     } else {
-      stage = "proposal_generation";
-      const candidate = decision.candidate;
-      const generated = await generateTemplateEditProposal({ aiFactory: deps.aiFactory }, actor, {
-        request: message,
-        page: resolved.page,
-        candidate,
-        editor: context.editor,
-        schema: context.schema,
-        values: workingParams,
-        skills: selectedSkills,
-        history,
-      });
       const reply = createTemplateEditMessage(
         "assistant",
-        `J’ai trouvé « ${candidate.label} ». Voici la modification proposée.`,
-        {
-          proposal: generated.proposal,
-          candidate,
-        },
+        "Voici le plan de modification proposé.",
+        { proposal: planned.proposal },
       );
       state = appendTemplateEditMessage(
-        {
-          ...state,
-          pendingProposal: generated.proposal,
-          pendingCandidate: candidate,
-        },
+        { ...state, pendingProposal: planned.proposal, pendingCandidate: null },
         reply,
       );
       await deps.audit.record({
@@ -405,12 +404,17 @@ export async function continueTemplateEditSession(
         stage,
         templateId: context.templateId,
         templateVersion: context.templateVersion,
-        candidateId: candidateId(candidate),
         content: reply.content,
-        operations: generated.proposal.operations,
-        warnings: generated.warnings,
+        operations: planned.proposal.operations,
+        warnings: planned.warnings,
         beforeHash: hashValues(workingParams),
-        metadata: { surface: context.surface, selection },
+        metadata: {
+          surface: context.surface,
+          selection,
+          attempts: planned.attempts,
+          skills: skillIds,
+          rawPlan: planned.rawPlan,
+        },
       });
     }
   } catch (error) {

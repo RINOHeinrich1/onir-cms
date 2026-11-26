@@ -5,6 +5,7 @@ export type TemplateEditAuditEvent =
   | "assistant_message"
   | "skill_routing"
   | "target_candidates"
+  | "clarification_required"
   | "proposal_created"
   | "proposal_rejected"
   | "proposal_applied"
