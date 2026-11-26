@@ -5,6 +5,7 @@ import { requireRole } from "@/app/api/_lib/require-user";
 import { ValidationError } from "@/application/errors";
 import { planTemplateEdit } from "@/application/use-cases/visual-templates/plan-template-edit";
 import { routeTemplateSkills } from "@/application/use-cases/visual-templates/route-template-skills";
+import { validateTemplateEditReferences } from "@/domain/template-edit-references";
 import { collectTemplateEditCandidates } from "@/domain/template-edit-resolver";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
@@ -64,6 +65,28 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       skills: selected,
       maxAttempts: 1,
     });
+    const referenceErrors =
+      planned.status === "proposed"
+        ? validateTemplateEditReferences(loaded.editor, planned.values)
+        : [];
+    if (referenceErrors.length > 0) {
+      return NextResponse.json({
+        status: "rejected",
+        values: null,
+        proposal: null,
+        warnings: planned.warnings,
+        attempts: planned.attempts,
+        attemptHistory: planned.attemptHistory,
+        skills: routed.skills.map((entry) => ({
+          id: entry.skill.skill.id,
+          version: entry.skill.skill.version,
+          confidence: entry.confidence,
+          reason: entry.reason,
+        })),
+        clarification: null,
+        errors: referenceErrors.map((error) => `${error.field} — ${error.message}`),
+      });
+    }
     return NextResponse.json({
       status: planned.status,
       values: planned.status === "proposed" ? planned.values : null,
