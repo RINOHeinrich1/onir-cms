@@ -35,6 +35,10 @@ export function DisplayEditAssistantDrawer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const applyRef = useRef(context.onApply);
+  applyRef.current = context.onApply;
+  const paramsRef = useRef(context.params);
+  paramsRef.current = context.params;
   const base = `/api/links/${context.linkId}/ai-edit/sessions`;
 
   useEffect(() => {
@@ -44,11 +48,14 @@ export function DisplayEditAssistantDrawer({
     fetch(base, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ surface: context.surface }),
+      body: JSON.stringify({ surface: context.surface, params: paramsRef.current }),
     })
       .then(readJson<SendResponse>)
       .then((json) => {
-        if (!cancelled) setSession(json.session);
+        if (!cancelled) {
+          setSession(json.session);
+          applyRef.current(json.session.state.workingParams);
+        }
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Session indisponible");
@@ -80,6 +87,7 @@ export function DisplayEditAssistantDrawer({
             message,
             params: context.params,
             selection: context.selectedRegion,
+            surface: context.surface,
           }),
         }),
       );
@@ -105,7 +113,7 @@ export function DisplayEditAssistantDrawer({
         await fetch(`${base}/${session.id}/apply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ params: context.params }),
+          body: JSON.stringify({ params: context.params, surface: context.surface }),
         }),
       );
       context.onApply(json.values);
@@ -140,7 +148,7 @@ export function DisplayEditAssistantDrawer({
         await fetch(base, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ surface: context.surface }),
+          body: JSON.stringify({ surface: context.surface, params: paramsRef.current }),
         }),
       );
       setSession(json.session);

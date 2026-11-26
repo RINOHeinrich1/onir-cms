@@ -6,7 +6,7 @@ import { startTemplateEditSession } from "@/application/use-cases/visual-templat
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
 import { pgTemplateEditSessionRepository } from "@/infrastructure/db/template-edit-session-repository";
-import { loadTemplateEditContext, surfaceFrom } from "../context";
+import { loadTemplateEditContext, paramsFrom, surfaceFrom } from "../context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,13 +21,14 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const body = await readJsonObject(request);
     const pool = getPool();
     const loaded = await loadTemplateEditContext(pool, actor, id, surfaceFrom(body?.surface));
+    const workingParams = paramsFrom(body?.params, loaded.workingParams, loaded);
     const session = await startTemplateEditSession(
       {
         sessions: pgTemplateEditSessionRepository(pool),
         aiFactory: pgAiClientFactory(pool),
       },
       actor,
-      loaded,
+      { ...loaded, workingParams },
     );
     return NextResponse.json({ session });
   } catch (error) {
