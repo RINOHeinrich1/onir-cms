@@ -6,6 +6,7 @@ import type {
   TemplateParamValues,
 } from "@/domain/template-params";
 import type { TemplateAiSkillV1 } from "@/domain/template-skill";
+import type { TemplateCapabilityMap } from "./template-capabilities";
 import {
   formatTemplateEditHistory,
   type TemplateEditHistoryMessage,
@@ -44,6 +45,7 @@ export function buildTemplateEditPlanPrompt(input: {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   skills: TemplateAiSkillV1[];
+  capabilities?: TemplateCapabilityMap;
   history?: TemplateEditHistoryMessage[];
   previousErrors?: string[];
   previousPlan?: unknown;
@@ -96,6 +98,7 @@ export function buildTemplateEditPlanPrompt(input: {
       `Schémas des collections candidates : ${JSON.stringify(schemas)}`,
       `Règles d’insertion : ${JSON.stringify(insertion)}`,
       `Skills : ${JSON.stringify(skills)}`,
+      `Capacités du template : ${JSON.stringify(input.capabilities ?? null)}`,
       ...(input.previousErrors === undefined || input.previousErrors.length === 0
         ? []
         : [

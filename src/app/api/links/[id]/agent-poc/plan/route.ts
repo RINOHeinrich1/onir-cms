@@ -5,6 +5,7 @@ import { requireRole } from "@/app/api/_lib/require-user";
 import { ValidationError } from "@/application/errors";
 import { planTemplateEdit } from "@/application/use-cases/visual-templates/plan-template-edit";
 import { routeTemplateSkills } from "@/application/use-cases/visual-templates/route-template-skills";
+import { buildTemplateCapabilities } from "@/application/use-cases/visual-templates/template-capabilities";
 import { validateTemplateEditReferences } from "@/domain/template-edit-references";
 import { collectTemplateEditCandidates } from "@/domain/template-edit-resolver";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
@@ -46,6 +47,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         (error) => `${error.field}|${error.message}`,
       ),
     );
+    const capabilities = buildTemplateCapabilities(loaded.editor, loaded.schema, values);
     const candidates = collectTemplateEditCandidates(
       {
         request: prompt,
@@ -72,6 +74,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       schema: loaded.schema,
       values,
       skills: selected,
+      capabilities,
       maxAttempts: 1,
       ...(previousPlan === undefined ? {} : { previousPlan }),
       previousErrors,

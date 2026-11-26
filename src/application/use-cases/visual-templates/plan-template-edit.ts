@@ -9,6 +9,7 @@ import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/te
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValues } from "@/domain/template-params";
 import type { TemplateAiSkillV1 } from "@/domain/template-skill";
+import type { TemplateCapabilityMap } from "./template-capabilities";
 import { emitTemplateEditEvent, type TemplateEditEventSink } from "./template-edit-events";
 import type { TemplateEditHistoryMessage } from "./template-edit-history";
 import { buildTemplateEditPlanPrompt } from "./template-edit-plan-prompt";
@@ -23,6 +24,7 @@ export type PlanTemplateEditInput = {
   schema: TemplateParamSchema[];
   values: TemplateParamValues;
   skills: TemplateAiSkillV1[];
+  capabilities?: TemplateCapabilityMap;
   history?: TemplateEditHistoryMessage[];
   onEvent?: TemplateEditEventSink;
   maxAttempts?: number;
@@ -151,6 +153,7 @@ export async function planTemplateEdit(
       schema: input.schema,
       values: input.values,
       skills: input.skills,
+      ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
       ...(input.history === undefined ? {} : { history: input.history }),
       ...(previousErrors.length === 0 ? {} : { previousErrors, previousPlan }),
     });
