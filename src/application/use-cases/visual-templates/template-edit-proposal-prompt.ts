@@ -29,6 +29,42 @@ function schemaNode(params: TemplateParamSchema[], key: string): TemplateParamSc
   return params.find((entry) => entry.key === key) ?? null;
 }
 
+function styleReferences(input: {
+  editor: TemplateEditorManifest;
+  schema: TemplateParamSchema[];
+  candidate: TemplateEditCandidate;
+  item: Record<string, TemplateParamValue> | null;
+  values: TemplateParamValues;
+}): Array<Record<string, unknown>> {
+  const editor = input.editor;
+  const item = input.item;
+  if (editor.version !== 2 || item === null) return [];
+  return (editor.references ?? []).flatMap((reference) => {
+    if (reference.from !== input.candidate.collection || reference.to === undefined) return [];
+    const targetScope = editor.scopes?.find(
+      (entry) => entry.param === reference.to && entry.scope === "shared",
+    );
+    if (targetScope === undefined || !(reference.field in item)) return [];
+    const collection = editor.collections?.find((entry) => entry.param === reference.to);
+    const styleId = item[reference.field];
+    const style =
+      typeof styleId === "string"
+        ? itemFor(input.values, reference.to, collection?.itemKey ?? "id", styleId)
+        : null;
+    return [
+      {
+        field: reference.field,
+        collection: reference.to,
+        itemKey: collection?.itemKey ?? "id",
+        currentId: typeof styleId === "string" ? styleId : null,
+        schema: schemaNode(input.schema, reference.to),
+        current: style,
+        shared: true,
+      },
+    ];
+  });
+}
+
 export function buildTemplateEditProposalPrompt(input: {
   request: string;
   page: TemplateEditPageContext | null;
@@ -48,6 +84,13 @@ export function buildTemplateEditProposalPrompt(input: {
     input.editor.version === 2 && candidate.itemKind !== undefined
       ? (input.editor.insertion ?? []).filter((rule) => rule.parentKind === candidate.itemKind)
       : [];
+  const styles = styleReferences({
+    editor: input.editor,
+    schema: input.schema,
+    candidate,
+    item,
+    values: input.values,
+  });
   const target = {
     id: `${candidate.collection}:${candidate.itemId}`,
     collection: candidate.collection,
@@ -71,7 +114,9 @@ export function buildTemplateEditProposalPrompt(input: {
       '- remove : {"op":"remove","target":{"kind":"collectionItem",...}} pour supprimer la cible.',
       '- duplicate : {"op":"duplicate","target":{"kind":"collectionItem",...}}.',
       '- insertChild : {"op":"insertChild","parent":{...},"child":{"collection":"...","kind":"...","slot":"...","values":{...}}} uniquement si une règle d’insertion existe.',
+      '- insert avec bindTo : {"op":"insert","target":{"kind":"collection","collection":"..."},"values":{...},"bindTo":{"target":{"kind":"collectionItemField","collection":"...","itemKey":"...","itemId":"...","field":"..."}}} pour créer une copie locale et la rattacher.',
       "Pour une suppression, utilise exactement la cible sélectionnée avec remove.",
+      "Un style partagé ne doit jamais être modifié directement. Si la demande concerne une couleur, un fond ou un style, crée un nouveau style_profile avec insert + bindTo vers le champ de référence de la cible.",
       "Ne modifie que ce qui est nécessaire à la demande.",
     ].join("\n"),
     user: [
@@ -82,6 +127,7 @@ export function buildTemplateEditProposalPrompt(input: {
       `Collection : ${JSON.stringify(collection ?? null)}`,
       `Schéma de collection : ${JSON.stringify(collectionSchema ?? null)}`,
       `Règles d’insertion : ${JSON.stringify(rules)}`,
+      `Références de style : ${JSON.stringify(styles)}`,
     ].join("\n\n"),
   };
 }

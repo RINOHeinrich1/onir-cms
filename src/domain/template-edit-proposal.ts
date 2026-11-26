@@ -48,6 +48,9 @@ export type TemplateEditOperation =
       op: "insert";
       target: { kind: "collection"; collection: string };
       values: RecordValue;
+      bindTo?: {
+        target: Extract<ProposalTarget, { kind: "collectionItemField" }>;
+      };
     }
   | {
       op: "insertChild";
@@ -103,6 +106,12 @@ function clone<T>(value: T): T {
 
 function collectionMeta(editor: TemplateEditorManifestV2, collection: string) {
   return editor.collections?.find((entry) => entry.param === collection);
+}
+
+function isSharedCollection(editor: TemplateEditorManifest, collection: string): boolean {
+  return editor.version === 2
+    ? (editor.scopes ?? []).some((entry) => entry.param === collection && entry.scope === "shared")
+    : false;
 }
 
 function collectionItems(values: TemplateParamValues, collection: string): RecordValue[] | null {
@@ -186,6 +195,14 @@ function applySet(
   if (target.kind === "collectionItemField") {
     if (target.field === "" || FORBIDDEN_KEYS.has(target.field)) {
       return { error: { field: target.field, message: "champ invalide" } };
+    }
+    if (isSharedCollection(input.editor, target.collection)) {
+      return {
+        error: {
+          field: target.collection,
+          message: "élément partagé : créez une copie locale au lieu de le modifier",
+        },
+      };
     }
     const item = targetArray(input.values, target);
     if (item === null) {
@@ -360,6 +377,26 @@ export function applyTemplateEditProposal(
       }
       values = result.values;
       itemIds.push(result.itemId);
+      if (operation.bindTo !== undefined) {
+        const bound = findCollectionItem(
+          values,
+          operation.bindTo.target.collection,
+          operation.bindTo.target.itemKey,
+          operation.bindTo.target.itemId,
+        );
+        if (bound === null) {
+          errors.push({ field: `${field}.bindTo`, message: "cible de liaison introuvable" });
+          break;
+        }
+        if (isSharedCollection(input.editor, operation.bindTo.target.collection)) {
+          errors.push({
+            field: `${field}.bindTo`,
+            message: "la cible de liaison est partagée",
+          });
+          break;
+        }
+        bound[operation.bindTo.target.field] = result.itemId;
+      }
       continue;
     }
     if (operation.op === "insertChild") {

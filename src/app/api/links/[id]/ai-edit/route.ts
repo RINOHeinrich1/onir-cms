@@ -22,6 +22,7 @@ import {
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { getPool } from "@/infrastructure/db/pool";
+import { pgVisualTemplateAuditRepository } from "@/infrastructure/db/visual-template-audit-repository";
 import { pgVisualTemplateRepository } from "@/infrastructure/db/visual-template-repository";
 import { templateEditLimiter } from "@/lib/rate-limit";
 
@@ -181,6 +182,21 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         ...(text(body.model) === "" ? {} : { model: text(body.model) }),
       },
     );
+
+    await pgVisualTemplateAuditRepository(pool).record({
+      organizationId,
+      templateId: link.visualTemplateId,
+      actorId: actor.id,
+      event: "ai_edit",
+      metadata: {
+        linkId: link.id,
+        request: prompt,
+        candidate: `${candidate.collection}:${candidate.itemId}`,
+        candidateLabel: candidate.label,
+        operations: generated.proposal.operations.length,
+        warnings: generated.warnings,
+      },
+    });
 
     return NextResponse.json({
       status: "proposed",

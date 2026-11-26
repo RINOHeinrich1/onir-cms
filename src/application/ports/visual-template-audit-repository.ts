@@ -12,7 +12,8 @@ export type VisualTemplateAuditEvent =
   | "version_disabled"
   | "version_enabled"
   | "version_rollback"
-  | "version_uninstalled";
+  | "version_uninstalled"
+  | "ai_edit";
 
 export type VisualTemplateAuditInput = {
   organizationId: string | null;

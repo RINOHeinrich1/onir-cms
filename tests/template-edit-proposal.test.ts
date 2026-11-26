@@ -225,6 +225,67 @@ describe("application générique d'une proposition d'édition", () => {
     expect(placement?.position).toBe(1);
   });
 
+  it("refuse de modifier directement un style partagé", () => {
+    const result = applyTemplateEditProposal({
+      editor: puzzleV2Editor,
+      schema: puzzleV2Params,
+      values: values(),
+      proposal: proposal([
+        {
+          op: "set",
+          target: {
+            kind: "collectionItemField",
+            collection: "style_profiles",
+            itemKey: "id",
+            itemId: "profile_main",
+            field: "name",
+          },
+          value: "Style modifié",
+        },
+      ]),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0]?.message).toContain("partagé");
+  });
+
+  it("crée une copie locale de style et la rattache à la cible", () => {
+    const result = applyTemplateEditProposal({
+      editor: puzzleV2Editor,
+      schema: puzzleV2Params,
+      values: values(),
+      proposal: proposal([
+        {
+          op: "insert",
+          target: { kind: "collection", collection: "style_profiles" },
+          values: { name: "Copie carte", font_size: 16, visibility: "inherit" },
+          bindTo: {
+            target: {
+              kind: "collectionItemField",
+              collection: "blocks",
+              itemKey: "id",
+              itemId: "card_one",
+              field: "style_id",
+            },
+          },
+        },
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const styleId = result.itemIds[0];
+    const card = (result.values.blocks as Array<Record<string, unknown>>).find(
+      (item) => item.id === "card_one",
+    );
+    const style = (result.values.style_profiles as Array<Record<string, unknown>>).find(
+      (item) => item.id === styleId,
+    );
+    expect(card?.style_id).toBe(styleId);
+    expect(style?.name).toBe("Copie carte");
+  });
+
   it("refuse une cible inconnue avant toute mutation", () => {
     const input = {
       editor: puzzleV2Editor,
