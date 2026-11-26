@@ -5,6 +5,7 @@ import type { TemplateEditAuditRepository } from "@/application/ports/template-e
 import type { TemplateEditSessionRepository } from "@/application/ports/template-edit-session-repository";
 import type { TemplateSkillLoader } from "@/application/ports/template-skill-loader";
 import { applyTemplateEditProposal } from "@/domain/template-edit-proposal";
+import { validateTemplateEditReferences } from "@/domain/template-edit-references";
 import {
   collectTemplateEditCandidates,
   resolveTemplateEditTarget,
@@ -336,6 +337,7 @@ export async function continueTemplateEditSession(
         {
           ...state,
           pendingProposal: null,
+          pendingValues: null,
           pendingCandidate: null,
           pendingBaseHash: null,
         },
@@ -506,16 +508,27 @@ export async function applyTemplateEditSessionProposal(
     throw new ValidationError("PLAN_STALE : le brouillon a changé depuis la proposition");
   }
 
-  const result = applyTemplateEditProposal({
-    editor: context.editor,
-    schema: context.schema,
-    values: context.workingParams,
-    proposal,
-  });
-  if (!result.ok) {
-    throw new ValidationError(
-      result.errors.map((error) => `${error.field} — ${error.message}`).join(" ; "),
-    );
+  let values = session.state.pendingValues ?? null;
+  if (values !== null) {
+    const referenceErrors = validateTemplateEditReferences(context.editor, values);
+    if (referenceErrors.length > 0) {
+      throw new ValidationError(
+        referenceErrors.map((error) => `${error.field} — ${error.message}`).join(" ; "),
+      );
+    }
+  } else {
+    const result = applyTemplateEditProposal({
+      editor: context.editor,
+      schema: context.schema,
+      values: context.workingParams,
+      proposal,
+    });
+    if (!result.ok) {
+      throw new ValidationError(
+        result.errors.map((error) => `${error.field} — ${error.message}`).join(" ; "),
+      );
+    }
+    values = result.values;
   }
 
   const appliedMessage = createTemplateEditMessage(
@@ -525,8 +538,9 @@ export async function applyTemplateEditSessionProposal(
   const state = appendTemplateEditMessage(
     {
       ...session.state,
-      workingParams: result.values,
+      workingParams: values,
       pendingProposal: null,
+      pendingValues: null,
       pendingCandidate: null,
       pendingBaseHash: null,
     },
@@ -546,12 +560,15 @@ export async function applyTemplateEditSessionProposal(
     content: appliedMessage.content,
     operations: proposal.operations,
     beforeHash: hashValues(session.state.workingParams),
-    afterHash: hashValues(result.values),
-    metadata: { surface: context.surface },
+    afterHash: hashValues(values),
+    metadata: {
+      surface: context.surface,
+      source: session.state.pendingValues === null ? "proposal" : "planned_values",
+    },
   });
   const saved = await deps.sessions.save(organizationOf(actor), context.linkId, sessionId, state);
   if (saved === null) throw new NotFoundError("Session d’édition introuvable");
-  return { session: saved, values: result.values };
+  return { session: saved, values };
 }
 
 export async function recordTemplateEditLinkSaved(

@@ -7,7 +7,7 @@ import {
   type PlanDslV1,
   validatePlanDsl,
 } from "@/domain/template-edit-plan-dsl";
-import type { TemplateEditOperation } from "@/domain/template-edit-proposal";
+import type { ProposalTarget, TemplateEditOperation } from "@/domain/template-edit-proposal";
 import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest, TemplateEditorReference } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValue } from "@/domain/template-params";
@@ -362,6 +362,72 @@ function compileInsertValues(
   return errors.some((entry) => entry.stepId === step.id) ? null : compiled;
 }
 
+function compileParentTarget(input: {
+  value: unknown;
+  path: string;
+  step: PlanDslStep;
+  candidates: Map<string, TemplateEditCandidate>;
+  previousSteps: Map<string, PlanDslStep>;
+  errors: PlanDslError[];
+}): Extract<ProposalTarget, { kind: "collectionItem" }> | null {
+  if (typeof input.value === "string") {
+    const candidate = input.candidates.get(input.value);
+    if (candidate === undefined) {
+      input.errors.push(
+        error("INVALID_CANDIDATE_ID", input.path, "Parent candidat inconnu.", {
+          stepId: input.step.id,
+        }),
+      );
+      return null;
+    }
+    return {
+      kind: "collectionItem",
+      collection: candidate.collection,
+      itemKey: candidate.itemKey,
+      itemId: candidate.itemId,
+      ...(candidate.itemKind === undefined ? {} : { itemKind: candidate.itemKind }),
+    };
+  }
+  if (isRecord(input.value) && "$ref" in input.value) {
+    const ref = typeof input.value.$ref === "string" ? input.value.$ref : "";
+    const source = input.previousSteps.get(ref);
+    if (source === undefined) {
+      input.errors.push(
+        error("INVALID_REF_ORDER", input.path, "Référence parente vers une étape inconnue.", {
+          stepId: input.step.id,
+        }),
+      );
+      return null;
+    }
+    const collection = stepCollection(source);
+    if (collection === null) {
+      input.errors.push(
+        error("INVALID_REFERENCE_TYPE", input.path, "L’étape parente ne crée pas d’élément.", {
+          stepId: input.step.id,
+        }),
+      );
+      return null;
+    }
+    const kind =
+      source.operation.op === "insert" && typeof source.operation.values.kind === "string"
+        ? source.operation.values.kind
+        : undefined;
+    return {
+      kind: "collectionItem",
+      collection,
+      itemKey: "id",
+      itemId: `$ref:${ref}`,
+      ...(kind === undefined ? {} : { itemKind: kind }),
+    };
+  }
+  input.errors.push(
+    error("INVALID_REFERENCE", input.path, "Parent candidat ou $ref attendu.", {
+      stepId: input.step.id,
+    }),
+  );
+  return null;
+}
+
 function compileOperation(
   operation: PlanDslOperation,
   step: PlanDslStep,
@@ -386,12 +452,10 @@ function compileOperation(
     return values === null ? null : { op: "insert", target: operation.target, values };
   }
   if (operation.op === "insertChild") {
-    const parent = compileValue({
+    const parent = compileParentTarget({
       value: operation.parent,
       path: `steps.${step.id}.parent`,
-      stepId: step.id,
-      expected: [],
-      allowReference: false,
+      step,
       candidates,
       previousSteps,
       errors,

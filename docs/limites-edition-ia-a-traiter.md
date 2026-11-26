@@ -281,3 +281,20 @@ Le template doit porter :
 - ses compositions ;
 - sa sémantique de style ;
 - ses contraintes métier.
+
+## 13. Mise à jour après correction P0/P1
+
+### Corrigé
+
+- Le planner n’exécute plus deux fois les insertions : la session adopte `pendingValues` issus du planner.
+- `validateTemplateEditReferences` vérifie les références finales avant application.
+- Le compilateur gère les parents `$candidate` et `$ref`.
+- Un test vérifie l’absence de double application.
+- Un test vérifie une action pointant vers une page absente.
+
+### Encore partiel
+
+- La validation référentielle est appliquée à l’application de session ; elle doit aussi être branchée partout où un template est sauvegardé/modifié.
+- `baseHash` protège le brouillon de session, pas encore une modification concurrente du lien en base.
+- `create / reuse / update` restent à formaliser complètement.
+- Les postconditions, `kind` / `visibleWhen`, structured outputs et l’idempotence restent ouvertes.

@@ -20,6 +20,7 @@ export type TemplateEditSessionState = {
   workingParams: TemplateParamValues;
   selection: string | null;
   pendingProposal: TemplateEditProposal | null;
+  pendingValues?: TemplateParamValues | null;
   pendingCandidate: TemplateEditCandidate | null;
   pendingBaseHash?: string | null;
   suggestions: string[];
@@ -58,6 +59,7 @@ export function createTemplateEditSessionState(
     workingParams,
     selection: null,
     pendingProposal: null,
+    pendingValues: null,
     pendingCandidate: null,
     pendingBaseHash: null,
     suggestions: ["Changer une couleur", "Supprimer un bloc", "Modifier le texte d’un bouton"],
