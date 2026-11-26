@@ -97,6 +97,7 @@ export function AgentPocPanel({
   const currentTokenRef = useRef<string | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const revisionRef = useRef(0);
   const [goal, setGoal] = useState(
     "Ajoute un menu Services et rattache-le à une page Services avec la liste des services.",
   );
@@ -112,7 +113,7 @@ export function AgentPocPanel({
   const createPreview = async (
     nextParams: TemplateParamValues,
     token: string | null,
-  ): Promise<string> => {
+  ): Promise<{ token: string; revision: number }> => {
     const response = await fetch(`/api/links/${linkId}/preview-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -120,16 +121,18 @@ export function AgentPocPanel({
     });
     if (!response.ok) throw new Error("Impossible de préparer l’aperçu");
     const json = (await response.json()) as { token: string };
+    const nextRevision = revisionRef.current + 1;
+    revisionRef.current = nextRevision;
     setPreviewToken(json.token);
-    setRevision((value) => value + 1);
-    return json.token;
+    setRevision(nextRevision);
+    return { token: json.token, revision: nextRevision };
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: l’aperçu initial est créé une seule fois
   useEffect(() => {
     let cancelled = false;
     void createPreview(initialParams, null)
-      .then((token) => {
+      .then(({ token }) => {
         currentTokenRef.current = token;
         currentParamsRef.current = initialParams;
       })
@@ -147,18 +150,30 @@ export function AgentPocPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const waitForPreview = async (): Promise<Document> => {
-    for (let index = 0; index < 80; index += 1) {
-      const doc = iframeRef.current?.contentDocument;
+  const waitForPreview = async (
+    expectedToken?: string,
+    expectedRevision?: number,
+  ): Promise<Document> => {
+    for (let index = 0; index < 100; index += 1) {
+      const iframe = iframeRef.current;
+      const href = iframe?.contentWindow?.location.href ?? "";
+      const doc = iframe?.contentDocument;
       const ready = doc?.querySelector('[data-onirtech-ready="1"]');
       const host = doc?.querySelector("onirtech-template-puzzle");
+      const tokenMatches =
+        expectedToken === undefined ||
+        href.includes(`preview=${encodeURIComponent(expectedToken)}`);
+      const revisionMatches =
+        expectedRevision === undefined || href.includes(`v=${expectedRevision}`);
       if (
         doc !== null &&
         doc !== undefined &&
         ready !== null &&
         ready !== undefined &&
         host !== null &&
-        host !== undefined
+        host !== undefined &&
+        tokenMatches &&
+        revisionMatches
       ) {
         await delay(150);
         return doc;
@@ -168,8 +183,11 @@ export function AgentPocPanel({
     throw new Error("L’aperçu n’est pas prêt");
   };
 
-  const observe = async (): Promise<Observation> => {
-    const doc = await waitForPreview();
+  const observe = async (
+    expectedToken?: string,
+    expectedRevision?: number,
+  ): Promise<Observation> => {
+    const doc = await waitForPreview(expectedToken, expectedRevision);
     const root = doc.querySelector("onirtech-template-puzzle")?.shadowRoot;
     if (root === null || root === undefined) throw new Error("Shadow DOM indisponible");
     return {
@@ -183,10 +201,10 @@ export function AgentPocPanel({
     nextParams: TemplateParamValues,
     token: string | null,
   ): Promise<{ token: string; observation: Observation }> => {
-    const nextToken = await createPreview(nextParams, token);
-    const observation = await observe();
+    const next = await createPreview(nextParams, token);
+    const observation = await observe(next.token, next.revision);
     setObservation(observation);
-    return { token: nextToken, observation };
+    return { token: next.token, observation };
   };
 
   const plan = async (
