@@ -12,6 +12,7 @@ type PlanResponse = {
   warnings: string[];
   attempts: number;
   attemptHistory: Array<{ attempt: number; status: string; errors: string[] }>;
+  planRaw: unknown;
   skills: Array<{ id: string; version: string; confidence: number; reason: string }>;
   clarification: string | null;
   errors: string[];
@@ -67,6 +68,13 @@ function planHash(operations: unknown, values: unknown): string {
 
 function observationHash(observation: Observation): string {
   return `${observation.header}\n${observation.main}`;
+}
+
+function errorSignature(errors: string[]): string {
+  return errors
+    .map((entry) => entry.split(" : ")[0] ?? entry)
+    .sort()
+    .join("|");
 }
 
 function delay(ms: number): Promise<void> {
@@ -185,6 +193,8 @@ export function AgentPocPanel({
     request: string,
     values: TemplateParamValues,
     budget: AgentBudget,
+    previousPlan: unknown,
+    previousErrors: string[],
   ): Promise<PlanResponse> => {
     if (budget.aiCalls + 2 > MAX_AI_CALLS) throw new Error("Budget d’appels IA dépassé");
     budget.aiCalls += 2;
@@ -193,7 +203,13 @@ export function AgentPocPanel({
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request, params: values, surface }),
+        body: JSON.stringify({
+          request,
+          params: values,
+          surface,
+          ...(previousPlan === null ? {} : { previousPlan }),
+          previousErrors,
+        }),
       },
       PLAN_TIMEOUT_MS,
     );
@@ -230,6 +246,9 @@ export function AgentPocPanel({
     let currentParams = currentParamsRef.current;
     let currentToken = currentTokenRef.current;
     let lastReason = "";
+    let lastPlan: unknown = null;
+    let lastErrors: string[] = [];
+    let lastErrorSignature = "";
     let sameErrorCount = 0;
     const seenPlans = new Set<string>();
 
@@ -257,7 +276,7 @@ export function AgentPocPanel({
           detail: "Planification",
           status: "running",
         });
-        const planned = await plan(request, currentParams, budget);
+        const planned = await plan(request, currentParams, budget, lastPlan, lastErrors);
 
         for (const history of planned.attemptHistory) {
           log({
@@ -295,8 +314,12 @@ export function AgentPocPanel({
             detail: reason,
             status: "warning",
           });
-          sameErrorCount = reason === lastReason ? sameErrorCount + 1 : 1;
+          const signature = errorSignature(planned.errors);
+          sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
+          lastErrorSignature = signature;
           lastReason = reason;
+          lastPlan = planned.planRaw;
+          lastErrors = planned.errors;
           if (sameErrorCount >= MAX_SAME_ERROR) {
             setFinalStatus("Même erreur de plan répétée");
             return;
@@ -314,6 +337,8 @@ export function AgentPocPanel({
           return;
         }
 
+        lastPlan = planned.planRaw;
+        lastErrors = [];
         const hash = planHash(planned.proposal?.operations, planned.values);
         if (seenPlans.has(hash)) {
           log({
@@ -379,9 +404,12 @@ export function AgentPocPanel({
         });
 
         const reason = checked.missing || checked.reason;
-        if (reason === lastReason) sameErrorCount += 1;
-        else sameErrorCount = 0;
+        const signature = errorSignature([reason]);
+        sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
+        lastErrorSignature = signature;
         lastReason = reason;
+        lastPlan = planned.planRaw;
+        lastErrors = [reason];
         const restoredHash = observationHash(restored.observation);
         if (attempt >= 2 && restoredHash === lastObservationHash) {
           log({

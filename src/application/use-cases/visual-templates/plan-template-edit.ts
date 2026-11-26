@@ -26,6 +26,8 @@ export type PlanTemplateEditInput = {
   history?: TemplateEditHistoryMessage[];
   onEvent?: TemplateEditEventSink;
   maxAttempts?: number;
+  previousPlan?: unknown;
+  previousErrors?: string[];
   providerId?: string;
   model?: string;
 };
@@ -125,8 +127,8 @@ export async function planTemplateEdit(
         };
   const client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
 
-  let previousErrors: string[] = [];
-  let previousPlan: unknown = null;
+  let previousErrors: string[] = input.previousErrors ?? [];
+  let previousPlan: unknown = input.previousPlan ?? null;
   let lastRaw: unknown = null;
   let lastWarnings: string[] = [];
   const attemptHistory: PlanAttemptRecord[] = [];

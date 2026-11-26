@@ -37,6 +37,15 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const pool = getPool();
     const loaded = await loadTemplateEditContext(pool, actor, id, surfaceFrom(body.surface));
     const values = paramsFrom(body.params, loaded.workingParams, loaded);
+    const previousPlan = body.previousPlan;
+    const previousErrors = Array.isArray(body.previousErrors)
+      ? body.previousErrors.filter((entry): entry is string => typeof entry === "string")
+      : [];
+    const initialReferenceErrors = new Set(
+      validateTemplateEditReferences(loaded.editor, values).map(
+        (error) => `${error.field}|${error.message}`,
+      ),
+    );
     const candidates = collectTemplateEditCandidates(
       {
         request: prompt,
@@ -64,10 +73,14 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       values,
       skills: selected,
       maxAttempts: 1,
+      ...(previousPlan === undefined ? {} : { previousPlan }),
+      previousErrors,
     });
     const referenceErrors =
       planned.status === "proposed"
-        ? validateTemplateEditReferences(loaded.editor, planned.values)
+        ? validateTemplateEditReferences(loaded.editor, planned.values).filter(
+            (error) => !initialReferenceErrors.has(`${error.field}|${error.message}`),
+          )
         : [];
     if (referenceErrors.length > 0) {
       return NextResponse.json({
@@ -77,6 +90,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         warnings: planned.warnings,
         attempts: planned.attempts,
         attemptHistory: planned.attemptHistory,
+        planRaw: planned.rawPlan,
         skills: routed.skills.map((entry) => ({
           id: entry.skill.skill.id,
           version: entry.skill.skill.version,
@@ -94,6 +108,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       warnings: planned.warnings,
       attempts: planned.attempts,
       attemptHistory: planned.attemptHistory,
+      planRaw: planned.rawPlan,
       skills: routed.skills.map((entry) => ({
         id: entry.skill.skill.id,
         version: entry.skill.skill.version,
