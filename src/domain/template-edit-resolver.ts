@@ -431,16 +431,24 @@ export function listTemplateEditCandidates(
   const hints = detectHints(input.request);
   const page = resolvePageContext(input.request, index.pages, input.currentPageId);
 
-  if (input.selection !== null && input.selection !== undefined) {
-    const selected = findSelectedItem(input.editor, input.values, input.selection.regionId, index);
-    if (selected !== null) return [toCandidate(selected, 1, ["sélection"])];
-  }
-
+  const selected =
+    input.selection === null || input.selection === undefined
+      ? null
+      : findSelectedItem(input.editor, input.values, input.selection.regionId, index);
   const terms = contentWords(input.request);
   const candidates = selectableItems(index, hints, page).map((item) => {
     const scored = scoreItem(item, input.request, terms, page, hints);
     return toCandidate(item, scored.score, scored.reasons);
   });
+  if (selected !== null) {
+    const key = `${selected.target.collection}:${selected.target.itemId}`;
+    const existing = candidates.findIndex(
+      (candidate) => `${candidate.collection}:${candidate.itemId}` === key,
+    );
+    const candidate = toCandidate(selected, 1, ["sélection"]);
+    if (existing >= 0) candidates[existing] = candidate;
+    else candidates.push(candidate);
+  }
   return sortCandidates(candidates).slice(0, candidateLimit(input.limit));
 }
 
@@ -451,20 +459,18 @@ export function resolveTemplateEditTarget(
   const hints = detectHints(input.request);
   const page = resolvePageContext(input.request, index.pages, input.currentPageId);
 
-  if (input.selection !== null && input.selection !== undefined) {
-    const selected = findSelectedItem(input.editor, input.values, input.selection.regionId, index);
-    if (selected !== null) {
-      return {
-        page,
-        hints,
-        candidates: [toCandidate(selected, 1, ["sélection"])],
-      };
-    }
-  }
-
+  const selected =
+    input.selection === null || input.selection === undefined
+      ? null
+      : findSelectedItem(input.editor, input.values, input.selection.regionId, index);
   const terms = contentWords(input.request);
   const candidates: TemplateEditCandidate[] = [];
   const seen = new Set<string>();
+  if (selected !== null) {
+    const candidate = toCandidate(selected, 1, ["sélection"]);
+    candidates.push(candidate);
+    seen.add(`${candidate.collection}:${candidate.itemId}`);
+  }
   const hasSignal = (reasons: string[]): boolean =>
     reasons.some(
       (reason) =>

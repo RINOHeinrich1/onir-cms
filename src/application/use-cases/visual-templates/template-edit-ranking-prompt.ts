@@ -40,6 +40,7 @@ export function buildTemplateEditRankingPrompt(input: {
       "Tu ne dois jamais inventer d’identifiant : choisis uniquement parmi les ids fournis.",
       "Tu dois comprendre les synonymes et les formulations générales de l’utilisateur.",
       "Une section est un composant ; une page est la page elle-même.",
+      "Un candidat marqué « sélection » est un indice de l’interface, pas une obligation : la demande textuelle explicite prime.",
       "Si la demande est ambiguë ou si aucune cible ne correspond, retourne selectedId=null.",
       "Réponds uniquement avec un objet JSON valide, sans markdown.",
       'Format attendu : {"selectedId":"collection:itemId"|null,"confidence":"high|medium|low","ranking":[{"id":"collection:itemId","score":0.0,"reason":"..."}]}',

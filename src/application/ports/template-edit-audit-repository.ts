@@ -7,7 +7,8 @@ export type TemplateEditAuditEvent =
   | "proposal_applied"
   | "link_saved"
   | "ambiguous"
-  | "not_found";
+  | "not_found"
+  | "error";
 
 export type TemplateEditAuditInput = {
   organizationId: string;

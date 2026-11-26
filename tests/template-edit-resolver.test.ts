@@ -63,6 +63,18 @@ describe("résolution lexicale de cible d'édition", () => {
     expect(result.candidates[0]?.reasons).toContain("sélection");
   });
 
+  it("ne rend pas la sélection exclusive face à une cible nommée", () => {
+    const result = resolveTemplateEditTarget({
+      request: "modifie le bouton Thème",
+      currentPageId: "home",
+      editor,
+      values,
+      selection: { regionId: "block:hero_button" },
+    });
+    expect(result.candidates.some((candidate) => candidate.itemId === "hero_button")).toBe(true);
+    expect(result.candidates.some((candidate) => candidate.itemId === "theme_btn")).toBe(true);
+  });
+
   it("ne devine pas une cible sans correspondance lexicale", () => {
     const result = resolve("supprime la section nous connaître", "about");
     expect(result.page?.pageId).toBe("about");

@@ -216,16 +216,109 @@ export async function continueTemplateEditSession(
     return saved;
   }
 
-  const decision = await rankTemplateEditCandidates({ aiFactory: deps.aiFactory }, actor, {
-    request: message,
-    page: resolved.page,
-    candidates,
-  });
-
-  if (decision.status === "ambiguous") {
-    const reply = createTemplateEditMessage("assistant", decision.question, {
-      candidates: decision.candidates,
+  try {
+    const decision = await rankTemplateEditCandidates({ aiFactory: deps.aiFactory }, actor, {
+      request: message,
+      page: resolved.page,
+      candidates,
     });
+
+    if (decision.status === "ambiguous") {
+      const reply = createTemplateEditMessage("assistant", decision.question, {
+        candidates: decision.candidates,
+      });
+      state = appendTemplateEditMessage(
+        { ...state, pendingProposal: null, pendingCandidate: null },
+        reply,
+      );
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: reply.id,
+        actorId: actor.id,
+        event: "ambiguous",
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        content: reply.content,
+        beforeHash: hashValues(workingParams),
+        metadata: {
+          selection,
+          candidates: decision.candidates.map(candidateId),
+        },
+      });
+    } else if (decision.status === "not_found") {
+      const reply = createTemplateEditMessage(
+        "assistant",
+        "Je n’ai pas trouvé de cible fiable. Précisez la page ou l’élément.",
+      );
+      state = appendTemplateEditMessage(
+        { ...state, pendingProposal: null, pendingCandidate: null },
+        reply,
+      );
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: reply.id,
+        actorId: actor.id,
+        event: "not_found",
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        content: reply.content,
+        beforeHash: hashValues(workingParams),
+        metadata: { selection },
+      });
+    } else {
+      const candidate = decision.candidate;
+      const generated = await generateTemplateEditProposal({ aiFactory: deps.aiFactory }, actor, {
+        request: message,
+        page: resolved.page,
+        candidate,
+        editor: context.editor,
+        schema: context.schema,
+        values: workingParams,
+      });
+      const reply = createTemplateEditMessage(
+        "assistant",
+        `J’ai trouvé « ${candidate.label} ». Voici la modification proposée.`,
+        {
+          proposal: generated.proposal,
+          candidate,
+        },
+      );
+      state = appendTemplateEditMessage(
+        {
+          ...state,
+          pendingProposal: generated.proposal,
+          pendingCandidate: candidate,
+        },
+        reply,
+      );
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: reply.id,
+        actorId: actor.id,
+        event: "proposal_created",
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        candidateId: candidateId(candidate),
+        content: reply.content,
+        operations: generated.proposal.operations,
+        warnings: generated.warnings,
+        beforeHash: hashValues(workingParams),
+        metadata: { surface: context.surface, selection },
+      });
+    }
+  } catch (error) {
+    const detail =
+      error instanceof Error && error.message !== "" ? error.message : "Erreur inconnue";
+    const reply = createTemplateEditMessage(
+      "assistant",
+      `Je n’ai pas pu préparer la modification : ${detail}`,
+    );
     state = appendTemplateEditMessage(
       { ...state, pendingProposal: null, pendingCandidate: null },
       reply,
@@ -236,79 +329,17 @@ export async function continueTemplateEditSession(
       sessionId,
       messageId: reply.id,
       actorId: actor.id,
-      event: "ambiguous",
+      event: "error",
       templateId: context.templateId,
       templateVersion: context.templateVersion,
       content: reply.content,
       beforeHash: hashValues(workingParams),
       metadata: {
+        error: detail,
+        errorName: error instanceof Error ? error.name : "unknown",
         selection,
-        candidates: decision.candidates.map(candidateId),
+        surface: context.surface,
       },
-    });
-  } else if (decision.status === "not_found") {
-    const reply = createTemplateEditMessage(
-      "assistant",
-      "Je n’ai pas trouvé de cible fiable. Précisez la page ou l’élément.",
-    );
-    state = appendTemplateEditMessage(
-      { ...state, pendingProposal: null, pendingCandidate: null },
-      reply,
-    );
-    await deps.audit.record({
-      organizationId: organizationOf(actor),
-      linkId: context.linkId,
-      sessionId,
-      messageId: reply.id,
-      actorId: actor.id,
-      event: "not_found",
-      templateId: context.templateId,
-      templateVersion: context.templateVersion,
-      content: reply.content,
-      beforeHash: hashValues(workingParams),
-      metadata: { selection },
-    });
-  } else {
-    const candidate = decision.candidate;
-    const generated = await generateTemplateEditProposal({ aiFactory: deps.aiFactory }, actor, {
-      request: message,
-      page: resolved.page,
-      candidate,
-      editor: context.editor,
-      schema: context.schema,
-      values: workingParams,
-    });
-    const reply = createTemplateEditMessage(
-      "assistant",
-      `J’ai trouvé « ${candidate.label} ». Voici la modification proposée.`,
-      {
-        proposal: generated.proposal,
-        candidate,
-      },
-    );
-    state = appendTemplateEditMessage(
-      {
-        ...state,
-        pendingProposal: generated.proposal,
-        pendingCandidate: candidate,
-      },
-      reply,
-    );
-    await deps.audit.record({
-      organizationId: organizationOf(actor),
-      linkId: context.linkId,
-      sessionId,
-      messageId: reply.id,
-      actorId: actor.id,
-      event: "proposal_created",
-      templateId: context.templateId,
-      templateVersion: context.templateVersion,
-      candidateId: candidateId(candidate),
-      content: reply.content,
-      operations: generated.proposal.operations,
-      warnings: generated.warnings,
-      beforeHash: hashValues(workingParams),
-      metadata: { surface: context.surface, selection },
     });
   }
 
