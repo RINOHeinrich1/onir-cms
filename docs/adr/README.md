@@ -108,3 +108,4 @@ ADR qui remplace la précédente.
 | [0109](./0109-edition-template-assistee-ia-resolution-cible.md) | Édition assistée des templates par IA — résolution de cible sans curseur | Proposé |
 | [0110](./0110-template-skills-installes-avec-version.md) | Skills de template installés avec la version du template | Proposé |
 | [0111](./0111-planner-edition-ia-references-retry.md) | Planner d’édition IA, références symboliques et retry borné | Proposé |
+| [0112](./0112-plan-dsl-et-compilateur-operations.md) | Plan DSL et compilateur d’opérations pour l’édition IA | Proposé |
