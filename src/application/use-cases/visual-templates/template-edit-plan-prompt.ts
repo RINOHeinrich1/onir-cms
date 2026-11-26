@@ -1,4 +1,3 @@
-import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest } from "@/domain/template-editor";
 import type {
@@ -47,7 +46,7 @@ export function buildTemplateEditPlanPrompt(input: {
   skills: TemplateAiSkillV1[];
   history?: TemplateEditHistoryMessage[];
   previousErrors?: string[];
-  previousPlan?: TemplateEditPlan | null;
+  previousPlan?: unknown;
 }): { system: string; user: string } {
   const candidates = input.candidates.slice(0, MAX_CANDIDATES);
   const collectionParams = new Set(candidates.map((candidate) => candidate.collection));
@@ -71,15 +70,23 @@ export function buildTemplateEditPlanPrompt(input: {
   return {
     system: [
       "Tu es le planificateur d’édition d’un template visuel ONIR-CMS.",
-      "Tu produis un plan ordonné d’opérations existantes, puis le core l’exécute.",
-      "Tu ne peux utiliser que les identifiants présents dans la liste des candidats.",
-      "Tu ne peux pas inventer d’identifiant.",
-      'Pour un objet créé pendant le plan, donne un id d’étape et réutilise-le sous la forme "$ref:<stepId>" dans les étapes suivantes.',
-      'Exemple : insert page id=page → insert action target="$ref:page" → insertChild menu_item action_id="$ref:action".',
-      "Les opérations autorisées sont exactement : set, insert, insertChild, remove, duplicate, move.",
-      "Si une étape échoue, le core te renverra l’erreur et tu devras proposer un plan corrigé.",
-      "Si tu ne peux pas atteindre l’objectif avec les opérations existantes, retourne steps=[] et une clarification ou un warning. N’invente jamais de collection, de champ ou d’identifiant.",
-      'Format JSON : {"steps":[{"id":"step-id","operation":{"op":"..."},"description":"..."}],"warnings":[],"clarification":null|"..."}',
+      "Tu produis un Plan DSL v1. Le core le validera et le compilera avant toute mutation.",
+      "Tu ne peux utiliser que les identifiants présents dans les candidats.",
+      "Tu ne peux pas inventer d’identifiant, de collection ou de champ.",
+      "Une cible existante est référencée par candidateId sous la forme collection:itemId.",
+      'Pour un objet créé dans une étape, réutilise son id d’étape sous la forme {"$ref":"step-id"}.',
+      'Pour une valeur existante référencée, utilise {"$candidate":"collection:itemId"}.',
+      "Les chaînes brutes ne sont pas des références métier.",
+      "Opérations autorisées :",
+      '- set paramètre : {"op":"set","target":{"kind":"param","path":"..."},"value":...}',
+      '- set candidat : {"op":"set","candidateId":"collection:itemId","field":"...","value":...}',
+      '- insert : {"op":"insert","target":{"kind":"collection","collection":"..."},"values":{...}}',
+      '- insertChild : {"op":"insertChild","parent":"collection:itemId"|{"$ref":"step-id"},"child":{"collection":"...","kind":"...","slot":"...","values":{...}}}',
+      '- remove / duplicate : {"op":"remove"|"duplicate","candidateId":"collection:itemId"}',
+      '- move : {"op":"move","candidateId":"...","parent":"collection:itemId"|{"$ref":"step-id"},"position":0}',
+      "Si tu ne peux pas atteindre l’objectif avec ces opérations, retourne steps=[] avec une clarification ou un warning. N’invente jamais de collection, de champ ou d’identifiant.",
+      'Format JSON : {"schemaVersion":1,"intent":"create|reuse|update|noop","steps":[{"id":"step-id","operation":{...},"description":"..."}],"warnings":[],"clarification":null}',
+      "Ne fournis pas steps et clarification en même temps.",
     ].join("\n"),
     user: [
       `Demande : ${input.request}`,

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { NotFoundError, TemplateEditGenerationError, ValidationError } from "@/application/errors";
 import type { AiClientFactory } from "@/application/ports/ai-client-factory";
@@ -41,9 +40,7 @@ export type TemplateEditSessionDependencies = {
   skillLoader: TemplateSkillLoader;
 };
 
-function hashValues(values: TemplateParamValues): string {
-  return createHash("sha256").update(JSON.stringify(values)).digest("hex");
-}
+import { hashTemplateEditValues as hashValues } from "./template-edit-values-hash";
 
 function cleanMessage(value: unknown): string {
   const message = typeof value === "string" ? value.trim() : "";
@@ -333,7 +330,35 @@ export async function continueTemplateEditSession(
       history,
     });
 
-    if (planned.status === "clarification") {
+    if (planned.status === "noop") {
+      const reply = createTemplateEditMessage("assistant", planned.message);
+      state = appendTemplateEditMessage(
+        {
+          ...state,
+          pendingProposal: null,
+          pendingCandidate: null,
+          pendingBaseHash: null,
+        },
+        reply,
+      );
+      await deps.audit.record({
+        organizationId: organizationOf(actor),
+        linkId: context.linkId,
+        sessionId,
+        messageId: reply.id,
+        turnId,
+        actorId: actor.id,
+        event: "noop",
+        stage,
+        templateId: context.templateId,
+        templateVersion: context.templateVersion,
+        content: reply.content,
+        beforeHash: hashValues(workingParams),
+        warnings: planned.warnings,
+        rawResponse: planned.rawPlan,
+        metadata: { selection, surface: context.surface, attempts: planned.attempts },
+      });
+    } else if (planned.status === "clarification") {
       const reply = createTemplateEditMessage("assistant", planned.message);
       state = appendTemplateEditMessage(
         { ...state, pendingProposal: null, pendingCandidate: null },
@@ -473,11 +498,18 @@ export async function applyTemplateEditSessionProposal(
   if (session === null) throw new NotFoundError("Session d’édition introuvable");
   const proposal = session.state.pendingProposal;
   if (proposal === null) throw new ValidationError("Aucune proposition en attente");
+  if (
+    session.state.pendingBaseHash !== undefined &&
+    session.state.pendingBaseHash !== null &&
+    hashValues(context.workingParams) !== session.state.pendingBaseHash
+  ) {
+    throw new ValidationError("PLAN_STALE : le brouillon a changé depuis la proposition");
+  }
 
   const result = applyTemplateEditProposal({
     editor: context.editor,
     schema: context.schema,
-    values: session.state.workingParams,
+    values: context.workingParams,
     proposal,
   });
   if (!result.ok) {
@@ -496,6 +528,7 @@ export async function applyTemplateEditSessionProposal(
       workingParams: result.values,
       pendingProposal: null,
       pendingCandidate: null,
+      pendingBaseHash: null,
     },
     appliedMessage,
   );

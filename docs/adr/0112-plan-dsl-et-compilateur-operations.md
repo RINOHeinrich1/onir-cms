@@ -66,6 +66,8 @@ Un plan contient zéro ou plusieurs étapes :
 ```ts
 type TemplateEditPlanV1 = {
   schemaVersion: 1;
+  intent?: "create" | "reuse" | "update" | "noop";
+  baseHash?: string;
   steps: TemplateEditPlanStepV1[];
   warnings?: string[];
   clarification?: string | null;
@@ -109,9 +111,19 @@ Champ d’un candidat :
   "op": "set",
   "candidateId": "blocks:23adba46-...",
   "field": "action_id",
-  "value": "ce5acde8-..."
+  "value": { "$candidate": "actions:go-services" }
 }
 ```
+
+Les valeurs de référence sont explicitement typées :
+
+```json
+{ "$candidate": "actions:go-services" }
+{ "$ref": "create-action" }
+```
+
+Une chaîne brute n’est pas une référence métier valide dans un champ référentiel.
+Le compiler vérifie le type attendu avec `editor.references`.
 
 Le compiler transforme la seconde forme en :
 
@@ -183,20 +195,31 @@ Toutes les cibles utilisent un `candidateId` ou une référence `$ref` :
 }
 ```
 
-### 4. Compilation stricte avant exécution
+### 4. Compilation structurelle et résolution différée
 
-Le compiler doit :
+Le compiler ne peut pas produire tous les IDs avant l’exécution : les IDs sont
+générés par l’hôte pendant les insertions.
+
+Le compiler doit donc :
 
 1. valider le schéma du plan ;
 2. vérifier que chaque `candidateId` existe ;
 3. vérifier que chaque `collection` existe ;
 4. vérifier que chaque `field` existe dans le schéma de la collection ;
-5. vérifier que chaque `kind` est autorisé ;
-6. résoudre les `$ref` vers des étapes **précédentes uniquement** ;
-7. vérifier qu’aucune référence n’est inventée ;
-8. produire des `TemplateEditOperation` typées.
+5. vérifier que chaque `field` est compatible avec le `kind` de l’élément ;
+6. vérifier les `visibleWhen` et compatibilités parent/enfant ;
+7. vérifier les références `$candidate` et `$ref` vers des étapes précédentes ;
+8. produire un plan symbolique typé.
 
-Aucune étape ne doit être exécutée avant la compilation complète réussie.
+Puis l’exécuteur :
+
+1. exécute les étapes dans l’ordre ;
+2. génère les IDs réels ;
+3. enregistre `refs[step.id]` ;
+4. résout `$ref:<stepId>` au moment de l’exécution ;
+5. valide chaque étape avant de continuer.
+
+Aucune étape n’est exécutée si la validation structurelle du plan échoue.
 
 ### 5. Erreurs structurées
 
@@ -221,11 +244,15 @@ Autres codes :
 - `UNKNOWN_FIELD`
 - `UNKNOWN_REF`
 - `INVALID_REF_ORDER`
+- `INVALID_REFERENCE_TYPE`
 - `INVALID_KIND`
+- `INVALID_FIELD_FOR_KIND`
 - `INVALID_STEP_ID`
 - `EMPTY_PLAN_WITHOUT_CLARIFICATION`
 - `STEPS_AND_CLARIFICATION_CONFLICT`
 - `TOO_MANY_STEPS`
+- `PLAN_STALE`
+- `POSTCONDITION_FAILED`
 
 Le retry reçoit ces erreurs structurées, le plan précédent et les candidats.
 
@@ -244,15 +271,64 @@ Il reçoit :
 
 Il doit corriger la structure, pas inventer un nouvel ID.
 
-### 7. Réutilisation d’un objet existant
+### 7. Create / reuse / update / noop
 
-Quand une page ou un élément existe déjà, le planner doit :
+Le plan doit formaliser son intention :
+
+```text
+create  → créer un nouvel objet
+reuse   → réutiliser explicitement un objet existant
+update  → modifier un objet existant
+noop    → ne rien modifier
+```
+
+Exemple :
+
+```json
+{
+  "intent": "noop",
+  "message": "La page est déjà rattachée à ce menu."
+}
+```
+
+Quand un objet existe déjà, le planner doit :
 
 - le réutiliser explicitement ; ou
 - demander une clarification.
 
-Il ne doit pas créer un doublon silencieux.  
-Le plan doit indiquer `reuse` ou `create` lorsque le choix est ambigu.
+Il ne doit pas créer un doublon silencieux.
+
+### 7.1 Révision de l’état
+
+Le plan porte un `baseHash`. Avant application :
+
+```text
+baseHash du plan ≠ hash courant
+→ PLAN_STALE
+→ aucune mutation
+```
+
+Cela protège contre une modification manuelle pendant la génération du plan.
+
+### 7.2 Postconditions (P1)
+
+Les skills/recettes peuvent déclarer des postconditions vérifiées sur l’état final simulé :
+
+```json
+{
+  "postconditions": [
+    {
+      "type": "referenceEquals",
+      "source": "$ref:menu",
+      "field": "action_id",
+      "target": "$ref:action"
+    }
+  ]
+}
+```
+
+Une postcondition fausse rejette le plan avant sauvegarde.  
+Ce mécanisme est P1 : il ne remplace pas la validation syntaxique et référentielle.
 
 ### 8. Frontière avec les skills
 
@@ -287,6 +363,7 @@ Pour chaque tentative de plan, l’audit doit contenir :
 - digest du contexte planner ;
 - plan brut ;
 - plan compilé ;
+- `baseHash` ;
 - erreurs structurées ;
 - résultat du retry ;
 - version du Plan DSL.
@@ -368,6 +445,10 @@ Refusé : un format accepté aujourd’hui par accident devient un contrat impli
 - Un `$ref` vers une étape future produit `INVALID_REF_ORDER`.
 - Un plan avec `steps` et `clarification` est rejeté.
 - Un plan valide avec page, action et menu item s’exécute via `$ref`.
+- Une référence de type page dans `action_id` est rejetée.
+- Un `$ref` vers une étape future est rejeté.
+- Un plan sans rattachement demandé échoue sur la postcondition.
+- Un plan obsolète est refusé via `baseHash`.
 - Un warning vide sans plan devient une clarification visible.
 - Aucun ID réel n’est inventé par l’IA.
 - Le retry reçoit les erreurs structurées et ne peut pas contourner le compiler.

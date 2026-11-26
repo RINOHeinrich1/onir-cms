@@ -186,16 +186,82 @@ Le core sait faire `insert`, `insertChild`, `set`, etc., mais pas exprimer :
 
 ## 10. Priorités de traitement
 
-| Priorité | Sujet | État |
+| Priorité | Sujet | État après ADR-0111/0112 |
 |---|---|---|
-| P0 | Intégrité référentielle | À faire |
-| P0 | `turnId`, idempotence, événement terminal | À faire |
-| P1 | Sélection vs intention | À faire |
-| P1 | Skills de template | Cadrage ADR-0110 |
-| P1 | Observabilité brute des erreurs IA | À faire |
+| P0 | Intégrité référentielle | Partiel : le compiler vérifie les références typées du DSL ; `applyTemplateEditProposal` ne valide pas encore toutes les références finales |
+| P0 | `turnId`, idempotence, événement terminal | Partiel : `turnId` + événements terminaux + `error`/`proposal_rejected` ; idempotence client non faite |
+| P1 | Sélection vs intention | Partiel : la sélection n’est plus exclusive ; politique `create/reuse/update/noop` non complète |
+| P1 | Skills de template | Implémenté : ADR-0110, loader, routage IA, audit |
+| P1 | Observabilité brute des erreurs IA | Implémenté : `raw_response`, `validation_errors`, `stage`, `turn_id` |
 | P1 | Découplage des conventions de structure | À faire |
-| P2 | Opérations composites via skills | À faire après skills |
+| P2 | Opérations composites via skills | Partiel : Plan DSL + `$ref` + planner ; compositions Puzzle à recetter |
 | P2 | Conservation/export des sessions | À définir |
+| P0 | Plan DSL / compilateur | Implémenté : validation stricte, références typées, `$ref`, `noop` |
+| P1 | Révision d’état | Partiel : `baseHash` sur le brouillon de session ; pas encore de vérification de révision du lien en base |
+| P1 | `create` / `reuse` / `update` | `noop` fait ; les trois autres restent à formaliser dans le planner |
+| P1 | Postconditions | À faire |
+| P1 | Validation `kind` / `visibleWhen` | À faire |
+| P1 | Structured outputs | À faire |
+| P2 | Budget > 20 étapes | À définir (sous-plans atomiques) |
+
+## 12. Limites restantes après le planner et le compilateur
+
+### 12.1 Révision d’état
+
+`baseHash` protège le brouillon de session.  
+Il ne vérifie pas encore une modification concurrente du lien en base entre la proposition et l’application finale.
+
+À faire : comparer la révision du lien au moment du `PATCH /api/links/:id`.
+
+### 12.2 Intentions
+
+`noop` est opérationnel.  
+`create`, `reuse` et `update` ne sont pas encore des politiques complètes :
+
+- page existante : réutiliser ou créer ?
+- élément déjà correct : ne rien faire ?
+- doublon : refuser ?
+
+### 12.3 Postconditions
+
+Un plan peut être syntaxiquement valide et fonctionnellement incomplet.
+
+À faire : postconditions déclaratives dans les skills/recettes, évaluées sur l’état final simulé.
+
+### 12.4 Champs par kind
+
+Le compiler vérifie le schéma de collection, mais pas encore complètement :
+
+- `kind` du composant ;
+- `visibleWhen` ;
+- compatibilité parent/enfant.
+
+### 12.5 Audit du plan
+
+`plan_raw` est audité dans `proposal_created` / `proposal_rejected`.  
+Il manque encore :
+
+- `plan_compiled` ;
+- digest du contexte planner ;
+- valeurs courantes des candidats dans `target_candidates`.
+
+### 12.6 Sorties structurées
+
+Le planner reste dépendant d’un JSON + validation + retry.  
+Le support JSON Schema strict du fournisseur n’est pas encore utilisé.
+
+### 12.7 Budget de plan
+
+La limite de 20 étapes est une règle V1.  
+Les compositions plus complexes nécessiteront des recettes, sous-plans ou un budget configurable, tout en conservant l’atomicité globale.
+
+### 12.8 Idempotence
+
+Un `clientMessageId` n’est pas encore utilisé pour empêcher les doubles envois. Les doublons restent possibles.
+
+### 12.9 Recette Puzzle
+
+Le Plan DSL, le compilateur et `$ref` sont testés unitairement, mais le parcours complet Puzzle doit encore être validé en préprod avec les skills `1.1.0-beta.4`.
 
 ## 11. Règle de conception
 

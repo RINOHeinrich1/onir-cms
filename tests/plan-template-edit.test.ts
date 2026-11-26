@@ -47,18 +47,14 @@ describe("planner d’édition avec retry borné", () => {
         aiFactory: fixedAiClientFactory(
           sequenceAi([
             JSON.stringify({
+              schemaVersion: 1,
               steps: [
                 {
                   id: "bad",
                   operation: {
                     op: "set",
-                    target: {
-                      kind: "collectionItemField",
-                      collection: "blocks",
-                      itemKey: "id",
-                      itemId: "ghost",
-                      field: "title",
-                    },
+                    candidateId: "blocks:ghost",
+                    field: "title",
                     value: "x",
                   },
                 },
@@ -67,18 +63,14 @@ describe("planner d’édition avec retry borné", () => {
               clarification: null,
             }),
             JSON.stringify({
+              schemaVersion: 1,
               steps: [
                 {
                   id: "good",
                   operation: {
                     op: "set",
-                    target: {
-                      kind: "collectionItemField",
-                      collection: "blocks",
-                      itemKey: "id",
-                      itemId: "card_one",
-                      field: "title",
-                    },
+                    candidateId: "blocks:card_one",
+                    field: "title",
                     value: "Titre corrigé",
                   },
                 },
@@ -99,12 +91,37 @@ describe("planner d’édition avec retry borné", () => {
     expect(result.proposal.operations).toHaveLength(1);
   });
 
+  it("retourne noop quand la demande est déjà satisfaite", async () => {
+    const result = await planTemplateEdit(
+      {
+        aiFactory: fixedAiClientFactory(
+          sequenceAi([
+            JSON.stringify({
+              schemaVersion: 1,
+              intent: "noop",
+              steps: [],
+              warnings: [],
+              clarification: "La page est déjà rattachée à ce menu.",
+            }),
+          ]),
+        ),
+      },
+      ADMIN,
+      input("vérifie le rattachement"),
+    );
+
+    expect(result.status).toBe("noop");
+    if (result.status !== "noop") return;
+    expect(result.message).toContain("déjà rattachée");
+  });
+
   it("traite un warning sans opérations comme une clarification", async () => {
     const result = await planTemplateEdit(
       {
         aiFactory: fixedAiClientFactory(
           sequenceAi([
             JSON.stringify({
+              schemaVersion: 1,
               steps: [],
               warnings: ["Je ne trouve pas l’élément de menu demandé."],
               clarification: null,

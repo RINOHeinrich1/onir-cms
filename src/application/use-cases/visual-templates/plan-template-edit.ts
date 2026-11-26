@@ -2,7 +2,8 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { ValidationError } from "@/application/errors";
 import type { AiClientFactory, ResolvedAiTarget } from "@/application/ports/ai-client-factory";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
-import { executeTemplateEditPlan, type TemplateEditPlan } from "@/domain/template-edit-plan";
+import { executeTemplateEditPlan } from "@/domain/template-edit-plan";
+import { compileTemplateEditPlan } from "@/domain/template-edit-plan-compiler";
 import type { TemplateEditProposal } from "@/domain/template-edit-proposal";
 import type { TemplateEditCandidate, TemplateEditPageContext } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest } from "@/domain/template-editor";
@@ -38,6 +39,13 @@ export type PlanTemplateEditResult =
       attempts: number;
     }
   | {
+      status: "noop";
+      message: string;
+      warnings: string[];
+      rawPlan: unknown;
+      attempts: number;
+    }
+  | {
       status: "clarification";
       message: string;
       warnings: string[];
@@ -54,36 +62,6 @@ export type PlanTemplateEditResult =
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function parsePlan(value: Record<string, unknown>): TemplateEditPlan | null {
-  if (!Array.isArray(value.steps)) return null;
-  const steps = value.steps.filter(isRecord).flatMap((step) => {
-    const id = text(step.id);
-    const operation = step.operation;
-    if (id === "" || !isRecord(operation) || text(operation.op) === "") return [];
-    return [
-      {
-        id,
-        description: text(step.description),
-        operation: operation as unknown as TemplateEditPlan["steps"][number]["operation"],
-      },
-    ];
-  });
-  if (steps.length !== value.steps.length) return null;
-  const warnings = Array.isArray(value.warnings)
-    ? value.warnings.filter((entry): entry is string => typeof entry === "string")
-    : [];
-  const clarification = text(value.clarification);
-  return {
-    steps,
-    warnings,
-    ...(clarification === "" ? {} : { clarification }),
-  };
 }
 
 function resolveProviderInput(input: PlanTemplateEditInput): {
@@ -133,8 +111,9 @@ export async function planTemplateEdit(
   const client = await deps.aiFactory.forTarget(resolvedTarget, "assistant");
 
   let previousErrors: string[] = [];
-  let previousPlan: TemplateEditPlan | null = null;
+  let previousPlan: unknown = null;
   let lastRaw: unknown = null;
+  let lastWarnings: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const prompt = buildTemplateEditPlanPrompt({
@@ -150,10 +129,30 @@ export async function planTemplateEdit(
     });
     const raw = await callStructuredAi(client, prompt);
     lastRaw = raw;
-    const plan = parsePlan(raw);
-    if (plan === null) {
-      previousErrors = ["plan JSON mal formé"];
+    const compiled = compileTemplateEditPlan({
+      plan: raw,
+      editor: input.editor,
+      schema: input.schema,
+      candidates: input.candidates,
+    });
+    if (!compiled.ok) {
+      previousErrors = compiled.errors.map(
+        (error) => `${error.code} ${error.path} : ${error.message}`,
+      );
+      previousPlan = raw;
       continue;
+    }
+    const plan = compiled.value.plan;
+    lastWarnings = plan.warnings ?? [];
+    if (plan.steps.length === 0 && compiled.value.intent === "noop") {
+      const message = plan.clarification ?? (plan.warnings ?? []).join(" ");
+      return {
+        status: "noop",
+        message: message === "" ? "Aucune modification n’est nécessaire." : message,
+        warnings: plan.warnings ?? [],
+        rawPlan: raw,
+        attempts: attempt,
+      };
     }
     if (plan.steps.length === 0) {
       const message = plan.clarification ?? (plan.warnings ?? []).join(" ");
@@ -192,14 +191,14 @@ export async function planTemplateEdit(
       };
     }
 
-    previousPlan = plan;
+    previousPlan = raw;
     previousErrors = execution.errors.map((error) => `${execution.stepId ?? "plan"} : ${error}`);
   }
 
   return {
     status: "rejected",
     errors: previousErrors,
-    warnings: previousPlan?.warnings ?? [],
+    warnings: lastWarnings,
     rawPlan: lastRaw,
     attempts: MAX_ATTEMPTS,
   };
