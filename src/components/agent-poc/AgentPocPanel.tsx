@@ -277,16 +277,40 @@ export function AgentPocPanel({
           return;
         }
 
-        if (planned.status === "rejected" || planned.status === "noop" || planned.values === null) {
+        if (planned.status === "noop") {
+          log({
+            title: "Aucune modification",
+            detail: planned.warnings.join(" ; ") || "La demande semble déjà satisfaite.",
+            status: "success",
+          });
+          setFinalStatus("Aucune modification nécessaire");
+          return;
+        }
+
+        if (planned.status === "rejected") {
+          const reason =
+            planned.errors.join(" ; ") || planned.warnings.join(" ; ") || "Plan rejeté";
+          log({
+            title: `Plan rejeté ${attempt}`,
+            detail: reason,
+            status: "warning",
+          });
+          sameErrorCount = reason === lastReason ? sameErrorCount + 1 : 1;
+          lastReason = reason;
+          if (sameErrorCount >= MAX_SAME_ERROR) {
+            setFinalStatus("Même erreur de plan répétée");
+            return;
+          }
+          continue;
+        }
+
+        if (planned.values === null) {
           log({
             title: "Plan non applicable",
-            detail:
-              planned.errors.join(" ; ") || planned.warnings.join(" ; ") || "Aucune opération",
-            status: planned.status === "noop" ? "success" : "error",
+            detail: planned.warnings.join(" ; ") || "Aucune valeur proposée",
+            status: "error",
           });
-          setFinalStatus(
-            planned.status === "noop" ? "Aucune modification nécessaire" : "Échec du plan",
-          );
+          setFinalStatus("Échec du plan");
           return;
         }
 
