@@ -101,8 +101,16 @@ export function AgentPocPanel({
   const waitForPreview = async (): Promise<Document> => {
     for (let index = 0; index < 80; index += 1) {
       const doc = iframeRef.current?.contentDocument;
+      const ready = doc?.querySelector('[data-onirtech-ready="1"]');
       const host = doc?.querySelector("onirtech-template-puzzle");
-      if (doc !== null && doc !== undefined && host?.getAttribute("data-onirtech-ready") === "1") {
+      if (
+        doc !== null &&
+        doc !== undefined &&
+        ready !== null &&
+        ready !== undefined &&
+        host !== null &&
+        host !== undefined
+      ) {
         await delay(150);
         return doc;
       }
