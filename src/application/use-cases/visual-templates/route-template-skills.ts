@@ -37,6 +37,7 @@ export type RouteTemplateSkillsInput = {
   skills: LoadedTemplateSkill[];
   history?: TemplateEditHistoryMessage[];
   context?: SkillRoutingContext;
+  signal?: AbortSignal;
   providerId?: string;
   model?: string;
 };
@@ -127,7 +128,10 @@ export async function routeTemplateSkills(
     ...(input.history === undefined ? {} : { history: input.history }),
     ...(input.context === undefined ? {} : { context: input.context }),
   });
-  const json = await callStructuredAi(client, prompt);
+  const json = await callStructuredAi(client, {
+    ...prompt,
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
+  });
   const allowed = new Set(input.skills.map((entry) => entry.skill.id));
   const selected = validSkills(json.skills, allowed);
   const always = input.skills

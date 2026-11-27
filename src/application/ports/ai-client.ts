@@ -54,6 +54,8 @@ export type AiCompletionInput = {
   onUsage?: (usage: AiTokenUsage) => void | Promise<void>;
   /** Sous-opération métier (ex. knowledge_selection) pour le journal ADR-0065. */
   usageOperation?: string;
+  /** Annulation de la requête HTTP/IA par l’appelant. */
+  signal?: AbortSignal;
   /** Remonte la raison d'arrêt du fournisseur (`stop`, `length`, …), si exposée. */
   onFinishReason?: (reason: string | null) => void;
 };

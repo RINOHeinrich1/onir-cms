@@ -19,9 +19,14 @@ import type {
   AgentPocSessionState,
   AgentPocStatus,
 } from "@/application/use-cases/visual-templates/agent-poc/agent-session";
+import {
+  type AgentTimeouts,
+  DEFAULT_AGENT_TIMEOUTS,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-timeouts";
 import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
+import { AgentCancelledError, AgentTimeoutError, fetchWithTimeout } from "./agent-request";
 import {
   assistantResultMessage,
   type ChatMessage,
@@ -63,28 +68,6 @@ type PendingInteraction = {
   baseObservation: AgentObservation;
   lastAttempt: AgentAttempt | null;
 };
-
-const PLAN_TIMEOUT_MS = 60_000;
-const VERIFY_TIMEOUT_MS = 30_000;
-
-async function fetchWithTimeout(
-  input: RequestInfo | URL,
-  init: RequestInit,
-  timeoutMs: number,
-  externalSignal?: AbortSignal,
-): Promise<Response> {
-  const controller = new AbortController();
-  const abort = (): void => controller.abort();
-  if (externalSignal?.aborted === true) controller.abort();
-  externalSignal?.addEventListener("abort", abort);
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    window.clearTimeout(timeout);
-    externalSignal?.removeEventListener("abort", abort);
-  }
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -133,6 +116,7 @@ export function AgentPocPanel({
   templateId,
   templateVersion,
   label,
+  timeouts = DEFAULT_AGENT_TIMEOUTS,
 }: {
   linkId: string;
   surface: "page" | "widget";
@@ -140,6 +124,7 @@ export function AgentPocPanel({
   templateId: string | null;
   templateVersion: string | null;
   label: string;
+  timeouts?: AgentTimeouts;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeLoadRef = useRef(0);
@@ -148,6 +133,7 @@ export function AgentPocPanel({
   const revisionRef = useRef(0);
   const runAbortRef = useRef<AbortController | null>(null);
   const cancelRequestedRef = useRef(false);
+  const candidateAppliedRef = useRef(false);
   const activeRequestRef = useRef("");
   const activeAssistantRef = useRef<string | null>(null);
   const traceRef = useRef<AgentLoopEvent[]>([]);
@@ -231,8 +217,9 @@ export function AgentPocPanel({
           ...(token === null ? {} : { token }),
         }),
       },
-      PLAN_TIMEOUT_MS,
+      timeouts.executeMs,
       signal,
+      "preview",
     );
     if (!response.ok) throw new Error("Impossible de préparer l’aperçu");
     const json = (await response.json()) as { token: string };
@@ -444,8 +431,9 @@ export function AgentPocPanel({
           previousErrors: input.previousErrors,
         }),
       },
-      PLAN_TIMEOUT_MS,
+      timeouts.planMs,
       runAbortRef.current?.signal,
+      "thought",
     );
     if (!response.ok) throw new Error("Le planner a échoué");
     const data = (await response.json()) as PlanResponse;
@@ -492,8 +480,9 @@ export function AgentPocPanel({
           request: activeRequestRef.current,
         }),
       },
-      PLAN_TIMEOUT_MS,
+      timeouts.executeMs,
       runAbortRef.current?.signal,
+      "action",
     );
     if (!response.ok) throw new Error("L’exécution du plan a échoué");
     return (await response.json()) as ExecuteResponse;
@@ -516,8 +505,9 @@ export function AgentPocPanel({
           execution: input.execution,
         }),
       },
-      VERIFY_TIMEOUT_MS,
+      timeouts.verifyMs,
       runAbortRef.current?.signal,
+      "observation",
     );
     if (!response.ok) throw new Error("La vérification a échoué");
     return (await response.json()) as AgentVerifyOutcome;
@@ -568,8 +558,9 @@ export function AgentPocPanel({
             surface,
           }),
         },
-        PLAN_TIMEOUT_MS,
+        timeouts.explainMs,
         signal,
+        "observation",
       );
       if (!response.ok) return null;
       const json = (await response.json()) as { message?: unknown };
@@ -585,6 +576,7 @@ export function AgentPocPanel({
     try {
       const restored = await applyPreview(currentParamsRef.current);
       buildAgentObservation({ values: currentParamsRef.current, render: restored.render });
+      candidateAppliedRef.current = false;
       return true;
     } catch (error) {
       setCoherenceLost(true);
@@ -626,6 +618,7 @@ export function AgentPocPanel({
       setInteractionText("");
       setHistoryOpen(false);
       currentParamsRef.current = initialParams;
+      candidateAppliedRef.current = false;
       missionAttemptsRef.current = 0;
       missionStartedAtRef.current = new Date().toISOString();
       missionStatusRef.current = "active";
@@ -635,6 +628,11 @@ export function AgentPocPanel({
     } catch (error) {
       console.error("Nouvelle mission impossible", error);
     }
+  };
+
+  const restoreIfCandidateApplied = async (): Promise<boolean> => {
+    if (!candidateAppliedRef.current) return true;
+    return restoreAccepted();
   };
 
   const runAgent = async (userInstruction = ""): Promise<void> => {
@@ -664,11 +662,13 @@ export function AgentPocPanel({
         values,
         initialAttempts: missionAttemptsRef.current,
         startedAt: missionStartedAtRef.current,
+        maxDurationMs: timeouts.missionMs,
         ports: {
           initialObservation: async () => observeValues(values),
           plan,
           execute,
           observeCandidate: async (candidateValues) => {
+            candidateAppliedRef.current = true;
             const applied = await applyPreview(candidateValues, controller.signal);
             return buildAgentObservation({ values: candidateValues, render: applied.render });
           },
@@ -696,6 +696,7 @@ export function AgentPocPanel({
 
       if (result.status === "success") {
         missionStatusRef.current = "active";
+        candidateAppliedRef.current = false;
         currentParamsRef.current = result.values;
         setCoherenceLost(false);
         addRevision(request, result.values, result.observation.stateHash);
@@ -753,7 +754,7 @@ export function AgentPocPanel({
           controller.signal,
         );
         if (cancelRequestedRef.current) {
-          const restored = await restoreAccepted();
+          const restored = await restoreIfCandidateApplied();
           updateMessage(assistant.id, { content: cancelledMessage(), status: "cancelled" });
           if (!restored) setCoherenceLost(true);
           return;
@@ -768,24 +769,61 @@ export function AgentPocPanel({
           status: "warning",
         });
       }
-    } catch {
-      const aborted = cancelRequestedRef.current || controller.signal.aborted;
-      if (aborted) {
-        const restored = await restoreAccepted();
-        missionStatusRef.current = "paused";
-        updateMessage(assistant.id, { content: cancelledMessage(), status: "cancelled" });
-        if (!restored) setCoherenceLost(true);
-      } else {
-        missionStatusRef.current = "paused";
-        const restored = await restoreAccepted();
+    } catch (error) {
+      missionStatusRef.current = "paused";
+      const timeout = error instanceof AgentTimeoutError;
+      const aborted =
+        cancelRequestedRef.current ||
+        error instanceof AgentCancelledError ||
+        controller.signal.aborted;
+      const candidateWasApplied = candidateAppliedRef.current;
+
+      if (timeout) {
+        const phase =
+          error.phase === "initial-observation" ||
+          error.phase === "thought" ||
+          error.phase === "action" ||
+          error.phase === "observation" ||
+          error.phase === "decision"
+            ? error.phase
+            : "decision";
+        emit({
+          phase,
+          title: "Délai dépassé",
+          detail: `${error.message} · cause=timeout · phase=${error.phase}`,
+          status: "error",
+          durationMs: error.elapsedMs,
+          timeoutMs: error.timeoutMs,
+          cause: "timeout",
+        });
+        const restored = await restoreIfCandidateApplied();
         updateMessage(assistant.id, {
           content: restored
-            ? "Je n’ai pas pu terminer cette demande. L’état précédent de l’aperçu a été restauré."
-            : "Je n’ai pas pu terminer cette demande et je ne peux pas garantir la cohérence de l’aperçu. Recharge la page.",
-          status: restored ? "error" : "error",
+            ? `La phase « ${error.phase} » a dépassé le délai autorisé. ${candidateWasApplied ? "Le candidat a été annulé." : "Aucune modification n’a été appliquée."}`
+            : "La phase a dépassé le délai autorisé et je ne peux pas garantir la cohérence de l’aperçu. Recharge la page.",
+          status: restored ? "warning" : "error",
         });
         if (!restored) setCoherenceLost(true);
+        return;
       }
+
+      if (aborted) {
+        const restored = await restoreIfCandidateApplied();
+        updateMessage(assistant.id, { content: cancelledMessage(), status: "cancelled" });
+        if (!restored) setCoherenceLost(true);
+        return;
+      }
+
+      const restored = await restoreIfCandidateApplied();
+      updateMessage(assistant.id, {
+        content: restored
+          ? candidateWasApplied
+            ? "Je n’ai pas pu terminer cette demande. L’état précédent de l’aperçu a été restauré."
+            : "Je n’ai pas pu terminer cette demande. Aucune modification n’a été appliquée."
+          : "Je n’ai pas pu terminer cette demande et je ne peux pas garantir la cohérence de l’aperçu. Recharge la page.",
+        status: "error",
+      });
+      if (!restored) setCoherenceLost(true);
     } finally {
       activeAssistantRef.current = null;
       runAbortRef.current = null;
@@ -814,6 +852,7 @@ export function AgentPocPanel({
       return;
     }
     currentParamsRef.current = pendingInteraction.values;
+    candidateAppliedRef.current = false;
     missionStatusRef.current = "active";
     lastAttemptRef.current = pendingInteraction.lastAttempt;
     addRevision(
@@ -838,6 +877,7 @@ export function AgentPocPanel({
       const restored = await applyPreview(pendingInteraction.baseValues);
       buildAgentObservation({ values: pendingInteraction.baseValues, render: restored.render });
       currentParamsRef.current = pendingInteraction.baseValues;
+      candidateAppliedRef.current = false;
       missionStatusRef.current = "active";
       updateMessage(pendingInteraction.assistantId, { content: label, status });
       setPendingInteraction(null);
@@ -903,6 +943,7 @@ export function AgentPocPanel({
       const restored = await applyPreview(revisionSnapshot.values);
       buildAgentObservation({ values: revisionSnapshot.values, render: restored.render });
       currentParamsRef.current = revisionSnapshot.values;
+      candidateAppliedRef.current = false;
       missionStatusRef.current = "active";
       setCurrentRevisionId(revisionSnapshot.id);
       setHistoryOpen(false);

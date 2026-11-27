@@ -15,7 +15,7 @@ function isRetryableMessage(message: string): boolean {
  */
 export async function callStructuredAi(
   client: AiClient,
-  input: { system: string; user: string },
+  input: { system: string; user: string; signal?: AbortSignal },
 ): Promise<Record<string, unknown>> {
   let lastError: unknown = null;
   for (const maxTokens of AI_STRUCTURED_TOKEN_BUDGETS) {
@@ -26,6 +26,7 @@ export async function callStructuredAi(
         messages: [{ role: "user", content: input.user }],
         maxTokens,
         structured: true,
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       });
     } catch (error) {
       if (error instanceof AppError) throw error;

@@ -232,6 +232,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
               capabilities: resolved.capabilities,
               onUsage: input.onUsage,
               onFinishReason: input.onFinishReason,
+              ...(input.signal === undefined ? {} : { signal: input.signal }),
             });
           },
           async completeWithTools(input) {
@@ -250,6 +251,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
               capabilities: resolved.capabilities,
               onUsage: input.onUsage,
               onFinishReason: input.onFinishReason,
+              ...(input.signal === undefined ? {} : { signal: input.signal }),
             });
           },
         }),
@@ -296,6 +298,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             capabilities: resolved.capabilities,
             onUsage: input.onUsage,
             onFinishReason: input.onFinishReason,
+            ...(input.signal === undefined ? {} : { signal: input.signal }),
           });
         },
         async completeWithTools(input) {
@@ -314,6 +317,7 @@ export function createAiClientFactory(deps: AiClientFactoryDependencies): AiClie
             capabilities: resolved.capabilities,
             onUsage: input.onUsage,
             onFinishReason: input.onFinishReason,
+            ...(input.signal === undefined ? {} : { signal: input.signal }),
           });
         },
       }),

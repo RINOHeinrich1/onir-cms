@@ -29,7 +29,10 @@ export async function chatCompletion(input: {
 }): Promise<string> {
   const config = aiConfig();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120_000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number(process.env.AI_REQUEST_TIMEOUT_MS ?? 240_000),
+  );
   const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
 
   const body: Record<string, unknown> = {
@@ -56,7 +59,7 @@ export async function chatCompletion(input: {
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Délai d'attente IA dépassé (120 s)");
+      throw new Error("Délai d'attente IA dépassé");
     }
     throw new ProviderHttpError(0, "Service IA injoignable");
   } finally {

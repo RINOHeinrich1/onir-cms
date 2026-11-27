@@ -15,6 +15,7 @@ export type ExplainAgentFailureInput = {
   skills?: unknown;
   capabilities?: unknown;
   candidates?: unknown;
+  signal?: AbortSignal;
 };
 
 export type ExplainAgentFailureDependencies = {
@@ -120,6 +121,7 @@ export async function explainAgentFailure(
     maxTokens: 1_600,
     usageOperation: "agent_failure_explanation",
     reasoning: "disabled",
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
   });
   return truncate(message.trim(), 2_500);
 }

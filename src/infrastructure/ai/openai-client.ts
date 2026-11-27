@@ -36,6 +36,7 @@ export type ProviderChatInput = {
   capabilities?: AiCapabilities | undefined;
   onUsage?: ((usage: AiTokenUsage) => void | Promise<void>) | undefined;
   onFinishReason?: ((reason: string | null) => void) | undefined;
+  signal?: AbortSignal | undefined;
 };
 
 function endpoint(baseUrl: string): string {
@@ -171,7 +172,8 @@ async function postWithRetry(
     response = await post(input, requestBody(input, maxTokens, "max_tokens"), controller.signal);
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Délai d'attente IA dépassé (120 s)");
+      if (input.signal?.aborted === true) throw new Error("Requête IA annulée");
+      throw new Error("Délai d'attente IA dépassé");
     }
     throw new ProviderHttpError(0, "Service IA injoignable");
   }
@@ -188,7 +190,8 @@ async function postWithRetry(
         );
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
-          throw new Error("Délai d'attente IA dépassé (120 s)");
+          if (input.signal?.aborted === true) throw new Error("Requête IA annulée");
+          throw new Error("Délai d'attente IA dépassé");
         }
         throw new ProviderHttpError(0, "Service IA injoignable");
       }
@@ -260,7 +263,13 @@ function parseToolCalls(value: unknown): AiToolCall[] {
 export async function chatCompletionForProvider(input: ProviderChatInput): Promise<string> {
   const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120_000);
+  const abort = (): void => controller.abort();
+  if (input.signal?.aborted === true) controller.abort();
+  input.signal?.addEventListener("abort", abort);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number(process.env.AI_REQUEST_TIMEOUT_MS ?? 240_000),
+  );
 
   try {
     const { json, durationMs } = await postWithRetry(input, maxTokens, controller);
@@ -280,6 +289,7 @@ export async function chatCompletionForProvider(input: ProviderChatInput): Promi
     return completionText.trim();
   } finally {
     clearTimeout(timeout);
+    input.signal?.removeEventListener("abort", abort);
   }
 }
 
@@ -293,7 +303,13 @@ export async function chatCompletionWithToolsForProvider(
 ): Promise<AiToolCompletion> {
   const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120_000);
+  const abort = (): void => controller.abort();
+  if (input.signal?.aborted === true) controller.abort();
+  input.signal?.addEventListener("abort", abort);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number(process.env.AI_REQUEST_TIMEOUT_MS ?? 240_000),
+  );
 
   try {
     const { json, durationMs } = await postWithRetry(input, maxTokens, controller);
@@ -318,5 +334,6 @@ export async function chatCompletionWithToolsForProvider(
     };
   } finally {
     clearTimeout(timeout);
+    input.signal?.removeEventListener("abort", abort);
   }
 }

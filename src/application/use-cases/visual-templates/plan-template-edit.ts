@@ -27,6 +27,7 @@ export type PlanTemplateEditInput = {
   skills: TemplateAiSkillV1[];
   capabilities?: TemplateCapabilityMap;
   history?: TemplateEditHistoryMessage[];
+  signal?: AbortSignal;
   onEvent?: TemplateEditEventSink;
   maxAttempts?: number;
   previousPlan?: unknown;
@@ -171,7 +172,10 @@ export async function planTemplateEdit(
       ...(input.history === undefined ? {} : { history: input.history }),
       ...(previousErrors.length === 0 ? {} : { previousErrors, previousPlan }),
     });
-    const raw = await callStructuredAi(client, prompt);
+    const raw = await callStructuredAi(client, {
+      ...prompt,
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
+    });
     lastRaw = raw;
     emitTemplateEditEvent(input.onEvent, {
       stage: "planner_response",

@@ -103,6 +103,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       skills,
       ...(history.length === 0 ? {} : { history }),
       context: routingContext,
+      signal: request.signal,
     });
     const selected = routed.skills.map((entry) => entry.skill.skill);
     const planned = await planTemplateEdit({ aiFactory: pgAiClientFactory(pool) }, actor, {
@@ -118,6 +119,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       ...(lastAttempt === undefined ? {} : { lastAttempt }),
       ...(history.length === 0 ? {} : { history }),
       planOnly: true,
+      signal: request.signal,
       maxAttempts: 1,
       ...(previousPlan === undefined ? {} : { previousPlan }),
       previousErrors,

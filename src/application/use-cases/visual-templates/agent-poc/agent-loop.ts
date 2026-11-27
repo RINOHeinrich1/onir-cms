@@ -18,6 +18,9 @@ export type AgentLoopEvent = {
   status: AgentLoopStatus;
   attempt?: number;
   stepId?: string;
+  durationMs?: number;
+  timeoutMs?: number;
+  cause?: string;
 };
 
 export type AgentPlanOutcome =
@@ -230,6 +233,7 @@ export async function runAgentLoop(input: {
   values: TemplateParamValues;
   initialAttempts?: number;
   startedAt?: string;
+  maxDurationMs?: number;
   ports: AgentLoopPorts;
 }): Promise<AgentLoopResult> {
   const now = input.ports.now ?? Date.now;
@@ -253,8 +257,9 @@ export async function runAgentLoop(input: {
     status: "success",
   });
 
+  const maxDurationMs = input.maxDurationMs ?? AGENT_MAX_DURATION_MS;
   while (attempt < AGENT_MAX_ITERATIONS) {
-    if (now() - startedAt > AGENT_MAX_DURATION_MS) {
+    if (now() - startedAt > maxDurationMs) {
       input.ports.emit({
         phase: "decision",
         title: "Décision : arrêt",

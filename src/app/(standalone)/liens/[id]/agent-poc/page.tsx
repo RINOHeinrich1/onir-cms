@@ -4,6 +4,7 @@ import { actorCan } from "@/application/actor";
 import { linkListItems } from "@/application/use-cases/links/link-urls";
 import { AgentPocPanel } from "@/components/agent-poc/AgentPocPanel";
 import { type ChatLinkSurface, channelsForLink } from "@/domain/entities/chat";
+import { resolveAgentTimeouts } from "@/infrastructure/config/agent-timeouts";
 import { pgChatLinkRepository } from "@/infrastructure/db/chat-link-repository";
 import { getPool } from "@/infrastructure/db/pool";
 import { getSessionContext } from "@/infrastructure/session/current-user";
@@ -53,6 +54,7 @@ export default async function AgentPocPage({ params, searchParams }: PageProps) 
       templateId={channel.visualTemplateId}
       templateVersion={channel.visualTemplateVersion}
       label={link.label}
+      timeouts={resolveAgentTimeouts()}
     />
   );
 }
