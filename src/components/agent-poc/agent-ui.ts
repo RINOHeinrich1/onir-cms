@@ -13,6 +13,11 @@ export type ChatMessage = {
   trace?: AgentLoopEvent[];
 };
 
+export type ConversationHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export type RevisionSnapshot = {
   id: string;
   label: string;
@@ -27,6 +32,13 @@ export function messageId(prefix: string, sequence: number): string {
 
 export function cloneValues(values: TemplateParamValues): TemplateParamValues {
   return JSON.parse(JSON.stringify(values)) as TemplateParamValues;
+}
+
+export function conversationHistory(messages: ChatMessage[]): ConversationHistoryMessage[] {
+  return messages
+    .filter((message) => message.content.trim() !== "")
+    .slice(-20)
+    .map((message) => ({ role: message.role, content: message.content }));
 }
 
 function shortRequest(request: string): string {

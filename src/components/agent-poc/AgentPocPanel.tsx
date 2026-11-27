@@ -23,6 +23,7 @@ import {
   type ChatMessage,
   cancelledMessage,
   cloneValues,
+  conversationHistory,
   inconsistentMessage,
   messageId,
   type RevisionSnapshot,
@@ -146,6 +147,7 @@ export function AgentPocPanel({
   const activeRequestRef = useRef("");
   const activeAssistantRef = useRef<string | null>(null);
   const traceRef = useRef<AgentLoopEvent[]>([]);
+  const historyRef = useRef<ReturnType<typeof conversationHistory>>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -355,6 +357,7 @@ export function AgentPocPanel({
           request: input.request,
           params: input.values,
           surface,
+          history: historyRef.current,
           observation: input.observation,
           ...(input.lastAttempt === null ? {} : { lastAttempt: input.lastAttempt }),
           ...(input.previousPlan === null ? {} : { previousPlan: input.previousPlan }),
@@ -519,6 +522,7 @@ export function AgentPocPanel({
     runAbortRef.current = controller;
     cancelRequestedRef.current = false;
     activeRequestRef.current = effectiveGoal;
+    historyRef.current = conversationHistory(messages);
     traceRef.current = [];
     const assistant = createMessage("assistant", "", { status: "running", trace: [] });
     activeAssistantRef.current = assistant.id;

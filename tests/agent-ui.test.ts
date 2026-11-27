@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assistantResultMessage,
   cancelledMessage,
+  conversationHistory,
   inconsistentMessage,
 } from "@/components/agent-poc/agent-ui";
 
@@ -56,6 +57,25 @@ describe("messages conversationnels de l’agent", () => {
     expect(message).toContain("Je n’ai pas pu");
     expect(message).not.toContain("C’est fait");
     expect(message).not.toContain("INVALID_");
+  });
+
+  it("ne transmet que les messages conversationnels à l’historique", () => {
+    expect(
+      conversationHistory([
+        { id: "1", role: "user", content: "ajoute une page Services", at: "x" },
+        {
+          id: "2",
+          role: "assistant",
+          content: "Je vérifie la demande.",
+          at: "x",
+          trace: [{ phase: "action", title: "Interne", status: "success" }],
+        },
+        { id: "3", role: "assistant", content: "   ", at: "x" },
+      ]),
+    ).toEqual([
+      { role: "user", content: "ajoute une page Services" },
+      { role: "assistant", content: "Je vérifie la demande." },
+    ]);
   });
 
   it("explique une annulation et une incohérence sans publier", () => {

@@ -113,3 +113,4 @@ ADR qui remplace la précédente.
 | [0114](./0114-human-in-loop-workflow-agentique.md) | Human-in-loop dans la boucle agentique d’édition de template | Proposé |
 | [0115](./0115-unset-references-optionnelles.md) | Sémantique `unset` pour les références optionnelles | Proposé |
 | [0116](./0116-coherence-transactionnelle-apercu-candidat.md) | Cohérence transactionnelle de l’aperçu candidat | Proposé |
+| [0117](./0117-contexte-conversationnel-planner.md) | Contexte conversationnel transmis au planner agentique | Proposé |

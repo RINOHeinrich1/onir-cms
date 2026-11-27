@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AiClient } from "@/application/ports/ai-client";
+import type { AiClient, AiCompletionInput } from "@/application/ports/ai-client";
 import { fixedAiClientFactory } from "@/application/ports/ai-client-factory";
 import { planTemplateEdit } from "@/application/use-cases/visual-templates/plan-template-edit";
 import { collectTemplateEditCandidates } from "@/domain/template-edit-resolver";
@@ -136,5 +136,39 @@ describe("planner d’édition avec retry borné", () => {
     expect(result.status).toBe("clarification");
     if (result.status !== "clarification") return;
     expect(result.message).toContain("élément de menu");
+  });
+});
+
+describe("contexte conversationnel du planner", () => {
+  it("transmet l’historique au prompt du planner", async () => {
+    const calls: AiCompletionInput[] = [];
+    const result = await planTemplateEdit(
+      {
+        aiFactory: fixedAiClientFactory({
+          async complete(input) {
+            calls.push(input);
+            return JSON.stringify({
+              schemaVersion: 1,
+              intent: "noop",
+              steps: [],
+              warnings: [],
+              clarification: "Rien à faire.",
+            });
+          },
+        }),
+      },
+      ADMIN,
+      {
+        ...input("je te laisses corriger"),
+        history: [
+          { role: "user", content: "j’ai besoin d’une base des services" },
+          { role: "assistant", content: "La page Services a été créée." },
+        ],
+      },
+    );
+    expect(result.status).toBe("noop");
+    expect(calls[0]?.messages[0]?.content).toContain("Conversation précédente");
+    expect(calls[0]?.messages[0]?.content).toContain("j’ai besoin d’une base des services");
+    expect(calls[0]?.messages[0]?.content).toContain("La page Services a été créée.");
   });
 });

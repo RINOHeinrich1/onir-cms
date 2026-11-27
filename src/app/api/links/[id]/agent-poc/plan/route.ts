@@ -41,6 +41,19 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const previousPlan = body.previousPlan;
     const observation = body.observation;
     const lastAttempt = body.lastAttempt;
+    const history = Array.isArray(body.history)
+      ? body.history
+          .filter(
+            (entry): entry is Record<string, unknown> =>
+              entry !== null && typeof entry === "object",
+          )
+          .map((entry) => ({
+            role: entry.role === "assistant" ? ("assistant" as const) : ("user" as const),
+            content: typeof entry.content === "string" ? entry.content.slice(0, 4000) : "",
+          }))
+          .filter((entry) => entry.content.trim() !== "")
+          .slice(-20)
+      : [];
     const previousErrors = Array.isArray(body.previousErrors)
       ? body.previousErrors.filter((entry): entry is string => typeof entry === "string")
       : [];
@@ -79,6 +92,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       capabilities,
       ...(observation === undefined ? {} : { observation }),
       ...(lastAttempt === undefined ? {} : { lastAttempt }),
+      ...(history.length === 0 ? {} : { history }),
       planOnly: true,
       maxAttempts: 1,
       ...(previousPlan === undefined ? {} : { previousPlan }),
