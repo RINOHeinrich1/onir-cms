@@ -140,6 +140,8 @@ export function AgentPocPanel({
   const historyRef = useRef<ReturnType<typeof conversationHistory>>([]);
   const sessionIdRef = useRef<string | null>(null);
   const missionAttemptsRef = useRef(0);
+  const missionElapsedMsRef = useRef(0);
+  const missionRunStartedAtRef = useRef<number | null>(null);
   const missionStartedAtRef = useRef(new Date().toISOString());
   const missionStatusRef = useRef<AgentPocStatus>("active");
   const lastAttemptRef = useRef<AgentAttempt | null>(null);
@@ -264,6 +266,7 @@ export function AgentPocPanel({
             setCurrentRevisionId(persisted.currentRevisionId);
             currentParamsRef.current = persisted.acceptedValues;
             missionAttemptsRef.current = persisted.budget.attemptsUsed;
+            missionElapsedMsRef.current = persisted.budget.elapsedMs ?? 0;
             missionStartedAtRef.current = persisted.budget.startedAt;
             missionStatusRef.current = persisted.status;
             lastAttemptRef.current = persisted.lastAttempt;
@@ -310,6 +313,7 @@ export function AgentPocPanel({
         budget: {
           attemptsUsed: missionAttemptsRef.current,
           startedAt: missionStartedAtRef.current,
+          elapsedMs: missionElapsedMsRef.current,
           aiCallsUsed: 0,
         },
       };
@@ -620,6 +624,7 @@ export function AgentPocPanel({
       currentParamsRef.current = initialParams;
       candidateAppliedRef.current = false;
       missionAttemptsRef.current = 0;
+      missionElapsedMsRef.current = 0;
       missionStartedAtRef.current = new Date().toISOString();
       missionStatusRef.current = "active";
       lastAttemptRef.current = null;
@@ -643,6 +648,9 @@ export function AgentPocPanel({
         ? request
         : `${goal.trim()}\n\nPrécision utilisateur : ${request}`;
     const values = currentParamsRef.current;
+    const runStartedAt = Date.now();
+    missionRunStartedAtRef.current = runStartedAt;
+    const budgetStartedAt = new Date(runStartedAt - missionElapsedMsRef.current).toISOString();
     const controller = new AbortController();
     runAbortRef.current = controller;
     cancelRequestedRef.current = false;
@@ -661,7 +669,7 @@ export function AgentPocPanel({
         goal: effectiveGoal,
         values,
         initialAttempts: missionAttemptsRef.current,
-        startedAt: missionStartedAtRef.current,
+        startedAt: budgetStartedAt,
         maxDurationMs: timeouts.missionMs,
         ports: {
           initialObservation: async () => observeValues(values),
@@ -825,6 +833,10 @@ export function AgentPocPanel({
       });
       if (!restored) setCoherenceLost(true);
     } finally {
+      if (missionRunStartedAtRef.current !== null) {
+        missionElapsedMsRef.current += Date.now() - missionRunStartedAtRef.current;
+        missionRunStartedAtRef.current = null;
+      }
       activeAssistantRef.current = null;
       runAbortRef.current = null;
       setRunning(false);

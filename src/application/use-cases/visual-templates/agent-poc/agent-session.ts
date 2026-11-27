@@ -18,6 +18,7 @@ export type AgentPocSessionState = {
   budget: {
     attemptsUsed: number;
     startedAt: string;
+    elapsedMs: number;
     aiCallsUsed: number;
   };
 };
