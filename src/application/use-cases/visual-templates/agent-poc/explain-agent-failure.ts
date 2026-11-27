@@ -10,6 +10,11 @@ export type ExplainAgentFailureInput = {
   trace: AgentLoopEvent[];
   attempt: AgentAttempt | null;
   observation: AgentObservation;
+  values?: unknown;
+  history?: unknown;
+  skills?: unknown;
+  capabilities?: unknown;
+  candidates?: unknown;
 };
 
 export type ExplainAgentFailureDependencies = {
@@ -18,13 +23,19 @@ export type ExplainAgentFailureDependencies = {
 
 const SYSTEM = [
   "Tu es l’assistant d’édition d’interface d’ONIR-CMS.",
-  "Tu expliques à un utilisateur non technique pourquoi une demande n’a pas pu être appliquée.",
-  "Tu dois t’appuyer uniquement sur les faits fournis : demande, trace, tentative, erreurs et observation.",
-  "Réponds en français, en 2 à 5 phrases maximum.",
-  "Explique ce que tu as compris, la cause probable et une ou deux façons de reformuler ou de procéder.",
+  "Tu es aussi un correcteur de plans d’édition d’interface.",
+  "Tu expliques à un utilisateur non technique pourquoi une demande n’a pas pu être appliquée, puis tu proposes la correction la plus probable.",
+  "Tu dois t’appuyer sur tous les faits fournis : demande, historique, trace, tentative, observation, valeurs, skills, capacités et candidats.",
+  "Analyse les erreurs et les contraintes du template avant de conclure.",
+  "Propose une démarche étape par étape pour corriger le problème, avec les contraintes à respecter.",
+  "Ne demande à l’utilisateur que les informations réellement absentes du contexte.",
+  "Ne lui demande pas de reformuler une demande dont les informations sont déjà présentes dans l’historique, l’observation ou les valeurs.",
+  "Si la correction peut être préparée sans information supplémentaire, décris ce que l’agent doit faire, pas ce que l’utilisateur doit répéter.",
+  "Réponds en français, en 3 à 6 phrases maximum.",
   "Ne prétends jamais que la modification a été appliquée.",
   "N’affiche pas d’identifiants internes, de noms de collections, de codes d’erreur bruts ni de logs JSON.",
-  "Ne demande pas de détails que les données fournies contiennent déjà.",
+  "N’écris jamais de token technique entre backticks, de nom en snake_case, de slug interne, d’UUID ou de nom de collection.",
+  "Désigne les éléments par leur libellé visible : « la page Services », « le menu principal », « la liste des services ».",
 ].join("\n");
 
 function truncate(value: string, max: number): string {
@@ -84,6 +95,11 @@ export async function explainAgentFailure(
       render: input.observation.render,
     },
     attempt: compactAttempt(input.attempt),
+    values: input.values,
+    history: input.history,
+    skills: input.skills,
+    capabilities: input.capabilities,
+    candidates: input.candidates,
     trace: input.trace.map((event) => ({
       phase: event.phase,
       status: event.status,
@@ -101,7 +117,7 @@ export async function explainAgentFailure(
         content: truncate(JSON.stringify(context), 24_000),
       },
     ],
-    maxTokens: 1_200,
+    maxTokens: 1_600,
     usageOperation: "agent_failure_explanation",
     reasoning: "disabled",
   });

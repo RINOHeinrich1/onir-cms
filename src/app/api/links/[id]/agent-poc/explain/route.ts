@@ -7,8 +7,16 @@ import type { AgentAttempt } from "@/application/use-cases/visual-templates/agen
 import type { AgentLoopEvent } from "@/application/use-cases/visual-templates/agent-poc/agent-loop";
 import type { AgentObservation } from "@/application/use-cases/visual-templates/agent-poc/agent-observation";
 import { explainAgentFailure } from "@/application/use-cases/visual-templates/agent-poc/explain-agent-failure";
+import { buildTemplateCapabilities } from "@/application/use-cases/visual-templates/template-capabilities";
+import { collectTemplateEditCandidates } from "@/domain/template-edit-resolver";
 import { pgAiClientFactory } from "@/infrastructure/ai/ai-client-factory";
 import { getPool } from "@/infrastructure/db/pool";
+import {
+  loadTemplateEditContext,
+  paramsFrom,
+  surfaceFrom,
+  templateSkillLoaderFor,
+} from "../../ai-edit/context";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,7 +37,7 @@ function object(value: unknown): Record<string, unknown> | null {
 export async function POST(request: Request, context: RouteContext): Promise<NextResponse> {
   try {
     const actor = await requireRole(request, "links:update");
-    await context.params;
+    const { id } = await context.params;
     const body = await readJsonObject(request);
     if (body === null) throw new ValidationError("Requête invalide");
     const requestText = text(body.request);
@@ -39,6 +47,23 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     if (requestText === "" || reason === "" || observation === null) {
       throw new ValidationError("Contexte d’échec incomplet");
     }
+    const pool = getPool();
+    const loaded = await loadTemplateEditContext(pool, actor, id, surfaceFrom(body.surface));
+    const values = paramsFrom(body.params, loaded.workingParams, loaded);
+    const candidates = collectTemplateEditCandidates(
+      {
+        request: requestText,
+        currentPageId: null,
+        editor: loaded.editor,
+        values,
+      },
+      40,
+    );
+    const capabilities = buildTemplateCapabilities(loaded.editor, loaded.schema, values);
+    const skills = await templateSkillLoaderFor(pool).load(
+      loaded.templateId,
+      loaded.templateVersion,
+    );
     const trace: AgentLoopEvent[] = Array.isArray(body.trace)
       ? body.trace
           .filter((entry): entry is Record<string, unknown> => object(entry) !== null)
@@ -51,12 +76,17 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
             ...(typeof entry.stepId === "string" ? { stepId: entry.stepId } : {}),
           }))
       : [];
-    const message = await explainAgentFailure({ aiFactory: pgAiClientFactory(getPool()) }, actor, {
+    const message = await explainAgentFailure({ aiFactory: pgAiClientFactory(pool) }, actor, {
       request: requestText,
       reason,
       trace,
       attempt: attempt as unknown as AgentAttempt | null,
       observation: observation as unknown as AgentObservation,
+      values,
+      history: Array.isArray(body.history) ? body.history : [],
+      skills,
+      capabilities,
+      candidates,
     });
     return NextResponse.json({ message });
   } catch (error) {

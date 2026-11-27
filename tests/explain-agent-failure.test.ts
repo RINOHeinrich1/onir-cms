@@ -33,6 +33,10 @@ describe("explication IA d’un échec", () => {
           },
         ],
         attempt: null,
+        skills: [{ id: "puzzle-page-menu", title: "Créer une page et son entrée de menu" }],
+        capabilities: [{ id: "add_block" }],
+        candidates: [{ collection: "blocks", itemId: "nav_main", label: "Menu principal" }],
+        values: { pages: [{ id: "home" }] },
         observation: {
           revision: 1,
           stateHash: "hash",
@@ -50,7 +54,12 @@ describe("explication IA d’un échec", () => {
     expect(message).toContain("bouton");
     expect(calls).toHaveLength(1);
     expect(calls[0]?.system).toContain("Ne prétends jamais");
+    expect(calls[0]?.system).toContain(
+      "Ne demande à l’utilisateur que les informations réellement absentes",
+    );
     expect(calls[0]?.messages[0]?.content).toContain("colorie le bouton en rouge");
     expect(calls[0]?.messages[0]?.content).toContain("Le parent est inconnu");
+    expect(calls[0]?.messages[0]?.content).toContain("puzzle-page-menu");
+    expect(calls[0]?.messages[0]?.content).toContain("nav_main");
   });
 });
