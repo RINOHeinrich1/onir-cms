@@ -27,6 +27,7 @@ import {
   type AgentTimeouts,
   DEFAULT_AGENT_TIMEOUTS,
 } from "@/application/use-cases/visual-templates/agent-poc/agent-timeouts";
+import type { MissionProgress } from "@/application/use-cases/visual-templates/agent-poc/mission-objective";
 import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
@@ -156,6 +157,7 @@ export function AgentPocPanel({
   const missionStatusRef = useRef<AgentPocStatus>("active");
   const lastAttemptRef = useRef<AgentAttempt | null>(null);
   const memoryRef = useRef<AgentOperationalMemory>(emptyAgentMemory());
+  const missionProgressRef = useRef<MissionProgress | undefined>(undefined);
   const hydratedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -282,6 +284,7 @@ export function AgentPocPanel({
             missionStatusRef.current = persisted.status;
             lastAttemptRef.current = persisted.lastAttempt;
             memoryRef.current = persisted.memory ?? emptyAgentMemory();
+            missionProgressRef.current = persisted.missionProgress;
             await applyPreview(persisted.acceptedValues);
           }
         } catch (error) {
@@ -640,6 +643,7 @@ export function AgentPocPanel({
       missionStatusRef.current = "active";
       lastAttemptRef.current = null;
       memoryRef.current = emptyAgentMemory();
+      missionProgressRef.current = undefined;
       await applyPreview(initialParams);
       hydratedRef.current = true;
     } catch (error) {

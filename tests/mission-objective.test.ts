@@ -60,3 +60,38 @@ describe("contrat des objectifs de mission", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+import {
+  createMissionProgress,
+  setMissionObjectiveStatus,
+} from "@/application/use-cases/visual-templates/agent-poc/mission-objective";
+
+describe("progression de mission", () => {
+  it("crée les objectifs en attente et exige une preuve pour satisfaire", () => {
+    const validation = validateMissionDecomposition({
+      schemaVersion: 1,
+      reason: "raison",
+      objectives: [
+        {
+          key: "objectif-a",
+          title: "Objectif A",
+          goal: "Résultat observable.",
+          acceptanceCriteria: ["Critère."],
+          evidence: [{ kind: "state", description: "Hash." }],
+          dependencies: [],
+          constraints: [],
+        },
+      ],
+    });
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) return;
+    const progress = createMissionProgress("Mission", [], validation.value);
+    expect(progress.objectives[0]?.status).toBe("pending");
+    expect(() => setMissionObjectiveStatus(progress, "objectif-a", "satisfied")).toThrow();
+    const next = setMissionObjectiveStatus(progress, "objectif-a", "satisfied", {
+      revisionId: "rev-1",
+      stateHash: "hash-1",
+    });
+    expect(next.objectives[0]?.status).toBe("satisfied");
+  });
+});

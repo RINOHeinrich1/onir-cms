@@ -271,3 +271,54 @@ function hasCycle(objectives: MissionObjective[]): boolean {
   };
   return objectives.some((objective) => visit(objective.key));
 }
+
+export function createMissionProgress(
+  goal: string,
+  constraints: string[],
+  decomposition: MissionDecomposition,
+): MissionProgress {
+  const objectives: MissionObjectiveState[] = decomposition.objectives.map((objective) => ({
+    id: crypto.randomUUID(),
+    key: objective.key,
+    status: "pending",
+    attempts: 0,
+    plans: 0,
+  }));
+  return {
+    version: 1,
+    goal,
+    constraints,
+    objectives,
+    activeObjectiveId: objectives[0]?.id ?? null,
+  };
+}
+
+export function setMissionObjectiveStatus(
+  progress: MissionProgress,
+  key: string,
+  status: MissionObjectiveStatus,
+  evidence?: { revisionId?: string; stateHash?: string; items?: unknown[] },
+): MissionProgress {
+  const objective = progress.objectives.find((entry) => entry.key === key);
+  if (objective === undefined) throw new Error(`Objectif inconnu : ${key}`);
+  if (
+    status === "satisfied" &&
+    (evidence?.revisionId === undefined || evidence.stateHash === undefined)
+  ) {
+    throw new Error("Un objectif satisfait exige une révision et un hash.");
+  }
+  return {
+    ...progress,
+    objectives: progress.objectives.map((entry) =>
+      entry.key === key
+        ? {
+            ...entry,
+            status,
+            ...(evidence?.revisionId === undefined ? {} : { revisionId: evidence.revisionId }),
+            ...(evidence?.stateHash === undefined ? {} : { stateHash: evidence.stateHash }),
+            ...(evidence?.items === undefined ? {} : { evidence: evidence.items }),
+          }
+        : entry,
+    ),
+  };
+}
