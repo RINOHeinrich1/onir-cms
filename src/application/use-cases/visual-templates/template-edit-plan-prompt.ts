@@ -50,6 +50,7 @@ export function buildTemplateEditPlanPrompt(input: {
   previousErrors?: string[];
   previousPlan?: unknown;
   observation?: unknown;
+  lastAttempt?: unknown;
 }): { system: string; user: string } {
   const candidates = input.candidates.slice(0, MAX_CANDIDATES);
   const collectionParams = new Set(candidates.map((candidate) => candidate.collection));
@@ -103,6 +104,12 @@ export function buildTemplateEditPlanPrompt(input: {
       ...(input.observation === undefined
         ? []
         : [`Observation structurée : ${JSON.stringify(input.observation)}`]),
+      ...(input.lastAttempt === undefined
+        ? []
+        : [
+            `Dernier essai (diagnostic uniquement) : ${JSON.stringify(input.lastAttempt)}`,
+            "Règle : les étapes d’un essai rolled_back ne sont pas acquises ; replayRequired=true signifie qu’il faut les rejouer.",
+          ]),
       ...(input.previousErrors === undefined || input.previousErrors.length === 0
         ? []
         : [

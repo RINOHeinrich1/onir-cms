@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { AgentAttempt } from "@/application/use-cases/visual-templates/agent-poc/agent-attempt";
 import {
   type AgentExecutionOutcome,
   type AgentLoopEvent,
@@ -232,6 +233,7 @@ export function AgentPocPanel({
     request: string;
     values: TemplateParamValues;
     observation: AgentObservation;
+    lastAttempt: AgentAttempt | null;
     previousPlan: unknown;
     previousErrors: string[];
   }): Promise<AgentPlanOutcome> => {
@@ -245,6 +247,7 @@ export function AgentPocPanel({
           params: input.values,
           surface,
           observation: input.observation,
+          ...(input.lastAttempt === null ? {} : { lastAttempt: input.lastAttempt }),
           ...(input.previousPlan === null ? {} : { previousPlan: input.previousPlan }),
           previousErrors: input.previousErrors,
         }),

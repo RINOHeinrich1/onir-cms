@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AgentAttempt } from "@/application/use-cases/visual-templates/agent-poc/agent-attempt";
 import {
   type AgentExecutionOutcome,
   type AgentLoopEvent,
@@ -36,7 +37,18 @@ function execution(ok: boolean): AgentExecutionOutcome {
   return {
     ok,
     values: {},
-    logs: [],
+    logs: [
+      {
+        stepId: "step-1",
+        label: "Étape 1",
+        operation: { op: "set" },
+        status: "success",
+        summary: "set",
+        itemId: null,
+        startedAt: "2026-01-01T00:00:00.000Z",
+        endedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
     errors: ok ? [] : ["postcondition"],
     referenceErrors: [],
     verification: { ok, checks: [] },
@@ -81,13 +93,15 @@ describe("boucle agentique", () => {
   it("rollback et retente après une exécution invalide", async () => {
     const restore = vi.fn(async () => observation(1));
     let attempts = 0;
+    const seenAttempts: AgentAttempt[] = [];
     const result = await runAgentLoop({
       goal: "modifier le titre",
       values: {},
       ports: {
         initialObservation: async () => observation(1),
-        plan: async () => {
+        plan: async (input) => {
           attempts += 1;
+          if (attempts === 2 && input.lastAttempt !== null) seenAttempts.push(input.lastAttempt);
           return {
             status: "planned",
             rawPlan: { step: attempts },
@@ -106,6 +120,9 @@ describe("boucle agentique", () => {
     expect(result.status).toBe("success");
     expect(result.attempts).toBe(2);
     expect(restore).toHaveBeenCalledTimes(1);
+    expect(seenAttempts[0]?.transactionStatus).toBe("rolled_back");
+    expect(seenAttempts[0]?.steps[0]?.effect).toBe("rolled_back");
+    expect(seenAttempts[0]?.steps[0]?.replayRequired).toBe(true);
   });
 
   it("bloque quand le planner repropose le même plan", async () => {

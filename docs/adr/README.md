@@ -109,3 +109,4 @@ ADR qui remplace la précédente.
 | [0110](./0110-template-skills-installes-avec-version.md) | Skills de template installés avec la version du template | Proposé |
 | [0111](./0111-planner-edition-ia-references-retry.md) | Planner d’édition IA, références symboliques et retry borné | Proposé |
 | [0112](./0112-plan-dsl-et-compilateur-operations.md) | Plan DSL et compilateur d’opérations pour l’édition IA | Proposé |
+| [0113](./0113-boucle-agentique-fidele.md) | Boucle agentique fidèle pour l’édition IA de l’interface de template | Proposé |

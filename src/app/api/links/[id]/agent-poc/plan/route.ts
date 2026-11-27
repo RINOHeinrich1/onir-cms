@@ -40,6 +40,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const values = paramsFrom(body.params, loaded.workingParams, loaded);
     const previousPlan = body.previousPlan;
     const observation = body.observation;
+    const lastAttempt = body.lastAttempt;
     const previousErrors = Array.isArray(body.previousErrors)
       ? body.previousErrors.filter((entry): entry is string => typeof entry === "string")
       : [];
@@ -77,6 +78,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       skills: selected,
       capabilities,
       ...(observation === undefined ? {} : { observation }),
+      ...(lastAttempt === undefined ? {} : { lastAttempt }),
       planOnly: true,
       maxAttempts: 1,
       ...(previousPlan === undefined ? {} : { previousPlan }),

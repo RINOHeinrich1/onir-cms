@@ -72,7 +72,7 @@ function number(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function stateHash(value: unknown): string {
+export function hashAgentState(value: unknown): string {
   const source = JSON.stringify(value);
   let hash = 2166136261;
   for (let index = 0; index < source.length; index += 1) {
@@ -96,7 +96,7 @@ export function buildAgentObservation(input: {
 
   return {
     revision: input.render.revision,
-    stateHash: stateHash(input.values),
+    stateHash: hashAgentState(input.values),
     counts: {
       pages: pages.length,
       regions: regions.length,

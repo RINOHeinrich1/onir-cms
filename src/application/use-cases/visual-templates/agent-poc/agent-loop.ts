@@ -1,5 +1,6 @@
 import type { TemplateParamValues } from "@/domain/template-params";
-import type { AgentObservation } from "./agent-observation";
+import type { AgentAttempt } from "./agent-attempt";
+import { type AgentObservation, hashAgentState } from "./agent-observation";
 
 export type AgentLoopPhase =
   | "initial-observation"
@@ -81,6 +82,7 @@ export type AgentLoopPorts = {
     request: string;
     values: TemplateParamValues;
     observation: AgentObservation;
+    lastAttempt: AgentAttempt | null;
     previousPlan: unknown;
     previousErrors: string[];
   }) => Promise<AgentPlanOutcome>;
@@ -105,6 +107,7 @@ export type AgentLoopResult =
       values: TemplateParamValues;
       observation: AgentObservation;
       attempts: number;
+      lastAttempt: AgentAttempt | null;
     }
   | {
       status: "failed" | "blocked";
@@ -112,6 +115,7 @@ export type AgentLoopResult =
       values: TemplateParamValues;
       observation: AgentObservation;
       attempts: number;
+      lastAttempt: AgentAttempt | null;
     }
   | {
       status: "clarification";
@@ -119,6 +123,7 @@ export type AgentLoopResult =
       values: TemplateParamValues;
       observation: AgentObservation;
       attempts: number;
+      lastAttempt: AgentAttempt | null;
     };
 
 export const AGENT_MAX_ITERATIONS = 10;
@@ -136,10 +141,37 @@ function planSignature(rawPlan: unknown): string {
   return JSON.stringify(rawPlan ?? null);
 }
 
+function rolledBack(attempt: AgentAttempt): AgentAttempt {
+  return {
+    ...attempt,
+    transactionStatus: "rolled_back",
+    steps: attempt.steps.map((step) => ({
+      ...step,
+      effect: "rolled_back",
+      replayRequired: true,
+    })),
+  };
+}
+
+function committed(attempt: AgentAttempt, candidateHash: string): AgentAttempt {
+  return {
+    ...attempt,
+    candidateHash,
+    committedHash: candidateHash,
+    transactionStatus: "committed",
+    steps: attempt.steps.map((step) => ({
+      ...step,
+      effect: step.status === "success" ? "committed" : "not_applied",
+      replayRequired: step.status !== "success",
+    })),
+  };
+}
+
 /**
  * Exécute la boucle fidèle :
- * observation initiale -> pensée -> action -> observation -> décision.
- * Les ports sont responsables des appels réseau et de l’aperçu.
+ * observation initiale -> pensée -> action -> observation -> décision -> commit/rollback.
+ * Chaque tentative est matérialisée par un Attempt ; les succès rollbackés
+ * restent des informations de diagnostic et ne sont jamais considérés comme acquis.
  */
 export async function runAgentLoop(input: {
   goal: string;
@@ -150,11 +182,14 @@ export async function runAgentLoop(input: {
   const startedAt = now();
   const currentValues = input.values;
   let currentObservation = await input.ports.initialObservation();
+  const committedHash = currentObservation.stateHash;
+  let lastAttempt: AgentAttempt | null = null;
   let previousPlan: unknown = null;
   let previousErrors: string[] = [];
   let lastErrorSignature = "";
   let sameErrorCount = 0;
   let seenPlan = "";
+  let seenBaseHash = "";
   let attempt = 0;
 
   input.ports.emit({
@@ -178,14 +213,16 @@ export async function runAgentLoop(input: {
         values: currentValues,
         observation: currentObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
 
     attempt += 1;
+    const baseHash = committedHash;
     input.ports.emit({
       phase: "thought",
       title: `Pensée ${attempt}/${AGENT_MAX_ITERATIONS}`,
-      detail: "Construction du plan",
+      detail: "Construction du plan depuis l’état committed",
       status: "running",
       attempt,
     });
@@ -194,6 +231,7 @@ export async function runAgentLoop(input: {
       request: input.goal,
       values: currentValues,
       observation: currentObservation,
+      lastAttempt,
       previousPlan,
       previousErrors,
     });
@@ -212,6 +250,7 @@ export async function runAgentLoop(input: {
         values: currentValues,
         observation: currentObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
 
@@ -228,6 +267,7 @@ export async function runAgentLoop(input: {
         values: currentValues,
         observation: currentObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
 
@@ -251,29 +291,32 @@ export async function runAgentLoop(input: {
           values: currentValues,
           observation: currentObservation,
           attempts: attempt,
+          lastAttempt,
         };
       }
       continue;
     }
 
     const signature = planSignature(planned.rawPlan);
-    if (signature === seenPlan) {
+    if (signature === seenPlan && baseHash === seenBaseHash) {
       input.ports.emit({
         phase: "decision",
         title: "Décision : arrêt",
-        detail: "Le planner a reproposé exactement le même plan.",
+        detail: "Le planner a reproposé le même plan sur le même état de départ.",
         status: "error",
         attempt,
       });
       return {
         status: "blocked",
-        reason: "Le planner a reproposé exactement le même plan.",
+        reason: "Le planner a reproposé le même plan sur le même état de départ.",
         values: currentValues,
         observation: currentObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
     seenPlan = signature;
+    seenBaseHash = baseHash;
     input.ports.emit({
       phase: "thought",
       title: "Plan accepté",
@@ -294,6 +337,27 @@ export async function runAgentLoop(input: {
       values: currentValues,
       rawPlan: planned.rawPlan,
     });
+    const candidateHash = hashAgentState(execution.values);
+    let currentAttempt: AgentAttempt = {
+      attemptId: `attempt-${attempt}`,
+      baseHash,
+      candidateHash,
+      committedHash,
+      transactionStatus: "applied",
+      steps: execution.logs.map((log) => ({
+        stepId: log.stepId,
+        status: log.status === "success" ? "success" : "failed",
+        effect: log.status === "success" ? "applied_to_candidate" : "not_applied",
+        replayRequired: true,
+        error: log.status === "error" ? log.summary : null,
+        operation: log.operation,
+        itemId: log.itemId,
+      })),
+      referenceErrors: execution.referenceErrors,
+      postconditions: execution.verification.checks,
+      errors: execution.errors,
+      planRaw: planned.rawPlan,
+    };
 
     for (const log of execution.logs) {
       input.ports.emit({
@@ -312,6 +376,8 @@ export async function runAgentLoop(input: {
         ...execution.referenceErrors,
         ...execution.verification.checks.filter((check) => !check.ok).map((check) => check.message),
       ];
+      currentAttempt = { ...currentAttempt, errors };
+      lastAttempt = rolledBack(currentAttempt);
       previousPlan = planned.rawPlan;
       previousErrors = errors;
       const errorSignatureValue = errorSignature(errors);
@@ -324,12 +390,11 @@ export async function runAgentLoop(input: {
         status: "error",
         attempt,
       });
-      const restored = await input.ports.restore(currentValues);
-      currentObservation = restored;
+      currentObservation = await input.ports.restore(currentValues);
       input.ports.emit({
         phase: "decision",
         title: "Décision : rollback",
-        detail: "État courant restauré.",
+        detail: "État committed restauré.",
         status: "warning",
         attempt,
       });
@@ -340,6 +405,7 @@ export async function runAgentLoop(input: {
           values: currentValues,
           observation: currentObservation,
           attempts: attempt,
+          lastAttempt,
         };
       }
       continue;
@@ -351,6 +417,8 @@ export async function runAgentLoop(input: {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Observation du candidat impossible.";
+      currentAttempt = { ...currentAttempt, errors: [message] };
+      lastAttempt = rolledBack(currentAttempt);
       previousPlan = planned.rawPlan;
       previousErrors = [message];
       input.ports.emit({
@@ -364,6 +432,11 @@ export async function runAgentLoop(input: {
       continue;
     }
 
+    currentAttempt = {
+      ...currentAttempt,
+      candidateHash: candidateObservation.stateHash,
+      committedHash,
+    };
     input.ports.emit({
       phase: "observation",
       title: "Observation du candidat",
@@ -379,6 +452,8 @@ export async function runAgentLoop(input: {
     });
 
     if (verified.satisfied) {
+      const finalAttempt = committed(currentAttempt, candidateObservation.stateHash);
+      lastAttempt = finalAttempt;
       input.ports.emit({
         phase: "decision",
         title: "Décision : succès",
@@ -391,11 +466,14 @@ export async function runAgentLoop(input: {
         values: execution.values,
         observation: candidateObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
 
     const reason =
       verified.missing || verified.reason || "Le candidat ne satisfait pas l’objectif.";
+    currentAttempt = { ...currentAttempt, errors: [reason] };
+    lastAttempt = rolledBack(currentAttempt);
     previousPlan = planned.rawPlan;
     previousErrors = [reason];
     const errorSignatureValue = errorSignature([reason]);
@@ -412,7 +490,7 @@ export async function runAgentLoop(input: {
     input.ports.emit({
       phase: "decision",
       title: "Décision : correction",
-      detail: "Rollback puis nouvelle pensée.",
+      detail: "Rollback puis nouvelle pensée depuis l’état committed.",
       status: "warning",
       attempt,
     });
@@ -424,6 +502,7 @@ export async function runAgentLoop(input: {
         values: currentValues,
         observation: currentObservation,
         attempts: attempt,
+        lastAttempt,
       };
     }
   }
@@ -441,5 +520,6 @@ export async function runAgentLoop(input: {
     values: currentValues,
     observation: currentObservation,
     attempts: attempt,
+    lastAttempt,
   };
 }
