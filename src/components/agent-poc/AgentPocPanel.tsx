@@ -18,6 +18,15 @@ import {
 import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
+import {
+  assistantResultMessage,
+  type ChatMessage,
+  cancelledMessage,
+  cloneValues,
+  inconsistentMessage,
+  messageId,
+  type RevisionSnapshot,
+} from "./agent-ui";
 
 type PlanResponse = {
   status: "planned" | "clarification" | "noop" | "rejected";
@@ -62,13 +71,18 @@ async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
+  const abort = (): void => controller.abort();
+  if (externalSignal?.aborted === true) controller.abort();
+  externalSignal?.addEventListener("abort", abort);
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {
     window.clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abort);
   }
 }
 
@@ -76,8 +90,22 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted === true) throw new Error("Demande annulée");
+}
+
 function logStatus(status: AgentLoopEvent["status"]): LogEntry["status"] {
   return status;
+}
+
+function createMessage(role: ChatMessage["role"], content: string): ChatMessage {
+  const sequence = Number(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+  return {
+    id: messageId(role, sequence),
+    role,
+    content,
+    at: new Date().toISOString(),
+  };
 }
 
 export function AgentPocPanel({
@@ -100,41 +128,86 @@ export function AgentPocPanel({
   const currentParamsRef = useRef<TemplateParamValues>(initialParams);
   const currentTokenRef = useRef<string | null>(null);
   const revisionRef = useRef(0);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const cancelRequestedRef = useRef(false);
+  const activeRequestRef = useRef("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const [goal, setGoal] = useState(
-    "Ajoute un menu Services et rattache-le à une page Services avec la liste des services.",
-  );
+  const [goal, setGoal] = useState("");
   const [running, setRunning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [observation, setObservation] = useState<AgentObservation | null>(null);
   const [pendingInteraction, setPendingInteraction] = useState<PendingInteraction | null>(null);
   const [interactionText, setInteractionText] = useState("");
   const [coherenceLost, setCoherenceLost] = useState(false);
   const [finalStatus, setFinalStatus] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    createMessage(
+      "assistant",
+      "Bonjour. Décrivez la modification que vous souhaitez apporter à votre interface. Je prépare le changement, je le vérifie, puis vous validez le résultat.",
+    ),
+  ]);
+  const [revisions, setRevisions] = useState<RevisionSnapshot[]>([
+    {
+      id: "initial",
+      label: "État initial",
+      createdAt: new Date().toISOString(),
+      values: cloneValues(initialParams),
+      stateHash: "initial",
+    },
+  ]);
+  const [currentRevisionId, setCurrentRevisionId] = useState("initial");
+
+  const addMessage = (role: ChatMessage["role"], content: string): void => {
+    setMessages((current) => [...current, createMessage(role, content)]);
+  };
 
   const log = (entry: LogEntry): void => {
     setLogs((current) => [...current, entry]);
   };
 
+  const addRevision = (label: string, values: TemplateParamValues, stateHash: string): string => {
+    const id = `revision-${Date.now()}`;
+    setRevisions((current) => [
+      ...current.slice(-19),
+      {
+        id,
+        label: label.length > 80 ? `${label.slice(0, 77)}…` : label,
+        createdAt: new Date().toISOString(),
+        values: cloneValues(values),
+        stateHash,
+      },
+    ]);
+    setCurrentRevisionId(id);
+    return id;
+  };
+
   const createPreview = async (
     nextParams: TemplateParamValues,
     token: string | null,
+    signal?: AbortSignal,
   ): Promise<{ token: string; revision: number }> => {
     const template =
       templateId === null || templateVersion === null
         ? undefined
         : `${templateId}@${templateVersion}`;
-    const response = await fetch(`/api/links/${linkId}/preview-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        surface,
-        params: nextParams,
-        ...(template === undefined ? {} : { template }),
-        ...(token === null ? {} : { token }),
-      }),
-    });
+    const response = await fetchWithTimeout(
+      `/api/links/${linkId}/preview-session`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          surface,
+          params: nextParams,
+          ...(template === undefined ? {} : { template }),
+          ...(token === null ? {} : { token }),
+        }),
+      },
+      PLAN_TIMEOUT_MS,
+      signal,
+    );
     if (!response.ok) throw new Error("Impossible de préparer l’aperçu");
     const json = (await response.json()) as { token: string };
     const nextRevision = revisionRef.current + 1;
@@ -167,8 +240,14 @@ export function AgentPocPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const waitForIframeLoad = async (previousCount: number): Promise<void> => {
+  useEffect(() => {
+    if (messages.length === 0 && pendingInteraction === null && !running) return;
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, pendingInteraction, running]);
+
+  const waitForIframeLoad = async (previousCount: number, signal?: AbortSignal): Promise<void> => {
     for (let index = 0; index < 160; index += 1) {
+      throwIfAborted(signal);
       if (iframeLoadRef.current > previousCount) return;
       await delay(100);
     }
@@ -178,8 +257,10 @@ export function AgentPocPanel({
   const waitForPreview = async (
     expectedToken?: string,
     expectedRevision?: number,
+    signal?: AbortSignal,
   ): Promise<Document> => {
     for (let index = 0; index < 100; index += 1) {
+      throwIfAborted(signal);
       const iframe = iframeRef.current;
       const href = iframe?.contentWindow?.location.href ?? "";
       const doc = iframe?.contentDocument;
@@ -201,6 +282,7 @@ export function AgentPocPanel({
         revisionMatches
       ) {
         await delay(150);
+        throwIfAborted(signal);
         return doc;
       }
       await delay(100);
@@ -211,8 +293,10 @@ export function AgentPocPanel({
   const readRender = async (
     expectedToken?: string,
     expectedRevision?: number,
+    signal?: AbortSignal,
   ): Promise<AgentRenderObservation> => {
-    const doc = await waitForPreview(expectedToken, expectedRevision);
+    const doc = await waitForPreview(expectedToken, expectedRevision, signal);
+    throwIfAborted(signal);
     const root = doc.querySelector("onirtech-template-puzzle")?.shadowRoot;
     if (root === null || root === undefined) throw new Error("Shadow DOM indisponible");
     const header = root.querySelector("header")?.innerText ?? "";
@@ -227,18 +311,19 @@ export function AgentPocPanel({
 
   const applyPreview = async (
     values: TemplateParamValues,
+    signal?: AbortSignal,
   ): Promise<{ token: string; render: AgentRenderObservation }> => {
     const previousLoad = iframeLoadRef.current;
     const token = currentTokenRef.current;
-    const next = await createPreview(values, token);
-    await waitForIframeLoad(previousLoad);
-    const render = await readRender(next.token, next.revision);
+    const next = await createPreview(values, token, signal);
+    await waitForIframeLoad(previousLoad, signal);
+    const render = await readRender(next.token, next.revision, signal);
     currentTokenRef.current = next.token;
     return { token: next.token, render };
   };
 
   const observeValues = async (values: TemplateParamValues): Promise<AgentObservation> => {
-    const render = await readRender();
+    const render = await readRender(undefined, undefined, runAbortRef.current?.signal);
     return buildAgentObservation({ values, render });
   };
 
@@ -250,6 +335,7 @@ export function AgentPocPanel({
     previousPlan: unknown;
     previousErrors: string[];
   }): Promise<AgentPlanOutcome> => {
+    throwIfAborted(runAbortRef.current?.signal);
     const response = await fetchWithTimeout(
       `/api/links/${linkId}/agent-poc/plan`,
       {
@@ -266,6 +352,7 @@ export function AgentPocPanel({
         }),
       },
       PLAN_TIMEOUT_MS,
+      runAbortRef.current?.signal,
     );
     if (!response.ok) throw new Error("Le planner a échoué");
     const data = (await response.json()) as PlanResponse;
@@ -299,6 +386,7 @@ export function AgentPocPanel({
     values: TemplateParamValues;
     rawPlan: unknown;
   }): Promise<AgentExecutionOutcome> => {
+    throwIfAborted(runAbortRef.current?.signal);
     const response = await fetchWithTimeout(
       `/api/links/${linkId}/agent-poc/execute`,
       {
@@ -308,10 +396,11 @@ export function AgentPocPanel({
           plan: input.rawPlan,
           params: input.values,
           surface,
-          request: goal,
+          request: activeRequestRef.current,
         }),
       },
       PLAN_TIMEOUT_MS,
+      runAbortRef.current?.signal,
     );
     if (!response.ok) throw new Error("L’exécution du plan a échoué");
     return (await response.json()) as ExecuteResponse;
@@ -322,6 +411,7 @@ export function AgentPocPanel({
     observation: AgentObservation;
     execution: AgentExecutionOutcome;
   }): Promise<AgentVerifyOutcome> => {
+    throwIfAborted(runAbortRef.current?.signal);
     const response = await fetchWithTimeout(
       `/api/links/${linkId}/agent-poc/verify`,
       {
@@ -334,29 +424,55 @@ export function AgentPocPanel({
         }),
       },
       VERIFY_TIMEOUT_MS,
+      runAbortRef.current?.signal,
     );
     if (!response.ok) throw new Error("La vérification a échoué");
     return (await response.json()) as AgentVerifyOutcome;
   };
 
   const emit = (event: AgentLoopEvent): void => {
-    log({
-      title: event.title,
-      detail: event.detail ?? "",
-      status: logStatus(event.status),
-    });
+    log({ title: event.title, detail: event.detail ?? "", status: logStatus(event.status) });
+  };
+
+  const restoreAccepted = async (): Promise<boolean> => {
+    try {
+      const restored = await applyPreview(currentParamsRef.current);
+      const baseObservation = buildAgentObservation({
+        values: currentParamsRef.current,
+        render: restored.render,
+      });
+      setObservation(baseObservation);
+      return true;
+    } catch (error) {
+      setCoherenceLost(true);
+      log({
+        title: "Restauration",
+        detail: error instanceof Error ? error.message : "Restauration impossible",
+        status: "error",
+      });
+      return false;
+    }
   };
 
   const runAgent = async (userInstruction = ""): Promise<void> => {
-    if (running || coherenceLost || goal.trim() === "") return;
+    const request = userInstruction.trim() === "" ? goal.trim() : userInstruction.trim();
+    if (running || coherenceLost || request === "") return;
+    const effectiveGoal =
+      userInstruction.trim() === ""
+        ? request
+        : `${goal.trim()}\n\nPrécision utilisateur : ${request}`;
+    const values = currentParamsRef.current;
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+    cancelRequestedRef.current = false;
+    activeRequestRef.current = effectiveGoal;
     setRunning(true);
+    setCancelling(false);
     setFinalStatus(null);
     setLogs([]);
     setPendingInteraction(null);
     setInteractionText("");
-    const values = currentParamsRef.current;
-    const effectiveGoal =
-      userInstruction === "" ? goal : `${goal}\n\nPrécision utilisateur : ${userInstruction}`;
+    addMessage("user", request);
 
     try {
       const result = await runAgentLoop({
@@ -371,7 +487,7 @@ export function AgentPocPanel({
           plan,
           execute,
           observeCandidate: async (candidateValues) => {
-            const applied = await applyPreview(candidateValues);
+            const applied = await applyPreview(candidateValues, controller.signal);
             const candidate = buildAgentObservation({
               values: candidateValues,
               render: applied.render,
@@ -393,15 +509,23 @@ export function AgentPocPanel({
         },
       });
 
+      if (cancelRequestedRef.current) {
+        const restored = await restoreAccepted();
+        addMessage("assistant", cancelledMessage());
+        setFinalStatus(restored ? "Demande annulée" : "Annulation partielle — recharge la page");
+        return;
+      }
+
       if (result.status === "success") {
         currentParamsRef.current = result.values;
         setCoherenceLost(false);
-        setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
+        addRevision(request, result.values, result.observation.stateHash);
+        addMessage("assistant", assistantResultMessage(result, request));
+        setFinalStatus("Résultat prêt dans l’aperçu");
       } else if (result.status === "inconsistent") {
         setCoherenceLost(true);
-        setFinalStatus(
-          `Cohérence non garantie : ${result.reason} Rechargez la page avant de continuer.`,
-        );
+        addMessage("assistant", inconsistentMessage(result.reason));
+        setFinalStatus("Cohérence non garantie — recharge la page");
       } else if (result.status === "awaiting_user_input") {
         setPendingInteraction({
           request: result.interaction,
@@ -412,7 +536,8 @@ export function AgentPocPanel({
           lastAttempt: result.lastAttempt,
         });
         setObservation(result.observation);
-        setFinalStatus("Validation utilisateur requise");
+        addMessage("assistant", assistantResultMessage(result, request));
+        setFinalStatus("J’attends ta réponse");
       } else if (result.status === "clarification") {
         setPendingInteraction({
           request: result.interaction,
@@ -422,20 +547,49 @@ export function AgentPocPanel({
           baseObservation: result.observation,
           lastAttempt: result.lastAttempt,
         });
-        setFinalStatus("Clarification requise");
+        addMessage("assistant", assistantResultMessage(result, request));
+        setFinalStatus("J’attends une précision");
       } else {
-        setFinalStatus(`${result.status} : ${result.reason}`);
+        addMessage("assistant", assistantResultMessage(result, request));
+        setFinalStatus(
+          result.status === "blocked" ? "Demande interrompue" : "Objectif non atteint",
+        );
       }
     } catch (error) {
-      log({
-        title: "Erreur",
-        detail: error instanceof Error ? error.message : "Erreur inconnue",
-        status: "error",
-      });
-      setFinalStatus("Erreur");
+      const aborted = cancelRequestedRef.current || controller.signal.aborted;
+      if (aborted) {
+        const restored = await restoreAccepted();
+        addMessage("assistant", cancelledMessage());
+        setFinalStatus(restored ? "Demande annulée" : "Annulation partielle — recharge la page");
+      } else {
+        log({
+          title: "Erreur",
+          detail: error instanceof Error ? error.message : "Erreur inconnue",
+          status: "error",
+        });
+        const restored = await restoreAccepted();
+        addMessage(
+          "assistant",
+          restored
+            ? "Je n’ai pas pu terminer cette demande. L’état précédent de l’aperçu a été restauré."
+            : "Je n’ai pas pu terminer cette demande et je ne peux pas garantir la cohérence de l’aperçu. Recharge la page.",
+        );
+        setFinalStatus(restored ? "Demande interrompue" : "Cohérence non garantie");
+        if (!restored) setCoherenceLost(true);
+      }
     } finally {
+      runAbortRef.current = null;
       setRunning(false);
+      setCancelling(false);
     }
+  };
+
+  const cancelRun = (): void => {
+    if (!running) return;
+    cancelRequestedRef.current = true;
+    setCancelling(true);
+    setFinalStatus("Annulation en cours…");
+    runAbortRef.current?.abort();
   };
 
   const keepInteraction = (): void => {
@@ -448,17 +602,21 @@ export function AgentPocPanel({
     }
     currentParamsRef.current = pendingInteraction.values;
     setObservation(pendingInteraction.observation);
+    addRevision(
+      goal.trim() || "Résultat accepté",
+      pendingInteraction.values,
+      pendingInteraction.observation.stateHash,
+    );
     setPendingInteraction(null);
-    setFinalStatus("Résultat conservé dans le brouillon d’aperçu");
-    log({
-      title: "Interaction : garder",
-      detail: "Le candidat reste appliqué dans l’aperçu.",
-      status: "success",
-    });
+    addMessage(
+      "assistant",
+      "J’ai conservé ce résultat dans l’aperçu. Tu peux continuer à partir de cet état ou demander une nouvelle modification.",
+    );
+    setFinalStatus("Résultat conservé dans l’aperçu");
   };
 
-  const restoreInteraction = async (label: string): Promise<void> => {
-    if (pendingInteraction === null) return;
+  const restoreInteraction = async (label: string): Promise<boolean> => {
+    if (pendingInteraction === null) return false;
     try {
       const restored = await applyPreview(pendingInteraction.baseValues);
       const baseObservation = buildAgentObservation({
@@ -470,17 +628,20 @@ export function AgentPocPanel({
       setPendingInteraction(null);
       setInteractionText("");
       setFinalStatus(label);
-      log({
-        title: `Interaction : ${label}`,
-        detail: "L’état committed a été restauré.",
-        status: "warning",
-      });
+      addMessage("assistant", `${label}. L’aperçu a été restauré à l’état précédent.`);
+      return true;
     } catch (error) {
       log({
-        title: "Interaction",
+        title: "Restauration",
         detail: error instanceof Error ? error.message : "Restauration impossible",
         status: "error",
       });
+      addMessage(
+        "assistant",
+        "Je n’ai pas pu restaurer l’aperçu. Recharge la page avant de continuer.",
+      );
+      setCoherenceLost(true);
+      return false;
     }
   };
 
@@ -506,22 +667,52 @@ export function AgentPocPanel({
       return;
     }
     if (selectedId === "cancel") {
-      await restoreInteraction("Annulé");
+      await restoreInteraction("J’ai annulé la modification");
       return;
     }
     const selected = pendingInteraction.request.options.find((option) => option.id === selectedId);
     const text = interactionText.trim();
     if (text === "") {
-      log({
-        title: "Interaction : réponse requise",
-        detail: "Précisez votre correction ou votre choix.",
-        status: "warning",
-      });
+      addMessage("assistant", "Précise ce que tu souhaites corriger pour que je puisse continuer.");
       return;
     }
     const instruction = selected === undefined ? text : `${selected.label} : ${text}`;
-    await restoreInteraction("Correction demandée");
-    await runAgent(instruction);
+    const restored = await restoreInteraction("J’ai préparé une nouvelle tentative");
+    if (restored) await runAgent(instruction);
+  };
+
+  const restoreRevision = async (revision: RevisionSnapshot): Promise<void> => {
+    if (running || coherenceLost || pendingInteraction !== null) return;
+    const confirmed = window.confirm(
+      `Revenir à « ${revision.label} » ? Les modifications non conservées de l’aperçu seront remplacées.`,
+    );
+    if (!confirmed) return;
+    try {
+      const restored = await applyPreview(revision.values);
+      const nextObservation = buildAgentObservation({
+        values: revision.values,
+        render: restored.render,
+      });
+      currentParamsRef.current = revision.values;
+      setObservation(nextObservation);
+      setCurrentRevisionId(revision.id);
+      setFinalStatus(`État restauré : ${revision.label}`);
+      addMessage(
+        "assistant",
+        `J’ai restauré l’état « ${revision.label} ». Les modifications suivantes ont été annulées.`,
+      );
+    } catch (error) {
+      addMessage(
+        "assistant",
+        "Je n’ai pas pu restaurer cet état. Recharge la page avant de continuer.",
+      );
+      log({
+        title: "Historique",
+        detail: error instanceof Error ? error.message : "Restauration impossible",
+        status: "error",
+      });
+      setCoherenceLost(true);
+    }
   };
 
   const previewSrc =
@@ -533,27 +724,32 @@ export function AgentPocPanel({
     <main className={styles.shell}>
       <aside className={styles.panel}>
         <header className={styles.header}>
-          <span className={styles.eyebrow}>POC AGENT IA</span>
+          <span className={styles.eyebrow}>ASSISTANT D’ÉDITION</span>
           <strong>{label}</strong>
-          <span className={styles.hint}>Brouillon d’aperçu uniquement</span>
+          <span className={styles.hint}>
+            Brouillon d’aperçu · rien n’est publié automatiquement
+          </span>
         </header>
-        <textarea
-          className={styles.goal}
-          rows={4}
-          value={goal}
-          onChange={(event) => setGoal(event.target.value)}
-        />
-        <button
-          type="button"
-          className={styles.run}
-          disabled={running || coherenceLost || previewToken === null}
-          onClick={() => void runAgent()}
-        >
-          {running ? "Agent en cours…" : "Lancer l’agent"}
-        </button>
-        {finalStatus === null ? null : <p className={styles.status}>{finalStatus}</p>}
+
+        <div className={styles.chat} aria-live="polite">
+          {messages.map((message) => (
+            <article key={message.id} className={styles.message} data-role={message.role}>
+              <span className={styles.messageRole}>
+                {message.role === "user" ? "Vous" : "Assistant"}
+              </span>
+              <p>{message.content}</p>
+            </article>
+          ))}
+          {running ? (
+            <p className={styles.thinking}>
+              {cancelling ? "Annulation en cours…" : "Je travaille sur votre demande…"}
+            </p>
+          ) : null}
+          <div ref={chatEndRef} />
+        </div>
+
         {pendingInteraction === null ? null : (
-          <div className={styles.interaction}>
+          <section className={styles.interaction}>
             <p className={styles.interactionQuestion}>{pendingInteraction.request.question}</p>
             <div className={styles.interactionOptions}>
               {pendingInteraction.request.options.map((option) => (
@@ -568,40 +764,73 @@ export function AgentPocPanel({
               ))}
             </div>
             <textarea
-              className={styles.goal}
-              rows={3}
+              className={styles.input}
+              rows={2}
               value={interactionText}
               onChange={(event) => setInteractionText(event.target.value)}
               placeholder="Précisez votre réponse ou la correction à appliquer…"
             />
             <button
               type="button"
-              className={styles.cancel}
+              className={styles.secondary}
               onClick={() => void submitInteraction(defaultInteractionOption())}
             >
               Envoyer la précision
             </button>
-          </div>
+          </section>
         )}
-        <div className={styles.logs}>
-          {logs.map((entry) => (
-            <details
-              key={`${entry.title}-${entry.status}-${entry.detail.slice(0, 40)}`}
-              className={styles.log}
-              open={entry.status === "running"}
+
+        <form
+          className={styles.composer}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void runAgent();
+          }}
+        >
+          <textarea
+            className={styles.input}
+            rows={2}
+            value={goal}
+            onChange={(event) => setGoal(event.target.value)}
+            placeholder="Décrivez la modification souhaitée…"
+            disabled={running || coherenceLost}
+          />
+          <div className={styles.composerActions}>
+            {running ? (
+              <button type="button" className={styles.cancelAction} onClick={cancelRun}>
+                Annuler
+              </button>
+            ) : null}
+            <button
+              type="submit"
+              className={styles.primary}
+              disabled={running || coherenceLost || goal.trim() === "" || previewToken === null}
             >
-              <summary>
-                <span className={styles.dot} data-status={entry.status} />
-                {entry.title}
-              </summary>
-              <p>{entry.detail}</p>
-            </details>
-          ))}
-        </div>
-        {observation === null ? null : (
-          <details className={styles.snapshot}>
-            <summary>Observation structurée</summary>
-            <pre>
+              Envoyer
+            </button>
+          </div>
+        </form>
+
+        {finalStatus === null ? null : <p className={styles.status}>{finalStatus}</p>}
+
+        <details className={styles.technical}>
+          <summary>Détails techniques</summary>
+          <div className={styles.logs}>
+            {logs.map((entry) => (
+              <details
+                key={`${entry.title}-${entry.status}-${entry.detail.slice(0, 40)}`}
+                className={styles.log}
+              >
+                <summary>
+                  <span className={styles.dot} data-status={entry.status} />
+                  {entry.title}
+                </summary>
+                <p>{entry.detail}</p>
+              </details>
+            ))}
+          </div>
+          {observation === null ? null : (
+            <pre className={styles.snapshotPre}>
               {JSON.stringify(
                 {
                   revision: observation.revision,
@@ -612,11 +841,34 @@ export function AgentPocPanel({
                 2,
               )}
             </pre>
-            <pre>{observation.render.header}</pre>
-            <pre>{observation.render.main.slice(0, 2000)}</pre>
-          </details>
-        )}
+          )}
+        </details>
+
+        <details className={styles.revisions}>
+          <summary>Historique de l’aperçu ({revisions.length})</summary>
+          <div className={styles.revisionList}>
+            {[...revisions].reverse().map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className={styles.revision}
+                data-current={entry.id === currentRevisionId}
+                disabled={running || coherenceLost || pendingInteraction !== null}
+                onClick={() => void restoreRevision(entry)}
+              >
+                <strong>{entry.label}</strong>
+                <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                {entry.id === currentRevisionId ? (
+                  <em>État courant</em>
+                ) : (
+                  <em>Revenir à cet état</em>
+                )}
+              </button>
+            ))}
+          </div>
+        </details>
       </aside>
+
       <section className={styles.preview}>
         {previewSrc === "" ? (
           <p>Préparation de l’aperçu…</p>
