@@ -111,3 +111,4 @@ ADR qui remplace la précédente.
 | [0112](./0112-plan-dsl-et-compilateur-operations.md) | Plan DSL et compilateur d’opérations pour l’édition IA | Proposé |
 | [0113](./0113-boucle-agentique-fidele.md) | Boucle agentique fidèle pour l’édition IA de l’interface de template | Proposé |
 | [0114](./0114-human-in-loop-workflow-agentique.md) | Human-in-loop dans la boucle agentique d’édition de template | Proposé |
+| [0115](./0115-unset-references-optionnelles.md) | Sémantique `unset` pour les références optionnelles | Proposé |
