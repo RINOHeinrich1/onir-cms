@@ -256,7 +256,7 @@ function applyInsertChild(
     return { error: { field: "parent", message: "type de parent introuvable" } };
   }
   const expectedCollection =
-    parent.kind === "page"
+    parent.kind === "page" || parent.collection === input.editor.structure.roots
       ? input.editor.structure.roots
       : input.editor.structure.children.collection;
   if (parent.collection !== expectedCollection) {
@@ -282,7 +282,7 @@ function applyInsertChild(
     input.editor,
     rule,
     parent.itemId,
-    child.values,
+    { kind: child.kind, ...child.values },
     placementKindValue,
   );
   return result.itemId === null

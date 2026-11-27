@@ -44,11 +44,14 @@ export default async function AgentPocPage({ params, searchParams }: PageProps) 
   const fallback: ChatLinkSurface = channels.page.enabled ? "page" : "widget";
   const surface = requestedSurface(query.surface) ?? fallback;
 
+  const channel = channels[surface];
   return (
     <AgentPocPanel
       linkId={link.id}
       surface={surface}
-      initialParams={channels[surface].visualTemplateParams}
+      initialParams={channel.visualTemplateParams}
+      templateId={channel.visualTemplateId}
+      templateVersion={channel.visualTemplateVersion}
       label={link.label}
     />
   );

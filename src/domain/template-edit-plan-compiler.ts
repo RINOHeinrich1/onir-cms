@@ -469,27 +469,10 @@ function compileOperation(
       previousSteps,
       errors,
     );
-    if (typeof parent !== "string" || values === null) return null;
-    const parentCandidate = candidates.get(parent);
+    if (parent === null || values === null) return null;
     return {
       op: "insertChild",
-      parent:
-        parentCandidate === undefined
-          ? {
-              kind: "collectionItem",
-              collection: "blocks",
-              itemKey: "id",
-              itemId: parent,
-            }
-          : {
-              kind: "collectionItem",
-              collection: parentCandidate.collection,
-              itemKey: parentCandidate.itemKey,
-              itemId: parentCandidate.itemId,
-              ...(parentCandidate.itemKind === undefined
-                ? {}
-                : { itemKind: parentCandidate.itemKind }),
-            },
+      parent,
       child: {
         collection: operation.child.collection,
         kind: operation.child.kind,

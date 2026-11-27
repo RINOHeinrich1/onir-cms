@@ -85,14 +85,19 @@ export function AgentPocPanel({
   linkId,
   surface,
   initialParams,
+  templateId,
+  templateVersion,
   label,
 }: {
   linkId: string;
   surface: "page" | "widget";
   initialParams: TemplateParamValues;
+  templateId: string | null;
+  templateVersion: string | null;
   label: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeLoadRef = useRef(0);
   const currentParamsRef = useRef<TemplateParamValues>(initialParams);
   const currentTokenRef = useRef<string | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
@@ -114,10 +119,19 @@ export function AgentPocPanel({
     nextParams: TemplateParamValues,
     token: string | null,
   ): Promise<{ token: string; revision: number }> => {
+    const template =
+      templateId === null || templateVersion === null
+        ? undefined
+        : `${templateId}@${templateVersion}`;
     const response = await fetch(`/api/links/${linkId}/preview-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ surface, params: nextParams, ...(token === null ? {} : { token }) }),
+      body: JSON.stringify({
+        surface,
+        params: nextParams,
+        ...(template === undefined ? {} : { template }),
+        ...(token === null ? {} : { token }),
+      }),
     });
     if (!response.ok) throw new Error("Impossible de préparer l’aperçu");
     const json = (await response.json()) as { token: string };
@@ -149,6 +163,14 @@ export function AgentPocPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const waitForIframeLoad = async (previousCount: number): Promise<void> => {
+    for (let index = 0; index < 160; index += 1) {
+      if (iframeLoadRef.current > previousCount) return;
+      await delay(100);
+    }
+    throw new Error("Le nouvel aperçu ne s’est pas chargé");
+  };
 
   const waitForPreview = async (
     expectedToken?: string,
@@ -190,10 +212,13 @@ export function AgentPocPanel({
     const doc = await waitForPreview(expectedToken, expectedRevision);
     const root = doc.querySelector("onirtech-template-puzzle")?.shadowRoot;
     if (root === null || root === undefined) throw new Error("Shadow DOM indisponible");
+    const header = root.querySelector("header")?.innerText ?? "";
+    const main = root.querySelector("main")?.innerText ?? "";
     return {
-      text: (root.textContent ?? "").slice(0, 12_000),
-      header: root.querySelector("header")?.innerText ?? "",
-      main: root.querySelector("main")?.innerText ?? "",
+      text: `${header}
+${main}`.slice(0, 12_000),
+      header,
+      main,
     };
   };
 
@@ -201,7 +226,9 @@ export function AgentPocPanel({
     nextParams: TemplateParamValues,
     token: string | null,
   ): Promise<{ token: string; observation: Observation }> => {
+    const previousLoad = iframeLoadRef.current;
     const next = await createPreview(nextParams, token);
+    await waitForIframeLoad(previousLoad);
     const observation = await observe(next.token, next.revision);
     setObservation(observation);
     return { token: next.token, observation };
@@ -517,7 +544,15 @@ export function AgentPocPanel({
         {previewSrc === "" ? (
           <p>Préparation de l’aperçu…</p>
         ) : (
-          <iframe ref={iframeRef} src={previewSrc} title="Aperçu agent" />
+          <iframe
+            key={previewSrc}
+            ref={iframeRef}
+            src={previewSrc}
+            title="Aperçu agent"
+            onLoad={() => {
+              iframeLoadRef.current += 1;
+            }}
+          />
         )}
       </section>
     </main>
