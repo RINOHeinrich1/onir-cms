@@ -92,6 +92,8 @@ export function buildTemplateEditPlanPrompt(input: {
       'Pour retirer une action ou un style, utilise unset. Ne mets jamais "", null ou une chaîne brute dans un champ de référence.',
       "Si tu ne peux pas atteindre l’objectif avec ces opérations, retourne steps=[] avec une clarification ou un warning. N’invente jamais de collection, de champ ou d’identifiant.",
       'Format JSON : {"schemaVersion":1,"intent":"create|reuse|update|noop","steps":[{"id":"step-id","operation":{...},"description":"..."}],"warnings":[],"clarification":null}',
+      'Chaque operation doit être un objet PLAT avec une clé "op" explicite : {"op":"insertChild","parent":{"$candidate":"pages:..."},"child":{...}}.',
+      'Ne jamais utiliser la forme {"insertChild":{...}} ni une clé unique à la place de "op".',
       "Ne fournis pas steps et clarification en même temps.",
     ].join("\n"),
     user: [

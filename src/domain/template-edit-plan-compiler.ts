@@ -388,6 +388,25 @@ function compileParentTarget(input: {
       ...(candidate.itemKind === undefined ? {} : { itemKind: candidate.itemKind }),
     };
   }
+  if (isRecord(input.value) && "$candidate" in input.value) {
+    const candidateId = typeof input.value.$candidate === "string" ? input.value.$candidate : "";
+    const candidate = input.candidates.get(candidateId);
+    if (candidate === undefined) {
+      input.errors.push(
+        error("INVALID_CANDIDATE_ID", input.path, "Parent candidat inconnu.", {
+          stepId: input.step.id,
+        }),
+      );
+      return null;
+    }
+    return {
+      kind: "collectionItem",
+      collection: candidate.collection,
+      itemKey: candidate.itemKey,
+      itemId: candidate.itemId,
+      ...(candidate.itemKind === undefined ? {} : { itemKind: candidate.itemKind }),
+    };
+  }
   if (isRecord(input.value) && "$ref" in input.value) {
     const ref = typeof input.value.$ref === "string" ? input.value.$ref : "";
     const source = input.previousSteps.get(ref);
