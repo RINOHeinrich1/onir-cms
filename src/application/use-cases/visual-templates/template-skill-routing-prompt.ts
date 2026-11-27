@@ -20,6 +20,7 @@ export function buildTemplateSkillRoutingPrompt(input: {
   request: string;
   skills: LoadedTemplateSkill[];
   history?: TemplateEditHistoryMessage[];
+  context?: unknown;
 }): { system: string; user: string } {
   return {
     system: [
@@ -38,6 +39,7 @@ export function buildTemplateSkillRoutingPrompt(input: {
       `Conversation précédente :
 ${formatTemplateEditHistory(input.history ?? [])}`,
       `Skills disponibles : ${JSON.stringify(input.skills.map(catalogEntry))}`,
+      `Contexte générique du template : ${JSON.stringify(input.context ?? null)}`,
     ].join("\n\n"),
   };
 }

@@ -24,10 +24,19 @@ export type RouteTemplateSkillsDependencies = {
   aiFactory: AiClientFactory;
 };
 
+export type SkillRoutingContext = {
+  currentPage: { label: string } | null;
+  collections: Array<{ key: string; label: string; itemKindField: string | null }>;
+  candidates: Array<{ collection: string; label: string; kind: string | null }>;
+  insertionRules: Array<{ parentKind: string; childKinds: string[]; slot: string }>;
+  capabilities: Array<{ id: string; label: string }>;
+};
+
 export type RouteTemplateSkillsInput = {
   request: string;
   skills: LoadedTemplateSkill[];
   history?: TemplateEditHistoryMessage[];
+  context?: SkillRoutingContext;
   providerId?: string;
   model?: string;
 };
@@ -116,22 +125,32 @@ export async function routeTemplateSkills(
     request: input.request,
     skills: input.skills,
     ...(input.history === undefined ? {} : { history: input.history }),
+    ...(input.context === undefined ? {} : { context: input.context }),
   });
   const json = await callStructuredAi(client, prompt);
   const allowed = new Set(input.skills.map((entry) => entry.skill.id));
   const selected = validSkills(json.skills, allowed);
+  const always = input.skills
+    .filter((entry) => entry.skill.always)
+    .slice(0, MAX_SKILLS)
+    .map((entry) => ({ skill: entry, confidence: 1, reason: "always" }));
+  const selectedSkills = selected.flatMap((entry) => {
+    const found = input.skills.find((skill) => skill.skill.id === entry.id);
+    return found === undefined
+      ? []
+      : [{ skill: found, confidence: entry.confidence, reason: entry.reason }];
+  });
+  const merged = [...always, ...selectedSkills].filter(
+    (entry, index, all) =>
+      all.findIndex((candidate) => candidate.skill.skill.id === entry.skill.skill.id) === index,
+  );
   const clarification =
     typeof json.clarification === "string" && json.clarification.trim() !== ""
       ? json.clarification.trim()
       : null;
 
   return {
-    skills: selected.flatMap((entry) => {
-      const found = input.skills.find((skill) => skill.skill.id === entry.id);
-      return found === undefined
-        ? []
-        : [{ skill: found, confidence: entry.confidence, reason: entry.reason }];
-    }),
+    skills: merged.slice(0, MAX_SKILLS),
     clarification,
     candidates: input.skills.map((entry) => entry.skill.id),
   };

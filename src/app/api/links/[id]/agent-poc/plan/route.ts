@@ -76,9 +76,33 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       loaded.templateId,
       loaded.templateVersion,
     );
+    const routingContext = {
+      currentPage: null,
+      collections: capabilities.collections.map((collection) => ({
+        key: collection.param,
+        label: collection.label,
+        itemKindField: collection.itemKind,
+      })),
+      candidates: candidates.map((candidate) => ({
+        collection: candidate.collection,
+        label: candidate.label,
+        kind: candidate.itemKind ?? null,
+      })),
+      insertionRules: capabilities.insertion.map((rule) => ({
+        parentKind: rule.parentKind,
+        childKinds: rule.allowedKinds,
+        slot: rule.slot,
+      })),
+      capabilities: [
+        ...capabilities.blockKinds.map((kind) => ({ id: `block:${kind}`, label: kind })),
+        ...capabilities.actionKinds.map((kind) => ({ id: `action:${kind}`, label: kind })),
+      ],
+    };
     const routed = await routeTemplateSkills({ aiFactory: pgAiClientFactory(pool) }, actor, {
       request: prompt,
       skills,
+      ...(history.length === 0 ? {} : { history }),
+      context: routingContext,
     });
     const selected = routed.skills.map((entry) => entry.skill.skill);
     const planned = await planTemplateEdit({ aiFactory: pgAiClientFactory(pool) }, actor, {
