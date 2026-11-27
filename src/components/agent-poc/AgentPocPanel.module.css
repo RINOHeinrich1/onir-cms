@@ -349,6 +349,11 @@
   cursor: not-allowed;
 }
 
+.headerActions {
+  display: flex;
+  flex: none;
+  gap: 0.4rem;
+}
 .historyButton {
   flex: none;
   padding: 0.4rem 0.6rem;
