@@ -145,6 +145,7 @@ export function AgentPocPanel({
   const cancelRequestedRef = useRef(false);
   const activeRequestRef = useRef("");
   const activeAssistantRef = useRef<string | null>(null);
+  const traceRef = useRef<AgentLoopEvent[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -440,6 +441,7 @@ export function AgentPocPanel({
   };
 
   const emit = (event: AgentLoopEvent): void => {
+    traceRef.current.push(event);
     const assistantId = activeAssistantRef.current;
     if (assistantId === null) return;
     setMessages((current) =>
@@ -458,6 +460,39 @@ export function AgentPocPanel({
           : message,
       ),
     );
+  };
+
+  const explainFailure = async (
+    request: string,
+    result: { reason: string; lastAttempt: AgentAttempt | null; observation: AgentObservation },
+    trace: AgentLoopEvent[],
+    signal?: AbortSignal,
+  ): Promise<string | null> => {
+    try {
+      const response = await fetchWithTimeout(
+        `/api/links/${linkId}/agent-poc/explain`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            request,
+            reason: result.reason,
+            trace,
+            attempt: result.lastAttempt,
+            observation: result.observation,
+          }),
+        },
+        PLAN_TIMEOUT_MS,
+        signal,
+      );
+      if (!response.ok) return null;
+      const json = (await response.json()) as { message?: unknown };
+      return typeof json.message === "string" && json.message.trim() !== ""
+        ? json.message.trim()
+        : null;
+    } catch {
+      return null;
+    }
   };
 
   const restoreAccepted = async (): Promise<boolean> => {
@@ -484,6 +519,7 @@ export function AgentPocPanel({
     runAbortRef.current = controller;
     cancelRequestedRef.current = false;
     activeRequestRef.current = effectiveGoal;
+    traceRef.current = [];
     const assistant = createMessage("assistant", "", { status: "running", trace: [] });
     activeAssistantRef.current = assistant.id;
     setRunning(true);
@@ -564,10 +600,31 @@ export function AgentPocPanel({
           content: assistantResultMessage(result, request),
           status: "warning",
         });
+      } else if (result.status === "blocked" || result.status === "failed") {
+        updateMessage(assistant.id, {
+          content: "Je vérifie ce qui a bloqué et je prépare une piste de correction…",
+          status: "error",
+        });
+        const explanation = await explainFailure(
+          request,
+          result,
+          traceRef.current,
+          controller.signal,
+        );
+        if (cancelRequestedRef.current) {
+          const restored = await restoreAccepted();
+          updateMessage(assistant.id, { content: cancelledMessage(), status: "cancelled" });
+          if (!restored) setCoherenceLost(true);
+          return;
+        }
+        updateMessage(assistant.id, {
+          content: explanation ?? assistantResultMessage(result, request),
+          status: result.status === "blocked" ? "warning" : "error",
+        });
       } else {
         updateMessage(assistant.id, {
           content: assistantResultMessage(result, request),
-          status: result.status === "blocked" ? "warning" : "error",
+          status: "warning",
         });
       }
     } catch {
