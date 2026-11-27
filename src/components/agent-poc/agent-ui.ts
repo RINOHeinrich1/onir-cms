@@ -1,4 +1,7 @@
-import type { AgentLoopResult } from "@/application/use-cases/visual-templates/agent-poc/agent-loop";
+import type {
+  AgentLoopEvent,
+  AgentLoopResult,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-loop";
 import type { TemplateParamValues } from "@/domain/template-params";
 
 export type ChatMessage = {
@@ -6,6 +9,8 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   at: string;
+  status?: "running" | "success" | "warning" | "error" | "cancelled";
+  trace?: AgentLoopEvent[];
 };
 
 export type RevisionSnapshot = {
