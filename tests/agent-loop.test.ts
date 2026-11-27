@@ -125,6 +125,38 @@ describe("boucle agentique", () => {
     expect(seenAttempts[0]?.steps[0]?.replayRequired).toBe(true);
   });
 
+  it("attend la validation utilisateur quand seule la vérification sémantique échoue", async () => {
+    const restore = vi.fn(async () => observation(1));
+    const result = await runAgentLoop({
+      goal: "arrondir les boutons",
+      values: {},
+      ports: {
+        initialObservation: async () => observation(1),
+        plan: async () => ({
+          status: "planned",
+          rawPlan: { step: "style" },
+          warnings: [],
+          attempts: 1,
+        }),
+        execute: async () => execution(true),
+        observeCandidate: async () => observation(2),
+        restore,
+        verify: async () => ({
+          satisfied: false,
+          reason: "à confirmer",
+          missing: "preuve visuelle",
+        }),
+        emit: () => undefined,
+      },
+    });
+
+    expect(result.status).toBe("awaiting_user_decision");
+    expect(result.attempts).toBe(1);
+    expect(result.lastAttempt?.transactionStatus).toBe("applied");
+    expect(result.lastAttempt?.steps[0]?.effect).toBe("applied_to_candidate");
+    expect(restore).not.toHaveBeenCalled();
+  });
+
   it("bloque quand le planner repropose le même plan", async () => {
     const result = await runAgentLoop({
       goal: "modifier le titre",

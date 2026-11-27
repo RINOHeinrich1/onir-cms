@@ -124,6 +124,16 @@ export type AgentLoopResult =
       observation: AgentObservation;
       attempts: number;
       lastAttempt: AgentAttempt | null;
+    }
+  | {
+      status: "awaiting_user_decision";
+      reason: string;
+      values: TemplateParamValues;
+      observation: AgentObservation;
+      baseValues: TemplateParamValues;
+      baseObservation: AgentObservation;
+      attempts: number;
+      lastAttempt: AgentAttempt;
     };
 
 export const AGENT_MAX_ITERATIONS = 10;
@@ -473,38 +483,31 @@ export async function runAgentLoop(input: {
     const reason =
       verified.missing || verified.reason || "Le candidat ne satisfait pas l’objectif.";
     currentAttempt = { ...currentAttempt, errors: [reason] };
-    lastAttempt = rolledBack(currentAttempt);
-    previousPlan = planned.rawPlan;
-    previousErrors = [reason];
-    const errorSignatureValue = errorSignature([reason]);
-    sameErrorCount = errorSignatureValue === lastErrorSignature ? sameErrorCount + 1 : 1;
-    lastErrorSignature = errorSignatureValue;
+    lastAttempt = currentAttempt;
     input.ports.emit({
       phase: "observation",
-      title: "Observation : objectif non satisfait",
+      title: "Observation : validation utilisateur requise",
       detail: reason,
       status: "warning",
       attempt,
     });
-    currentObservation = await input.ports.restore(currentValues);
     input.ports.emit({
       phase: "decision",
-      title: "Décision : correction",
-      detail: "Rollback puis nouvelle pensée depuis l’état committed.",
+      title: "Décision : attente utilisateur",
+      detail: "Le candidat reste appliqué jusqu’à validation.",
       status: "warning",
       attempt,
     });
-
-    if (sameErrorCount >= AGENT_MAX_SAME_ERROR) {
-      return {
-        status: "blocked",
-        reason,
-        values: currentValues,
-        observation: currentObservation,
-        attempts: attempt,
-        lastAttempt,
-      };
-    }
+    return {
+      status: "awaiting_user_decision",
+      reason,
+      values: execution.values,
+      observation: candidateObservation,
+      baseValues: currentValues,
+      baseObservation: currentObservation,
+      attempts: attempt,
+      lastAttempt,
+    };
   }
 
   input.ports.emit({

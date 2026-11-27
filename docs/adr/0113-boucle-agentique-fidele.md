@@ -53,7 +53,7 @@ Observation initiale
 - **Pensée** : construit un plan depuis l’état `committed`.
 - **Action** : compile et exécute sur un état candidat, sans commit.
 - **Observation** : vérifie rendu, postconditions, références et objectif.
-- **Décision** : commit, rollback, clarification, arrêt ou validation humaine.
+- **Décision** : commit, rollback, clarification, attente utilisateur, arrêt.
 
 ### 2. Matérialiser chaque tentative par un `Attempt`
 
@@ -108,8 +108,8 @@ Un candidat n’est conservé que si :
 - exécution sans erreur ;
 - références valides ;
 - postconditions satisfaites ;
-- vérification sémantique satisfaite ;
-- décision de succès.
+- puis vérification sémantique satisfaite **ou** validation explicite de
+  l’utilisateur après un désaccord sémantique.
 
 Le commit met à jour :
 
@@ -126,6 +126,43 @@ La boucle s’arrête si :
 - la même erreur se répète ;
 - la durée maximale est dépassée ;
 - le budget d’itérations est épuisé.
+
+### 6. Validation utilisateur sur désaccord sémantique
+
+Un rollback automatique est réservé aux **échecs durs** :
+
+- compilation ;
+- opération ;
+- référence ;
+- contrat ;
+- postcondition structurelle ;
+- exception.
+
+Si toutes les étapes sont exécutées sans erreur, que les contrôles
+déterministes passent, mais que la vérification sémantique IA répond
+`non satisfait`, le candidat reste appliqué :
+
+```text
+transactionStatus = applied
+status = awaiting_user_decision
+```
+
+L’utilisateur voit alors :
+
+- les étapes réussies ;
+- le rendu candidat ;
+- l’observation de l’IA ;
+- les éventuelles erreurs.
+
+Il peut choisir :
+
+```text
+Garder   → commit du candidat
+Corriger → rollback puis nouvelle pensée
+Annuler  → rollback
+```
+
+La vérification IA est donc un **avis**, pas une décision de rollback.
 
 ## Conséquences
 

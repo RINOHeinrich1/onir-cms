@@ -45,6 +45,15 @@ type LogEntry = {
   status: "running" | "success" | "warning" | "error";
 };
 
+type PendingDecision = {
+  values: TemplateParamValues;
+  observation: AgentObservation;
+  baseValues: TemplateParamValues;
+  baseObservation: AgentObservation;
+  reason: string;
+  lastAttempt: AgentAttempt;
+};
+
 const PLAN_TIMEOUT_MS = 60_000;
 const VERIFY_TIMEOUT_MS = 30_000;
 
@@ -98,6 +107,7 @@ export function AgentPocPanel({
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [observation, setObservation] = useState<AgentObservation | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null);
   const [finalStatus, setFinalStatus] = useState<string | null>(null);
 
   const log = (entry: LogEntry): void => {
@@ -339,6 +349,7 @@ export function AgentPocPanel({
     setRunning(true);
     setFinalStatus(null);
     setLogs([]);
+    setPendingDecision(null);
     const values = currentParamsRef.current;
 
     try {
@@ -379,6 +390,17 @@ export function AgentPocPanel({
       if (result.status === "success") {
         currentParamsRef.current = result.values;
         setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
+      } else if (result.status === "awaiting_user_decision") {
+        setPendingDecision({
+          values: result.values,
+          observation: result.observation,
+          baseValues: result.baseValues,
+          baseObservation: result.baseObservation,
+          reason: result.reason,
+          lastAttempt: result.lastAttempt,
+        });
+        setObservation(result.observation);
+        setFinalStatus("Validation utilisateur requise");
       } else if (result.status === "clarification") {
         setFinalStatus(`Clarification requise : ${result.reason}`);
       } else {
@@ -393,6 +415,44 @@ export function AgentPocPanel({
       setFinalStatus("Erreur");
     } finally {
       setRunning(false);
+    }
+  };
+
+  const keepPendingDecision = (): void => {
+    if (pendingDecision === null) return;
+    currentParamsRef.current = pendingDecision.values;
+    setObservation(pendingDecision.observation);
+    setPendingDecision(null);
+    setFinalStatus("Résultat conservé dans le brouillon d’aperçu");
+    log({
+      title: "Validation utilisateur : garder",
+      detail: "Le candidat reste appliqué dans l’aperçu.",
+      status: "success",
+    });
+  };
+
+  const restorePendingDecision = async (label: string): Promise<void> => {
+    if (pendingDecision === null) return;
+    try {
+      const restored = await applyPreview(pendingDecision.baseValues);
+      const baseObservation = buildAgentObservation({
+        values: pendingDecision.baseValues,
+        render: restored.render,
+      });
+      setObservation(baseObservation);
+      setPendingDecision(null);
+      setFinalStatus(label);
+      log({
+        title: `Validation utilisateur : ${label}`,
+        detail: "L’état committed a été restauré.",
+        status: "warning",
+      });
+    } catch (error) {
+      log({
+        title: "Validation utilisateur",
+        detail: error instanceof Error ? error.message : "Restauration impossible",
+        status: "error",
+      });
     }
   };
 
@@ -424,6 +484,27 @@ export function AgentPocPanel({
           {running ? "Agent en cours…" : "Lancer l’agent"}
         </button>
         {finalStatus === null ? null : <p className={styles.status}>{finalStatus}</p>}
+        {pendingDecision === null ? null : (
+          <div className={styles.decision}>
+            <button type="button" className={styles.keep} onClick={keepPendingDecision}>
+              Garder
+            </button>
+            <button
+              type="button"
+              className={styles.cancel}
+              onClick={() => void restorePendingDecision("Correction demandée")}
+            >
+              Corriger
+            </button>
+            <button
+              type="button"
+              className={styles.cancel}
+              onClick={() => void restorePendingDecision("Annulé")}
+            >
+              Annuler
+            </button>
+          </div>
+        )}
         <div className={styles.logs}>
           {logs.map((entry) => (
             <details
