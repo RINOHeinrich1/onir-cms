@@ -660,6 +660,7 @@ export function AgentPocPanel({
         ? request
         : `${goal.trim()}\n\nPrécision utilisateur : ${request}`;
     const values = currentParamsRef.current;
+    setGoal("");
     const runStartedAt = Date.now();
     missionRunStartedAtRef.current = runStartedAt;
     const budgetStartedAt = new Date(runStartedAt - missionElapsedMsRef.current).toISOString();
