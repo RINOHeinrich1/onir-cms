@@ -1,3 +1,4 @@
+import { isSharedCollection } from "@/domain/template-edit-scope";
 import type { TemplateEditorManifest, TemplateEditorManifestV2 } from "@/domain/template-editor";
 import {
   validateTemplateEditorCollectionValues,
@@ -107,12 +108,6 @@ function clone<T>(value: T): T {
 
 function collectionMeta(editor: TemplateEditorManifestV2, collection: string) {
   return editor.collections?.find((entry) => entry.param === collection);
-}
-
-function isSharedCollection(editor: TemplateEditorManifest, collection: string): boolean {
-  return editor.version === 2
-    ? (editor.scopes ?? []).some((entry) => entry.param === collection && entry.scope === "shared")
-    : false;
 }
 
 function collectionItems(values: TemplateParamValues, collection: string): RecordValue[] | null {

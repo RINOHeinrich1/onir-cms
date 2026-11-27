@@ -1,6 +1,13 @@
 import type { TemplateParamValues } from "@/domain/template-params";
 import type { AgentAttempt } from "./agent-attempt";
 import type { AgentInteractionRequest } from "./agent-interaction";
+import {
+  type AgentOperationalMemory,
+  emptyAgentMemory,
+  recordAttemptMemory,
+  recordPlanFailure,
+  shouldStopForRepeatedError,
+} from "./agent-memory";
 import { type AgentObservation, hashAgentState } from "./agent-observation";
 
 export type AgentLoopPhase =
@@ -89,6 +96,7 @@ export type AgentLoopPorts = {
     lastAttempt: AgentAttempt | null;
     previousPlan: unknown;
     previousErrors: string[];
+    memory: AgentOperationalMemory;
   }) => Promise<AgentPlanOutcome>;
   execute: (input: {
     values: TemplateParamValues;
@@ -234,6 +242,7 @@ export async function runAgentLoop(input: {
   initialAttempts?: number;
   startedAt?: string;
   maxDurationMs?: number;
+  memory?: AgentOperationalMemory;
   ports: AgentLoopPorts;
 }): Promise<AgentLoopResult> {
   const now = input.ports.now ?? Date.now;
@@ -249,6 +258,7 @@ export async function runAgentLoop(input: {
   let seenPlan = "";
   let seenBaseHash = "";
   let attempt = input.initialAttempts ?? 0;
+  const memory = input.memory ?? emptyAgentMemory();
 
   input.ports.emit({
     phase: "initial-observation",
@@ -293,6 +303,7 @@ export async function runAgentLoop(input: {
       lastAttempt,
       previousPlan,
       previousErrors,
+      memory,
     });
 
     if (planned.status === "clarification") {
@@ -345,6 +356,7 @@ export async function runAgentLoop(input: {
     if (planned.status === "rejected") {
       previousErrors = planned.errors;
       previousPlan = planned.rawPlan;
+      recordPlanFailure(memory, planned.errors, baseHash, planSignature(planned.rawPlan));
       const signature = errorSignature(planned.errors);
       sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
       lastErrorSignature = signature;
@@ -355,7 +367,10 @@ export async function runAgentLoop(input: {
         status: "warning",
         attempt,
       });
-      if (sameErrorCount >= AGENT_MAX_SAME_ERROR) {
+      if (
+        sameErrorCount >= AGENT_MAX_SAME_ERROR ||
+        shouldStopForRepeatedError(memory, baseHash, errorSignature(planned.errors))
+      ) {
         return {
           status: "blocked",
           reason: planned.errors.join(" ; ") || "Même erreur de plan répétée.",
@@ -449,6 +464,7 @@ export async function runAgentLoop(input: {
       ];
       currentAttempt = { ...currentAttempt, errors };
       lastAttempt = rolledBack(currentAttempt);
+      recordAttemptMemory(memory, lastAttempt, planSignature(planned.rawPlan));
       previousPlan = planned.rawPlan;
       previousErrors = errors;
       const errorSignatureValue = errorSignature(errors);
@@ -491,7 +507,10 @@ export async function runAgentLoop(input: {
         status: "warning",
         attempt,
       });
-      if (sameErrorCount >= AGENT_MAX_SAME_ERROR) {
+      if (
+        sameErrorCount >= AGENT_MAX_SAME_ERROR ||
+        shouldStopForRepeatedError(memory, baseHash, errorSignature(errors))
+      ) {
         return {
           status: "blocked",
           reason: errors.join(" ; ") || "Même erreur d’exécution répétée.",
@@ -513,6 +532,7 @@ export async function runAgentLoop(input: {
       const initialError = `Observation du candidat indisponible : ${message}`;
       currentAttempt = { ...currentAttempt, errors: [initialError] };
       lastAttempt = rolledBack(currentAttempt);
+      recordAttemptMemory(memory, lastAttempt, planSignature(planned.rawPlan));
       previousPlan = planned.rawPlan;
       previousErrors = [initialError];
       input.ports.emit({
@@ -583,6 +603,7 @@ export async function runAgentLoop(input: {
         errors: [initialError],
       };
       lastAttempt = rolledBack(currentAttempt);
+      recordAttemptMemory(memory, lastAttempt, planSignature(planned.rawPlan));
       input.ports.emit({
         phase: "observation",
         title: "Observation : vérification indisponible",
@@ -625,6 +646,7 @@ export async function runAgentLoop(input: {
     if (verified.satisfied) {
       const finalAttempt = committed(currentAttempt, candidateObservation.stateHash);
       lastAttempt = finalAttempt;
+      recordAttemptMemory(memory, finalAttempt, planSignature(planned.rawPlan));
       input.ports.emit({
         phase: "decision",
         title: "Décision : succès",
@@ -645,6 +667,7 @@ export async function runAgentLoop(input: {
       verified.missing || verified.reason || "Le candidat ne satisfait pas l’objectif.";
     currentAttempt = { ...currentAttempt, errors: [reason] };
     lastAttempt = currentAttempt;
+    recordAttemptMemory(memory, lastAttempt, planSignature(planned.rawPlan));
     const interaction: AgentInteractionRequest = {
       id: `observation-${attempt}`,
       sourcePhase: "observation",

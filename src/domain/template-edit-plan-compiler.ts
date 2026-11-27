@@ -8,6 +8,7 @@ import {
   validatePlanDsl,
 } from "@/domain/template-edit-plan-dsl";
 import type { ProposalTarget, TemplateEditOperation } from "@/domain/template-edit-proposal";
+import { isSharedCollection } from "@/domain/template-edit-scope";
 import type { TemplateEditCandidate } from "@/domain/template-edit-target";
 import type { TemplateEditorManifest, TemplateEditorReference } from "@/domain/template-editor";
 import type { TemplateParamSchema, TemplateParamValue } from "@/domain/template-params";
@@ -296,6 +297,17 @@ function compileSet(
     );
     return null;
   }
+  if (isSharedCollection(input.editor, candidate.collection)) {
+    errors.push(
+      error(
+        "SHARED_COLLECTION_MUTATION",
+        `steps.${step.id}.candidateId`,
+        "Collection partagée : créez une copie locale avant de la modifier.",
+        { stepId: step.id },
+      ),
+    );
+    return null;
+  }
   const reference = referencesFor(input.editor, candidate.collection, operation.field);
   const expected = reference === null ? [] : referenceTargets(reference);
   const value = compileValue({
@@ -519,6 +531,17 @@ function compileOperation(
         error("INVALID_FIELD", `steps.${step.id}.field`, "Champ inconnu dans la collection.", {
           stepId: step.id,
         }),
+      );
+      return null;
+    }
+    if (isSharedCollection(input.editor, candidate.collection)) {
+      errors.push(
+        error(
+          "SHARED_COLLECTION_MUTATION",
+          `steps.${step.id}.field`,
+          "Collection partagée : créez une copie locale avant de la modifier.",
+          { stepId: step.id },
+        ),
       );
       return null;
     }

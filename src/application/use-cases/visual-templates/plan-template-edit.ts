@@ -34,6 +34,7 @@ export type PlanTemplateEditInput = {
   previousErrors?: string[];
   observation?: unknown;
   lastAttempt?: unknown;
+  memory?: unknown;
   planOnly?: boolean;
   providerId?: string;
   model?: string;
@@ -168,6 +169,7 @@ export async function planTemplateEdit(
       skills: input.skills,
       ...(input.observation === undefined ? {} : { observation: input.observation }),
       ...(input.lastAttempt === undefined ? {} : { lastAttempt: input.lastAttempt }),
+      ...(input.memory === undefined ? {} : { memory: input.memory }),
       ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
       ...(input.history === undefined ? {} : { history: input.history }),
       ...(previousErrors.length === 0 ? {} : { previousErrors, previousPlan }),

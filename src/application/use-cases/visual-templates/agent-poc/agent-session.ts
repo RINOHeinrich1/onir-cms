@@ -1,6 +1,7 @@
 import type { TemplateParamValues } from "@/domain/template-params";
 import type { AgentAttempt } from "./agent-attempt";
 import type { AgentInteractionRequest } from "./agent-interaction";
+import type { AgentOperationalMemory } from "./agent-memory";
 
 export type AgentPocStatus = "active" | "waiting_user" | "paused" | "completed" | "cancelled";
 
@@ -13,6 +14,7 @@ export type AgentPocSessionState = {
   currentRevisionId: string;
   lastAttempt: AgentAttempt | null;
   interaction: AgentInteractionRequest | null;
+  memory: AgentOperationalMemory;
   messages: unknown[];
   revisions: unknown[];
   budget: {

@@ -191,3 +191,40 @@ describe("compilateur unset", () => {
     expect(codes(result)).toContain("INVALID_REFERENCE_TYPE");
   });
 });
+
+describe("validation préalable des collections partagées", () => {
+  it("refuse une mutation directe d’un style partagé", () => {
+    const result = compileTemplateEditPlan({
+      plan: {
+        schemaVersion: 1,
+        intent: "update",
+        steps: [
+          {
+            id: "shared-style",
+            operation: {
+              op: "set",
+              candidateId: "style_profiles:header_style",
+              field: "name",
+              value: "Header style",
+            },
+          },
+        ],
+      },
+      editor: puzzleV2Editor,
+      schema: puzzleV2Params,
+      candidates: [
+        {
+          kind: "collectionItem",
+          collection: "style_profiles",
+          itemKey: "id",
+          itemId: "header_style",
+          label: "Header style",
+          scope: { kind: "unknown" },
+          score: 1,
+          reasons: [],
+        },
+      ],
+    });
+    expect(codes(result)).toContain("SHARED_COLLECTION_MUTATION");
+  });
+});

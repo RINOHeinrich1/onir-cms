@@ -41,6 +41,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const previousPlan = body.previousPlan;
     const observation = body.observation;
     const lastAttempt = body.lastAttempt;
+    const memory = body.memory;
     const history = Array.isArray(body.history)
       ? body.history
           .filter(
@@ -117,6 +118,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       capabilities,
       ...(observation === undefined ? {} : { observation }),
       ...(lastAttempt === undefined ? {} : { lastAttempt }),
+      ...(memory === undefined ? {} : { memory }),
       ...(history.length === 0 ? {} : { history }),
       planOnly: true,
       signal: request.signal,

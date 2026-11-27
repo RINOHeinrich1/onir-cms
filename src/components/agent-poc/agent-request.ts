@@ -18,6 +18,10 @@ export class AgentCancelledError extends Error {
   }
 }
 
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted ?? false;
+}
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -29,7 +33,7 @@ export async function fetchWithTimeout(
   const startedAt = performance.now();
   const state = { timedOut: false };
   const abort = (): void => controller.abort();
-  if (externalSignal?.aborted === true) throw new AgentCancelledError(phase);
+  if (isAborted(externalSignal)) throw new AgentCancelledError(phase);
   externalSignal?.addEventListener("abort", abort);
   const timeout = window.setTimeout(() => {
     state.timedOut = true;
@@ -41,7 +45,7 @@ export async function fetchWithTimeout(
     if (state.timedOut) {
       throw new AgentTimeoutError(phase, timeoutMs, performance.now() - startedAt);
     }
-    if (externalSignal !== undefined && externalSignal.aborted) {
+    if (isAborted(externalSignal)) {
       throw new AgentCancelledError(phase);
     }
     throw error;
@@ -49,4 +53,21 @@ export async function fetchWithTimeout(
     window.clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", abort);
   }
+}
+
+export class AgentHttpError extends Error {
+  constructor(
+    readonly phase: string,
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(`Erreur HTTP ${status} pendant ${phase}: ${body.slice(0, 300)}`);
+    this.name = "AgentHttpError";
+  }
+}
+
+export async function requireOk(response: Response, phase: string): Promise<Response> {
+  if (response.ok) return response;
+  const body = await response.text().catch(() => "");
+  throw new AgentHttpError(phase, response.status, body);
 }

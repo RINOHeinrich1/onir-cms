@@ -11,6 +11,10 @@ import {
   runAgentLoop,
 } from "@/application/use-cases/visual-templates/agent-poc/agent-loop";
 import {
+  type AgentOperationalMemory,
+  emptyAgentMemory,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-memory";
+import {
   type AgentObservation,
   type AgentRenderObservation,
   buildAgentObservation,
@@ -26,7 +30,13 @@ import {
 import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
-import { AgentCancelledError, AgentTimeoutError, fetchWithTimeout } from "./agent-request";
+import {
+  AgentCancelledError,
+  AgentHttpError,
+  AgentTimeoutError,
+  fetchWithTimeout,
+  requireOk,
+} from "./agent-request";
 import {
   assistantResultMessage,
   type ChatMessage,
@@ -145,6 +155,7 @@ export function AgentPocPanel({
   const missionStartedAtRef = useRef(new Date().toISOString());
   const missionStatusRef = useRef<AgentPocStatus>("active");
   const lastAttemptRef = useRef<AgentAttempt | null>(null);
+  const memoryRef = useRef<AgentOperationalMemory>(emptyAgentMemory());
   const hydratedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -223,8 +234,8 @@ export function AgentPocPanel({
       signal,
       "preview",
     );
-    if (!response.ok) throw new Error("Impossible de préparer l’aperçu");
-    const json = (await response.json()) as { token: string };
+    const checked = await requireOk(response, "preview");
+    const json = (await checked.json()) as { token: string };
     const nextRevision = revisionRef.current + 1;
     revisionRef.current = nextRevision;
     setPreviewToken(json.token);
@@ -270,6 +281,7 @@ export function AgentPocPanel({
             missionStartedAtRef.current = persisted.budget.startedAt;
             missionStatusRef.current = persisted.status;
             lastAttemptRef.current = persisted.lastAttempt;
+            memoryRef.current = persisted.memory ?? emptyAgentMemory();
             await applyPreview(persisted.acceptedValues);
           }
         } catch (error) {
@@ -308,6 +320,7 @@ export function AgentPocPanel({
         currentRevisionId,
         lastAttempt: lastAttemptRef.current,
         interaction: pendingInteraction?.request ?? null,
+        memory: memoryRef.current,
         messages,
         revisions,
         budget: {
@@ -431,6 +444,7 @@ export function AgentPocPanel({
           history: historyRef.current,
           observation: input.observation,
           ...(input.lastAttempt === null ? {} : { lastAttempt: input.lastAttempt }),
+          memory: memoryRef.current,
           ...(input.previousPlan === null ? {} : { previousPlan: input.previousPlan }),
           previousErrors: input.previousErrors,
         }),
@@ -439,8 +453,7 @@ export function AgentPocPanel({
       runAbortRef.current?.signal,
       "thought",
     );
-    if (!response.ok) throw new Error("Le planner a échoué");
-    const data = (await response.json()) as PlanResponse;
+    const data = (await (await requireOk(response, "thought")).json()) as PlanResponse;
     if (data.status === "planned") {
       return {
         status: "planned",
@@ -488,8 +501,7 @@ export function AgentPocPanel({
       runAbortRef.current?.signal,
       "action",
     );
-    if (!response.ok) throw new Error("L’exécution du plan a échoué");
-    return (await response.json()) as ExecuteResponse;
+    return (await (await requireOk(response, "action")).json()) as ExecuteResponse;
   };
 
   const verify = async (input: {
@@ -513,8 +525,7 @@ export function AgentPocPanel({
       runAbortRef.current?.signal,
       "observation",
     );
-    if (!response.ok) throw new Error("La vérification a échoué");
-    return (await response.json()) as AgentVerifyOutcome;
+    return (await (await requireOk(response, "observation")).json()) as AgentVerifyOutcome;
   };
 
   const emit = (event: AgentLoopEvent): void => {
@@ -628,6 +639,7 @@ export function AgentPocPanel({
       missionStartedAtRef.current = new Date().toISOString();
       missionStatusRef.current = "active";
       lastAttemptRef.current = null;
+      memoryRef.current = emptyAgentMemory();
       await applyPreview(initialParams);
       hydratedRef.current = true;
     } catch (error) {
@@ -671,6 +683,7 @@ export function AgentPocPanel({
         initialAttempts: missionAttemptsRef.current,
         startedAt: budgetStartedAt,
         maxDurationMs: timeouts.missionMs,
+        memory: memoryRef.current,
         ports: {
           initialObservation: async () => observeValues(values),
           plan,
@@ -810,6 +823,30 @@ export function AgentPocPanel({
             ? `La phase « ${error.phase} » a dépassé le délai autorisé. ${candidateWasApplied ? "Le candidat a été annulé." : "Aucune modification n’a été appliquée."}`
             : "La phase a dépassé le délai autorisé et je ne peux pas garantir la cohérence de l’aperçu. Recharge la page.",
           status: restored ? "warning" : "error",
+        });
+        if (!restored) setCoherenceLost(true);
+        return;
+      }
+
+      if (error instanceof AgentHttpError) {
+        emit({
+          phase:
+            error.phase === "thought" || error.phase === "action" || error.phase === "observation"
+              ? error.phase
+              : "decision",
+          title: "Erreur technique",
+          detail: `HTTP ${error.status} · phase=${error.phase} · ${error.body}`,
+          status: "error",
+          cause: "http_error",
+        });
+        const restored = await restoreIfCandidateApplied();
+        updateMessage(assistant.id, {
+          content: restored
+            ? candidateWasApplied
+              ? "Le service a renvoyé une erreur technique. L’état précédent de l’aperçu a été restauré."
+              : "Le service a renvoyé une erreur technique. Aucune modification n’a été appliquée."
+            : "Erreur technique et restauration incertaine. Recharge la page.",
+          status: "error",
         });
         if (!restored) setCoherenceLost(true);
         return;
