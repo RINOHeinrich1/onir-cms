@@ -118,3 +118,4 @@ ADR qui remplace la précédente.
 | [0119](./0119-session-agentique-mission.md) | Session agentique par mission utilisateur | Proposé |
 | [0120](./0120-delais-annulation-boucle-agentique.md) | Délais et annulation cohérents dans la boucle agentique | Proposé |
 | [0121](./0121-memoire-operationnelle-mission.md) | Mémoire opérationnelle de mission et validation préalable | Proposé |
+| [0122](./0122-orchestration-adaptative-missions-agentiques.md) | Orchestration adaptative des missions agentiques complexes | Proposé |
