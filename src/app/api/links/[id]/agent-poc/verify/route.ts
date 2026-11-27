@@ -30,6 +30,10 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       body.observation !== null && typeof body.observation === "object"
         ? (body.observation as Record<string, unknown>)
         : {};
+    const execution =
+      body.execution !== null && typeof body.execution === "object"
+        ? (body.execution as Record<string, unknown>)
+        : {};
     const client = await pgAiClientFactory(getPool()).forTarget(
       {
         organizationId: organizationOf(actor),
@@ -44,10 +48,13 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         "Tu réponds uniquement en JSON valide.",
         'Format : {"satisfied":true|false,"reason":"...","missing":"..."}',
         "Ne suppose pas qu’une modification est réussie si le texte ou le lien attendu n’est pas visible.",
+        "Les postconditions de l’exécution (execution.verification) font foi pour les objets qui ne sont pas visibles sur la page courante.",
+        "Une page créée, son texte et son entrée de menu peuvent donc être validés même si l’aperçu reste sur une autre page.",
       ].join("\n"),
       user: [
         `Objectif : ${goal}`,
         `Observation : ${JSON.stringify(observation).slice(0, 12000)}`,
+        `Exécution : ${JSON.stringify(execution).slice(0, 4000)}`,
       ].join("\n\n"),
     });
     return NextResponse.json({

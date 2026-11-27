@@ -2,6 +2,7 @@ import { type Actor, assertCan, organizationOf } from "@/application/actor";
 import { ValidationError } from "@/application/errors";
 import type { AiClientFactory, ResolvedAiTarget } from "@/application/ports/ai-client-factory";
 import { callStructuredAi } from "@/application/use-cases/chatbots/structured-ai-call";
+import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import { executeTemplateEditPlan } from "@/domain/template-edit-plan";
 import { compileTemplateEditPlan } from "@/domain/template-edit-plan-compiler";
 import type { TemplateEditProposal } from "@/domain/template-edit-proposal";
@@ -30,6 +31,8 @@ export type PlanTemplateEditInput = {
   maxAttempts?: number;
   previousPlan?: unknown;
   previousErrors?: string[];
+  observation?: unknown;
+  planOnly?: boolean;
   providerId?: string;
   model?: string;
 };
@@ -72,6 +75,14 @@ export type PlanTemplateEditResult =
   | {
       status: "rejected";
       errors: string[];
+      warnings: string[];
+      rawPlan: unknown;
+      attempts: number;
+      attemptHistory: PlanAttemptRecord[];
+    }
+  | {
+      status: "planned";
+      plan: TemplateEditPlan;
       warnings: string[];
       rawPlan: unknown;
       attempts: number;
@@ -153,6 +164,7 @@ export async function planTemplateEdit(
       schema: input.schema,
       values: input.values,
       skills: input.skills,
+      ...(input.observation === undefined ? {} : { observation: input.observation }),
       ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
       ...(input.history === undefined ? {} : { history: input.history }),
       ...(previousErrors.length === 0 ? {} : { previousErrors, previousPlan }),
@@ -238,6 +250,20 @@ export async function planTemplateEdit(
         attemptHistory: [
           ...attemptHistory,
           { attempt, status: "error", errors: ["plan vide sans clarification"], rawPlan: raw },
+        ],
+      };
+    }
+
+    if (input.planOnly === true) {
+      return {
+        status: "planned",
+        plan,
+        warnings: plan.warnings ?? [],
+        rawPlan: raw,
+        attempts: attempt,
+        attemptHistory: [
+          ...attemptHistory,
+          { attempt, status: "success", errors: [], rawPlan: raw },
         ],
       };
     }

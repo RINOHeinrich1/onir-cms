@@ -49,6 +49,7 @@ export function buildTemplateEditPlanPrompt(input: {
   history?: TemplateEditHistoryMessage[];
   previousErrors?: string[];
   previousPlan?: unknown;
+  observation?: unknown;
 }): { system: string; user: string } {
   const candidates = input.candidates.slice(0, MAX_CANDIDATES);
   const collectionParams = new Set(candidates.map((candidate) => candidate.collection));
@@ -99,6 +100,9 @@ export function buildTemplateEditPlanPrompt(input: {
       `Règles d’insertion : ${JSON.stringify(insertion)}`,
       `Skills : ${JSON.stringify(skills)}`,
       `Capacités du template : ${JSON.stringify(input.capabilities ?? null)}`,
+      ...(input.observation === undefined
+        ? []
+        : [`Observation structurée : ${JSON.stringify(input.observation)}`]),
       ...(input.previousErrors === undefined || input.previousErrors.length === 0
         ? []
         : [

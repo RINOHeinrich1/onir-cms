@@ -39,6 +39,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     const loaded = await loadTemplateEditContext(pool, actor, id, surfaceFrom(body.surface));
     const values = paramsFrom(body.params, loaded.workingParams, loaded);
     const previousPlan = body.previousPlan;
+    const observation = body.observation;
     const previousErrors = Array.isArray(body.previousErrors)
       ? body.previousErrors.filter((entry): entry is string => typeof entry === "string")
       : [];
@@ -75,6 +76,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
       values,
       skills: selected,
       capabilities,
+      ...(observation === undefined ? {} : { observation }),
+      planOnly: true,
       maxAttempts: 1,
       ...(previousPlan === undefined ? {} : { previousPlan }),
       previousErrors,
@@ -106,8 +109,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     }
     return NextResponse.json({
       status: planned.status,
-      values: planned.status === "proposed" ? planned.values : null,
-      proposal: planned.status === "proposed" ? planned.proposal : null,
+      plan: planned.status === "planned" ? planned.plan : null,
+      values: null,
+      proposal: null,
       warnings: planned.warnings,
       attempts: planned.attempts,
       attemptHistory: planned.attemptHistory,

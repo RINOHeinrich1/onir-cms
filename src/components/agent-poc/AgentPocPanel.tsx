@@ -1,33 +1,41 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { TemplateEditProposal } from "@/domain/template-edit-proposal";
+import {
+  type AgentExecutionOutcome,
+  type AgentLoopEvent,
+  type AgentPlanOutcome,
+  type AgentVerifyOutcome,
+  runAgentLoop,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-loop";
+import {
+  type AgentObservation,
+  type AgentRenderObservation,
+  buildAgentObservation,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-observation";
+import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
 
 type PlanResponse = {
-  status: "proposed" | "clarification" | "rejected" | "noop";
-  values: TemplateParamValues | null;
-  proposal: TemplateEditProposal | null;
+  status: "planned" | "clarification" | "noop" | "rejected";
+  plan: TemplateEditPlan | null;
   warnings: string[];
   attempts: number;
-  attemptHistory: Array<{ attempt: number; status: string; errors: string[] }>;
   planRaw: unknown;
   skills: Array<{ id: string; version: string; confidence: number; reason: string }>;
   clarification: string | null;
   errors: string[];
 };
 
-type Observation = {
-  text: string;
-  header: string;
-  main: string;
-};
-
-type VerifyResponse = {
-  satisfied: boolean;
-  reason: string;
-  missing: string;
+type ExecuteResponse = {
+  ok: boolean;
+  values: TemplateParamValues;
+  proposal?: { operations: unknown[]; warnings?: string[] } | null;
+  logs: AgentExecutionOutcome["logs"];
+  errors: string[];
+  referenceErrors: string[];
+  verification: AgentExecutionOutcome["verification"];
 };
 
 type LogEntry = {
@@ -36,17 +44,8 @@ type LogEntry = {
   status: "running" | "success" | "warning" | "error";
 };
 
-type AgentBudget = {
-  aiCalls: number;
-  startedAt: number;
-};
-
-const MAX_ITERATIONS = 10;
-const MAX_AI_CALLS = 40;
-const MAX_DURATION_MS = 180_000;
 const PLAN_TIMEOUT_MS = 60_000;
 const VERIFY_TIMEOUT_MS = 30_000;
-const MAX_SAME_ERROR = 2;
 
 async function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -62,23 +61,12 @@ async function fetchWithTimeout(
   }
 }
 
-function planHash(operations: unknown, values: unknown): string {
-  return JSON.stringify({ operations, values });
-}
-
-function observationHash(observation: Observation): string {
-  return `${observation.header}\n${observation.main}`;
-}
-
-function errorSignature(errors: string[]): string {
-  return errors
-    .map((entry) => entry.trim().replace(/\s+/g, " "))
-    .sort()
-    .join("|");
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function logStatus(status: AgentLoopEvent["status"]): LogEntry["status"] {
+  return status;
 }
 
 export function AgentPocPanel({
@@ -100,15 +88,15 @@ export function AgentPocPanel({
   const iframeLoadRef = useRef(0);
   const currentParamsRef = useRef<TemplateParamValues>(initialParams);
   const currentTokenRef = useRef<string | null>(null);
+  const revisionRef = useRef(0);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const revisionRef = useRef(0);
   const [goal, setGoal] = useState(
     "Ajoute un menu Services et rattache-le à une page Services avec la liste des services.",
   );
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [observation, setObservation] = useState<Observation | null>(null);
+  const [observation, setObservation] = useState<AgentObservation | null>(null);
   const [finalStatus, setFinalStatus] = useState<string | null>(null);
 
   const log = (entry: LogEntry): void => {
@@ -151,12 +139,13 @@ export function AgentPocPanel({
         currentParamsRef.current = initialParams;
       })
       .catch((error: unknown) => {
-        if (!cancelled)
+        if (!cancelled) {
           log({
             title: "Aperçu",
             detail: error instanceof Error ? error.message : "Erreur",
             status: "error",
           });
+        }
       });
     return () => {
       cancelled = true;
@@ -205,81 +194,141 @@ export function AgentPocPanel({
     throw new Error("L’aperçu n’est pas prêt");
   };
 
-  const observe = async (
+  const readRender = async (
     expectedToken?: string,
     expectedRevision?: number,
-  ): Promise<Observation> => {
+  ): Promise<AgentRenderObservation> => {
     const doc = await waitForPreview(expectedToken, expectedRevision);
     const root = doc.querySelector("onirtech-template-puzzle")?.shadowRoot;
     if (root === null || root === undefined) throw new Error("Shadow DOM indisponible");
     const header = root.querySelector("header")?.innerText ?? "";
     const main = root.querySelector("main")?.innerText ?? "";
     return {
-      text: `${header}
-${main}`.slice(0, 12_000),
+      revision: expectedRevision ?? revisionRef.current,
+      text: `${header}\n${main}`.slice(0, 12_000),
       header,
       main,
     };
   };
 
   const applyPreview = async (
-    nextParams: TemplateParamValues,
-    token: string | null,
-  ): Promise<{ token: string; observation: Observation }> => {
+    values: TemplateParamValues,
+  ): Promise<{ token: string; render: AgentRenderObservation }> => {
     const previousLoad = iframeLoadRef.current;
-    const next = await createPreview(nextParams, token);
+    const token = currentTokenRef.current;
+    const next = await createPreview(values, token);
     await waitForIframeLoad(previousLoad);
-    const observation = await observe(next.token, next.revision);
-    setObservation(observation);
-    return { token: next.token, observation };
+    const render = await readRender(next.token, next.revision);
+    currentTokenRef.current = next.token;
+    return { token: next.token, render };
   };
 
-  const plan = async (
-    request: string,
-    values: TemplateParamValues,
-    budget: AgentBudget,
-    previousPlan: unknown,
-    previousErrors: string[],
-  ): Promise<PlanResponse> => {
-    if (budget.aiCalls + 2 > MAX_AI_CALLS) throw new Error("Budget d’appels IA dépassé");
-    budget.aiCalls += 2;
+  const observeValues = async (values: TemplateParamValues): Promise<AgentObservation> => {
+    const render = await readRender();
+    return buildAgentObservation({ values, render });
+  };
+
+  const plan = async (input: {
+    request: string;
+    values: TemplateParamValues;
+    observation: AgentObservation;
+    previousPlan: unknown;
+    previousErrors: string[];
+  }): Promise<AgentPlanOutcome> => {
     const response = await fetchWithTimeout(
       `/api/links/${linkId}/agent-poc/plan`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          request,
-          params: values,
+          request: input.request,
+          params: input.values,
           surface,
-          ...(previousPlan === null ? {} : { previousPlan }),
-          previousErrors,
+          observation: input.observation,
+          ...(input.previousPlan === null ? {} : { previousPlan: input.previousPlan }),
+          previousErrors: input.previousErrors,
         }),
       },
       PLAN_TIMEOUT_MS,
     );
     if (!response.ok) throw new Error("Le planner a échoué");
-    return (await response.json()) as PlanResponse;
+    const data = (await response.json()) as PlanResponse;
+    if (data.status === "planned") {
+      return {
+        status: "planned",
+        rawPlan: data.planRaw,
+        warnings: data.warnings,
+        attempts: data.attempts,
+      };
+    }
+    if (data.status === "clarification" || data.status === "noop") {
+      return {
+        status: data.status,
+        message: data.clarification ?? data.warnings.join(" ; ") ?? "",
+        rawPlan: data.planRaw,
+        warnings: data.warnings,
+        attempts: data.attempts,
+      };
+    }
+    return {
+      status: "rejected",
+      errors: data.errors,
+      warnings: data.warnings,
+      rawPlan: data.planRaw,
+      attempts: data.attempts,
+    };
   };
 
-  const verify = async (
-    target: string,
-    snapshot: Observation,
-    budget: AgentBudget,
-  ): Promise<VerifyResponse> => {
-    if (budget.aiCalls + 1 > MAX_AI_CALLS) throw new Error("Budget d’appels IA dépassé");
-    budget.aiCalls += 1;
+  const execute = async (input: {
+    values: TemplateParamValues;
+    rawPlan: unknown;
+  }): Promise<AgentExecutionOutcome> => {
+    const response = await fetchWithTimeout(
+      `/api/links/${linkId}/agent-poc/execute`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: input.rawPlan,
+          params: input.values,
+          surface,
+          request: goal,
+        }),
+      },
+      PLAN_TIMEOUT_MS,
+    );
+    if (!response.ok) throw new Error("L’exécution du plan a échoué");
+    return (await response.json()) as ExecuteResponse;
+  };
+
+  const verify = async (input: {
+    goal: string;
+    observation: AgentObservation;
+    execution: AgentExecutionOutcome;
+  }): Promise<AgentVerifyOutcome> => {
     const response = await fetchWithTimeout(
       `/api/links/${linkId}/agent-poc/verify`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal: target, observation: snapshot }),
+        body: JSON.stringify({
+          goal: input.goal,
+          observation: input.observation,
+          execution: input.execution,
+        }),
       },
       VERIFY_TIMEOUT_MS,
     );
     if (!response.ok) throw new Error("La vérification a échoué");
-    return (await response.json()) as VerifyResponse;
+    return (await response.json()) as AgentVerifyOutcome;
+  };
+
+  const emit = (event: AgentLoopEvent): void => {
+    log({
+      title: event.title,
+      detail: event.detail ?? "",
+      status: logStatus(event.status),
+    });
   };
 
   const runAgent = async (): Promise<void> => {
@@ -287,196 +336,51 @@ ${main}`.slice(0, 12_000),
     setRunning(true);
     setFinalStatus(null);
     setLogs([]);
-    const budget: AgentBudget = { aiCalls: 0, startedAt: Date.now() };
-    let currentParams = currentParamsRef.current;
-    let currentToken = currentTokenRef.current;
-    let lastReason = "";
-    let lastPlan: unknown = null;
-    let lastErrors: string[] = [];
-    let lastErrorSignature = "";
-    let sameErrorCount = 0;
-    const seenPlans = new Set<string>();
+    const values = currentParamsRef.current;
 
     try {
-      log({ title: "Observation initiale", detail: "Lecture de l’aperçu réel", status: "running" });
-      const snapshot = await observe();
-      setObservation(snapshot);
-      log({
-        title: "Observation initiale",
-        detail: snapshot.header.slice(0, 500),
-        status: "success",
+      const result = await runAgentLoop({
+        goal,
+        values,
+        ports: {
+          initialObservation: async () => {
+            const initial = await observeValues(values);
+            setObservation(initial);
+            return initial;
+          },
+          plan,
+          execute,
+          observeCandidate: async (candidateValues) => {
+            const applied = await applyPreview(candidateValues);
+            const candidate = buildAgentObservation({
+              values: candidateValues,
+              render: applied.render,
+            });
+            setObservation(candidate);
+            return candidate;
+          },
+          restore: async (restoredValues) => {
+            const restored = await applyPreview(restoredValues);
+            const restoredObservation = buildAgentObservation({
+              values: restoredValues,
+              render: restored.render,
+            });
+            setObservation(restoredObservation);
+            return restoredObservation;
+          },
+          verify,
+          emit,
+        },
       });
 
-      for (let attempt = 1; attempt <= MAX_ITERATIONS; attempt += 1) {
-        if (Date.now() - budget.startedAt > MAX_DURATION_MS) {
-          log({ title: "Budget", detail: "Durée maximale dépassée", status: "error" });
-          setFinalStatus("Budget de durée dépassé");
-          return;
-        }
-        const request =
-          lastReason === "" ? goal : `${goal}\n\nÉchec observé précédent : ${lastReason}`;
-        log({
-          title: `Tentative ${attempt}/${MAX_ITERATIONS}`,
-          detail: "Planification",
-          status: "running",
-        });
-        const planned = await plan(request, currentParams, budget, lastPlan, lastErrors);
-
-        for (const history of planned.attemptHistory) {
-          log({
-            title: `Plan ${history.attempt}`,
-            detail: history.status === "error" ? history.errors.join(" ; ") : "Plan accepté",
-            status: history.status === "error" ? "error" : "success",
-          });
-        }
-
-        if (planned.status === "clarification") {
-          log({
-            title: "Clarification",
-            detail: planned.clarification ?? "Précision requise",
-            status: "warning",
-          });
-          setFinalStatus("Clarification requise");
-          return;
-        }
-
-        if (planned.status === "noop") {
-          log({
-            title: "Aucune modification",
-            detail: planned.warnings.join(" ; ") || "La demande semble déjà satisfaite.",
-            status: "success",
-          });
-          setFinalStatus("Aucune modification nécessaire");
-          return;
-        }
-
-        if (planned.status === "rejected") {
-          const reason =
-            planned.errors.join(" ; ") || planned.warnings.join(" ; ") || "Plan rejeté";
-          log({
-            title: `Plan rejeté ${attempt}`,
-            detail: reason,
-            status: "warning",
-          });
-          const signature = errorSignature(planned.errors);
-          sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
-          lastErrorSignature = signature;
-          lastReason = reason;
-          lastPlan = planned.planRaw;
-          lastErrors = planned.errors;
-          if (sameErrorCount >= MAX_SAME_ERROR) {
-            setFinalStatus("Même erreur de plan répétée");
-            return;
-          }
-          continue;
-        }
-
-        if (planned.values === null) {
-          log({
-            title: "Plan non applicable",
-            detail: planned.warnings.join(" ; ") || "Aucune valeur proposée",
-            status: "error",
-          });
-          setFinalStatus("Échec du plan");
-          return;
-        }
-
-        lastPlan = planned.planRaw;
-        lastErrors = [];
-        const hash = planHash(planned.proposal?.operations, planned.values);
-        if (seenPlans.has(hash)) {
-          log({
-            title: "Aucune progression",
-            detail: "Le planner a reproposé exactement le même plan.",
-            status: "error",
-          });
-          setFinalStatus("Boucle sans progression");
-          return;
-        }
-        seenPlans.add(hash);
-
-        log({
-          title: "Plan accepté",
-          detail: `${planned.proposal?.operations.length ?? 0} opération(s) — ${planned.skills
-            .map((skill) => skill.id)
-            .join(", ")}`,
-          status: "success",
-        });
-
-        let applied: { token: string; observation: Observation };
-        try {
-          applied = await applyPreview(planned.values, currentToken);
-        } catch (error) {
-          log({
-            title: "Rollback",
-            detail: "Impossible d’appliquer le candidat, restauration de l’état courant.",
-            status: "warning",
-          });
-          const restored = await applyPreview(currentParams, currentToken);
-          currentToken = restored.token;
-          currentTokenRef.current = currentToken;
-          lastReason = error instanceof Error ? error.message : "Application impossible";
-          continue;
-        }
-
-        const candidateObservation = applied.observation;
-        const checked = await verify(goal, candidateObservation, budget);
-        log({
-          title: `Vérification ${attempt} — ${checked.satisfied ? "réussie" : "échouée"}`,
-          detail: checked.satisfied
-            ? checked.reason
-            : checked.missing || checked.reason || "Le candidat ne satisfait pas l’objectif.",
-          status: checked.satisfied ? "success" : "warning",
-        });
-
-        if (checked.satisfied) {
-          currentParams = planned.values;
-          currentToken = applied.token;
-          currentParamsRef.current = currentParams;
-          currentTokenRef.current = currentToken;
-          setObservation(candidateObservation);
-          setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
-          return;
-        }
-
-        const restored = await applyPreview(currentParams, currentToken);
-        currentToken = restored.token;
-        currentTokenRef.current = currentToken;
-        setObservation(restored.observation);
-        log({
-          title: "Rollback",
-          detail: "Le candidat n’a pas satisfait la vérification. État courant restauré.",
-          status: "warning",
-        });
-
-        const reason = checked.missing || checked.reason;
-        const signature = errorSignature([reason]);
-        sameErrorCount = signature === lastErrorSignature ? sameErrorCount + 1 : 1;
-        lastErrorSignature = signature;
-        lastReason = `${reason}\nCandidat rejeté (header) : ${candidateObservation.header}\nÉtat courant (header) : ${restored.observation.header}`;
-        lastPlan = planned.planRaw;
-        lastErrors = [reason];
-        const candidateHash = observationHash(candidateObservation);
-        const restoredHash = observationHash(restored.observation);
-        if (candidateHash === restoredHash) {
-          log({
-            title: "Candidat sans effet visible",
-            detail:
-              "Le candidat a été appliqué puis rejeté, mais le rendu observé est identique à l’état courant.",
-            status: "warning",
-          });
-        }
-        if (sameErrorCount >= MAX_SAME_ERROR) {
-          log({
-            title: "Arrêt",
-            detail: "La même erreur a été observée deux fois.",
-            status: "error",
-          });
-          setFinalStatus("Boucle d’erreur détectée");
-          return;
-        }
+      if (result.status === "success") {
+        currentParamsRef.current = result.values;
+        setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
+      } else if (result.status === "clarification") {
+        setFinalStatus(`Clarification requise : ${result.reason}`);
+      } else {
+        setFinalStatus(`${result.status} : ${result.reason}`);
       }
-      setFinalStatus("Objectif non atteint après le budget de tentatives");
     } catch (error) {
       log({
         title: "Erreur",
@@ -534,9 +438,20 @@ ${main}`.slice(0, 12_000),
         </div>
         {observation === null ? null : (
           <details className={styles.snapshot}>
-            <summary>Observation du header</summary>
-            <pre>{observation.header}</pre>
-            <pre>{observation.main.slice(0, 2000)}</pre>
+            <summary>Observation structurée</summary>
+            <pre>
+              {JSON.stringify(
+                {
+                  revision: observation.revision,
+                  stateHash: observation.stateHash,
+                  counts: observation.counts,
+                },
+                null,
+                2,
+              )}
+            </pre>
+            <pre>{observation.render.header}</pre>
+            <pre>{observation.render.main.slice(0, 2000)}</pre>
           </details>
         )}
       </aside>

@@ -491,7 +491,7 @@ export async function continueTemplateEditSession(
         validationErrors: planned.errors,
         metadata: { selection, surface: context.surface, attempts: planned.attempts },
       });
-    } else {
+    } else if (planned.status === "proposed") {
       const reply = createTemplateEditMessage(
         "assistant",
         `J’ai préparé un plan de ${planned.proposal.operations.length} étape${planned.proposal.operations.length > 1 ? "s" : ""}. Vérifiez les détails avant d’appliquer.`,
