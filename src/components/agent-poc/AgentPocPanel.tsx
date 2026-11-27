@@ -15,6 +15,10 @@ import {
   type AgentRenderObservation,
   buildAgentObservation,
 } from "@/application/use-cases/visual-templates/agent-poc/agent-observation";
+import type {
+  AgentPocSessionState,
+  AgentPocStatus,
+} from "@/application/use-cases/visual-templates/agent-poc/agent-session";
 import type { TemplateEditPlan } from "@/domain/template-edit-plan";
 import type { TemplateParamValues } from "@/domain/template-params";
 import styles from "./AgentPocPanel.module.css";
@@ -148,7 +152,14 @@ export function AgentPocPanel({
   const activeAssistantRef = useRef<string | null>(null);
   const traceRef = useRef<AgentLoopEvent[]>([]);
   const historyRef = useRef<ReturnType<typeof conversationHistory>>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const missionAttemptsRef = useRef(0);
+  const missionStartedAtRef = useRef(new Date().toISOString());
+  const missionStatusRef = useRef<AgentPocStatus>("active");
+  const lastAttemptRef = useRef<AgentAttempt | null>(null);
+  const hydratedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [goal, setGoal] = useState("");
@@ -236,9 +247,46 @@ export function AgentPocPanel({
   useEffect(() => {
     let cancelled = false;
     void createPreview(initialParams, null)
-      .then(({ token }) => {
+      .then(async ({ token }) => {
+        if (cancelled) return;
         currentTokenRef.current = token;
         currentParamsRef.current = initialParams;
+        try {
+          const response = await fetch(`/api/links/${linkId}/agent-poc/session`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ surface, params: initialParams }),
+          });
+          if (!response.ok) throw new Error("Session agentique indisponible");
+          const data = (await response.json()) as {
+            session: { id: string; state: { agentPoc?: unknown } };
+          };
+          if (cancelled) return;
+          sessionIdRef.current = data.session.id;
+          setSessionId(data.session.id);
+          const persisted = data.session.state.agentPoc as AgentPocSessionState | undefined;
+          if (
+            persisted !== undefined &&
+            persisted.version === 1 &&
+            Array.isArray(persisted.messages) &&
+            Array.isArray(persisted.revisions)
+          ) {
+            setMessages(persisted.messages as ChatMessage[]);
+            setRevisions(persisted.revisions as RevisionSnapshot[]);
+            setGoal(persisted.goal);
+            setCurrentRevisionId(persisted.currentRevisionId);
+            currentParamsRef.current = persisted.acceptedValues;
+            missionAttemptsRef.current = persisted.budget.attemptsUsed;
+            missionStartedAtRef.current = persisted.budget.startedAt;
+            missionStatusRef.current = persisted.status;
+            lastAttemptRef.current = persisted.lastAttempt;
+            await applyPreview(persisted.acceptedValues);
+          }
+        } catch (error) {
+          console.error("Mission agentique indisponible", error);
+        } finally {
+          hydratedRef.current = true;
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -256,6 +304,38 @@ export function AgentPocPanel({
     if (messages.length === 0 && pendingInteraction === null && !running) return;
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, pendingInteraction, running]);
+
+  useEffect(() => {
+    if (sessionId === null || !hydratedRef.current) return;
+    const timer = window.setTimeout(() => {
+      const currentRevision = revisions.find((entry) => entry.id === currentRevisionId);
+      const state: AgentPocSessionState = {
+        version: 1,
+        goal,
+        status: missionStatusRef.current,
+        acceptedValues: currentParamsRef.current,
+        acceptedHash: currentRevision?.stateHash ?? null,
+        currentRevisionId,
+        lastAttempt: lastAttemptRef.current,
+        interaction: pendingInteraction?.request ?? null,
+        messages,
+        revisions,
+        budget: {
+          attemptsUsed: missionAttemptsRef.current,
+          startedAt: missionStartedAtRef.current,
+          aiCallsUsed: 0,
+        },
+      };
+      void fetch(`/api/links/${linkId}/agent-poc/session`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, agentPoc: state }),
+      }).catch((error: unknown) => {
+        console.error("Persistance de la mission impossible", error);
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [sessionId, linkId, messages, revisions, goal, currentRevisionId, pendingInteraction]);
 
   const waitForIframeLoad = async (previousCount: number, signal?: AbortSignal): Promise<void> => {
     for (let index = 0; index < 160; index += 1) {
@@ -513,6 +593,50 @@ export function AgentPocPanel({
     }
   };
 
+  const startNewMission = async (): Promise<void> => {
+    if (running) return;
+    try {
+      const response = await fetch(`/api/links/${linkId}/agent-poc/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new: true, surface, params: initialParams }),
+      });
+      if (!response.ok) throw new Error("Impossible de créer la mission");
+      const data = (await response.json()) as { session: { id: string } };
+      sessionIdRef.current = data.session.id;
+      setSessionId(data.session.id);
+      setMessages([
+        createMessage(
+          "assistant",
+          "Nouvelle mission. Décrivez la modification que vous souhaitez apporter à votre interface.",
+        ),
+      ]);
+      setRevisions([
+        {
+          id: "initial",
+          label: "État initial",
+          createdAt: new Date().toISOString(),
+          values: cloneValues(initialParams),
+          stateHash: "initial",
+        },
+      ]);
+      setCurrentRevisionId("initial");
+      setGoal("");
+      setPendingInteraction(null);
+      setInteractionText("");
+      setHistoryOpen(false);
+      currentParamsRef.current = initialParams;
+      missionAttemptsRef.current = 0;
+      missionStartedAtRef.current = new Date().toISOString();
+      missionStatusRef.current = "active";
+      lastAttemptRef.current = null;
+      await applyPreview(initialParams);
+      hydratedRef.current = true;
+    } catch (error) {
+      console.error("Nouvelle mission impossible", error);
+    }
+  };
+
   const runAgent = async (userInstruction = ""): Promise<void> => {
     const request = userInstruction.trim() === "" ? goal.trim() : userInstruction.trim();
     if (running || coherenceLost || request === "") return;
@@ -538,6 +662,8 @@ export function AgentPocPanel({
       const result = await runAgentLoop({
         goal: effectiveGoal,
         values,
+        initialAttempts: missionAttemptsRef.current,
+        startedAt: missionStartedAtRef.current,
         ports: {
           initialObservation: async () => observeValues(values),
           plan,
@@ -557,6 +683,7 @@ export function AgentPocPanel({
 
       if (cancelRequestedRef.current) {
         const restored = await restoreAccepted();
+        missionStatusRef.current = "paused";
         updateMessage(assistant.id, {
           content: cancelledMessage(),
           status: "cancelled",
@@ -564,8 +691,11 @@ export function AgentPocPanel({
         if (!restored) setCoherenceLost(true);
         return;
       }
+      missionAttemptsRef.current = result.attempts;
+      lastAttemptRef.current = result.lastAttempt;
 
       if (result.status === "success") {
+        missionStatusRef.current = "active";
         currentParamsRef.current = result.values;
         setCoherenceLost(false);
         addRevision(request, result.values, result.observation.stateHash);
@@ -574,12 +704,14 @@ export function AgentPocPanel({
           status: "success",
         });
       } else if (result.status === "inconsistent") {
+        missionStatusRef.current = "paused";
         setCoherenceLost(true);
         updateMessage(assistant.id, {
           content: inconsistentMessage(result.reason),
           status: "error",
         });
       } else if (result.status === "awaiting_user_input") {
+        missionStatusRef.current = "waiting_user";
         setPendingInteraction({
           assistantId: assistant.id,
           request: result.interaction,
@@ -594,6 +726,7 @@ export function AgentPocPanel({
           status: "warning",
         });
       } else if (result.status === "clarification") {
+        missionStatusRef.current = "waiting_user";
         setPendingInteraction({
           assistantId: assistant.id,
           request: result.interaction,
@@ -608,6 +741,7 @@ export function AgentPocPanel({
           status: "warning",
         });
       } else if (result.status === "blocked" || result.status === "failed") {
+        missionStatusRef.current = "paused";
         updateMessage(assistant.id, {
           content: "Je vérifie ce qui a bloqué et je prépare une piste de correction…",
           status: "error",
@@ -638,9 +772,11 @@ export function AgentPocPanel({
       const aborted = cancelRequestedRef.current || controller.signal.aborted;
       if (aborted) {
         const restored = await restoreAccepted();
+        missionStatusRef.current = "paused";
         updateMessage(assistant.id, { content: cancelledMessage(), status: "cancelled" });
         if (!restored) setCoherenceLost(true);
       } else {
+        missionStatusRef.current = "paused";
         const restored = await restoreAccepted();
         updateMessage(assistant.id, {
           content: restored
@@ -678,6 +814,8 @@ export function AgentPocPanel({
       return;
     }
     currentParamsRef.current = pendingInteraction.values;
+    missionStatusRef.current = "active";
+    lastAttemptRef.current = pendingInteraction.lastAttempt;
     addRevision(
       goal.trim() || "Résultat accepté",
       pendingInteraction.values,
@@ -700,6 +838,7 @@ export function AgentPocPanel({
       const restored = await applyPreview(pendingInteraction.baseValues);
       buildAgentObservation({ values: pendingInteraction.baseValues, render: restored.render });
       currentParamsRef.current = pendingInteraction.baseValues;
+      missionStatusRef.current = "active";
       updateMessage(pendingInteraction.assistantId, { content: label, status });
       setPendingInteraction(null);
       setInteractionText("");
@@ -764,6 +903,7 @@ export function AgentPocPanel({
       const restored = await applyPreview(revisionSnapshot.values);
       buildAgentObservation({ values: revisionSnapshot.values, render: restored.render });
       currentParamsRef.current = revisionSnapshot.values;
+      missionStatusRef.current = "active";
       setCurrentRevisionId(revisionSnapshot.id);
       setHistoryOpen(false);
       setMessages((current) => [
@@ -804,13 +944,23 @@ export function AgentPocPanel({
               Brouillon d’aperçu · rien n’est publié automatiquement
             </span>
           </div>
-          <button
-            type="button"
-            className={styles.historyButton}
-            onClick={() => setHistoryOpen(true)}
-          >
-            Historique
-          </button>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.historyButton}
+              onClick={() => void startNewMission()}
+              disabled={running}
+            >
+              Nouvelle mission
+            </button>
+            <button
+              type="button"
+              className={styles.historyButton}
+              onClick={() => setHistoryOpen(true)}
+            >
+              Historique
+            </button>
+          </div>
         </header>
 
         {coherenceLost ? (

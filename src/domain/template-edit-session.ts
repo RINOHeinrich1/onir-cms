@@ -24,6 +24,8 @@ export type TemplateEditSessionState = {
   pendingCandidate: TemplateEditCandidate | null;
   pendingBaseHash?: string | null;
   suggestions: string[];
+  /** État de la mission agentique POC (ADR-0119). */
+  agentPoc?: unknown;
 };
 
 export type TemplateEditSession = {

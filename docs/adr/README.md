@@ -115,3 +115,4 @@ ADR qui remplace la précédente.
 | [0116](./0116-coherence-transactionnelle-apercu-candidat.md) | Cohérence transactionnelle de l’aperçu candidat | Proposé |
 | [0117](./0117-contexte-conversationnel-planner.md) | Contexte conversationnel transmis au planner agentique | Proposé |
 | [0118](./0118-skills-composition-et-routage-contextuel.md) | Skills de composition et routage contextuel générique | Proposé |
+| [0119](./0119-session-agentique-mission.md) | Session agentique par mission utilisateur | Proposé |

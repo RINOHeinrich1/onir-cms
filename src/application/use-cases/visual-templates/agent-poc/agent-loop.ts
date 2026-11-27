@@ -228,10 +228,12 @@ function committed(attempt: AgentAttempt, candidateHash: string): AgentAttempt {
 export async function runAgentLoop(input: {
   goal: string;
   values: TemplateParamValues;
+  initialAttempts?: number;
+  startedAt?: string;
   ports: AgentLoopPorts;
 }): Promise<AgentLoopResult> {
   const now = input.ports.now ?? Date.now;
-  const startedAt = now();
+  const startedAt = input.startedAt === undefined ? now() : Date.parse(input.startedAt);
   const currentValues = input.values;
   let currentObservation = await input.ports.initialObservation();
   const committedHash = currentObservation.stateHash;
@@ -242,7 +244,7 @@ export async function runAgentLoop(input: {
   let sameErrorCount = 0;
   let seenPlan = "";
   let seenBaseHash = "";
-  let attempt = 0;
+  let attempt = input.initialAttempts ?? 0;
 
   input.ports.emit({
     phase: "initial-observation",
