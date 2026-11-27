@@ -137,6 +137,16 @@ export type AgentLoopResult =
       attempts: number;
       lastAttempt: AgentAttempt;
       interaction: AgentInteractionRequest;
+    }
+  | {
+      status: "inconsistent";
+      reason: string;
+      initialError: string;
+      rollbackError: string;
+      values: TemplateParamValues;
+      observation: AgentObservation;
+      attempts: number;
+      lastAttempt: AgentAttempt;
     };
 
 export const AGENT_MAX_ITERATIONS = 10;
@@ -164,6 +174,35 @@ function rolledBack(attempt: AgentAttempt): AgentAttempt {
       replayRequired: true,
     })),
   };
+}
+
+function inconsistentAttempt(attempt: AgentAttempt, errors: string[]): AgentAttempt {
+  return {
+    ...attempt,
+    transactionStatus: "inconsistent",
+    errors,
+    steps: attempt.steps.map((step) => ({
+      ...step,
+      effect: "applied_to_candidate",
+      replayRequired: true,
+    })),
+  };
+}
+
+type RollbackOutcome = { ok: true; observation: AgentObservation } | { ok: false; error: string };
+
+async function safeRestore(
+  ports: AgentLoopPorts,
+  values: TemplateParamValues,
+): Promise<RollbackOutcome> {
+  try {
+    return { ok: true, observation: await ports.restore(values) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Restauration impossible.",
+    };
+  }
 }
 
 function committed(attempt: AgentAttempt, candidateHash: string): AgentAttempt {
@@ -415,7 +454,29 @@ export async function runAgentLoop(input: {
         status: "error",
         attempt,
       });
-      currentObservation = await input.ports.restore(currentValues);
+      const restored = await safeRestore(input.ports, currentValues);
+      if (!restored.ok) {
+        const initialError = errors.join(" ; ") || "Échec d’exécution.";
+        lastAttempt = inconsistentAttempt(currentAttempt, [initialError, restored.error]);
+        input.ports.emit({
+          phase: "decision",
+          title: "Décision : cohérence perdue",
+          detail: `${initialError} ; rollback : ${restored.error}`,
+          status: "error",
+          attempt,
+        });
+        return {
+          status: "inconsistent",
+          reason: `Rollback impossible après échec d’exécution. Erreur initiale : ${initialError}. Rollback : ${restored.error}`,
+          initialError,
+          rollbackError: restored.error,
+          values: currentValues,
+          observation: currentObservation,
+          attempts: attempt,
+          lastAttempt,
+        };
+      }
+      currentObservation = restored.observation;
       input.ports.emit({
         phase: "decision",
         title: "Décision : rollback",
@@ -442,19 +503,48 @@ export async function runAgentLoop(input: {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Observation du candidat impossible.";
-      currentAttempt = { ...currentAttempt, errors: [message] };
+      const initialError = `Observation du candidat indisponible : ${message}`;
+      currentAttempt = { ...currentAttempt, errors: [initialError] };
       lastAttempt = rolledBack(currentAttempt);
       previousPlan = planned.rawPlan;
-      previousErrors = [message];
+      previousErrors = [initialError];
       input.ports.emit({
         phase: "observation",
         title: "Observation : aperçu indisponible",
-        detail: message,
+        detail: initialError,
         status: "error",
         attempt,
       });
-      currentObservation = await input.ports.restore(currentValues);
-      continue;
+      const restored = await safeRestore(input.ports, currentValues);
+      if (!restored.ok) {
+        lastAttempt = inconsistentAttempt(currentAttempt, [initialError, restored.error]);
+        input.ports.emit({
+          phase: "decision",
+          title: "Décision : cohérence perdue",
+          detail: `${initialError} ; rollback : ${restored.error}`,
+          status: "error",
+          attempt,
+        });
+        return {
+          status: "inconsistent",
+          reason: `Rollback impossible après indisponibilité de l’observation. Erreur initiale : ${initialError}. Rollback : ${restored.error}`,
+          initialError,
+          rollbackError: restored.error,
+          values: currentValues,
+          observation: currentObservation,
+          attempts: attempt,
+          lastAttempt,
+        };
+      }
+      currentObservation = restored.observation;
+      return {
+        status: "blocked",
+        reason: initialError,
+        values: currentValues,
+        observation: currentObservation,
+        attempts: attempt,
+        lastAttempt,
+      };
     }
 
     currentAttempt = {
@@ -470,11 +560,60 @@ export async function runAgentLoop(input: {
       attempt,
     });
 
-    const verified = await input.ports.verify({
-      goal: input.goal,
-      observation: candidateObservation,
-      execution,
-    });
+    let verified: AgentVerifyOutcome;
+    try {
+      verified = await input.ports.verify({
+        goal: input.goal,
+        observation: candidateObservation,
+        execution,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Vérification indisponible.";
+      const initialError = `Vérification indisponible : ${message}`;
+      currentAttempt = {
+        ...currentAttempt,
+        candidateHash: candidateObservation.stateHash,
+        errors: [initialError],
+      };
+      lastAttempt = rolledBack(currentAttempt);
+      input.ports.emit({
+        phase: "observation",
+        title: "Observation : vérification indisponible",
+        detail: initialError,
+        status: "error",
+        attempt,
+      });
+      const restored = await safeRestore(input.ports, currentValues);
+      if (!restored.ok) {
+        lastAttempt = inconsistentAttempt(currentAttempt, [initialError, restored.error]);
+        input.ports.emit({
+          phase: "decision",
+          title: "Décision : cohérence perdue",
+          detail: `${initialError} ; rollback : ${restored.error}`,
+          status: "error",
+          attempt,
+        });
+        return {
+          status: "inconsistent",
+          reason: `Rollback impossible après indisponibilité de la vérification. Erreur initiale : ${initialError}. Rollback : ${restored.error}`,
+          initialError,
+          rollbackError: restored.error,
+          values: currentValues,
+          observation: currentObservation,
+          attempts: attempt,
+          lastAttempt,
+        };
+      }
+      currentObservation = restored.observation;
+      return {
+        status: "blocked",
+        reason: initialError,
+        values: currentValues,
+        observation: currentObservation,
+        attempts: attempt,
+        lastAttempt,
+      };
+    }
 
     if (verified.satisfied) {
       const finalAttempt = committed(currentAttempt, candidateObservation.stateHash);

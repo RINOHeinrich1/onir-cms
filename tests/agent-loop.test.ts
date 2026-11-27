@@ -216,3 +216,92 @@ describe("boucle agentique", () => {
     expect(result.attempts).toBe(2);
   });
 });
+
+describe("cohérence transactionnelle", () => {
+  it("restaure le candidat quand le vérificateur est indisponible", async () => {
+    const restore = vi.fn(async () => observation(1));
+    let plans = 0;
+    const result = await runAgentLoop({
+      goal: "modifier",
+      values: {},
+      ports: {
+        initialObservation: async () => observation(1),
+        plan: async () => {
+          plans += 1;
+          return { status: "planned", rawPlan: { step: "one" }, warnings: [], attempts: 1 };
+        },
+        execute: async () => execution(true),
+        observeCandidate: async () => observation(2),
+        restore,
+        verify: async () => {
+          throw new Error("timeout");
+        },
+        emit: () => undefined,
+      },
+    });
+
+    expect(result.status).toBe("blocked");
+    if (result.status !== "blocked") return;
+    expect(result.reason).toContain("Vérification indisponible");
+    expect(restore).toHaveBeenCalledTimes(1);
+    expect(plans).toBe(1);
+  });
+
+  it("restaure le candidat quand son observation échoue", async () => {
+    const restore = vi.fn(async () => observation(1));
+    const result = await runAgentLoop({
+      goal: "modifier",
+      values: {},
+      ports: {
+        initialObservation: async () => observation(1),
+        plan: async () => ({
+          status: "planned",
+          rawPlan: { step: "one" },
+          warnings: [],
+          attempts: 1,
+        }),
+        execute: async () => execution(true),
+        observeCandidate: async () => {
+          throw new Error("preview timeout");
+        },
+        restore,
+        verify: async () => ({ satisfied: true, reason: "", missing: "" }),
+        emit: () => undefined,
+      },
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(restore).toHaveBeenCalledTimes(1);
+  });
+
+  it("s’arrête sans retry quand le rollback échoue", async () => {
+    let plans = 0;
+    const result = await runAgentLoop({
+      goal: "modifier",
+      values: {},
+      ports: {
+        initialObservation: async () => observation(1),
+        plan: async () => {
+          plans += 1;
+          return { status: "planned", rawPlan: { step: "one" }, warnings: [], attempts: 1 };
+        },
+        execute: async () => execution(true),
+        observeCandidate: async () => observation(2),
+        restore: async () => {
+          throw new Error("storage down");
+        },
+        verify: async () => {
+          throw new Error("ai down");
+        },
+        emit: () => undefined,
+      },
+    });
+
+    expect(result.status).toBe("inconsistent");
+    if (result.status !== "inconsistent") return;
+    expect(result.initialError).toContain("Vérification indisponible");
+    expect(result.rollbackError).toContain("storage down");
+    expect(result.lastAttempt.transactionStatus).toBe("inconsistent");
+    expect(plans).toBe(1);
+  });
+});

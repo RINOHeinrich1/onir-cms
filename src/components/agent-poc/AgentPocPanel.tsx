@@ -110,6 +110,7 @@ export function AgentPocPanel({
   const [observation, setObservation] = useState<AgentObservation | null>(null);
   const [pendingInteraction, setPendingInteraction] = useState<PendingInteraction | null>(null);
   const [interactionText, setInteractionText] = useState("");
+  const [coherenceLost, setCoherenceLost] = useState(false);
   const [finalStatus, setFinalStatus] = useState<string | null>(null);
 
   const log = (entry: LogEntry): void => {
@@ -347,7 +348,7 @@ export function AgentPocPanel({
   };
 
   const runAgent = async (userInstruction = ""): Promise<void> => {
-    if (running || goal.trim() === "") return;
+    if (running || coherenceLost || goal.trim() === "") return;
     setRunning(true);
     setFinalStatus(null);
     setLogs([]);
@@ -394,7 +395,13 @@ export function AgentPocPanel({
 
       if (result.status === "success") {
         currentParamsRef.current = result.values;
+        setCoherenceLost(false);
         setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
+      } else if (result.status === "inconsistent") {
+        setCoherenceLost(true);
+        setFinalStatus(
+          `Cohérence non garantie : ${result.reason} Rechargez la page avant de continuer.`,
+        );
       } else if (result.status === "awaiting_user_input") {
         setPendingInteraction({
           request: result.interaction,
@@ -539,7 +546,7 @@ export function AgentPocPanel({
         <button
           type="button"
           className={styles.run}
-          disabled={running || previewToken === null}
+          disabled={running || coherenceLost || previewToken === null}
           onClick={() => void runAgent()}
         >
           {running ? "Agent en cours…" : "Lancer l’agent"}

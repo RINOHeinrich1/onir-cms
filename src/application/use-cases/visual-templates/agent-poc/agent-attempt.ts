@@ -19,7 +19,7 @@ export type AgentAttempt = {
   baseHash: string;
   candidateHash: string | null;
   committedHash: string;
-  transactionStatus: "applied" | "rolled_back" | "committed";
+  transactionStatus: "applied" | "rolled_back" | "committed" | "inconsistent";
   steps: AgentAttemptStep[];
   referenceErrors: string[];
   postconditions: AgentAttemptPostcondition[];
