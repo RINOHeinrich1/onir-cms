@@ -62,6 +62,7 @@ export type TemplateEditOperation =
         values: RecordValue;
       };
     }
+  | { op: "unset"; target: ProposalTarget }
   | { op: "remove"; target: ProposalTarget }
   | { op: "duplicate"; target: ProposalTarget }
   | {
@@ -407,6 +408,34 @@ export function applyTemplateEditProposal(
       }
       if (result.values !== undefined) values = result.values;
       if (result.itemId !== undefined) itemIds.push(result.itemId);
+      continue;
+    }
+    if (operation.op === "unset") {
+      const target = operation.target;
+      if (target.kind !== "collectionItemField") {
+        errors.push({ field, message: "unset exige un collectionItemField" });
+        break;
+      }
+      if (input.editor.version !== 2) {
+        errors.push({ field, message: "editor V2 requis pour unset" });
+        break;
+      }
+      const reference = input.editor.references?.find(
+        (entry) => entry.from === target.collection && entry.field === target.field,
+      );
+      if (reference === undefined || reference.optional !== true) {
+        errors.push({
+          field: `${field}.target.field`,
+          message: "unset autorisé uniquement sur une référence optionnelle",
+        });
+        break;
+      }
+      const result = applySet({ ...input, values }, target, "");
+      if (result.error !== undefined) {
+        errors.push({ ...result.error, field: `${field}.${result.error.field}` });
+        break;
+      }
+      if (result.values !== undefined) values = result.values;
       continue;
     }
     if (operation.op === "remove") {

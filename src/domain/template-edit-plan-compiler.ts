@@ -481,6 +481,51 @@ function compileOperation(
       },
     };
   }
+  if (operation.op === "unset") {
+    const candidate = candidates.get(operation.candidateId);
+    if (candidate === undefined) {
+      errors.push(
+        error("INVALID_CANDIDATE_ID", `steps.${step.id}.candidateId`, "Candidat inconnu.", {
+          stepId: step.id,
+        }),
+      );
+      return null;
+    }
+    if (
+      !collectionFields(input.schema, candidate.collection).some(
+        (field) => field.key === operation.field,
+      )
+    ) {
+      errors.push(
+        error("INVALID_FIELD", `steps.${step.id}.field`, "Champ inconnu dans la collection.", {
+          stepId: step.id,
+        }),
+      );
+      return null;
+    }
+    const reference = referencesFor(input.editor, candidate.collection, operation.field);
+    if (reference === null || reference.optional !== true) {
+      errors.push(
+        error(
+          "INVALID_REFERENCE_TYPE",
+          `steps.${step.id}.field`,
+          "unset autorisé uniquement sur une référence optionnelle.",
+          { stepId: step.id, expected: "référence optionnelle" },
+        ),
+      );
+      return null;
+    }
+    return {
+      op: "unset",
+      target: {
+        kind: "collectionItemField",
+        collection: candidate.collection,
+        itemKey: candidate.itemKey,
+        itemId: candidate.itemId,
+        field: operation.field,
+      },
+    };
+  }
   if (operation.op === "remove" || operation.op === "duplicate") {
     const candidate = candidates.get(operation.candidateId);
     if (candidate === undefined) {
@@ -501,6 +546,7 @@ function compileOperation(
       },
     };
   }
+  if (operation.op !== "move") return null;
   const target = candidates.get(operation.candidateId);
   const parent = candidates.get(String(operation.parent));
   if (target === undefined || parent === undefined) {

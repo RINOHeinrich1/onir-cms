@@ -34,6 +34,7 @@ export type PlanDslOperation =
         values: Record<string, PlanDslValue>;
       };
     }
+  | { op: "unset"; candidateId: string; field: string }
   | { op: "remove"; candidateId: string }
   | { op: "duplicate"; candidateId: string }
   | {
@@ -349,6 +350,16 @@ function validateOperation(
     };
   }
 
+  if (op === "unset") {
+    const candidateId = text(raw.candidateId);
+    const field = text(raw.field);
+    if (!CANDIDATE_ID.test(candidateId)) {
+      return fail("INVALID_CANDIDATE_ID", "candidateId", "candidateId invalide.");
+    }
+    if (field === "") return fail("MISSING_REQUIRED_PROPERTY", "field", "field est requis.");
+    return { op: "unset", candidateId, field };
+  }
+
   if (op === "remove" || op === "duplicate") {
     const candidateId = text(raw.candidateId);
     if (!CANDIDATE_ID.test(candidateId)) {
@@ -386,7 +397,7 @@ function validateOperation(
     "INVALID_OPERATION",
     "op",
     "opération inconnue.",
-    "set|insert|insertChild|remove|duplicate|move",
+    "set|unset|insert|insertChild|remove|duplicate|move",
   );
 }
 

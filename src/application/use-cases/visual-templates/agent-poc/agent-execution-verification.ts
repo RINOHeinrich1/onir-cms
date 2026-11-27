@@ -114,6 +114,25 @@ export function verifyAgentExecution(input: {
       };
     }
 
+    if (operation.op === "unset") {
+      if (operation.target.kind !== "collectionItemField") {
+        return {
+          stepId: log.stepId,
+          ok: false,
+          message: `${log.stepId} : cible unset invalide.`,
+        };
+      }
+      const target = item(input.after, operation.target.collection, operation.target.itemId);
+      const ok = target !== null && target[operation.target.field] === "";
+      return {
+        stepId: log.stepId,
+        ok,
+        message: ok
+          ? `${operation.target.collection}:${operation.target.itemId}.${operation.target.field} est vide.`
+          : `${log.stepId} : la référence n’a pas été vidée.`,
+      };
+    }
+
     if (operation.op === "remove") {
       const collection = targetCollection(operation.target);
       const itemId = targetItemId(operation.target);

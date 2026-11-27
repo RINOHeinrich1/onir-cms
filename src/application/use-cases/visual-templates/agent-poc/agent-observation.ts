@@ -29,6 +29,8 @@ export type AgentObservation = {
     kind: string | null;
     title: string;
     visible: boolean;
+    actionId: string | null;
+    styleId: string | null;
   }>;
   placements: Array<{
     parentKind: string;
@@ -116,6 +118,8 @@ export function buildAgentObservation(input: {
       kind: optionalText(block.kind),
       title: text(block.title),
       visible: block.visible !== false,
+      actionId: optionalText(block.action_id),
+      styleId: optionalText(block.style_id),
     })),
     placements: placements.map((placement) => ({
       parentKind: text(placement.parent_kind),

@@ -125,3 +125,69 @@ describe("compilateur du Plan DSL", () => {
     expect(codes(result)).toContain("INVALID_TARGET_KIND");
   });
 });
+
+describe("compilateur unset", () => {
+  it("compile unset sur une référence optionnelle", () => {
+    const result = compileTemplateEditPlan(
+      input("retire l’action du bouton", {
+        schemaVersion: 1,
+        intent: "update",
+        steps: [
+          {
+            id: "clear-action",
+            operation: {
+              op: "unset",
+              candidateId: "blocks:card_one",
+              field: "action_id",
+            },
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.plan.steps[0]?.operation).toMatchObject({
+      op: "unset",
+      target: {
+        kind: "collectionItemField",
+        collection: "blocks",
+        itemId: "card_one",
+        field: "action_id",
+      },
+    });
+  });
+
+  it("refuse unset sur une référence obligatoire", () => {
+    const result = compileTemplateEditPlan({
+      plan: {
+        schemaVersion: 1,
+        intent: "update",
+        steps: [
+          {
+            id: "clear-child",
+            operation: {
+              op: "unset",
+              candidateId: "placements:placement_00",
+              field: "child_id",
+            },
+          },
+        ],
+      },
+      editor: puzzleV2Editor,
+      schema: puzzleV2Params,
+      candidates: [
+        {
+          kind: "collectionItem",
+          collection: "placements",
+          itemKey: "id",
+          itemId: "placement_00",
+          label: "Placement",
+          scope: { kind: "unknown" },
+          score: 0,
+          reasons: [],
+        },
+      ],
+    });
+    expect(codes(result)).toContain("INVALID_REFERENCE_TYPE");
+  });
+});

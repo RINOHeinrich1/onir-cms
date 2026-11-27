@@ -331,3 +331,31 @@ describe("application générique d'une proposition d'édition", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("application de unset", () => {
+  it("vide une référence optionnelle", () => {
+    const result = applyTemplateEditProposal({
+      editor: puzzleV2Editor,
+      schema: puzzleV2Params,
+      values: values(),
+      proposal: proposal([
+        {
+          op: "unset",
+          target: {
+            kind: "collectionItemField",
+            collection: "blocks",
+            itemKey: "id",
+            itemId: "card_one",
+            field: "action_id",
+          },
+        },
+      ]),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const block = (result.values.blocks as Array<Record<string, unknown>>).find(
+      (item) => item.id === "card_one",
+    );
+    expect(block?.action_id).toBe("");
+  });
+});

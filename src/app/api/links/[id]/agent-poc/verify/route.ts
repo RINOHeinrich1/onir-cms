@@ -50,6 +50,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
         "Ne suppose pas qu’une modification est réussie si le texte ou le lien attendu n’est pas visible.",
         "Les postconditions de l’exécution (execution.verification) font foi pour les objets qui ne sont pas visibles sur la page courante.",
         "Une page créée, son texte et son entrée de menu peuvent donc être validés même si l’aperçu reste sur une autre page.",
+        "Une opération unset réussie vide la référence (actionId/styleId devient absent ou null). Ne pas exiger une suppression du bloc ni une valeur null différente.",
       ].join("\n"),
       user: [
         `Objectif : ${goal}`,
