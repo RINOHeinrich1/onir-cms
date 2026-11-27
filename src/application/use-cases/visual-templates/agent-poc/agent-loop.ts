@@ -1,5 +1,6 @@
 import type { TemplateParamValues } from "@/domain/template-params";
 import type { AgentAttempt } from "./agent-attempt";
+import type { AgentInteractionRequest } from "./agent-interaction";
 import { type AgentObservation, hashAgentState } from "./agent-observation";
 
 export type AgentLoopPhase =
@@ -124,9 +125,10 @@ export type AgentLoopResult =
       observation: AgentObservation;
       attempts: number;
       lastAttempt: AgentAttempt | null;
+      interaction: AgentInteractionRequest;
     }
   | {
-      status: "awaiting_user_decision";
+      status: "awaiting_user_input";
       reason: string;
       values: TemplateParamValues;
       observation: AgentObservation;
@@ -134,6 +136,7 @@ export type AgentLoopResult =
       baseObservation: AgentObservation;
       attempts: number;
       lastAttempt: AgentAttempt;
+      interaction: AgentInteractionRequest;
     };
 
 export const AGENT_MAX_ITERATIONS = 10;
@@ -247,6 +250,17 @@ export async function runAgentLoop(input: {
     });
 
     if (planned.status === "clarification") {
+      const interaction: AgentInteractionRequest = {
+        id: `thought-${attempt}`,
+        sourcePhase: "thought",
+        kind: "clarification",
+        question: planned.message,
+        options: [
+          { id: "clarify", label: "Préciser la demande" },
+          { id: "cancel", label: "Annuler", description: "Aucun changement." },
+        ],
+        allowFreeText: true,
+      };
       input.ports.emit({
         phase: "decision",
         title: "Décision : clarification",
@@ -261,6 +275,7 @@ export async function runAgentLoop(input: {
         observation: currentObservation,
         attempts: attempt,
         lastAttempt,
+        interaction,
       };
     }
 
@@ -484,6 +499,22 @@ export async function runAgentLoop(input: {
       verified.missing || verified.reason || "Le candidat ne satisfait pas l’objectif.";
     currentAttempt = { ...currentAttempt, errors: [reason] };
     lastAttempt = currentAttempt;
+    const interaction: AgentInteractionRequest = {
+      id: `observation-${attempt}`,
+      sourcePhase: "observation",
+      kind: "confirmation",
+      question: reason,
+      options: [
+        { id: "keep", label: "Garder", description: "Conserver le candidat." },
+        { id: "correct", label: "Corriger", description: "Préciser la correction à appliquer." },
+        { id: "cancel", label: "Annuler", description: "Revenir à l’état committed." },
+      ],
+      allowFreeText: true,
+      context: {
+        candidateHash: candidateObservation.stateHash,
+        baseHash: currentObservation.stateHash,
+      },
+    };
     input.ports.emit({
       phase: "observation",
       title: "Observation : validation utilisateur requise",
@@ -499,7 +530,7 @@ export async function runAgentLoop(input: {
       attempt,
     });
     return {
-      status: "awaiting_user_decision",
+      status: "awaiting_user_input",
       reason,
       values: execution.values,
       observation: candidateObservation,
@@ -507,6 +538,7 @@ export async function runAgentLoop(input: {
       baseObservation: currentObservation,
       attempts: attempt,
       lastAttempt,
+      interaction,
     };
   }
 

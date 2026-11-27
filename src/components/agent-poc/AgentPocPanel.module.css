@@ -54,6 +54,27 @@
   opacity: 0.5;
   cursor: wait;
 }
+.interaction {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+}
+.interactionQuestion {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.interactionOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.interactionOptions button {
+  flex: 1;
+  min-width: 6rem;
+}
 .decision {
   display: flex;
   gap: 0.5rem;

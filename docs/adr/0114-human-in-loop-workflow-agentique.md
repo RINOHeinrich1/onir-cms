@@ -122,7 +122,6 @@ awaiting_user_input
 acting
 observing
 deciding
-awaiting_user_decision
 committed
 rolled_back
 blocked

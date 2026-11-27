@@ -144,7 +144,7 @@ déterministes passent, mais que la vérification sémantique IA répond
 
 ```text
 transactionStatus = applied
-status = awaiting_user_decision
+status = awaiting_user_input
 ```
 
 L’utilisateur voit alors :

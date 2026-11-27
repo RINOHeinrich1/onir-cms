@@ -150,11 +150,46 @@ describe("boucle agentique", () => {
       },
     });
 
-    expect(result.status).toBe("awaiting_user_decision");
+    expect(result.status).toBe("awaiting_user_input");
+    if (result.status !== "awaiting_user_input") return;
     expect(result.attempts).toBe(1);
+    expect(result.interaction.sourcePhase).toBe("observation");
+    expect(result.interaction.allowFreeText).toBe(true);
     expect(result.lastAttempt?.transactionStatus).toBe("applied");
     expect(result.lastAttempt?.steps[0]?.effect).toBe("applied_to_candidate");
     expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("demande une clarification en pensée sans exécuter", async () => {
+    let executed = false;
+    const result = await runAgentLoop({
+      goal: "change le bouton",
+      values: {},
+      ports: {
+        initialObservation: async () => observation(1),
+        plan: async () => ({
+          status: "clarification",
+          message: "Quel bouton faut-il modifier ?",
+          rawPlan: null,
+          warnings: [],
+          attempts: 1,
+        }),
+        execute: async () => {
+          executed = true;
+          return execution(true);
+        },
+        observeCandidate: async () => observation(2),
+        restore: async () => observation(1),
+        verify: async () => ({ satisfied: true, reason: "", missing: "" }),
+        emit: () => undefined,
+      },
+    });
+
+    expect(result.status).toBe("clarification");
+    if (result.status !== "clarification") return;
+    expect(result.interaction.sourcePhase).toBe("thought");
+    expect(result.interaction.allowFreeText).toBe(true);
+    expect(executed).toBe(false);
   });
 
   it("bloque quand le planner repropose le même plan", async () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AgentAttempt } from "@/application/use-cases/visual-templates/agent-poc/agent-attempt";
+import type { AgentInteractionRequest } from "@/application/use-cases/visual-templates/agent-poc/agent-interaction";
 import {
   type AgentExecutionOutcome,
   type AgentLoopEvent,
@@ -45,13 +46,13 @@ type LogEntry = {
   status: "running" | "success" | "warning" | "error";
 };
 
-type PendingDecision = {
-  values: TemplateParamValues;
-  observation: AgentObservation;
+type PendingInteraction = {
+  request: AgentInteractionRequest;
+  values: TemplateParamValues | null;
+  observation: AgentObservation | null;
   baseValues: TemplateParamValues;
   baseObservation: AgentObservation;
-  reason: string;
-  lastAttempt: AgentAttempt;
+  lastAttempt: AgentAttempt | null;
 };
 
 const PLAN_TIMEOUT_MS = 60_000;
@@ -107,7 +108,8 @@ export function AgentPocPanel({
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [observation, setObservation] = useState<AgentObservation | null>(null);
-  const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null);
+  const [pendingInteraction, setPendingInteraction] = useState<PendingInteraction | null>(null);
+  const [interactionText, setInteractionText] = useState("");
   const [finalStatus, setFinalStatus] = useState<string | null>(null);
 
   const log = (entry: LogEntry): void => {
@@ -344,17 +346,20 @@ export function AgentPocPanel({
     });
   };
 
-  const runAgent = async (): Promise<void> => {
+  const runAgent = async (userInstruction = ""): Promise<void> => {
     if (running || goal.trim() === "") return;
     setRunning(true);
     setFinalStatus(null);
     setLogs([]);
-    setPendingDecision(null);
+    setPendingInteraction(null);
+    setInteractionText("");
     const values = currentParamsRef.current;
+    const effectiveGoal =
+      userInstruction === "" ? goal : `${goal}\n\nPrécision utilisateur : ${userInstruction}`;
 
     try {
       const result = await runAgentLoop({
-        goal,
+        goal: effectiveGoal,
         values,
         ports: {
           initialObservation: async () => {
@@ -390,19 +395,27 @@ export function AgentPocPanel({
       if (result.status === "success") {
         currentParamsRef.current = result.values;
         setFinalStatus("Objectif atteint dans le brouillon d’aperçu");
-      } else if (result.status === "awaiting_user_decision") {
-        setPendingDecision({
+      } else if (result.status === "awaiting_user_input") {
+        setPendingInteraction({
+          request: result.interaction,
           values: result.values,
           observation: result.observation,
           baseValues: result.baseValues,
           baseObservation: result.baseObservation,
-          reason: result.reason,
           lastAttempt: result.lastAttempt,
         });
         setObservation(result.observation);
         setFinalStatus("Validation utilisateur requise");
       } else if (result.status === "clarification") {
-        setFinalStatus(`Clarification requise : ${result.reason}`);
+        setPendingInteraction({
+          request: result.interaction,
+          values: null,
+          observation: null,
+          baseValues: currentParamsRef.current,
+          baseObservation: result.observation,
+          lastAttempt: result.lastAttempt,
+        });
+        setFinalStatus("Clarification requise");
       } else {
         setFinalStatus(`${result.status} : ${result.reason}`);
       }
@@ -418,42 +431,90 @@ export function AgentPocPanel({
     }
   };
 
-  const keepPendingDecision = (): void => {
-    if (pendingDecision === null) return;
-    currentParamsRef.current = pendingDecision.values;
-    setObservation(pendingDecision.observation);
-    setPendingDecision(null);
+  const keepInteraction = (): void => {
+    if (
+      pendingInteraction === null ||
+      pendingInteraction.values === null ||
+      pendingInteraction.observation === null
+    ) {
+      return;
+    }
+    currentParamsRef.current = pendingInteraction.values;
+    setObservation(pendingInteraction.observation);
+    setPendingInteraction(null);
     setFinalStatus("Résultat conservé dans le brouillon d’aperçu");
     log({
-      title: "Validation utilisateur : garder",
+      title: "Interaction : garder",
       detail: "Le candidat reste appliqué dans l’aperçu.",
       status: "success",
     });
   };
 
-  const restorePendingDecision = async (label: string): Promise<void> => {
-    if (pendingDecision === null) return;
+  const restoreInteraction = async (label: string): Promise<void> => {
+    if (pendingInteraction === null) return;
     try {
-      const restored = await applyPreview(pendingDecision.baseValues);
+      const restored = await applyPreview(pendingInteraction.baseValues);
       const baseObservation = buildAgentObservation({
-        values: pendingDecision.baseValues,
+        values: pendingInteraction.baseValues,
         render: restored.render,
       });
+      currentParamsRef.current = pendingInteraction.baseValues;
       setObservation(baseObservation);
-      setPendingDecision(null);
+      setPendingInteraction(null);
+      setInteractionText("");
       setFinalStatus(label);
       log({
-        title: `Validation utilisateur : ${label}`,
+        title: `Interaction : ${label}`,
         detail: "L’état committed a été restauré.",
         status: "warning",
       });
     } catch (error) {
       log({
-        title: "Validation utilisateur",
+        title: "Interaction",
         detail: error instanceof Error ? error.message : "Restauration impossible",
         status: "error",
       });
     }
+  };
+
+  const defaultInteractionOption = (): string => {
+    if (pendingInteraction === null) return "";
+    return (
+      pendingInteraction.request.options.find(
+        (option) => option.id !== "keep" && option.id !== "cancel",
+      )?.id ?? "clarify"
+    );
+  };
+
+  const submitInteraction = async (optionId?: string): Promise<void> => {
+    if (pendingInteraction === null) return;
+    const selectedId =
+      optionId ??
+      pendingInteraction.request.options.find(
+        (option) => option.id !== "keep" && option.id !== "cancel",
+      )?.id;
+    if (selectedId === undefined) return;
+    if (selectedId === "keep") {
+      keepInteraction();
+      return;
+    }
+    if (selectedId === "cancel") {
+      await restoreInteraction("Annulé");
+      return;
+    }
+    const selected = pendingInteraction.request.options.find((option) => option.id === selectedId);
+    const text = interactionText.trim();
+    if (text === "") {
+      log({
+        title: "Interaction : réponse requise",
+        detail: "Précisez votre correction ou votre choix.",
+        status: "warning",
+      });
+      return;
+    }
+    const instruction = selected === undefined ? text : `${selected.label} : ${text}`;
+    await restoreInteraction("Correction demandée");
+    await runAgent(instruction);
   };
 
   const previewSrc =
@@ -484,24 +545,34 @@ export function AgentPocPanel({
           {running ? "Agent en cours…" : "Lancer l’agent"}
         </button>
         {finalStatus === null ? null : <p className={styles.status}>{finalStatus}</p>}
-        {pendingDecision === null ? null : (
-          <div className={styles.decision}>
-            <button type="button" className={styles.keep} onClick={keepPendingDecision}>
-              Garder
-            </button>
+        {pendingInteraction === null ? null : (
+          <div className={styles.interaction}>
+            <p className={styles.interactionQuestion}>{pendingInteraction.request.question}</p>
+            <div className={styles.interactionOptions}>
+              {pendingInteraction.request.options.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={option.id === "keep" ? styles.keep : styles.cancel}
+                  onClick={() => void submitInteraction(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className={styles.goal}
+              rows={3}
+              value={interactionText}
+              onChange={(event) => setInteractionText(event.target.value)}
+              placeholder="Précisez votre réponse ou la correction à appliquer…"
+            />
             <button
               type="button"
               className={styles.cancel}
-              onClick={() => void restorePendingDecision("Correction demandée")}
+              onClick={() => void submitInteraction(defaultInteractionOption())}
             >
-              Corriger
-            </button>
-            <button
-              type="button"
-              className={styles.cancel}
-              onClick={() => void restorePendingDecision("Annulé")}
-            >
-              Annuler
+              Envoyer la précision
             </button>
           </div>
         )}
